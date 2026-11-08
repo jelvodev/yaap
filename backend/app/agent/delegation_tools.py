@@ -3,8 +3,9 @@
 The sub-runs are made by the run's `Delegator` (app.agent.delegation); goals by app.core.goals.
 """
 
-import asyncio
 from typing import Any
+
+import anyio
 
 from app.agent.runs import AgentRun
 from app.agent.toolkit import STRING, Tool, ToolError, schema, text_argument
@@ -38,7 +39,7 @@ async def finish_goal(run: AgentRun, arguments: dict[str, Any]) -> str:
     status = str(arguments.get("status") or "")
     if status not in ("done", "blocked"):
         raise ToolError("status must be done or blocked.")
-    return await asyncio.to_thread(run.goal.finish, status, text_argument(arguments, "summary"))
+    return await anyio.to_thread.run_sync(run.goal.finish, status, text_argument(arguments, "summary"))
 
 
 DELEGATION_TOOLS = [

@@ -1,11 +1,11 @@
 """Signing in, the first-run password, the health check and API tokens."""
 
-import asyncio
 import time
 from collections import deque
 from datetime import datetime
 from typing import Literal
 
+import anyio
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -172,7 +172,7 @@ async def sign_in(payload: PasswordIn, request: Request, response: Response) -> 
             return sign_in_response(request, response, session)
 
     # Hashing takes a moment and much memory on purpose; it runs beside the event loop.
-    state = await asyncio.to_thread(attempt)
+    state = await anyio.to_thread.run_sync(attempt)
     if state is None:
         failures.append(time.monotonic())
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "That password is not right.")

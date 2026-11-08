@@ -8,6 +8,7 @@ import asyncio
 import logging
 from pathlib import Path
 
+import anyio
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -68,6 +69,6 @@ async def fetch_periodically(
     while True:
         await asyncio.sleep(FETCH_INTERVAL_SECONDS)
         try:
-            await asyncio.to_thread(fetch_all, session_factory, cipher, blueprint_dir, workspace_dir)
+            await anyio.to_thread.run_sync(fetch_all, session_factory, cipher, blueprint_dir, workspace_dir)
         except Exception:
             logger.exception("Periodic fetch failed.")

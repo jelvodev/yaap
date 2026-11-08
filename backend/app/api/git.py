@@ -4,11 +4,11 @@ Repository ids: "project-<id>", "blueprint-global", "blueprint-environment". Onl
 environment in the path are reachable, and that environment's GitHub token is used for remote actions.
 """
 
-import asyncio
 from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated, Literal
 
+import anyio
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -263,8 +263,8 @@ async def suggest_commit_message(
 ) -> CommitMessageOut:
     """A commit message proposed by the utility model from the current changes; the user reviews it."""
     try:
-        repo_status = await asyncio.to_thread(repository_status, repository.path)
-        diff = await asyncio.to_thread(repository_diff, repository.path)
+        repo_status = await anyio.to_thread.run_sync(repository_status, repository.path)
+        diff = await anyio.to_thread.run_sync(repository_diff, repository.path)
     except GitError as error:
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
     if not repo_status.changes:

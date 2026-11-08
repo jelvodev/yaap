@@ -1,8 +1,9 @@
 """The project search tools: search earlier conversations, memory and knowledge, and read a knowledge document.
 Knowledge documents count as outside content."""
 
-import asyncio
 from typing import Any
+
+import anyio
 
 from app.agent.guard import note_outside
 from app.agent.runs import AgentRun
@@ -25,7 +26,7 @@ async def search_project(run: AgentRun, arguments: dict[str, Any]) -> str:
     scope = str(arguments.get("include") or "all")
     if scope not in SEARCH_SCOPES:
         raise ToolError("include must be all, conversations, memory or knowledge.")
-    items = await asyncio.to_thread(
+    items = await anyio.to_thread.run_sync(
         run.searcher.search, run.environment_id, run.project_id, query, SEARCH_SCOPES[scope], run.conversation_id
     )
     if not items:
@@ -50,9 +51,9 @@ async def read_knowledge(run: AgentRun, arguments: dict[str, Any]) -> str:
     if run.searcher is None or run.project_id is None:
         raise ToolError("Project knowledge exists in a project conversation.")
     name = text_argument(arguments, "name")
-    found = await asyncio.to_thread(run.searcher.knowledge, run.project_id, name)
+    found = await anyio.to_thread.run_sync(run.searcher.knowledge, run.project_id, name)
     if found is None:
-        names = await asyncio.to_thread(run.searcher.knowledge_names, run.project_id)
+        names = await anyio.to_thread.run_sync(run.searcher.knowledge_names, run.project_id)
         raise ToolError(f"No knowledge document '{name}'. Documents: {', '.join(names) or 'none'}.")
     document, text = found
     offset = max(int(arguments.get("offset") or 0), 0)

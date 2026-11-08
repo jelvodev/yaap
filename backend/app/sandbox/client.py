@@ -5,13 +5,13 @@ into the volume both mount. Without either, or when the helper does not answer, 
 available and YAAP says how to start the helper.
 """
 
-import asyncio
 import socket
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+import anyio
 import httpx
 
 from app.config import environment_value
@@ -108,7 +108,7 @@ class HelperClient:
     async def open_socket(self, key: str) -> socket.socket:
         """A socket to the sandbox's sshd through the helper's relay, ready for asyncssh."""
         token = self.secret()
-        return await asyncio.to_thread(relay_socket, self.relay, token, key)
+        return await anyio.to_thread.run_sync(relay_socket, self.relay, token, key)
 
 
 def relay_socket(relay: tuple[str, int], token: str, key: str, timeout: float = 15) -> socket.socket:

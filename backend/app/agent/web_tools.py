@@ -1,11 +1,12 @@
 """The web tools: fetch a page and search the web. What they return counts as outside content."""
 
-import asyncio
 import html
 import re
 import urllib.error
 import urllib.request
 from typing import Any
+
+import anyio
 
 from app.agent.guard import note_outside
 from app.agent.runs import AgentRun
@@ -36,7 +37,7 @@ async def web_fetch(run: AgentRun, arguments: dict[str, Any]) -> str:
             return response.headers.get("Content-Type", ""), response.read(MAX_FETCH_BYTES).decode(errors="replace")
 
     try:
-        content_type, body = await asyncio.to_thread(fetch)
+        content_type, body = await anyio.to_thread.run_sync(fetch)
     except (urllib.error.URLError, TimeoutError, ValueError) as error:
         raise ToolError(f"Fetching {url} failed: {error}") from error
     text = html_to_text(body) if "html" in content_type else body
@@ -53,7 +54,7 @@ async def web_search(run: AgentRun, arguments: dict[str, Any]) -> str:
     except (TypeError, ValueError) as error:
         raise ToolError("count must be a number.") from error
     try:
-        results = await asyncio.to_thread(run.web_search.search, query, max(1, min(count, MAX_WEB_RESULTS)))
+        results = await anyio.to_thread.run_sync(run.web_search.search, query, max(1, min(count, MAX_WEB_RESULTS)))
     except SearchError as error:
         raise ToolError(str(error)) from error
     text = format_results(query, results)

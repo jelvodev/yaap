@@ -1,6 +1,5 @@
 """Credential types: what can be stored, and how a value is tested before it is saved."""
 
-import asyncio
 import json
 import urllib.error
 import urllib.request
@@ -8,6 +7,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 import anthropic
+import anyio
 import openai
 
 from app.providers.claude_code_provider import SIGN_IN_COMMAND
@@ -141,7 +141,7 @@ def request_github_user(token: str) -> tuple[int, str]:
 async def test_github_token(value: str) -> CredentialTestResult:
     """Read the token's own user: a read-only call that works for fine-grained and classic tokens."""
     try:
-        status, body = await asyncio.to_thread(request_github_user, value)
+        status, body = await anyio.to_thread.run_sync(request_github_user, value)
     except (urllib.error.URLError, TimeoutError):
         return CredentialTestResult(False, "Could not reach GitHub. Check the network connection.")
     if status == 401:

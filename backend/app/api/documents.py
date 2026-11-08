@@ -4,9 +4,10 @@ The document's text is read and saved through the Files endpoints, with their ha
 checkpoint; these endpoints keep which document is open and the agent's change that waits for the user's review.
 """
 
-import asyncio
+from functools import partial
 from typing import Literal
 
+import anyio
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 
@@ -188,14 +189,16 @@ async def roll_back_change(
     async with located_files(session, cipher, workspace_dir, project) as located:
         refuse_if_unseen(await read_version(located.files, document.path), body.hash)
         if located.folder is not None:
-            await asyncio.to_thread(
-                store.take,
-                project.id,
-                located.folder,
-                "document",
-                f"Before rolling back YAAP's change to {document.path}",
-                conversation_id=conversation.id,
-                kind="restore",
+            await anyio.to_thread.run_sync(
+                partial(
+                    store.take,
+                    project.id,
+                    located.folder,
+                    "document",
+                    f"Before rolling back YAAP's change to {document.path}",
+                    conversation_id=conversation.id,
+                    kind="restore",
+                )
             )
         if document.review_created:
             await located.files.remove(document.path)

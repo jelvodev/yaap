@@ -18,6 +18,7 @@ import shutil
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import anyio
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
@@ -163,7 +164,7 @@ class ShellSessions:
     async def end_idle_periodically(self, interval: float = 300) -> None:
         while True:
             await asyncio.sleep(interval)
-            await asyncio.to_thread(self.end_idle)
+            await anyio.to_thread.run_sync(self.end_idle)
 
 
 def expired(row: ShellSessionRecord, now: datetime) -> bool:

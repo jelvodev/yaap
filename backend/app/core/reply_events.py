@@ -51,7 +51,11 @@ async def with_steering_fallback(
     finally:
         if run.state.steering:
             texts, run.state.steering = run.state.steering, []
-            await anyio.to_thread.run_sync(queue_undelivered_steering, services.session_factory, conversation_id, texts)
+            # Shielded: a stopped reply's scope keeps cancelling every await until the reply has ended.
+            with anyio.CancelScope(shield=True):
+                await anyio.to_thread.run_sync(
+                    queue_undelivered_steering, services.session_factory, conversation_id, texts
+                )
 
 
 async def with_memory_suggestions(

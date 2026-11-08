@@ -3,9 +3,9 @@
 A level is global (no environment), an environment, or a project in an environment.
 """
 
-import asyncio
 from typing import Annotated, Any, Literal
 
+import anyio
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, UploadFile, status
 from pydantic import BaseModel, Field
 
@@ -302,7 +302,7 @@ async def analyze_import(
 ) -> list[ImportProposalOut]:
     """Proposals for the documents in a Markdown file or zip; nothing is written yet."""
     try:
-        documents = await asyncio.to_thread(collect_documents, file.file, file.filename or "upload.md")
+        documents = await anyio.to_thread.run_sync(collect_documents, file.file, file.filename or "upload.md")
     except BlueprintImportError as error:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
     state = request.app.state
@@ -476,7 +476,7 @@ async def preview_github_skills(
     """Resolve a GitHub link to a fixed commit and list the skills found there; nothing is written."""
     github = GitHubSkills(github_token_for(session, cipher, environment_id))
     try:
-        source, candidates = await asyncio.to_thread(skill_install.preview, github, payload.url)
+        source, candidates = await anyio.to_thread.run_sync(skill_install.preview, github, payload.url)
     except BlueprintError as error:
         raise unprocessable(error) from error
     return GitHubPreviewOut(
@@ -499,7 +499,7 @@ async def install_github_skills(
     github = GitHubSkills(github_token_for(session, cipher, environment_id))
     choices = [(choice.path, choice.name) for choice in payload.skills]
     try:
-        written = await asyncio.to_thread(
+        written = await anyio.to_thread.run_sync(
             skill_install.install_at_commit, github, layers[-1], payload.url, payload.ref, payload.commit, choices
         )
     except BlueprintError as error:
@@ -522,7 +522,7 @@ async def check_skill_update(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "This level has no skill with that name installed from GitHub.")
     github = GitHubSkills(github_token_for(session, cipher, environment_id))
     try:
-        check = await asyncio.to_thread(skill_install.check_update, github, own, name, origin)
+        check = await anyio.to_thread.run_sync(skill_install.check_update, github, own, name, origin)
     except BlueprintError as error:
         raise unprocessable(error) from error
     return SkillUpdateOut(
@@ -644,7 +644,7 @@ async def preview_package(
     """Resolve a package link to a fixed commit and describe its items for review; nothing is written."""
     github = GitHubSkills(github_token_for(session, cipher, environment_id))
     try:
-        package = await asyncio.to_thread(packages.preview, github, payload.url)
+        package = await anyio.to_thread.run_sync(packages.preview, github, payload.url)
     except BlueprintError as error:
         raise unprocessable(error) from error
     own = layers[-1]
@@ -668,7 +668,7 @@ async def install_package(
     github = GitHubSkills(github_token_for(session, cipher, environment_id))
     choices = [(choice.kind, choice.path.strip("/"), choice.name) for choice in payload.items]
     try:
-        return await asyncio.to_thread(
+        return await anyio.to_thread.run_sync(
             packages.install_from_link, github, layers[-1], payload.url, payload.ref, payload.commit, choices
         )
     except BlueprintError as error:
@@ -754,7 +754,7 @@ async def check_package_update(
     installed_package(own, name)
     github = GitHubSkills(github_token_for(session, cipher, environment_id))
     try:
-        check = await asyncio.to_thread(packages.check_update, github, own, name)
+        check = await anyio.to_thread.run_sync(packages.check_update, github, own, name)
     except BlueprintError as error:
         raise unprocessable(error) from error
     installed = packages.installed_items(own)
@@ -798,7 +798,7 @@ async def accept_package_update(
     installed_package(own, name)
     github = GitHubSkills(github_token_for(session, cipher, environment_id))
     try:
-        return await asyncio.to_thread(packages.accept_update, github, own, name, payload.commit, payload.paths)
+        return await anyio.to_thread.run_sync(packages.accept_update, github, own, name, payload.commit, payload.paths)
     except BlueprintError as error:
         raise unprocessable(error) from error
 

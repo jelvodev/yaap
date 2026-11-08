@@ -5,9 +5,9 @@ Branch actions are local git; pull requests go through GitHub's API with the env
 GitHub token. Creating and merging a pull request are actions the user confirmed in the screen (choice 12).
 """
 
-import asyncio
 from typing import Any, Literal
 
+import anyio
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -436,9 +436,9 @@ async def propose_pull(
 ) -> PullProposalOut:
     """A title and description proposed by the utility model from the branch's commits; the user reviews it."""
     try:
-        current = (await asyncio.to_thread(repository_status, repository.path)).branch
+        current = (await anyio.to_thread.run_sync(repository_status, repository.path)).branch
         base = payload.base or "main"
-        commits, files = await asyncio.to_thread(branch_summary, repository.path, base)
+        commits, files = await anyio.to_thread.run_sync(branch_summary, repository.path, base)
     except GitError as error:
         raise github_failure(error) from error
     if not current:

@@ -6,8 +6,10 @@ the file changed since, so the user and the agent never overwrite each other's u
 a checkpoint is taken first, so a save can be compared and rolled back like an action of the agent.
 """
 
-import asyncio
 from dataclasses import dataclass
+from functools import partial
+
+import anyio
 
 from app.agent.guard import content_hash
 from app.attachments.files import classify
@@ -119,8 +121,8 @@ async def save_file(
         raise FileChanged(f"{relative} changed after you opened it. Reload it to see the other changes first.")
     checkpoint_id = None
     if located.folder is not None:
-        checkpoint_id = await asyncio.to_thread(
-            store.take, project.id, located.folder, "editor", f"Saved {relative} in the editor", kind="edit"
+        checkpoint_id = await anyio.to_thread.run_sync(
+            partial(store.take, project.id, located.folder, "editor", f"Saved {relative} in the editor", kind="edit")
         )
     data = text.encode("utf-8")
     await files.write_bytes(relative, data)

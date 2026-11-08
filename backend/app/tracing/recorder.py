@@ -9,7 +9,6 @@ Model calls are recorded at the common entry of the provider adapters (`tracing.
 serves the work.
 """
 
-import asyncio
 import json
 import logging
 from collections.abc import Callable
@@ -17,6 +16,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
+import anyio
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -153,7 +153,7 @@ class TraceRecorder:
 
     async def record(self, run_id: int, step: ModelStep | ToolStep) -> None:
         try:
-            await asyncio.to_thread(self.write, run_id, step)
+            await anyio.to_thread.run_sync(self.write, run_id, step)
         except SQLAlchemyError:
             logger.warning("Recording a step of run %s failed.", run_id, exc_info=True)
         if self.listener is not None:
@@ -164,7 +164,7 @@ class TraceRecorder:
         if self.snapshots is None:
             return None
         try:
-            return await asyncio.to_thread(self.snapshots.save, context, secret_values)
+            return await anyio.to_thread.run_sync(self.snapshots.save, context, secret_values)
         except OSError:
             logger.warning("Storing a context snapshot failed.", exc_info=True)
             return None

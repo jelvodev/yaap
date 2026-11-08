@@ -3,8 +3,9 @@
 They work on the project folder in YAAP; on a computer over SSH git runs as a command instead.
 """
 
-import asyncio
 from typing import Any
+
+import anyio
 
 from app.agent.runs import AgentRun
 from app.agent.tool_context import project_root
@@ -14,12 +15,13 @@ from app.github.client import GitHubClient, GitHubError, repository_name
 
 
 async def git_status(run: AgentRun, _arguments: dict[str, Any]) -> str:
-    status = await asyncio.to_thread(repository_status, project_root(run))
+    status = await anyio.to_thread.run_sync(repository_status, project_root(run))
     lines = [
         f"Branch: {status.branch or 'detached'}",
         f"Upstream: {status.upstream or 'none'} (ahead {status.ahead}, behind {status.behind})",
     ]
-    others = [branch.name for branch in await asyncio.to_thread(list_branches, project_root(run)) if not branch.current]
+    branches = await anyio.to_thread.run_sync(list_branches, project_root(run))
+    others = [branch.name for branch in branches if not branch.current]
     if others:
         lines.append(f"Other local branches: {', '.join(others[:30])}")
     lines += [f"{change.state}: {change.path}" for change in status.changes] or ["No changes."]
@@ -27,18 +29,18 @@ async def git_status(run: AgentRun, _arguments: dict[str, Any]) -> str:
 
 
 async def git_diff(run: AgentRun, _arguments: dict[str, Any]) -> str:
-    diff = await asyncio.to_thread(repository_diff, project_root(run))
+    diff = await anyio.to_thread.run_sync(repository_diff, project_root(run))
     return truncate(diff) if diff.strip() else "No changes."
 
 
 async def git_commit(run: AgentRun, arguments: dict[str, Any]) -> str:
     message = text_argument(arguments, "message")
-    commit = await asyncio.to_thread(commit_all, project_root(run), message, run.git_author)
+    commit = await anyio.to_thread.run_sync(commit_all, project_root(run), message, run.git_author)
     return f"Committed all changes as {commit}."
 
 
 async def git_push(run: AgentRun, _arguments: dict[str, Any]) -> str:
-    await asyncio.to_thread(push, project_root(run), run.github_token)
+    await anyio.to_thread.run_sync(push, project_root(run), run.github_token)
     return "Pushed."
 
 
@@ -71,7 +73,7 @@ def open_pull(run: AgentRun, arguments: dict[str, Any]) -> str:
 
 
 async def create_pull_request(run: AgentRun, arguments: dict[str, Any]) -> str:
-    return await asyncio.to_thread(open_pull, run, arguments)
+    return await anyio.to_thread.run_sync(open_pull, run, arguments)
 
 
 GIT_TOOLS = [

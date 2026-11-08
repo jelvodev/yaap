@@ -3,13 +3,15 @@
 Reading is always allowed; importing writes into the project folder and asks before it overwrites a file.
 """
 
-import asyncio
 import base64
 import os
 import re
 import shutil
+from functools import partial
 from pathlib import Path, PurePosixPath
 from typing import Any
+
+import anyio
 
 from app.agent.runs import AgentRun, AttachmentRef
 from app.agent.toolkit import STRING, Tool, ToolError, ToolOutput, schema, text_argument, truncate
@@ -123,7 +125,7 @@ async def list_attachment(run: AgentRun, arguments: dict[str, Any]) -> str:
     folder = archive_file(attachment, str(arguments.get("path") or "."))
     if folder.is_file():
         return f"{folder.relative_to(root).as_posix()} ({human_size(folder.stat().st_size)})"
-    entries = await asyncio.to_thread(entries_below, root, folder)
+    entries = await anyio.to_thread.run_sync(entries_below, root, folder)
     if not entries:
         return "The folder is empty."
     suffix = f"\n[More than {MAX_LISTED} files; list a sub folder.]" if len(entries) > MAX_LISTED else ""
@@ -141,15 +143,16 @@ async def read_attachment(run: AgentRun, arguments: dict[str, Any]) -> str:
             file = archive_file(attachment, path)
             if file.is_dir():
                 raise ToolError(f"{path} is a folder. Use list_attachment to see its files.")
-            return await asyncio.to_thread(read_any_file, file, arguments)
+            return await anyio.to_thread.run_sync(read_any_file, file, arguments)
         if attachment.kind == "image":
             data, media_type = image_for_model(attachment.folder, attachment.media_type)
             return image_output(attachment.name, data, media_type)
         if attachment.kind in ("pdf", "office"):
             extracted = attachment.folder / "extracted.md"
-            return numbered(await asyncio.to_thread(extracted.read_text, encoding="utf-8"), arguments)
+            return numbered(await anyio.to_thread.run_sync(partial(extracted.read_text, encoding="utf-8")), arguments)
         if attachment.kind == "text":
-            text = await asyncio.to_thread(original_file(attachment.folder).read_text, encoding="utf-8", errors="replace")
+            read = partial(original_file(attachment.folder).read_text, encoding="utf-8", errors="replace")
+            text = await anyio.to_thread.run_sync(read)
             return numbered(text, arguments)
         return f"{attachment.name} is a binary file; it cannot be read as text."
     except AttachmentError as error:
@@ -198,7 +201,7 @@ async def search_attachment(run: AgentRun, arguments: dict[str, Any]) -> str:
                             return matches
         return matches
 
-    matches = await asyncio.to_thread(scan)
+    matches = await anyio.to_thread.run_sync(scan)
     return "\n".join(matches) if matches else "No matches."
 
 
@@ -247,7 +250,7 @@ async def import_attachment(run: AgentRun, arguments: dict[str, Any]) -> str:
             created += not existed
         return created, replaced
 
-    created, replaced = await asyncio.to_thread(copy)
+    created, replaced = await anyio.to_thread.run_sync(copy)
     run.state.outside_files.update(target.relative_to(project).as_posix() for _, target in plan)
     shown = ", ".join(target.relative_to(project).as_posix() for _, target in plan[:10])
     more = f" and {len(plan) - 10} more" if len(plan) > 10 else ""

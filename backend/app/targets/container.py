@@ -10,8 +10,11 @@ import signal
 import subprocess
 import sys
 from collections.abc import Callable
+from functools import partial
 from pathlib import Path
 from typing import Any
+
+import anyio
 
 from app.config import environment_value
 from app.targets.base import CommandResult, FileEntry, TargetError
@@ -116,16 +119,16 @@ class LocalFiles:
         return local_entry(self.relative(target), target)
 
     async def read_bytes(self, path: str) -> bytes:
-        return await asyncio.to_thread(self.absolute(self.check(path)).read_bytes)
+        return await anyio.to_thread.run_sync(self.absolute(self.check(path)).read_bytes)
 
     async def write_bytes(self, path: str, data: bytes) -> None:
         target = self.absolute(self.check(path, for_write=True))
         target.parent.mkdir(parents=True, exist_ok=True)
-        await asyncio.to_thread(target.write_bytes, data)
+        await anyio.to_thread.run_sync(target.write_bytes, data)
 
     async def remove(self, path: str) -> None:
         target = self.absolute(self.check(path, for_write=True))
-        await asyncio.to_thread(target.unlink, missing_ok=True)
+        await anyio.to_thread.run_sync(partial(target.unlink, missing_ok=True))
 
     async def walk(self, path: str, recursive: bool, skip: set[str], limit: int) -> list[FileEntry]:
         folder = self.absolute(self.check(path))
@@ -141,7 +144,7 @@ class LocalFiles:
                     break
             return entries
 
-        return await asyncio.to_thread(collect)
+        return await anyio.to_thread.run_sync(collect)
 
     async def search(self, pattern: str, path: str, glob: str, limit: int, skip: set[str] | None = None) -> list[str]:
         compiled = re.compile(pattern)
@@ -167,7 +170,7 @@ class LocalFiles:
                                 return matches
             return matches
 
-        return await asyncio.to_thread(scan)
+        return await anyio.to_thread.run_sync(scan)
 
 
 class LocalExecutor:

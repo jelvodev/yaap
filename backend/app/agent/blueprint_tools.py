@@ -1,7 +1,8 @@
 """The Blueprint tools: load a standard or a skill, and add an entry to the project memory."""
 
-import asyncio
 from typing import Any
+
+import anyio
 
 from app.agent.guard import note_outside
 from app.agent.runs import AgentRun
@@ -36,7 +37,7 @@ async def update_memory(run: AgentRun, arguments: dict[str, Any]) -> str:
     section = text_argument(arguments, "section")
     entry = text_argument(arguments, "entry")
     try:
-        await asyncio.to_thread(remember, project_root(run), section, entry)
+        await anyio.to_thread.run_sync(remember, project_root(run), section, entry)
     except ProjectMemoryError as error:
         raise ToolError(str(error)) from error
     return f"Remembered under {section}. The entry is in .blueprint/memory.md and committed on its own."

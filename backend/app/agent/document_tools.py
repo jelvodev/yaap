@@ -7,10 +7,11 @@ over a change of the user that the agent has not seen, with the diff. `deliver_d
 change since the agent last saw the document to a tool result.
 """
 
-import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
+
+import anyio
 
 from app.agent.guard import remember_file
 from app.agent.runs import AgentRun
@@ -46,7 +47,7 @@ async def open_document(run: AgentRun, arguments: dict[str, Any]) -> str:
         raise ToolError(f"{path} is a folder.")
     current = await target.read_bytes(path) if entry is not None else None
     try:
-        await asyncio.to_thread(link.open, path, current)
+        await anyio.to_thread.run_sync(link.open, path, current)
     except DocumentError as error:
         raise ToolError(str(error)) from error
     run.events.put_nowait({"event": "document_open", "path": path})
@@ -68,7 +69,7 @@ async def with_document(
     link = run.documents
     if link is None or name not in FILE_TOOLS:
         return await handler(run, arguments)
-    document = await asyncio.to_thread(link.load)
+    document = await anyio.to_thread.run_sync(link.load)
     if document is None:
         return await handler(run, arguments)
     target = files(run)
@@ -80,14 +81,14 @@ async def with_document(
         return await handler(run, arguments)
     if name == "read_file":
         output = await handler(run, arguments)
-        await asyncio.to_thread(link.seen, path, await read_version(target, path))
+        await anyio.to_thread.run_sync(link.seen, path, await read_version(target, path))
         return output
     before = await read_version(target, path)
     before_hash = hash_of(before)
     if before_hash != document.known_hash and run.state.file_hashes.get(path, "") != before_hash:
         # The user changed it since the agent last saw it: tell the agent how, and change nothing.
         diff = unified_diff(path, document.known_text, text_of(before))
-        await asyncio.to_thread(link.seen, path, before)
+        await anyio.to_thread.run_sync(link.seen, path, before)
         told(run, path, before)
         link.unchecked = False
         raise ToolError(
@@ -102,8 +103,10 @@ async def with_document(
         run.events.put_nowait({"event": "document_change", "path": path, "hash": before_hash})
         raise
     after = await read_version(target, path)
-    checkpoint_id = await asyncio.to_thread(link.checkpoint_for, call_key(name, arguments)) if run.checkpoints else None
-    await asyncio.to_thread(link.agent_changed, path, before, after, checkpoint_id)
+    checkpoint_id = (
+        await anyio.to_thread.run_sync(link.checkpoint_for, call_key(name, arguments)) if run.checkpoints else None
+    )
+    await anyio.to_thread.run_sync(link.agent_changed, path, before, after, checkpoint_id)
     run.events.put_nowait({"event": "document_change", "path": path, "hash": hash_of(after)})
     return output
 
@@ -123,14 +126,14 @@ async def deliver_document_changes(
         return output
     link.unchecked = False
     try:
-        document = await asyncio.to_thread(link.load)
+        document = await anyio.to_thread.run_sync(link.load)
         if document is None:
             return output
         current = await read_version(files(run), document.path)
         if hash_of(current) == document.known_hash:
             return output
         diff = unified_diff(document.path, document.known_text, text_of(current))
-        await asyncio.to_thread(link.seen, document.path, current)
+        await anyio.to_thread.run_sync(link.seen, document.path, current)
         told(run, document.path, current)
     except (ToolError, TargetError, OSError) as error:
         logger.warning("The shared document of conversation %s could not be checked: %s", run.conversation_id, error)

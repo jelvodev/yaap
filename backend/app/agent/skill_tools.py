@@ -4,8 +4,9 @@ Installing always asks, whatever the tool permissions say: the handler shows the
 so the permission gate does not ask a second time.
 """
 
-import asyncio
 from typing import Any
+
+import anyio
 
 from app.agent.guard import guard_reason
 from app.agent.runs import AgentRun, ask_approval
@@ -49,7 +50,7 @@ async def install_skill(run: AgentRun, arguments: dict[str, Any]) -> str:
     layer = target_layer(run, level)
     github = GitHubSkills(run.github_token)
     try:
-        source, candidates = await asyncio.to_thread(preview, github, url)
+        source, candidates = await anyio.to_thread.run_sync(preview, github, url)
     except BlueprintError as error:
         raise ToolError(str(error)) from error
     if wanted:
@@ -68,7 +69,7 @@ async def install_skill(run: AgentRun, arguments: dict[str, Any]) -> str:
     if decision != "approve":
         raise ToolError("The user declined installing this skill. Do not retry it; ask the user what to do instead.")
     try:
-        await asyncio.to_thread(
+        await anyio.to_thread.run_sync(
             install_at_commit, github, layer, url, source.ref, source.commit, [(candidate.path, candidate.name)]
         )
     except BlueprintError as error:

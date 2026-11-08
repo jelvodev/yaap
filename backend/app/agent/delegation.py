@@ -20,6 +20,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
+import anyio
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.agent.exploring import EXPLORE_INSTRUCTIONS, capped_report, explore_only
@@ -244,10 +245,12 @@ class Delegator:
             status, texts, stopped = "incomplete", ["The task was stopped with the reply that started it."], error
         finally:
             self.runs.finish(child)
-            try:
-                await provider.close()
-            except Exception:  # noqa: BLE001 - closing must not hide the outcome
-                logger.warning("Closing the sub-run's provider failed.", exc_info=True)
+            # Shielded: a stopped reply's scope keeps cancelling every await until the reply has ended.
+            with anyio.CancelScope(shield=True):
+                try:
+                    await provider.close()
+                except Exception:  # noqa: BLE001 - closing must not hide the outcome
+                    logger.warning("Closing the sub-run's provider failed.", exc_info=True)
         report = "".join(texts).strip() or "(The sub-run ended without a report.)"
         transcript.append({"type": "text", "text": report})
         changed = sorted(child.state.changed_files)

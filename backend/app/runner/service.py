@@ -18,13 +18,13 @@ with what to do; YAAP never falls back to running them in its own container. `YA
 process instead, for development without Docker and for the test suite.
 """
 
-import asyncio
 import socket
 import threading
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 
+import anyio
 import asyncssh
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
@@ -217,7 +217,7 @@ class Runners:
             with self.session_factory() as session:
                 return self.target(session, environment_id, used_by)[1]
 
-        return await asyncio.to_thread(build)
+        return await anyio.to_thread.run_sync(build)
 
 
 def new_runner(session: Session, cipher: CredentialCipher, environment: Environment) -> Target:

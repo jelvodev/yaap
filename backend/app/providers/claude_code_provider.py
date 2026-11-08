@@ -17,6 +17,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import anyio
+
 from app.core.subprocess_env import safe_subprocess_env
 from app.git.safety import UnsafeRepository, check_repository, git_variables
 from app.providers.base import (
@@ -260,7 +262,7 @@ class ClaudeCodeProvider:
     async def run_once(self, request: AgentRequest) -> AsyncIterator[AgentEvent]:
         if request.working_folder is not None:
             try:
-                await asyncio.to_thread(check_repository, request.working_folder)
+                await anyio.to_thread.run_sync(check_repository, request.working_folder)
             except UnsafeRepository as error:
                 raise ProviderError(str(error)) from error
         turn = plan_turn(request.messages)

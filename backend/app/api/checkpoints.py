@@ -1,8 +1,8 @@
 """Checkpoints of a project folder: list, the changes of one action, and roll back."""
 
-import asyncio
 from datetime import datetime
 
+import anyio
 from fastapi import APIRouter, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -144,7 +144,7 @@ async def restore_checkpoint(
         raise HTTPException(status.HTTP_409_CONFLICT, REPLY_RUNNING)
     folder = folder_of(project, workspace_dir)
     try:
-        before = await asyncio.to_thread(store(request).restore, checkpoint, folder, conversation_id)
+        before = await anyio.to_thread.run_sync(store(request).restore, checkpoint, folder, conversation_id)
     except CheckpointError as error:
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
     assert before is not None

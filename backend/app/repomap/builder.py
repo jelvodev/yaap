@@ -9,6 +9,8 @@ import asyncio
 import logging
 from dataclasses import dataclass
 
+import anyio
+
 from app.evals.footprint import CHARS_PER_TOKEN
 from app.outline.symbols import Outliner, OutlineError, Symbol
 from app.repomap.listing import project_files, revision
@@ -70,13 +72,13 @@ async def build_repo_map(
     async with asyncio.timeout(seconds):
         found = await revision(source.files, source.executor)
         key = f"v{MAP_VERSION}:{budget_tokens}:{found.key}" + ("" if found.shared else f":{source.location}")
-        stored = await asyncio.to_thread(store.get, key)
+        stored = await anyio.to_thread.run_sync(store.get, key)
         if stored is not None:
             return RepoMap(stored, key, cached=True)
         files = await project_files(source.executor, found)
     modules = await outline_modules(source, files, deadline)
     text = render_map(found.label, files, modules, budget_tokens, budget_tokens * CHARS_PER_TOKEN)
-    await asyncio.to_thread(store.put, key, text)
+    await anyio.to_thread.run_sync(store.put, key, text)
     return RepoMap(text, key, cached=False)
 
 

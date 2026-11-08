@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+import anyio
 from sqlalchemy import delete, exists, select
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -295,7 +296,7 @@ class SearchIndexer:
         self._wake = asyncio.Event()
         while True:
             try:
-                await asyncio.to_thread(self.index_pass)
+                await anyio.to_thread.run_sync(self.index_pass)
             except Exception:  # noqa: BLE001 - the next pass tries again
                 logger.exception("Indexing for search failed.")
             try:

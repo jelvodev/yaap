@@ -7,12 +7,14 @@ app.agent.permissions decide, shows the approval card when it asks, takes a chec
 tool.
 """
 
-import asyncio
 import json
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from functools import partial
 from typing import Any
+
+import anyio
 
 from app.agent.attachment_tools import find_attachment
 from app.agent.document_tools import deliver_document_changes, with_document
@@ -91,7 +93,7 @@ async def gate_call(
     if repeats >= REFUSE_REPEATS:
         if run.goal is not None:
             pause = f"Paused: the agent called {name} {repeats} times in a row with the same arguments."
-            await asyncio.to_thread(run.goal.pause, pause)
+            await anyio.to_thread.run_sync(run.goal.pause, pause)
         return (
             ToolOutput(
                 f"Refused: this is call {repeats} of {name} with the same arguments in a row. Repeating it will not "
@@ -204,15 +206,17 @@ async def take_checkpoint(run: AgentRun, tool: Tool, name: str, arguments: dict[
         return
     summary = tool.describe(arguments) if tool.describe else f"{name}: {arguments.get('path') or ''}".rstrip(": ")
     key = call_key(name, arguments)
-    checkpoint_id = await asyncio.to_thread(
-        run.checkpoints.take,
-        run.project_id,
-        run.project_folder,
-        name,
-        summary,
-        conversation_id=run.conversation_id,
-        run_record_id=run.state.record_id,
-        key=key,
+    checkpoint_id = await anyio.to_thread.run_sync(
+        partial(
+            run.checkpoints.take,
+            run.project_id,
+            run.project_folder,
+            name,
+            summary,
+            conversation_id=run.conversation_id,
+            run_record_id=run.state.record_id,
+            key=key,
+        )
     )
     if checkpoint_id is not None:
         run.events.put_nowait({"event": "checkpoint", "checkpoint_id": checkpoint_id, "call_key": key, "tool": name})

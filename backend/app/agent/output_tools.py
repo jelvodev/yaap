@@ -3,8 +3,9 @@
 How outputs are stored and shortened lives in app.agent.outputs.
 """
 
-import asyncio
 from typing import Any
+
+import anyio
 
 from app.agent.outputs import read_range, search_lines
 from app.agent.runs import AgentRun
@@ -20,7 +21,7 @@ async def read_output(run: AgentRun, arguments: dict[str, Any]) -> str:
         end = int(arguments["end_line"]) if arguments.get("end_line") else None
     except (TypeError, ValueError) as error:
         raise ToolError("output, start_line and end_line must be numbers.") from error
-    text = await asyncio.to_thread(run.outputs.read, number)
+    text = await anyio.to_thread.run_sync(run.outputs.read, number)
     if text is None:
         raise ToolError(f"There is no output {number} in this conversation.")
     search = str(arguments.get("search") or "").strip()

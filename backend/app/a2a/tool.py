@@ -4,9 +4,9 @@ The tool exists only in runs of an environment with agents in `a2a_agents`. Each
 counts as outside content for the injection guard, like a web page.
 """
 
-import asyncio
 from typing import Any
 
+import anyio
 import httpx
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -69,7 +69,7 @@ def agent_tools(
         audit = a2a_entry(environment_id, run.project_id, conversation_id, name, message, agent.token)
         blocked = text_refusal(message, outgoing)
         if blocked is not None:
-            await asyncio.to_thread(record_request, session_factory, with_refusal(audit, blocked))
+            await anyio.to_thread.run_sync(record_request, session_factory, with_refusal(audit, blocked))
             raise ToolError(blocked)
         token = None
         if agent.token:
@@ -77,8 +77,8 @@ def agent_tools(
                 token = fill_in(agent.token, secrets)
             except SecretError as error:
                 raise ToolError(f"Agent {name}: {error} Add it in the vault of this environment.") from error
-            await asyncio.to_thread(record_use, agent, conversation_id)
-        await asyncio.to_thread(record_request, session_factory, audit)
+            await anyio.to_thread.run_sync(record_use, agent, conversation_id)
+        await anyio.to_thread.run_sync(record_request, session_factory, audit)
         try:
             reply = await send_message(agent.url, token, message, context_id, agent.timeout, transport)
         except A2AError as error:

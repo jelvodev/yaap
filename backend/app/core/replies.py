@@ -10,6 +10,10 @@ import contextlib
 import logging
 from collections.abc import AsyncIterator
 
+import anyio
+
+from app.core.background import BackgroundWork
+
 logger = logging.getLogger(__name__)
 
 
@@ -27,17 +31,18 @@ class ReplyJob:
         changed.set()
 
     async def run(self, events: AsyncIterator[str]) -> None:
+        """Until the reply ends. A stop cancels the reply's scope: the cancellation goes through the reply stream, which
+        stores what arrived on its way out, and ends at the scope."""
         try:
             async for event in events:
                 self.events.append(event)
                 self._notify()
-        except asyncio.CancelledError:
-            pass  # Stopped: the reply stream stored what arrived on its way out.
-        except Exception:
+        except Exception:  # A background task: the reply's failure is logged, the app goes on.
             logger.exception("A reply failed in the background.")
         finally:
-            with contextlib.suppress(Exception):
-                await events.aclose()  # type: ignore[attr-defined]
+            # Shielded: a stopped reply's scope keeps cancelling every await until the reply has ended.
+            with anyio.CancelScope(shield=True), contextlib.suppress(Exception):
+                await events.aclose()  # type: ignore[attr-defined]  # the reply streams are async generators
             self.done = True
             self._notify()
 
@@ -57,6 +62,9 @@ class ReplyJob:
 class ReplyRegistry:
     def __init__(self) -> None:
         self.jobs: dict[int, ReplyJob] = {}
+        # Each reply runs in a cancel scope of its own, so a stop waits for a worker thread the reply is in (a tool's,
+        # or recording a step) instead of leaving it running.
+        self.work: BackgroundWork[None] = BackgroundWork()
 
     def running(self, conversation_id: int) -> ReplyJob | None:
         return self.jobs.get(conversation_id)
@@ -68,7 +76,7 @@ class ReplyRegistry:
         """Must run on the event loop. The caller has checked that nothing runs for the conversation."""
         job = ReplyJob(conversation_id, environment_id)
         self.jobs[conversation_id] = job
-        job.task = asyncio.create_task(job.run(events), name=f"reply-{conversation_id}")
+        job.task = self.work.start(job.run(events), name=f"reply-{conversation_id}")
         job.task.add_done_callback(lambda _task: self.jobs.pop(conversation_id, None))
         return job
 
@@ -78,15 +86,14 @@ class ReplyRegistry:
         job = self.jobs.get(conversation_id)
         if job is None or job.task is None:
             return None
-        job.task.cancel()
+        self.work.cancel(job.task)
         return job.task
 
     async def stop(self, conversation_id: int) -> bool:
         task = self.cancel(conversation_id)
         if task is None:
             return False
-        with contextlib.suppress(asyncio.CancelledError):
-            await task
+        await self.work.wait(task)
         return True
 
     async def shutdown(self) -> None:

@@ -9,12 +9,14 @@ from datetime import UTC, datetime
 from types import EllipsisType
 from typing import Any
 
+import anyio
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.agent.runs import AgentRun, RunRegistry
 from app.agents.records import finish_record, finish_run_record
 from app.attachments.service import AttachmentResolver, attachment_block
+from app.core.background import BackgroundWork
 from app.core.conversation_schemas import ConversationSummaryOut, message_to_out
 from app.core.message_parts import model_content
 from app.core.model_choice import Billing
@@ -244,7 +246,11 @@ async def merge_events(
         while True:
             await queue.put(("event", await run_events.get()))
 
-    tasks = [asyncio.create_task(pump_provider()), asyncio.create_task(pump_run())]
+    # The pumps run in cancel scopes of their own: stopping them waits for a worker thread that a tool of the
+    # provider's tool loop (inside pump_provider) is in.
+    pumps: BackgroundWork[None] = BackgroundWork()
+    pumps.start(pump_provider())
+    pumps.start(pump_run())
     try:
         while True:
             kind, value = await queue.get()
@@ -261,9 +267,9 @@ async def merge_events(
                 raise value
             yield value
     finally:
-        for task in tasks:
-            task.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
+        # Shielded: a stopped reply's scope keeps cancelling every await until the reply has ended.
+        with anyio.CancelScope(shield=True):
+            await pumps.stop()
 
 
 def store_assistant_reply(
@@ -511,7 +517,9 @@ async def stream_reply(
             finish_run_record(session_factory, run, reply_id, final_status, tool_calls)
         elif record_id is not None:
             finish_record(session_factory, record_id, reply_id, final_status, 0)
-        try:
-            await provider.close()
-        except Exception:  # noqa: BLE001 - closing must never hide the original outcome
-            logger.warning("Closing the provider client failed.", exc_info=True)
+        # Shielded: a stopped reply's scope keeps cancelling every await until the reply has ended.
+        with anyio.CancelScope(shield=True):
+            try:
+                await provider.close()
+            except Exception:  # noqa: BLE001 - closing must never hide the original outcome
+                logger.warning("Closing the provider client failed.", exc_info=True)
