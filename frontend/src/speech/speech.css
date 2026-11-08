@@ -1,0 +1,81 @@
+/* Speech: the microphone in the composer and Read aloud on replies. */
+
+.speech-mic {
+  position: relative;
+  display: inline-flex;
+}
+
+.mic-button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.mic-button.mic-recording {
+  border-color: var(--danger);
+  color: var(--danger);
+  animation: mic-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes mic-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--danger) 0%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mic-button.mic-recording {
+    animation: none;
+  }
+}
+
+/* A note above the microphone: recording time, the model download, or why speech input cannot be used. */
+.speech-note {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 5;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: max-content;
+  max-width: min(420px, 80vw);
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--raised);
+  box-shadow: 0 8px 24px var(--shadow);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.speech-note-error {
+  border-color: color-mix(in srgb, var(--danger) 60%, var(--border-strong));
+}
+
+.speech-note-close {
+  flex-shrink: 0;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.speech-note-close:hover {
+  color: var(--text);
+}
+
+/* Read aloud on a reply: the button stays visible, in the accent colour, while that reply is read. */
+.message-actions:has(.read-aloud-active) {
+  opacity: 1;
+}
+
+.message-actions .read-aloud-active {
+  color: var(--accent-text);
+}

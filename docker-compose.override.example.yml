@@ -1,0 +1,30 @@
+# Personal Docker settings for this computer. Copy this file to docker-compose.override.yml (which git ignores) and
+# keep only what you need; Docker Compose merges it with docker-compose.yml by itself.
+
+services:
+  yaap:
+    volumes:
+      # A backup destination (Settings > Backup > Destinations, kind Folder, path /backup): a folder of this
+      # computer, preferably on another disk than the data folder. On Windows, for example:
+      - D:/Backups/YAAP:/backup
+      # On macOS or Linux, for example:
+      # - /Volumes/External/YAAP:/backup
+
+    # The master key as a Docker secret instead of in .env (see docs/configuration.md, "The master key"):
+    # environment:
+    #   YAAP_MASTER_KEY_FILE: /run/secrets/yaap_master_key
+    # secrets:
+    #   - yaap_master_key
+
+  # Extra packages for the runners and sandboxes (docs/configuration.md, "Extra packages for the runner"): one extra
+  # layer on the sandbox image. Rebuild with docker compose up -d --build; each runner is made again from the new image
+  # on its next use.
+  # sandbox-image:
+  #   build:
+  #     args:
+  #       EXTRA_APT_PACKAGES: "postgresql-client default-jdk-headless"
+  #       EXTRA_SETUP: "npm install --global pnpm@10"
+
+# secrets:
+#   yaap_master_key:
+#     file: ./master-key.txt

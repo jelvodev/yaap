@@ -1,0 +1,62 @@
+/* The preview beside the chat. */
+
+.preview-panel {
+  display: flex;
+  flex-direction: column;
+  width: 520px;
+  flex-shrink: 0;
+  min-height: 0;
+  border-left: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.pv-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pv-head h2 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.pv-head select {
+  max-width: 220px;
+}
+
+.pv-close {
+  width: 30px;
+  height: 30px;
+  margin-left: auto;
+}
+
+.pv-pad {
+  padding: 12px 16px;
+  margin: 0;
+}
+
+.pv-frame {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.pv-shot {
+  margin: 0;
+  padding: 8px 12px 12px;
+  border-top: 1px solid var(--border);
+  max-height: 40%;
+  overflow: auto;
+}
+
+.pv-shot img {
+  display: block;
+  max-width: 100%;
+  border: 1px solid var(--border);
+}

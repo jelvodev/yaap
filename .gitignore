@@ -1,0 +1,29 @@
+# Secrets and local data
+.env
+.env.*
+!.env.example
+data/
+# The baseline eval fixture's sample data is part of the repository.
+!evals/baseline/project/stockroom/data/
+*.db
+
+# Local settings for this checkout
+.claude/
+CLAUDE.local.md
+docker-compose.override.yml
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Frontend
+node_modules/
+frontend/dist/
+frontend/plugin-sdk/.build/
+
+# Internal design, roadmap, plans and to do: kept locally, not published.
+internal/

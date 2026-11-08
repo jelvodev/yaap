@@ -1,0 +1,216 @@
+/* The controls in the message box's bar (plan-chat-interface 2.2): the model setup, Attach and Goal mode. */
+
+.model-setup,
+.attach-menu {
+  position: relative;
+}
+
+.model-setup-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-height: 36px;
+  padding: 0 10px 0 8px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.model-setup-button:hover,
+.model-setup-button[aria-expanded="true"] {
+  border-color: var(--border-strong);
+  background: var(--hover);
+  color: var(--text);
+}
+
+.model-setup-label {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.model-setup-caret {
+  color: var(--faint);
+  font-size: 10px;
+}
+
+/* The ring around the icon is the context meter: accent, then warning from 80%, danger from 95%. */
+.context-ring {
+  flex-shrink: 0;
+}
+
+.context-ring-track,
+.context-ring-arc {
+  fill: none;
+  stroke-width: 2.2;
+}
+
+.context-ring-track {
+  stroke: var(--border-strong);
+}
+
+.context-ring-arc {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.4s;
+}
+
+.context-ring-filling .context-ring-arc {
+  stroke: var(--warning);
+}
+
+.context-ring-full .context-ring-arc {
+  stroke: var(--danger);
+}
+
+.context-ring-icon {
+  fill: var(--muted);
+}
+
+.model-setup-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  width: min(340px, calc(100vw - 32px));
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+  padding: 4px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--raised);
+  box-shadow: 0 12px 30px var(--shadow);
+  font-size: 13px;
+}
+
+.model-setup-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+  padding: 4px 0;
+  color: var(--muted);
+}
+
+.model-setup-popover > .model-setup-row,
+.model-setup-context {
+  border-bottom: 1px solid var(--border);
+}
+
+.model-setup-popover > :last-child {
+  border-bottom: 0;
+}
+
+.model-setup-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text);
+}
+
+.model-setup-popover .model-setup-control select {
+  max-width: 200px;
+  min-height: 30px;
+  padding: 0 8px;
+  font-size: 13px;
+}
+
+.model-setup-value {
+  color: var(--text);
+}
+
+.model-setup-context {
+  padding-bottom: 10px;
+}
+
+.model-setup-context .model-setup-row {
+  min-height: 32px;
+}
+
+.model-setup-context .model-setup-meter {
+  display: block;
+  width: 100%;
+}
+
+.model-setup-details {
+  margin-top: 6px;
+}
+
+.model-setup-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 12.5px;
+}
+
+.model-setup-breakdown p {
+  margin: 0;
+}
+
+.model-setup-compact {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12.5px;
+}
+
+.attach-menu-list {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 280px;
+  padding: 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--raised);
+  box-shadow: 0 12px 30px var(--shadow);
+  font-size: 13px;
+}
+
+.attach-menu-list > button {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  align-items: center;
+  column-gap: 8px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.attach-menu-list > button > .small {
+  grid-column: 2;
+}
+
+.attach-menu-list > button:hover {
+  background: var(--hover);
+}
+
+.project-file-dialog {
+  width: 620px;
+}
+
+.project-file-tree {
+  display: flex;
+  flex-direction: column;
+  height: min(52vh, 460px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}

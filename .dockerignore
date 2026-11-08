@@ -1,0 +1,13 @@
+.git
+.env
+data
+**/__pycache__
+**/.pytest_cache
+backend/.venv
+backend/tests
+frontend/node_modules
+frontend/dist
+.claude
+CLAUDE.local.md
+docker-compose.override.yml
+.env.*

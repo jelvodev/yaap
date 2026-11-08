@@ -1,0 +1,34 @@
+Add a regression test for SR-9 (reservation times after saving)
+diff --git a/tests/test_storage.py b/tests/test_storage.py
+index 515b2e3..9bde466 100644
+--- a/tests/test_storage.py
++++ b/tests/test_storage.py
+@@ -4,7 +4,8 @@ import unittest
+ from pathlib import Path
+ 
+ from stockroom import storage
+-from tests.helpers import make_inventory
++from stockroom.inventory import Inventory
++from tests.helpers import Clock, make_inventory
+ 
+ 
+ class Storage(unittest.TestCase):
+@@ -27,6 +28,18 @@ class Storage(unittest.TestCase):
+         self.assertEqual([(r.id, r.quantity) for r in loaded.reservations()], [("R-0001", 3)])
+         self.assertFalse(self.path.with_suffix(".json.tmp").exists())
+ 
++    def test_reservation_times_keep_their_timezone_after_a_round_trip(self) -> None:
++        # SR-9: after a restart the CLI crashed when it expired reservations read from the file.
++        clock = Clock()
++        inventory = make_inventory(clock)
++        reservation = inventory.reserve("SR-1", 2, hours=5)
++        storage.save(inventory, self.path)
++        loaded = storage.load(self.path, Inventory(clock=clock))
++        self.assertEqual(loaded.reservation(reservation.id).expires_at, reservation.expires_at)
++        clock.advance(hours=6)
++        self.assertEqual([r.id for r in loaded.expire_reservations()], [reservation.id])
++        self.assertEqual(loaded.movements(), inventory.movements())
++
+     def test_files_that_are_not_stockroom_files_are_refused(self) -> None:
+         self.path.write_text("{not json", encoding="utf-8")
+         with self.assertRaises(storage.StorageError):

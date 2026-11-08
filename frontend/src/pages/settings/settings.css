@@ -1,0 +1,480 @@
+/* Settings workbench: page-specific parts on top of workbench.css. Theme tokens only. */
+
+.settings-help {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.settings-note {
+  color: var(--warning);
+}
+
+.settings-inherited {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.settings-header-message {
+  margin: 8px 24px 0;
+}
+
+.settings-panel-message {
+  margin: 0;
+  padding: 8px 14px;
+}
+
+/* A text input with its buttons inside a field row. */
+.settings-inline-form {
+  display: flex;
+  flex: 1 1 260px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.settings-inline-form > input:not([type="color"]) {
+  flex: 1;
+  min-width: 160px;
+  max-width: 380px;
+}
+
+.settings-colour {
+  flex: 0 0 auto;
+}
+
+.settings-command {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.settings-badges,
+.settings-row-actions,
+.settings-link-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-row-actions {
+  justify-content: flex-end;
+}
+
+.settings-link-row {
+  padding: 0 14px 14px;
+}
+
+/* Model presets */
+
+.settings-presets td {
+  vertical-align: top;
+}
+
+.settings-presets select,
+.settings-presets input:not([type="radio"]) {
+  padding: 5px 8px;
+  font-size: 12.5px;
+}
+
+.settings-preset-name {
+  width: 100%;
+  min-width: 110px;
+}
+
+.settings-preset-reply {
+  width: 120px;
+}
+
+.settings-role-cell {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 180px;
+}
+
+.settings-role-cell select:first-of-type {
+  min-width: 140px;
+  max-width: 220px;
+}
+
+.settings-task-models {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 6px 14px;
+  flex-basis: 100%;
+}
+
+.settings-task-model {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.settings-task-model select {
+  max-width: 100%;
+}
+
+.settings-default {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding-top: 5px;
+  color: var(--warning);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.settings-default input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.settings-default:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.settings-default:has(input:not(:checked)) {
+  color: var(--faint);
+}
+
+.settings-preset-new {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.settings-preset-new input {
+  flex: 1;
+  min-width: 160px;
+  max-width: 260px;
+}
+
+/* Old card-based components (permissions, default skills) inside the workbench stack. */
+
+.settings-legacy-cards > .card {
+  margin: 0;
+  border-radius: 11px;
+}
+
+/* Repositories */
+
+.settings-repository-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 500;
+  color: var(--text-strong);
+}
+
+.settings-repository-remote {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  color: var(--faint);
+}
+
+.settings-muted-cell {
+  color: var(--muted);
+}
+
+.settings-repositories td:last-child {
+  white-space: nowrap;
+}
+
+/* Usage and budget */
+
+.settings-usage-split {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.settings-usage-split .wb-field-label {
+  flex-basis: 100%;
+}
+
+.settings-usage-split .wb-field-value > input,
+.settings-usage-split .settings-inline-form > input {
+  max-width: 120px;
+  min-width: 80px;
+}
+
+.settings-usage-chart {
+  height: 160px;
+}
+
+.settings-budgets {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.settings-budget {
+  display: grid;
+  gap: 4px;
+  font-size: 12.5px;
+}
+
+.settings-budget-line {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.settings-budget-amount {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.settings-budget-warning {
+  color: var(--warning);
+}
+
+.settings-budget-warning .wb-bar > i {
+  background: var(--warning-strong);
+}
+
+.settings-budget-reached {
+  color: var(--danger);
+}
+
+.settings-budget-reached .wb-bar > i {
+  background: var(--danger);
+}
+
+.settings-budget .settings-help {
+  color: inherit;
+}
+
+.settings-share-column {
+  width: 140px;
+  min-width: 90px;
+}
+
+.settings-notice {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--warning-strong);
+  background: var(--surface);
+  font-size: 13px;
+}
+
+.settings-notice-reached {
+  border-left-color: var(--danger);
+}
+
+.settings-usage .wb-panel-aside .wb-segmented {
+  margin: 0;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 960px) {
+  .settings-usage-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-header-message {
+    margin: 8px 16px 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .settings-usage .wb-grid-4 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-usage-chart {
+    gap: 2px;
+  }
+}
+
+/* Hidden labels inside a scrolling table must not widen the page. */
+.settings-scroll {
+  position: relative;
+}
+
+.settings-row-actions a.button,
+.settings-link-row a.button {
+  text-decoration: none;
+}
+
+.restore-panel,
+.restore-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.restore-panel h3,
+.restore-progress h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.restore-panel p,
+.restore-panel ul {
+  margin: 0;
+}
+
+.restore-panel input {
+  max-width: 360px;
+}
+
+.restore-progress ol {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.restore-progress li {
+  color: var(--muted);
+}
+
+.restore-progress li.done {
+  color: inherit;
+}
+
+.restore-progress li.active {
+  color: inherit;
+  font-weight: 600;
+}
+
+/* Settings › Targets */
+.target-message {
+  padding: 8px 16px;
+}
+.target-add,
+.target-detail {
+  display: grid;
+  gap: 12px;
+  padding: 12px 16px 16px;
+}
+.target-detail section {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  min-width: 0;
+}
+.target-detail section > * {
+  max-width: 100%;
+}
+.target-detail h4 {
+  margin: 4px 0 0;
+}
+.target-address {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.target-address input[type="number"] {
+  width: 6em;
+}
+.target-script {
+  width: 100%;
+  max-height: 260px;
+  overflow: auto;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: pre;
+}
+.target-key {
+  word-break: break-all;
+}
+.target-confirm {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+/* Settings › Git and GitHub: GitHub repositories */
+.github-filter {
+  padding: 10px 16px 0;
+}
+.github-repositories {
+  max-height: 360px;
+  overflow: auto;
+}
+.github-notice {
+  padding: 8px 16px 0;
+}
+.github-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+/* Settings › System › Plugins */
+.settings-plugin {
+  gap: 8px;
+}
+
+.settings-plugin p {
+  margin: 0;
+}
+
+.settings-plugin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* Settings › Usage and audit › Audit log */
+.settings-audit-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.settings-audit-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Routing of a preset: a line under the preset's row. */
+
+.settings-presets .settings-preset-routing td {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.settings-routing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.settings-routing-toggle,
+.settings-routing-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

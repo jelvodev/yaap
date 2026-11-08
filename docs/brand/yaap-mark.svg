@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="307.5 24.5 110 110" role="img" aria-labelledby="title">
+  <title id="title">YAAP</title>
+  <!-- The y of the wordmark with its cursor, for icons and the favicon. -->
+  <rect x="307.5" y="24.5" width="110" height="110" rx="24" fill="#282a36"/>
+  <g fill="none" stroke="#f8f8f2" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M346.766 54.242 L353.22 71 L345.72 71 L340.234 56.758 A3.5 3.5 0 0 1 346.766 54.242 Z" fill="#f8f8f2" stroke="none"/>
+    <path d="M366 55.5 L346.4 103.5"/>
+  </g>
+  <rect x="362" y="89" width="23" height="7" rx="2" fill="#7aa2f7"/>
+</svg>

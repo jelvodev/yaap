@@ -1,0 +1,5 @@
+# The global git config of every git YAAP runs on Windows (development). Git for Windows keeps core.autocrlf in
+# its system config, which YAAP does not read (GIT_CONFIG_NOSYSTEM); this restores that one platform default.
+# Settings of a repository itself still win. On Linux YAAP uses an empty global config.
+[core]
+	autocrlf = true

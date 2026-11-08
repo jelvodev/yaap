@@ -1,0 +1,135 @@
+/* The shared document beside the chat. */
+
+.document-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, 44vw);
+  flex-shrink: 0;
+  min-height: 0;
+  border-left: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.dp-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 8px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dp-head .button {
+  min-height: 32px;
+}
+
+.dp-name {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dp-dirty {
+  color: var(--warning);
+}
+
+.dp-close {
+  width: 30px;
+  height: 30px;
+}
+
+.dp-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0;
+  padding: 6px 16px;
+  overflow-wrap: anywhere;
+}
+
+.dp-status > span:first-child {
+  flex: 1;
+  min-width: 200px;
+}
+
+/* The agent's turn: the panel is read-only until the user accepted or rolled back the change. */
+.dp-turn {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.dp-decide {
+  display: flex;
+  gap: 8px;
+}
+
+.dp-decide .button {
+  min-height: 30px;
+}
+
+.dp-changes {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 16px;
+}
+
+.dp-changes .diff {
+  max-height: none;
+  margin: 0 0 10px;
+}
+
+.dp-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 12px 8px;
+}
+
+.dp-pad {
+  padding: 12px 16px;
+  margin: 0;
+}
+
+.dp-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  border-top: 1px solid var(--border);
+}
+
+.dp-body .code-editor {
+  flex: 1;
+  min-height: 0;
+}
+
+.dp-rendered {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 24px 32px;
+}
+
+.dp-rendered h1,
+.dp-rendered h2,
+.dp-rendered h3 {
+  line-height: 1.3;
+}
+
+@media (max-width: 1100px) {
+  .document-panel {
+    position: fixed;
+    inset: 0 0 0 auto;
+    z-index: 29;
+    width: min(760px, 100vw);
+    box-shadow: -12px 0 40px var(--shadow);
+  }
+}

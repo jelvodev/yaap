@@ -1,0 +1,31 @@
+diff --git a/stockroom/pricing.py b/stockroom/pricing.py
+index ff6c382..b28d1d9 100644
+--- a/stockroom/pricing.py
++++ b/stockroom/pricing.py
+@@ -31,7 +31,8 @@ def vat_cents(net_cents: int, rate_percent: int) -> int:
+     """The VAT on a net amount, rounded to whole cents; half a cent rounds up, as the tax office requires."""
+     if net_cents < 0:
+         raise ValueError("A net amount cannot be negative.")
+-    return round(net_cents * rate_percent / 100)
++    # Whole numbers only: round() on a float rounds half to even, and 52.5 cents would become 52.
++    return (net_cents * rate_percent + 50) // 100
+ 
+ 
+ def breakdown(net_cents: int, category: str, export: bool = False) -> PriceBreakdown:
+diff --git a/tests/test_pricing.py b/tests/test_pricing.py
+index c1c101a..1f4f969 100644
+--- a/tests/test_pricing.py
++++ b/tests/test_pricing.py
+@@ -16,6 +16,12 @@ class Pricing(unittest.TestCase):
+         with self.assertRaises(ValueError):
+             vat_cents(-1, 21)
+ 
++    def test_half_a_cent_of_vat_rounds_up(self) -> None:
++        # SR-10: EUR 2.50 at 21% is 52.5 cents of VAT, which the tax office rounds up.
++        self.assertEqual(vat_cents(250, 21), 53)
++        self.assertEqual(vat_cents(50, 9), 5)
++        self.assertEqual(vat_cents(150, 9), 14)
++
+     def test_sale_prices_use_a_margin_and_end_in_five_cents(self) -> None:
+         self.assertEqual(sale_price_cents(600, 40), 1000)
+         self.assertEqual(sale_price_cents(601, 40), 1005)

@@ -1,0 +1,330 @@
+/* The trace of a reply or run: a timeline of its steps beside the chosen step's details. */
+
+.trace-backdrop {
+  padding-top: 5vh;
+}
+
+.trace-dialog {
+  display: flex;
+  flex-direction: column;
+  width: 1100px;
+  height: 88vh;
+}
+
+.trace-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px 10px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.trace-head h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+/* Room for header actions, such as a download of the trace. */
+.trace-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.trace-close {
+  width: 30px;
+  height: 30px;
+}
+
+.trace-pad {
+  margin: 12px 18px;
+}
+
+.trace-body {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr);
+  flex: 1;
+  min-height: 0;
+}
+
+.trace-timeline {
+  margin: 0;
+  padding: 6px 0 16px;
+  list-style: none;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+}
+
+.trace-run,
+.trace-step {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px 64px 64px;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  padding-right: 12px;
+  font-size: 12.5px;
+}
+
+.trace-run {
+  grid-template-columns: auto minmax(0, 1fr) auto 64px 64px;
+  margin-top: 6px;
+  color: var(--text-strong);
+}
+
+.trace-run-title {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 340px;
+}
+
+.trace-run > .faint {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trace-step {
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+
+.trace-step:hover {
+  background: var(--hover);
+}
+
+.trace-step[aria-pressed="true"] {
+  background: var(--accent-soft);
+}
+
+.trace-step-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trace-kind {
+  display: inline-block;
+  min-width: 38px;
+  color: var(--faint);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.trace-num {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.trace-bar-track {
+  position: relative;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--raised);
+}
+
+.trace-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 4px;
+}
+
+.trace-bar-model {
+  background: var(--accent);
+}
+
+.trace-bar-tool {
+  background: var(--ok);
+}
+
+.trace-bar-error {
+  background: var(--danger);
+}
+
+.trace-detail {
+  padding: 14px 18px;
+  overflow-y: auto;
+  font-size: 13px;
+}
+
+.trace-detail h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+
+.trace-facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 0 0 14px;
+}
+
+.trace-facts dt {
+  color: var(--faint);
+}
+
+.trace-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.trace-context h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.trace-context-group {
+  border-top: 1px solid var(--border);
+  padding: 6px 0;
+}
+
+.trace-context-group > summary,
+.trace-context-part > summary {
+  cursor: pointer;
+}
+
+.trace-source {
+  font-weight: 600;
+}
+
+.trace-context-part {
+  margin: 4px 0 4px 14px;
+  font-size: 12.5px;
+}
+
+.trace-content {
+  max-height: 320px;
+  overflow: auto;
+  margin: 6px 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--code-bg);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 860px) {
+  .trace-body {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 3fr) minmax(0, 2fr);
+  }
+
+  .trace-timeline {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .trace-step {
+    grid-template-columns: minmax(0, 1fr) 64px 64px;
+  }
+
+  .trace-bar-track {
+    display: none;
+  }
+}
+
+/* Replay: the form on a model call, its replays, and a replay beside the original. */
+.trace-replays {
+  margin: 10px 0;
+}
+
+.trace-replay-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.trace-replay-form p {
+  margin: 0;
+}
+
+.trace-replay-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: end;
+}
+
+.trace-replay-row label {
+  display: flex;
+  flex: 1 1 140px;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12.5px;
+}
+
+.trace-replay-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.trace-compare {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.trace-compare-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.trace-compare-sides {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.trace-compare-side {
+  min-width: 0;
+  border-right: 1px solid var(--border);
+}
+
+.trace-compare-side:last-child {
+  border-right: 0;
+}
+
+.trace-compare-facts {
+  padding: 10px 16px;
+}
+
+.trace-compare-facts h3,
+.trace-compare-facts h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+
+@media (max-width: 860px) {
+  .trace-compare-sides {
+    grid-template-columns: 1fr;
+  }
+
+  .trace-compare-side {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+}

@@ -1,0 +1,72 @@
+diff --git a/stockroom/report.py b/stockroom/report.py
+index ff11e6c..982f0a0 100644
+--- a/stockroom/report.py
++++ b/stockroom/report.py
+@@ -3,6 +3,9 @@
+ The text reports are fixed-width so they read well in a terminal and in an email.
+ """
+ 
++import csv
++import io
++
+ from stockroom.inventory import Inventory
+ from stockroom.models import Item
+ from stockroom.pricing import format_cents
+@@ -12,10 +15,13 @@ NAME_WIDTH = 34
+ 
+ 
+ def csv_export(inventory: Inventory) -> str:
+-    """Every item as one CSV line, with a header, amounts in euros with a dot."""
+-    lines = [",".join(CSV_COLUMNS)]
++    """Every item as one CSV line, with a header, amounts in euros with a dot. Fields with a comma, a quote or a
++    line break are quoted (RFC 4180), so names such as "Screws, wood" keep the columns in place (SR-12)."""
++    buffer = io.StringIO()
++    writer = csv.writer(buffer, lineterminator="\n")
++    writer.writerow(CSV_COLUMNS)
+     for item in inventory.items():
+-        fields = [
++        writer.writerow([
+             item.sku,
+             item.name,
+             item.category,
+@@ -24,9 +30,8 @@ def csv_export(inventory: Inventory) -> str:
+             str(item.reserved),
+             f"{item.unit_cost_cents / 100:.2f}",
+             f"{item.value_cents / 100:.2f}",
+-        ]
+-        lines.append(",".join(fields))
+-    return "\n".join(lines) + "\n"
++        ])
++    return buffer.getvalue()
+ 
+ 
+ def short_name(name: str, width: int = NAME_WIDTH) -> str:
+diff --git a/tests/test_report.py b/tests/test_report.py
+index 407d4ae..bf4fc4b 100644
+--- a/tests/test_report.py
++++ b/tests/test_report.py
+@@ -1,7 +1,10 @@
++import csv
++import io
+ import unittest
+ 
+ from stockroom import report
+ from stockroom.inventory import Inventory
++from stockroom.models import Item
+ from tests.helpers import make_inventory
+ 
+ 
+@@ -15,6 +18,13 @@ class Reports(unittest.TestCase):
+         self.assertEqual(lines[1], "SR-1,Claw hammer,tools,A1,10,0,12.50,125.00")
+         self.assertEqual(len(lines), 5)
+ 
++    def test_names_with_commas_and_quotes_keep_the_columns_in_place(self) -> None:
++        self.inventory.add_item(Item("SR-5", 'Screws, wood, 4x40 mm "box"', "fasteners", "B1", 2, 450))
++        rows = list(csv.reader(io.StringIO(report.csv_export(self.inventory))))
++        self.assertTrue(all(len(row) == 8 for row in rows))
++        self.assertEqual(rows[5][:3], ["SR-5", 'Screws, wood, 4x40 mm "box"', "fasteners"])
++        self.assertEqual(rows[5][6:], ["4.50", "9.00"])
++
+     def test_the_stock_report_groups_by_category_and_flags_reorders(self) -> None:
+         text = report.stock_report(self.inventory)
+         self.assertIn("Food (1 items)", text)

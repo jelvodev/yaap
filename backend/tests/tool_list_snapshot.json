@@ -1,0 +1,1076 @@
+{
+  "tools": [
+    {
+      "name": "list_files",
+      "description": "List the files and folders in a folder of the project. Paths are relative to the project folder.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "recursive": {
+            "type": "boolean"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "project",
+      "read_only": true,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "read_file",
+      "description": "Read a text file of the project, with line numbers: the first 400 lines, or limit lines (at most 2000) from offset (the first line). outline=true lists a code or Markdown file's classes, functions and headings with their line ranges instead, to find the part to read. Read a file again before editing it when it may have changed.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "offset": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "outline": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "project",
+      "read_only": true,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "search",
+      "description": "Search the project's text files for a regular expression. Optionally limit to a folder and a file glob.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "glob": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "pattern"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "project",
+      "read_only": true,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "write_file",
+      "description": "Create a file in the project or replace its whole content.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "content"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "project",
+      "read_only": false,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "edit_file",
+      "description": "Replace an exact, unique piece of text in a project file. Read the file first and copy old_string exactly.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "old_string": {
+            "type": "string"
+          },
+          "new_string": {
+            "type": "string"
+          },
+          "replace_all": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "path",
+          "old_string",
+          "new_string"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "project",
+      "read_only": false,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "run_command",
+      "description": "Run a shell command in the project folder (tests, a build) and wait for it; timeout_seconds defaults to 120. With a session name, the working folder and exported variables (an activated virtualenv) carry over to later calls with that session, until two idle hours. For a server that keeps running, use start_process.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "timeout_seconds": {
+            "type": "integer"
+          },
+          "silence_seconds": {
+            "type": "integer",
+            "description": "Stop after this long without output; default 60."
+          },
+          "session": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "command"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "ask",
+      "scope": "project",
+      "read_only": false,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": true,
+      "conditional": false
+    },
+    {
+      "name": "start_process",
+      "description": "Start a command that keeps running in the background, such as a dev server or a watcher, in the project folder. Returns its id and first output; it keeps running after this reply. port is where a web app listens: YAAP then shows the app in the preview panel beside the chat, where the user can open it. session uses a run_command session's folder and variables. The user approves each start.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer"
+          },
+          "session": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "command"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "ask",
+      "scope": "project",
+      "read_only": false,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": true,
+      "conditional": false
+    },
+    {
+      "name": "read_process_output",
+      "description": "Read the output a background process wrote since the last read, with its state.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "project",
+      "read_only": true,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "stop_process",
+      "description": "Stop a background process and what it started.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "project",
+      "read_only": false,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "list_processes",
+      "description": "List this project's background processes with their state.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "project",
+      "read_only": true,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "git_status",
+      "description": "Show the project's branch, sync state and changed files.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "project",
+      "read_only": true,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "git_diff",
+      "description": "Show all uncommitted changes of the project, including new files.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "project",
+      "read_only": true,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "git_commit",
+      "description": "Commit all changes of the project with a message in the work language named in the system prompt.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "project",
+      "read_only": false,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "git_push",
+      "description": "Push the project's commits to its GitHub remote. The user approves each push.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "permission": "ask",
+      "scope": "project",
+      "read_only": false,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": true,
+      "conditional": false
+    },
+    {
+      "name": "create_pull_request",
+      "description": "Open a GitHub pull request from the project's current branch into base (default: the repository's default branch). Push the branch with git_push first. Write the title and body in the work language. The user approves it.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "base": {
+            "type": "string"
+          },
+          "draft": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "ask",
+      "scope": "project",
+      "read_only": false,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": true,
+      "conditional": false
+    },
+    {
+      "name": "web_fetch",
+      "description": "Fetch a web page or file over http(s) and return it as text. The user approves each fetch.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "ask",
+      "scope": "always",
+      "read_only": false,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": true,
+      "conditional": false
+    },
+    {
+      "name": "web_search",
+      "description": "Search the web. Returns title, URL and a short snippet per result; read a result with web_fetch. Use it for current information, documentation and error messages.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "description": "Number of results, 1 to 20; default 8."
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "always",
+      "read_only": true,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": true,
+      "conditional": false
+    },
+    {
+      "name": "read_output",
+      "description": "Read a part of a long tool output that was shortened: a range of lines, or the lines that match a search (a regular expression, case-insensitive). The shortened output names its number.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "output": {
+            "type": "integer"
+          },
+          "start_line": {
+            "type": "integer"
+          },
+          "end_line": {
+            "type": "integer"
+          },
+          "search": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "output"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "always",
+      "read_only": true,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "load_standard",
+      "description": "Load the full text of a standard or engineering standard from the Blueprint by name.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "always",
+      "read_only": true,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "load_skill",
+      "description": "Load the full text of a skill from the Blueprint by name.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "always",
+      "read_only": true,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "update_memory",
+      "description": "Add one entry to the project memory, which every conversation of this project sees. Use it for decisions, conventions and lessons that will matter later, not for the current task's details. Write the entry in the work language named in the system prompt, whatever language the conversation is in.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "section": {
+            "type": "string",
+            "enum": [
+              "Decisions",
+              "Conventions",
+              "Lessons learned",
+              "Notes"
+            ]
+          },
+          "entry": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "section",
+          "entry"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "project",
+      "read_only": false,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "search_project",
+      "description": "Search this project's earlier conversations, memory and knowledge documents by words and meaning: what was decided, tried or explained before, or what the documents say. Returns the best matches with an excerpt.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "include": {
+            "type": "string",
+            "enum": [
+              "all",
+              "conversations",
+              "memory",
+              "knowledge"
+            ],
+            "description": "Default all."
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "project",
+      "read_only": true,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "read_knowledge",
+      "description": "Read a knowledge document of this project by name (or a unique part of it), as text, 50,000 characters at a time; use offset to continue.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "offset": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "project",
+      "read_only": true,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "find_definition",
+      "description": "Find where a symbol is defined, with the project's language server. Give the file, the line as read_file numbers it, and the symbol's name as written on that line.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer"
+          },
+          "symbol": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "line",
+          "symbol"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "project",
+      "read_only": true,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "find_references",
+      "description": "Find every use of a symbol across the project, with the language server. Give the file, the line as read_file numbers it, and the symbol's name as written on that line.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer"
+          },
+          "symbol": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "line",
+          "symbol"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "project",
+      "read_only": true,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "diagnostics",
+      "description": "The language server's errors and warnings for a file of the project, such as type errors and unknown names.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "project",
+      "read_only": true,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "rename_symbol",
+      "description": "Rename a symbol everywhere it is used, across files, with the language server. Give the file, the line as read_file numbers it, and the symbol's name as written on that line. new_name is the new identifier.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "new_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "line",
+          "symbol",
+          "new_name"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "conditional",
+      "scope": "project",
+      "read_only": false,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": true,
+      "conditional": true
+    },
+    {
+      "name": "document_symbols",
+      "description": "List a file's classes, functions and methods with their line ranges, from the language server.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "project",
+      "read_only": true,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "delegate",
+      "description": "Hand a self-contained task to a sub-run, on the cheaper worker model unless you name an agent or role main. It does not see this conversation: give the goal, files, constraints and how to check. mode explore only reads and searches and reports files, lines and a conclusion: use it to find things out without filling your context. Otherwise it works with your tools; keep planning and decisions yourself and check its changes.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "work",
+              "explore"
+            ],
+            "description": "Default work."
+          },
+          "agent": {
+            "type": "string",
+            "description": "Optional agent definition, by name."
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "worker",
+              "main"
+            ],
+            "description": "Default worker."
+          },
+          "worker": {
+            "type": "string",
+            "description": "Optional: a preset by name (its worker model), claude_code or codex (CLIs on the user's subscription). Default: this conversation's worker model."
+          }
+        },
+        "required": [
+          "task"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "project",
+      "read_only": false,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "finish_goal",
+      "description": "End the conversation's goal: status done when it is reached, blocked when you cannot go on without the user. The summary says what was achieved, or what you need.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "done",
+              "blocked"
+            ]
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "summary"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "project",
+      "read_only": false,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "list_attachment",
+      "description": "List the conversation's attachments, or the files inside a zip or folder attachment (optionally below a path).",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "attachment": {
+            "type": "string",
+            "description": "The attachment's id or file name."
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "attachments",
+      "read_only": true,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "read_attachment",
+      "description": "Read an attachment, or a file inside a zip or folder attachment by its path. Text comes back with line numbers (use offset and limit for long files); images come back as images; PDF and Office files as their text.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "attachment": {
+            "type": "string",
+            "description": "The attachment's id or file name."
+          },
+          "path": {
+            "type": "string"
+          },
+          "offset": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "attachment"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "attachments",
+      "read_only": true,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "search_attachment",
+      "description": "Search the text of the attachments (including files inside zips and folders) for a regular expression.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string"
+          },
+          "attachment": {
+            "type": "string",
+            "description": "The attachment's id or file name."
+          },
+          "glob": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "pattern"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "attachments",
+      "read_only": true,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "import_attachment",
+      "description": "Copy an attachment, or a file or folder inside a zip or folder attachment, into the project. 'target' is a folder or file path in the project. Overwriting existing files waits for the user's approval.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "attachment": {
+            "type": "string",
+            "description": "The attachment's id or file name."
+          },
+          "path": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "attachment"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "conditional",
+      "scope": "project_attachments",
+      "read_only": false,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": true,
+      "conditional": true
+    },
+    {
+      "name": "install_skill",
+      "description": "Install a skill from a GitHub link (a repository, a folder or a SKILL.md). The user reviews the skill and approves the install. When the link holds several skills, name one in skill. level is global, environment (default) or project.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "skill": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "global",
+              "environment",
+              "project"
+            ]
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "always",
+      "read_only": false,
+      "asks_itself": true,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "open_document",
+      "description": "Open a Markdown file of the project as the shared document in a panel beside the chat, where the user reads and edits it with you. Use it when you write or revise a document together with the user (a plan, notes, a README). The user reviews each change you make there, and their saved edits reach you with your next tool result. The file may not exist yet; create it with write_file.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "project",
+      "read_only": true,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "open_browser",
+      "description": "Make the headless browser's tools available (open pages, click, type, screenshots), to check a web app or a site. Call it once before using the browser.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "project",
+      "read_only": true,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "find_tools",
+      "description": "Find tools of the outside MCP servers listed in the system prompt by what they do (for example 'create issue'), optionally on one server. Adds the best matches to your tools and returns their names.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "server": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "always",
+      "read_only": true,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    }
+  ],
+  "conditional_tools": {
+    "delegate": "delegator",
+    "finish_goal": "goal",
+    "search_project": "searcher",
+    "read_knowledge": "searcher",
+    "web_search": "web_search",
+    "read_output": "outputs",
+    "open_document": "documents",
+    "open_browser": "browser_on_demand",
+    "find_tools": "mcp_behind_search",
+    "find_definition": "code_intel",
+    "find_references": "code_intel",
+    "diagnostics": "code_intel",
+    "rename_symbol": "code_intel",
+    "document_symbols": "code_intel"
+  },
+  "target_tools": [
+    "edit_file",
+    "list_files",
+    "list_processes",
+    "read_file",
+    "read_process_output",
+    "run_command",
+    "search",
+    "start_process",
+    "stop_process",
+    "write_file"
+  ],
+  "not_on_target": [
+    "create_pull_request",
+    "git_commit",
+    "git_diff",
+    "git_push",
+    "git_status",
+    "search_project"
+  ]
+}

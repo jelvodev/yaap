@@ -1,0 +1,192 @@
+{
+  "projects": [
+    {
+      "key": "SR",
+      "name": "Stockroom",
+      "lead": "marieke",
+      "description": "The inventory and order backend (Python).",
+      "components": ["inventory", "orders", "reports", "storage", "cli"]
+    },
+    {
+      "key": "WEB",
+      "name": "Stockroom web shop",
+      "lead": "daan",
+      "description": "The cart and formatting of the web shop (TypeScript).",
+      "components": ["cart", "format"]
+    }
+  ],
+  "users": [
+    {"name": "marieke", "role": "developer"},
+    {"name": "daan", "role": "developer"},
+    {"name": "ingrid", "role": "bookkeeper"},
+    {"name": "joost", "role": "warehouse"}
+  ],
+  "milestones": [
+    {"project": "SR", "name": "0.5", "due": "2026-12-01", "description": "Bookkeeping fixes and CSV import.", "progress": "2 of 5 done"},
+    {"project": "WEB", "name": "1.1", "due": "2026-12-15", "description": "Refunds in the cart.", "progress": "0 of 2 done"}
+  ],
+  "issues": [
+    {
+      "key": "SR-3",
+      "title": "Stock report: show the location column wider",
+      "description": "Locations like D12 are cut off in some mail clients. Not urgent.",
+      "status": "done",
+      "priority": "low",
+      "labels": ["reports"],
+      "assignee": "marieke",
+      "reporter": "joost",
+      "created": "2026-08-14",
+      "comments": [{"author": "marieke", "date": "2026-08-20", "body": "Widened to six characters."}]
+    },
+    {
+      "key": "SR-5",
+      "title": "Reserve kits in one go",
+      "description": "The workshop orders kits (hammer + screws). Reserving the parts one by one leaves half-reserved kits when one part runs out.",
+      "status": "done",
+      "priority": "medium",
+      "labels": ["inventory", "feature"],
+      "assignee": "marieke",
+      "reporter": "joost",
+      "created": "2026-08-30",
+      "comments": [{"author": "marieke", "date": "2026-09-04", "body": "Added Inventory.reserve_kit, all or nothing."}]
+    },
+    {
+      "key": "SR-7",
+      "title": "Restock plan ignores reserved units",
+      "description": "Items with many reservations were not in the restock plan although almost nothing was available.",
+      "status": "done",
+      "priority": "high",
+      "labels": ["inventory", "bug"],
+      "assignee": "marieke",
+      "reporter": "joost",
+      "created": "2026-09-10",
+      "comments": [{"author": "marieke", "date": "2026-09-11", "body": "needs_reorder now looks at available units instead of the quantity."}]
+    },
+    {
+      "key": "SR-9",
+      "title": "Reservations lose their timezone after saving",
+      "description": "After a restart the CLI crashes with `TypeError: can't compare offset-naive and offset-aware datetimes` when it expires reservations. Probably the way timestamps are written to the JSON file. A regression test is on main.",
+      "status": "open",
+      "priority": "high",
+      "labels": ["storage", "bug"],
+      "assignee": null,
+      "reporter": "joost",
+      "created": "2026-10-28",
+      "milestone": "0.5",
+      "comments": [
+        {"author": "joost", "date": "2026-10-28", "body": "Happens every morning since we keep the CLI's data file between days."}
+      ]
+    },
+    {
+      "key": "SR-10",
+      "title": "VAT is one cent off on some orders",
+      "description": "Ingrid found orders where our VAT is one cent lower than her calculation. Rounding?",
+      "status": "open",
+      "priority": "high",
+      "labels": ["pricing", "bug"],
+      "assignee": "marieke",
+      "reporter": "ingrid",
+      "created": "2026-10-30",
+      "milestone": "0.5",
+      "comments": [
+        {"author": "ingrid", "date": "2026-10-30", "body": "Example: a net line of EUR 2.50 at 21% must have EUR 0.53 VAT; we print EUR 0.52. The tax office rounds half a cent up."}
+      ]
+    },
+    {
+      "key": "SR-11",
+      "title": "Low stock overview on the command line",
+      "description": "Joost wants a quick list of what is running low without the whole restock plan: every item whose available units are at or below its reorder level, with how many are missing.",
+      "status": "open",
+      "priority": "medium",
+      "labels": ["cli", "feature"],
+      "assignee": null,
+      "reporter": "joost",
+      "created": "2026-11-01",
+      "comments": []
+    },
+    {
+      "key": "SR-12",
+      "title": "CSV export breaks in the spreadsheet for some items",
+      "description": "When I open the export of `python3 -m stockroom.cli export` in the spreadsheet, a few rows have their columns shifted: the category column shows part of the name and the numbers end up in the wrong columns. It happens for the screws (SR-1012) and the book about small spaces (SR-1069). The other rows are fine.\n\nExpected: every row has the same eight columns as the header, whatever the item is called.",
+      "status": "open",
+      "priority": "high",
+      "labels": ["reports", "bug"],
+      "assignee": null,
+      "reporter": "ingrid",
+      "created": "2026-11-03",
+      "milestone": "0.5",
+      "comments": [
+        {"author": "ingrid", "date": "2026-11-03", "body": "The name of SR-1012 is `Screws, wood, 4x40 mm (box of 200)`. Could the commas be the problem?"},
+        {"author": "marieke", "date": "2026-11-04", "body": "Probably. The export joins the fields with commas by hand. Please use proper CSV quoting (the csv module) and keep the header and the number format as they are; Ingrid's import depends on them."},
+        {"author": "ingrid", "date": "2026-11-04", "body": "Yes please keep `12.50` style amounts with a dot."}
+      ],
+      "history": [
+        {"date": "2026-11-03", "who": "ingrid", "change": "created"},
+        {"date": "2026-11-04", "who": "marieke", "change": "priority medium -> high"}
+      ],
+      "attachments": [{"name": "export-2026-11-03.csv", "size": 6120, "added_by": "ingrid"}]
+    },
+    {
+      "key": "SR-13",
+      "title": "Import items from a CSV file",
+      "description": "New suppliers send their price lists as CSV. We want to import them: add new SKUs and update existing ones, and report bad lines instead of stopping.",
+      "status": "open",
+      "priority": "medium",
+      "labels": ["cli", "feature"],
+      "assignee": null,
+      "reporter": "ingrid",
+      "created": "2026-11-05",
+      "milestone": "0.5",
+      "comments": []
+    },
+    {
+      "key": "SR-14",
+      "title": "Move the discount rules to pricing",
+      "description": "Discount rules live in orders.py but are about prices. Move them to pricing.py so the web shop team finds them next to VAT.",
+      "status": "open",
+      "priority": "low",
+      "labels": ["refactor"],
+      "assignee": null,
+      "reporter": "daan",
+      "created": "2026-11-05",
+      "comments": []
+    },
+    {
+      "key": "SR-15",
+      "title": "Count sheets per location as PDF",
+      "description": "For the yearly count, print a sheet per location with the expected quantities left blank.",
+      "status": "open",
+      "priority": "low",
+      "labels": ["reports", "feature"],
+      "assignee": null,
+      "reporter": "joost",
+      "created": "2026-11-06",
+      "comments": []
+    },
+    {
+      "key": "WEB-2",
+      "title": "Free shipping threshold should use the discounted amount",
+      "description": "A customer with a discount code paid shipping although the cart showed more than EUR 50 before the discount. Decided: the threshold uses the amount after the discount.",
+      "status": "done",
+      "priority": "medium",
+      "labels": ["cart"],
+      "assignee": "daan",
+      "reporter": "ingrid",
+      "created": "2026-09-22",
+      "comments": [{"author": "daan", "date": "2026-09-23", "body": "shippingCents now gets subtotal minus discount."}]
+    },
+    {
+      "key": "WEB-4",
+      "title": "Refund lines show the minus sign in the wrong place",
+      "description": "Negative amounts are shown as `€-5.00`; they must be `-€5.00`. Amounts below one euro lose their sign completely: -50 cents shows as `€0.50`.",
+      "status": "open",
+      "priority": "medium",
+      "labels": ["format", "bug"],
+      "assignee": "daan",
+      "reporter": "ingrid",
+      "created": "2026-11-02",
+      "milestone": "1.1",
+      "comments": []
+    }
+  ]
+}

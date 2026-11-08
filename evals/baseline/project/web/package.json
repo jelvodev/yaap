@@ -1,0 +1,13 @@
+{
+  "name": "stockroom-web",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "description": "The shop front end of Stockroom: cart and formatting, in TypeScript without a build step.",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.ts\""
+  }
+}

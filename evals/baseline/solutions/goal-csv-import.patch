@@ -1,0 +1,221 @@
+diff --git a/README.md b/README.md
+index 3b249f3..ae0a83e 100644
+--- a/README.md
++++ b/README.md
+@@ -43,6 +43,19 @@ The web part needs Node.js 22.18 or later, which runs TypeScript directly:
+ cd web && npm test
+ ```
+ 
++## Importing items
++
++Supplier price lists come in as CSV with the columns `sku`, `name`, `category`, `quantity` and `unit_cost` (euros
++with a dot), and optionally `location` and `reorder_level`:
++
++```sh
++python3 -m stockroom.cli import supplier.csv
++```
++
++A new SKU is added (at location `INBOX` when none is given); for a known SKU the name, category and unit cost are
++updated and the quantity is received as stock. Lines with a problem are skipped and listed with their line number;
++the rest is imported and saved.
++
+ ## Discount codes
+ 
+ | Code | Off | Minimum subtotal |
+diff --git a/stockroom/cli.py b/stockroom/cli.py
+index 05661b3..cb3e039 100644
+--- a/stockroom/cli.py
++++ b/stockroom/cli.py
+@@ -1,6 +1,6 @@
+ """The command line: `python3 -m stockroom.cli <command> --data <file>`.
+ 
+-Commands: report, valuation, restock, export, search, receive and ship. Commands that change the stock save the
++Commands: report, valuation, restock, export, import, search, receive and ship. Commands that change the stock save the
+ data file afterwards.
+ """
+ 
+@@ -9,7 +9,7 @@ import sys
+ from collections.abc import Sequence
+ from pathlib import Path
+ 
+-from stockroom import report, storage
++from stockroom import importer, report, storage
+ from stockroom.inventory import Inventory, InventoryError
+ 
+ DEFAULT_DATA = Path("stockroom/data/sample.json")
+@@ -24,6 +24,8 @@ def build_parser() -> argparse.ArgumentParser:
+     commands.add_parser("restock", help="what to reorder")
+     export = commands.add_parser("export", help="all items as CSV")
+     export.add_argument("--output", type=Path, help="write to this file instead of the screen")
++    import_csv = commands.add_parser("import", help="add and update items from a CSV file")
++    import_csv.add_argument("csv", type=Path)
+     search = commands.add_parser("search", help="find items by SKU, name or category")
+     search.add_argument("text")
+     for name in ("receive", "ship"):
+@@ -48,6 +50,11 @@ def run(arguments: argparse.Namespace, inventory: Inventory) -> tuple[str, bool]
+             arguments.output.write_text(text, encoding="utf-8")
+             return f"Wrote {len(inventory)} items to {arguments.output}.\n", False
+         return text, False
++    if arguments.command == "import":
++        result = importer.import_items(inventory, arguments.csv)
++        lines = [f"Added {result.added}, updated {result.updated}, skipped {len(result.errors)}."]
++        lines += [f"  line {number}: {message}" for number, message in result.errors]
++        return "\n".join(lines) + "\n", bool(result.added or result.updated)
+     if arguments.command == "search":
+         found = inventory.search(arguments.text)
+         if not found:
+@@ -68,7 +75,7 @@ def main(argv: Sequence[str] | None = None) -> int:
+         output, changed = run(arguments, inventory)
+         if changed:
+             storage.save(inventory, arguments.data)
+-    except (InventoryError, storage.StorageError) as error:
++    except (InventoryError, storage.StorageError, importer.CsvImportError) as error:
+         print(f"stockroom: {error}", file=sys.stderr)
+         return 1
+     sys.stdout.write(output)
+diff --git a/stockroom/importer.py b/stockroom/importer.py
+new file mode 100644
+index 0000000..b782ad3
+--- /dev/null
++++ b/stockroom/importer.py
+@@ -0,0 +1,78 @@
++"""Importing items from a supplier's CSV file (SR-13).
++
++Columns: sku, name, category, quantity, unit_cost (euros with a dot), and optionally location and reorder_level. A
++new SKU is added; for a known SKU the name, category and unit cost are updated and the quantity is received as stock,
++so the audit trail shows it. A line with a problem is skipped and reported with its line number (the header is line
++1); the other lines are still imported.
++"""
++
++import csv
++from dataclasses import dataclass, field
++from pathlib import Path
++
++from stockroom.inventory import Inventory, InventoryError
++from stockroom.models import Item
++from stockroom.pricing import parse_cents
++
++REQUIRED_COLUMNS = ("sku", "name", "category", "quantity", "unit_cost")
++DEFAULT_LOCATION = "INBOX"
++
++
++class CsvImportError(Exception):
++    """The file as a whole cannot be imported (missing, or without the required columns)."""
++
++
++@dataclass
++class ImportResult:
++    added: int = 0
++    updated: int = 0
++    # (line number, what is wrong), for the lines that were skipped.
++    errors: list[tuple[int, str]] = field(default_factory=list)
++
++
++def import_items(inventory: Inventory, path: Path) -> ImportResult:
++    try:
++        text = path.read_text(encoding="utf-8-sig")
++    except FileNotFoundError as error:
++        raise CsvImportError(f"{path} does not exist.") from error
++    reader = csv.DictReader(text.splitlines())
++    missing = [column for column in REQUIRED_COLUMNS if column not in (reader.fieldnames or [])]
++    if missing:
++        raise CsvImportError(f"The file has no column {', '.join(missing)}.")
++    result = ImportResult()
++    for line_number, row in enumerate(reader, start=2):
++        try:
++            import_row(inventory, row, result)
++        except (ValueError, InventoryError) as error:
++            result.errors.append((line_number, str(error)))
++    return result
++
++
++def import_row(inventory: Inventory, row: dict[str, str], result: ImportResult) -> None:
++    sku = (row.get("sku") or "").strip()
++    name = (row.get("name") or "").strip()
++    category = (row.get("category") or "").strip().lower()
++    if not sku or not name or not category:
++        raise ValueError("sku, name and category must be filled in.")
++    quantity = whole_number(row.get("quantity"), "quantity")
++    unit_cost = parse_cents(row.get("unit_cost") or "")
++    if unit_cost < 0:
++        raise ValueError("unit_cost cannot be negative.")
++    existing = inventory.get(sku)
++    if existing is None:
++        location = (row.get("location") or "").strip().upper() or DEFAULT_LOCATION
++        level = whole_number(row.get("reorder_level") or "0", "reorder_level")
++        inventory.add_item(Item(sku, name, category, location, quantity, unit_cost, reorder_level=level))
++        result.added += 1
++        return
++    existing.name, existing.category, existing.unit_cost_cents = name, category, unit_cost
++    if quantity:
++        inventory.receive(sku, quantity, "CSV import")
++    result.updated += 1
++
++
++def whole_number(value: str | None, column: str) -> int:
++    text = (value or "").strip()
++    if not text.isdigit():
++        raise ValueError(f"{column} must be a whole number of zero or more, not {text!r}.")
++    return int(text)
+diff --git a/tests/test_importer.py b/tests/test_importer.py
+new file mode 100644
+index 0000000..284a19e
+--- /dev/null
++++ b/tests/test_importer.py
+@@ -0,0 +1,56 @@
++import tempfile
++import unittest
++from pathlib import Path
++
++from stockroom.importer import CsvImportError, import_items
++from tests.helpers import make_inventory
++
++
++class Importer(unittest.TestCase):
++    def setUp(self) -> None:
++        self.folder = tempfile.TemporaryDirectory()
++        self.path = Path(self.folder.name) / "items.csv"
++        self.inventory = make_inventory()
++
++    def tearDown(self) -> None:
++        self.folder.cleanup()
++
++    def write(self, text: str) -> Path:
++        self.path.write_text(text, encoding="utf-8")
++        return self.path
++
++    def test_new_skus_are_added_and_known_ones_updated_and_received(self) -> None:
++        path = self.write(
++            "sku,name,category,quantity,unit_cost,location\n"
++            "SR-1,Claw hammer 450 g,tools,3,13.00,\n"
++            "SR-9,Hand saw,tools,4,21.50,d1\n"
++        )
++        result = import_items(self.inventory, path)
++        self.assertEqual((result.added, result.updated, result.errors), (1, 1, []))
++        hammer = self.inventory.get("SR-1")
++        self.assertEqual((hammer.name, hammer.quantity, hammer.unit_cost_cents), ("Claw hammer 450 g", 13, 1300))
++        self.assertEqual(self.inventory.movements("SR-1")[-1].note, "CSV import")
++        self.assertEqual(self.inventory.get("SR-9").location, "D1")
++
++    def test_bad_lines_are_reported_with_their_number_and_skipped(self) -> None:
++        path = self.write(
++            "sku,name,category,quantity,unit_cost\n"
++            "SR-7,Rake,garden,many,9.00\n"
++            ",No sku,garden,1,1.00\n"
++            "SR-8,Pot,garden,2,4.25\n"
++            "SR-6,Glue,fasteners,1,1.234\n"
++        )
++        result = import_items(self.inventory, path)
++        self.assertEqual(result.added, 1)
++        self.assertEqual([number for number, _ in result.errors], [2, 3, 5])
++        self.assertNotIn("SR-7", self.inventory)
++
++    def test_a_file_without_the_required_columns_is_refused(self) -> None:
++        with self.assertRaises(CsvImportError):
++            import_items(self.inventory, self.write("sku,name\nSR-1,x\n"))
++        with self.assertRaises(CsvImportError):
++            import_items(self.inventory, Path(self.folder.name) / "missing.csv")
++
++
++if __name__ == "__main__":
++    unittest.main()

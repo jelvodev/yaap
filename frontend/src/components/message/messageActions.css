@@ -1,0 +1,55 @@
+/* Prefixed with .messages: styles.css loads after this file, so equal selectors there would win. */
+/* The row under a reply: icon buttons and icon + label buttons with a quiet border, a ⋯ menu beside them. */
+.messages .reply-actions {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.messages .reply-actions-last {
+  opacity: 1;
+}
+
+.messages .reply-actions .message-action-icon,
+.messages .reply-actions .message-action-labelled {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+}
+
+.messages .reply-actions .message-action-icon {
+  justify-content: center;
+  min-width: 30px;
+  padding: 0 7px;
+}
+
+.messages .reply-actions .message-action-labelled {
+  padding: 0 9px;
+}
+
+.messages .message-action-note {
+  color: var(--muted);
+}
+
+.messages .reply-more {
+  position: relative;
+  display: inline-flex;
+}
+
+.messages .reply-more-menu {
+  right: auto;
+  left: 0;
+}
+
+.messages .message-actions .reply-more-menu > button {
+  min-height: 0;
+  padding: 7px 10px;
+  color: var(--text);
+}
+
+/* A tool call's link to its step in the reply's trace, under its details. */
+.messages .tool-call-trace {
+  margin-top: 6px;
+}

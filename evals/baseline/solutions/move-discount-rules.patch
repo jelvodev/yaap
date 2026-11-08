@@ -1,0 +1,143 @@
+diff --git a/stockroom/orders.py b/stockroom/orders.py
+index c4ddf10..66eca95 100644
+--- a/stockroom/orders.py
++++ b/stockroom/orders.py
+@@ -1,7 +1,7 @@
+ """Orders: from a draft to shipped, with reservations so confirmed orders keep their stock.
+ 
+ A draft takes lines freely. Confirming reserves every line's units (all or nothing); picking checks the reservations
+-are still there; shipping fulfils them. Cancelling releases what was reserved. Discount codes apply to the subtotal.
++are still there; shipping fulfils them. Cancelling releases what was reserved. Discount codes (pricing.py) apply to the subtotal.
+ """
+ 
+ from dataclasses import dataclass
+@@ -9,14 +9,8 @@ from datetime import datetime
+ 
+ from stockroom.inventory import Inventory, InventoryError
+ from stockroom.models import Order, OrderLine, OrderStatus
+-from stockroom.pricing import breakdown
+-
+-# code -> (percentage off, minimum subtotal in cents)
+-DISCOUNT_RULES: dict[str, tuple[int, int]] = {
+-    "WELCOME10": (10, 0),
+-    "BULK15": (15, 50_000),
+-    "STAFF25": (25, 0),
+-}
++from stockroom.pricing import DiscountError, apply_discount, breakdown
++
+ MAX_LINES = 50
+ 
+ 
+@@ -39,20 +33,6 @@ class OrderTotals:
+         return self.net_cents + self.vat_cents
+ 
+ 
+-def apply_discount(subtotal_cents: int, code: str) -> int:
+-    """The discount in cents for a code on a subtotal; 0 for an empty code. An unknown code or a subtotal below
+-    the code's minimum is an error, so the customer hears why."""
+-    if not code:
+-        return 0
+-    rule = DISCOUNT_RULES.get(code.strip().upper())
+-    if rule is None:
+-        raise OrderError(f"Unknown discount code {code!r}.")
+-    percent, minimum = rule
+-    if subtotal_cents < minimum:
+-        raise OrderError(f"{code.upper()} needs a subtotal of at least {minimum / 100:.2f}.")
+-    return subtotal_cents * percent // 100
+-
+-
+ class OrderBook:
+     def __init__(self, inventory: Inventory) -> None:
+         self.inventory = inventory
+@@ -100,14 +80,20 @@ class OrderBook:
+ 
+     def set_discount(self, order_id: str, code: str) -> None:
+         order = self._draft(order_id)
+-        apply_discount(order.subtotal_cents, code)
++        try:
++            apply_discount(order.subtotal_cents, code)
++        except DiscountError as error:
++            raise OrderError(str(error)) from error
+         order.discount_code = code.strip().upper()
+ 
+     def totals(self, order_id: str) -> OrderTotals:
+         """Subtotal, discount and VAT; VAT is computed per line on the discounted line amount."""
+         order = self.get(order_id)
+         subtotal = order.subtotal_cents
+-        discount = apply_discount(subtotal, order.discount_code)
++        try:
++            discount = apply_discount(subtotal, order.discount_code)
++        except DiscountError as error:
++            raise OrderError(str(error)) from error
+         vat = 0
+         for line in order.lines:
+             share = line.total_cents - (line.total_cents * discount // subtotal if subtotal else 0)
+diff --git a/stockroom/pricing.py b/stockroom/pricing.py
+index ff6c382..1ab5188 100644
+--- a/stockroom/pricing.py
++++ b/stockroom/pricing.py
+@@ -7,6 +7,16 @@ from dataclasses import dataclass
+ 
+ VAT_RATES = {"standard": 21, "reduced": 9, "zero": 0}
+ CATEGORY_VAT = {"food": "reduced", "books": "reduced"}
++# code -> (percentage off, minimum subtotal in cents)
++DISCOUNT_RULES: dict[str, tuple[int, int]] = {
++    "WELCOME10": (10, 0),
++    "BULK15": (15, 50_000),
++    "STAFF25": (25, 0),
++}
++
++
++class DiscountError(ValueError):
++    """A discount code that does not apply; the message is meant for the customer."""
+ 
+ 
+ @dataclass(frozen=True)
+@@ -75,3 +85,17 @@ def cents_to_words(cents: int) -> str:
+     whole, rest = divmod(abs(cents), 100)
+     text = f"{whole} euro" + (f" and {rest} cent" if rest else "")
+     return f"minus {text}" if cents < 0 else text
++
++
++def apply_discount(subtotal_cents: int, code: str) -> int:
++    """The discount in cents for a code on a subtotal; 0 for an empty code. An unknown code or a subtotal below
++    the code's minimum is an error, so the customer hears why."""
++    if not code:
++        return 0
++    rule = DISCOUNT_RULES.get(code.strip().upper())
++    if rule is None:
++        raise DiscountError(f"Unknown discount code {code!r}.")
++    percent, minimum = rule
++    if subtotal_cents < minimum:
++        raise DiscountError(f"{code.upper()} needs a subtotal of at least {minimum / 100:.2f}.")
++    return subtotal_cents * percent // 100
+diff --git a/tests/test_orders.py b/tests/test_orders.py
+index 86317f3..acc67d7 100644
+--- a/tests/test_orders.py
++++ b/tests/test_orders.py
+@@ -1,7 +1,8 @@
+ import unittest
+ 
+ from stockroom.models import OrderStatus
+-from stockroom.orders import OrderBook, OrderError, apply_discount
++from stockroom.orders import OrderBook, OrderError
++from stockroom.pricing import DiscountError, apply_discount
+ from tests.helpers import Clock, make_inventory
+ 
+ 
+@@ -25,10 +26,13 @@ class Orders(unittest.TestCase):
+     def test_discount_codes_have_a_minimum(self) -> None:
+         self.assertEqual(apply_discount(10_000, "welcome10"), 1000)
+         self.assertEqual(apply_discount(10_000, ""), 0)
+-        with self.assertRaises(OrderError):
++        with self.assertRaises(DiscountError):
+             apply_discount(10_000, "BULK15")
+-        with self.assertRaises(OrderError):
++        with self.assertRaises(DiscountError):
+             apply_discount(10_000, "FREE")
++        order = self.book.create("Jansen")
++        with self.assertRaises(OrderError):
++            self.book.set_discount(order.id, "FREE")
+ 
+     def test_totals_apply_the_discount_before_vat_per_line(self) -> None:
+         order = self.book.create("Jansen")

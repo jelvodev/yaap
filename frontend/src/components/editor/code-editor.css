@@ -1,0 +1,15 @@
+/* The CodeMirror editor. Colours come from the theme tokens in CodeEditor.tsx. */
+
+.code-editor {
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.code-editor .cm-editor {
+  height: 100%;
+}
+
+.code-editor .cm-editor.cm-focused {
+  outline: none;
+}

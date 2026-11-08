@@ -1,0 +1,186 @@
+/* The project rail on the right edge of the chat, and where the panels beside it go. */
+
+.chat {
+  --rail-width: 48px;
+  position: relative;
+}
+
+.project-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: var(--rail-width);
+  flex-shrink: 0;
+  padding: 10px 0;
+  border-left: 1px solid var(--border);
+  background: var(--panel);
+  overflow-y: auto;
+}
+
+.rail-item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.rail-item:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--raised);
+}
+
+.rail-item[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: var(--accent-soft);
+  color: var(--text-strong);
+}
+
+.rail-item:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.rail-item-group-end {
+  margin-bottom: 10px;
+}
+
+.rail-gap {
+  flex: 1;
+  min-height: 10px;
+}
+
+.rail-count {
+  position: absolute;
+  top: -4px;
+  right: -5px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--warning-strong);
+  color: var(--on-accent);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+}
+
+.rail-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 0 2px var(--panel);
+}
+
+/* The switch of a merged panel sits in its header. */
+.pp-head .wb-segmented {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.pp-head .wb-segmented button {
+  flex: 0 0 auto;
+}
+
+/* The folded rail's button and its drawer exist only on narrow windows (`RAIL_NARROW_QUERY` in railItems.ts). */
+.rail-fold,
+.rail-backdrop {
+  display: none;
+}
+
+/* Between the wide and the narrow window the panels lie over the chat, next to the rail. */
+@media (max-width: 1100px) and (min-width: 900px) {
+  .chat .project-panel {
+    right: var(--rail-width);
+  }
+
+  .chat .document-panel {
+    right: var(--rail-width);
+  }
+
+  .chat .preview-panel {
+    position: fixed;
+    top: 0;
+    right: var(--rail-width);
+    bottom: 0;
+    z-index: 30;
+    width: min(520px, calc(100vw - var(--rail-width)));
+    box-shadow: -12px 0 40px var(--shadow-strong);
+  }
+}
+
+@media (max-width: 899px) {
+  .project-rail-folded {
+    display: none;
+  }
+
+  .chat .rail-fold {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    z-index: 5;
+    display: inline-flex;
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: var(--panel);
+    color: var(--muted);
+  }
+
+  .chat .rail-fold .rail-dot {
+    top: 4px;
+    right: 4px;
+  }
+
+  /* Room for the button at the end of the chat's header. */
+  .chat:has(> .rail-fold) .chat-heading {
+    padding-right: 60px;
+  }
+
+  .rail-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 28;
+    display: block;
+    background: var(--backdrop);
+  }
+
+  .project-rail-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 31;
+    box-shadow: -8px 0 24px var(--shadow);
+  }
+
+  .chat .project-panel,
+  .chat .preview-panel {
+    position: fixed;
+    top: 0;
+    right: var(--rail-width);
+    bottom: 0;
+    z-index: 30;
+    width: min(440px, calc(100vw - var(--rail-width)));
+    box-shadow: -12px 0 40px var(--shadow-strong);
+  }
+
+  .chat .project-panel:has(.fe) {
+    width: calc(100vw - var(--rail-width));
+  }
+}

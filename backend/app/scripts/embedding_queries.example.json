@@ -1,0 +1,33 @@
+{
+  "about": "Queries for measure_embeddings.py, an example: the targets name files of a Blueprint and ids of conversations, so copy this file, fit it to your own data and pass it with --queries. A target is a Blueprint path (any level), a conversation id (any of its messages) or 'memory'. Queries without targets are unrelated to everything: the best distance they get shows where noise starts.",
+  "queries": [
+    {"q": "geheimen en wachtwoorden horen niet in de code", "targets": ["standards/security.md"], "kind": "nl-en"},
+    {"q": "hoe moeten we tests schrijven", "targets": ["engineering/testing.md"], "kind": "nl-en"},
+    {"q": "regels voor databasemigraties", "targets": ["standards/database.md"], "kind": "nl-en"},
+    {"q": "wie mag wat: rechten controleren in de backend", "targets": ["standards/authorization.md", "standards/access-control.md"], "kind": "nl-en"},
+    {"q": "wat moet er in de auditlog", "targets": ["standards/logging.md"], "kind": "nl-en"},
+    {"q": "richtlijnen voor de gebruikersinterface en toegankelijkheid", "targets": ["standards/ui-ux.md", "standards/accessibility.md"], "kind": "nl-en"},
+    {"q": "hoe brengen we een release naar productie", "targets": ["standards/deployment.md"], "kind": "nl-en"},
+    {"q": "de applicatie moet snel blijven", "targets": ["standards/performance.md"], "kind": "nl-en"},
+    {"q": "hoe schrijven we documentatie", "targets": ["engineering/documentation.md", "engineering/writing.md"], "kind": "nl-en"},
+    {"q": "antwoord heel kort zonder opvulling", "targets": ["skills/caveman/SKILL.md"], "kind": "nl-en"},
+    {"q": "iemand die code nakijkt op fouten", "targets": ["agents/reviewer.md"], "kind": "nl-en"},
+    {"q": "never commit passwords or tokens", "targets": ["standards/security.md"], "kind": "en-en"},
+    {"q": "how to split the system into modules and layers", "targets": ["engineering/architecture.md", "standards/layering.md"], "kind": "en-en"},
+    {"q": "hoe werkt git rebase", "targets": [15], "kind": "nl-nl"},
+    {"q": "verschil tussen een lijst en een tuple", "targets": [9], "kind": "nl-nl"},
+    {"q": "ontwerp een icoon van een raket", "targets": [14], "kind": "nl-nl"},
+    {"q": "een logo met een terminal en een cursor", "targets": [13], "kind": "nl-nl"},
+    {"q": "verhaal over een vuurtoren", "targets": [17], "kind": "nl-nl"},
+    {"q": "welk woord moest je onthouden", "targets": [6], "kind": "nl-nl"},
+    {"q": "datums altijd in ISO-formaat", "targets": [11, "memory"], "kind": "nl-nl"},
+    {"q": "write-ahead logging in sqlite", "targets": [16], "kind": "en-nl"},
+    {"q": "how do I squash commits into one", "targets": [15], "kind": "en-nl"},
+    {"q": "difference between a set and a list in python", "targets": [19, 9], "kind": "en-nl"},
+    {"q": "recept voor appeltaart", "targets": [], "kind": "noise"},
+    {"q": "xyzzy kwartel fiets", "targets": [], "kind": "noise"},
+    {"q": "weersverwachting voor morgen in Utrecht", "targets": [], "kind": "noise"},
+    {"q": "best football team in Spain", "targets": [], "kind": "noise"},
+    {"q": "hoeveel kost een vliegticket naar Rome", "targets": [], "kind": "noise"}
+  ]
+}

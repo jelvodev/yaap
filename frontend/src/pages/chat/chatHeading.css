@@ -1,0 +1,117 @@
+/* Prefixed with .chat-main: styles.css loads after this file, so equal selectors there would win. */
+/* The chat heading: title and project chip on the left, the change chip and the ⋯ on the right. */
+.chat-main .chat-heading {
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.chat-main .chat-heading h1 {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-main .chat-heading button.chip {
+  border: 1px solid var(--border-strong);
+  cursor: pointer;
+}
+
+.chat-main .chat-heading-project {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.chat-main .chat-heading button.chat-heading-project.chip-accent {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: var(--accent-soft);
+}
+
+.chat-main .chat-heading button.chat-heading-project:hover {
+  border-color: var(--accent);
+}
+
+.chat-main .chat-heading-end {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.chat-main .chat-heading button.chat-heading-changes {
+  border-color: color-mix(in srgb, var(--warning) 45%, transparent);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  color: var(--warning);
+  white-space: nowrap;
+}
+
+.chat-main .chat-heading button.chat-heading-changes-push {
+  border-color: var(--border-strong);
+  background: var(--raised);
+  color: var(--text-soft);
+}
+
+.chat-main .chat-heading button.chat-heading-changes:hover {
+  border-color: var(--warning);
+}
+
+.chat-main .chat-heading-menu {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-main .chat-heading-more {
+  width: 28px;
+  height: 28px;
+}
+
+.chat-main .chat-heading-popover {
+  width: 230px;
+}
+
+.chat-main .chat-heading-popover > a {
+  padding: 7px 10px;
+  border-radius: 6px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.chat-main .chat-heading-popover > a:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.chat-main .chat-heading-popover > button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.chat-main .chat-heading-popover > hr {
+  width: 100%;
+  margin: 4px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.chat-main .chat-heading-rename {
+  display: flex;
+  flex: 0 1 420px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.chat-main .chat-heading-rename input {
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 15px;
+  font-weight: 600;
+}

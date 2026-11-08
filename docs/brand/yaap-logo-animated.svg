@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="209 17 359 123" role="img" aria-labelledby="title">
+  <title id="title">YAAP</title>
+  <!-- yaap-logo.svg with the prompt blinking like a terminal waiting for input, as in the app (Logo with blink).
+       For places that show an SVG as an image, such as the README on GitHub; still with reduced motion. -->
+  <style>
+    .prompt { animation: blink 1.1s steps(1, end) infinite; }
+    @keyframes blink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { .prompt { animation: none; } }
+  </style>
+  <rect x="209" y="17" width="359" height="123" rx="12" fill="#282a36"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- prompt -->
+    <path class="prompt" d="M289 55 L306 70.5 L289 86" stroke="#6272a4" stroke-width="7"/>
+    <g stroke="#f8f8f2" stroke-width="7">
+      <!-- y: a detached left arm with a flat end, and the long stroke into the descender -->
+      <path d="M346.766 54.242 L353.22 71 L345.72 71 L340.234 56.758 A3.5 3.5 0 0 1 346.766 54.242 Z" fill="#f8f8f2" stroke="none"/>
+      <path d="M366 55.5 L346.4 103.5"/>
+      <!-- a -->
+      <ellipse cx="386.5" cy="70.5" rx="7" ry="15"/>
+      <path d="M393.5 55.5 V82 Q393.5 86 396.5 86"/>
+      <!-- a -->
+      <ellipse cx="416.5" cy="70.5" rx="7" ry="15"/>
+      <path d="M423.5 55.5 V82 Q423.5 86 426.5 86"/>
+      <!-- p -->
+      <path d="M441.5 55.5 V103.5"/>
+      <ellipse cx="449.5" cy="70.5" rx="8" ry="15"/>
+    </g>
+  </g>
+  <!-- cursor -->
+  <rect x="469" y="89" width="23" height="7" rx="2" fill="#7aa2f7"/>
+</svg>

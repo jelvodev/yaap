@@ -1,0 +1,30 @@
+diff --git a/stockroom/storage.py b/stockroom/storage.py
+index 4ceb137..742e6aa 100644
+--- a/stockroom/storage.py
++++ b/stockroom/storage.py
+@@ -6,7 +6,7 @@ the old one, so a crash never leaves half a file behind.
+ 
+ import json
+ import os
+-from datetime import datetime
++from datetime import datetime, timezone
+ from pathlib import Path
+ from typing import Any
+ 
+@@ -21,11 +21,14 @@ class StorageError(Exception):
+ 
+ 
+ def _stamp(moment: datetime) -> str:
+-    return moment.strftime("%Y-%m-%dT%H:%M:%S")
++    """ISO 8601 with the UTC offset, so a loaded time can be compared with the inventory's clock."""
++    return moment.isoformat()
+ 
+ 
+ def _moment(text: str) -> datetime:
+-    return datetime.fromisoformat(text)
++    """A time from the file; files written before SR-9 have no offset, and their times were UTC."""
++    moment = datetime.fromisoformat(text)
++    return moment if moment.tzinfo is not None else moment.replace(tzinfo=timezone.utc)
+ 
+ 
+ def item_to_dict(item: Item) -> dict[str, Any]:

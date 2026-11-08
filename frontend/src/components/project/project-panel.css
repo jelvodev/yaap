@@ -1,0 +1,802 @@
+/* The project panel beside the chat. */
+
+.project-panel {
+  display: flex;
+  flex-direction: column;
+  width: 420px;
+  flex-shrink: 0;
+  min-height: 0;
+  border-left: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.pp-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pp-head h2 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.pp-close {
+  width: 30px;
+  height: 30px;
+  margin-left: auto;
+}
+
+.project-panel .wb-tabs {
+  padding: 0 8px;
+}
+
+.pp-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.pp-pad {
+  padding: 12px 16px;
+  margin: 0;
+}
+
+.pp-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.pp-row input,
+.pp-row select {
+  flex: 1;
+  min-width: 140px;
+}
+
+.pp-grow {
+  flex: 1;
+}
+
+.project-panel .button {
+  min-height: 34px;
+}
+
+/* A changed file's path and status letter (the Changes panel has its own changes-panel.css) */
+
+.pp-file-path {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pp-state {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: 1px solid currentColor;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.pp-diff {
+  flex: 1;
+  min-height: 120px;
+  overflow: auto;
+}
+
+.pp-diff .diff {
+  margin: 0;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+}
+
+/* Memory */
+
+.pp-memory {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  padding: 12px 16px;
+}
+
+.pp-memory p {
+  margin: 0;
+}
+
+.pp-memory .pp-row input[type="search"] {
+  flex: 1;
+  /* Room to type; the buttons wrap below it in a narrow panel. */
+  min-width: 160px;
+}
+
+.pp-memory-file {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.pp-memory-file textarea {
+  flex: 1;
+  min-height: 320px;
+  resize: vertical;
+  font-size: 12.5px;
+}
+
+.pp-memory-section h3,
+.pp-memory-add h3 {
+  margin: 4px 0 4px;
+  font-size: 13px;
+}
+
+.pp-entries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pp-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.pp-entry-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pp-entry-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.pp-entry-editing {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.pp-memory-add {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+}
+
+.pp-memory-add textarea,
+.pp-entry-editing textarea {
+  resize: vertical;
+}
+
+/* Project */
+
+.pp-settings {
+  padding: 4px 16px 24px;
+}
+
+.pp-folder {
+  margin: 10px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.pp-section {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.pp-section:last-child {
+  border-bottom: 0;
+}
+
+.pp-section h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+
+.pp-section p {
+  margin: 0 0 6px;
+}
+
+.pp-label {
+  display: block;
+  margin: 8px 0 4px;
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.pp-section > select {
+  width: 100%;
+}
+
+.pp-git-remote-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pp-git-remote-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.pp-git-remote-text .pp-label {
+  margin-top: 0;
+  color: var(--text-strong);
+  font-size: 13px;
+}
+
+.pp-git-remote-url {
+  overflow-wrap: anywhere;
+}
+
+.pp-settings .settings-section {
+  margin-top: 12px;
+}
+
+.pp-settings .card {
+  padding: 12px;
+}
+
+.pp-settings .form-row input:not([type="color"]),
+.pp-settings .form-row select {
+  min-width: 140px;
+}
+
+.chat-panel-toggle[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text-strong);
+}
+
+/* The panel takes the whole width on narrow screens, over the chat. */
+@media (max-width: 1100px) {
+  .project-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    width: min(440px, 100vw);
+    box-shadow: -12px 0 40px var(--shadow-strong);
+  }
+}
+
+/* Checkpoints */
+.pp-checkpoints {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+}
+
+.pp-checkpoint-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+
+.pp-checkpoint-group {
+  padding: 10px 14px 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pp-checkpoint {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 14px;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pp-checkpoint:hover,
+.pp-checkpoint[aria-current="true"] {
+  background: var(--raised);
+}
+
+.pp-checkpoint-summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.pp-checkpoint-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 14px 14px;
+}
+
+.pp-checkpoint-detail .diff {
+  max-height: 360px;
+  overflow: auto;
+}
+
+.pp-knowledge {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pp-knowledge-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pp-knowledge-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.pp-knowledge-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pp-language + .pp-language {
+  margin-top: 12px;
+}
+
+.pp-language > label {
+  font-weight: 600;
+}
+
+/* Branches and pull requests */
+.pp-branch-list,
+.pp-pr-list,
+.pp-pr-files {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.pp-branch-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+}
+.pp-branch-subject {
+  flex: 1 1 160px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pp-branch-actions {
+  display: inline-flex;
+  gap: 8px;
+}
+.pp-pr-form {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.pp-pr-form input,
+.pp-pr-form textarea {
+  width: 100%;
+}
+.pp-pr-form .pp-base {
+  width: 14em;
+}
+.pp-pr-detail {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 4px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.pp-pr-body {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: var(--font);
+  font-size: 13px;
+}
+
+/* Files */
+
+.ft {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.ft-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 4px 16px;
+}
+
+.ft-bar input {
+  flex: 1;
+  min-width: 0;
+}
+
+.ft-bar .wb-segmented {
+  margin: 0;
+}
+
+.ft-location {
+  margin: 0;
+  padding: 2px 16px 6px;
+}
+
+.ft-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 8px;
+}
+
+.ft-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 28px;
+  padding: 3px 12px 3px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font-size: 12.5px;
+}
+
+.ft-row:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.ft-row:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.ft-row[aria-current="true"] {
+  background: var(--raised);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.ft-chevron {
+  display: inline-flex;
+  flex: none;
+  width: 12px;
+  color: var(--faint);
+  transition: transform 0.1s;
+}
+
+.ft-chevron.ft-open {
+  transform: rotate(90deg);
+}
+
+.ft-icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--muted);
+}
+
+.ft-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ft-meta {
+  display: inline-flex;
+  flex: none;
+  gap: 10px;
+  margin-left: auto;
+  padding-left: 8px;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ft-match {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding-left: 16px;
+}
+
+.ft-line {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+}
+
+.ft-note {
+  margin: 2px 0;
+}
+
+.ft-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.ft-pane[hidden] {
+  display: none;
+}
+
+/* The editor: the panel widens while a file is open. */
+
+.project-panel:has(.fe) {
+  width: min(880px, 62vw);
+}
+
+.fe {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.fe-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px 4px 16px;
+}
+
+.fe-path {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+}
+
+.fe-dirty {
+  color: var(--warning);
+}
+
+.fe-facts {
+  flex: none;
+  white-space: nowrap;
+}
+
+.fe-save {
+  margin-left: auto;
+}
+
+.fe-where {
+  margin: 0;
+  padding: 0 16px 6px;
+}
+
+.fe-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 12px 8px;
+}
+
+.fe-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  border-top: 1px solid var(--border);
+}
+
+.fe-body .code-editor {
+  flex: 1;
+}
+
+.fe-media {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+  background: var(--code-bg);
+}
+
+.fe-media img {
+  display: block;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.fe-pdf {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border: 0;
+  background: var(--code-bg);
+}
+
+@media (max-width: 1100px) {
+  .project-panel:has(.fe) {
+    width: min(880px, 100vw);
+  }
+}
+
+/* Opening a Markdown file as the shared document. */
+.fe-document {
+  margin-left: auto;
+}
+
+.fe-document + .fe-save {
+  margin-left: 0;
+}
+
+/* The project's sandbox under Where the agent works. */
+.pp-sandbox {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+/* The Evals tab. */
+.pp-eval-run {
+  border-bottom: 1px solid var(--border);
+}
+
+.pp-eval-run > .pp-task {
+  border-bottom: none;
+}
+
+.pp-eval-results,
+.pp-eval-checks {
+  margin: 0 0 8px;
+  padding: 0 0 0 12px;
+  list-style: none;
+}
+
+.pp-eval-result {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0;
+}
+
+.pp-eval-detail {
+  max-height: 160px;
+  margin: 2px 0 4px;
+  overflow: auto;
+  white-space: pre-wrap;
+  color: var(--muted);
+}
+
+.pp-eval-passed {
+  color: var(--accent);
+}
+
+.pp-eval-failed,
+.pp-eval-stopped {
+  color: var(--danger);
+}
+
+.pp-eval-error,
+.pp-eval-missing,
+.pp-eval-queued,
+.pp-eval-running {
+  color: var(--muted);
+}
+
+.pp-eval-compare {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.pp-eval-compare th,
+.pp-eval-compare td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+/* Reviews */
+
+.pp-review {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0 8px;
+}
+
+.pp-review-report {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pp-review-report p {
+  margin: 2px 0;
+}
+
+.pp-review-finding {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.pp-review-explanation {
+  white-space: pre-wrap;
+}
+
+.pp-review-severity {
+  flex: none;
+  min-width: 52px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pp-review-high,
+.pp-review-status-failed {
+  color: var(--danger);
+}
+
+.pp-review-medium {
+  color: var(--warning);
+}
+
+.pp-review-low,
+.pp-review-status-running,
+.pp-review-status-skipped {
+  color: var(--muted);
+}
+
+.pp-review-status-done {
+  color: var(--accent);
+}
+
+.pp-review .pp-diff {
+  max-height: 420px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.pp-review-all {
+  margin: 6px 8px;
+}

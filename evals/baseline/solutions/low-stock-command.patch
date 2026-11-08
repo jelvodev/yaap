@@ -1,0 +1,86 @@
+diff --git a/stockroom/cli.py b/stockroom/cli.py
+index 05661b3..37fad21 100644
+--- a/stockroom/cli.py
++++ b/stockroom/cli.py
+@@ -1,6 +1,6 @@
+ """The command line: `python3 -m stockroom.cli <command> --data <file>`.
+ 
+-Commands: report, valuation, restock, export, search, receive and ship. Commands that change the stock save the
++Commands: report, valuation, restock, low-stock, export, search, receive and ship. Commands that change the stock save the
+ data file afterwards.
+ """
+ 
+@@ -22,6 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
+     commands.add_parser("report", help="the stock report per category")
+     commands.add_parser("valuation", help="the stock value per category")
+     commands.add_parser("restock", help="what to reorder")
++    commands.add_parser("low-stock", help="items at or below their reorder level")
+     export = commands.add_parser("export", help="all items as CSV")
+     export.add_argument("--output", type=Path, help="write to this file instead of the screen")
+     search = commands.add_parser("search", help="find items by SKU, name or category")
+@@ -42,6 +43,8 @@ def run(arguments: argparse.Namespace, inventory: Inventory) -> tuple[str, bool]
+         return report.valuation_report(inventory), False
+     if arguments.command == "restock":
+         return report.restock_report(inventory), False
++    if arguments.command == "low-stock":
++        return report.low_stock_report(inventory), False
+     if arguments.command == "export":
+         text = report.csv_export(inventory)
+         if arguments.output:
+diff --git a/stockroom/report.py b/stockroom/report.py
+index ff11e6c..5cc6598 100644
+--- a/stockroom/report.py
++++ b/stockroom/report.py
+@@ -93,6 +93,22 @@ def restock_report(inventory: Inventory) -> str:
+     return "\n".join(lines) + "\n"
+ 
+ 
++def low_stock_report(inventory: Inventory) -> str:
++    """Items whose available units are at or below their reorder level, most missing first."""
++    low = sorted(
++        inventory.needs_reorder(), key=lambda item: (-(item.reorder_level - item.available), item.sku)
++    )
++    if not low:
++        return "Nothing is low on stock.\n"
++    lines = [f"{'SKU':<9} {'Name':<{NAME_WIDTH}} {'Avail':>6} {'Level':>6} {'Short':>6}"]
++    for item in low:
++        short = item.reorder_level - item.available
++        lines.append(
++            f"{item.sku:<9} {short_name(item.name):<{NAME_WIDTH}} {item.available:>6} {item.reorder_level:>6} {short:>6}"
++        )
++    return "\n".join(lines) + "\n"
++
++
+ def format_legacy_row(item: Item) -> str:
+     """The semicolon format of the old spreadsheet, for a one-off migration."""
+     return ";".join([item.sku, item.name, str(item.quantity), str(item.unit_cost_cents)])
+diff --git a/tests/test_cli.py b/tests/test_cli.py
+index 64f80f4..2124789 100644
+--- a/tests/test_cli.py
++++ b/tests/test_cli.py
+@@ -45,6 +45,7 @@ class CommandLine(unittest.TestCase):
+         self.assertTrue(target.read_text(encoding="utf-8").startswith("sku,name"))
+         self.assertIn("Valuation", self.run_cli("valuation")[1])
+         self.assertIn("Restock plan", self.run_cli("restock")[1])
++        self.assertIn("SR-3", self.run_cli("low-stock")[1])
+ 
+ 
+ if __name__ == "__main__":
+diff --git a/tests/test_report.py b/tests/test_report.py
+index 407d4ae..f6d4990 100644
+--- a/tests/test_report.py
++++ b/tests/test_report.py
+@@ -24,6 +24,13 @@ class Reports(unittest.TestCase):
+     def test_long_names_are_shortened(self) -> None:
+         self.assertEqual(report.short_name("x" * 40, 10), "x" * 9 + "…")
+ 
++    def test_the_low_stock_report_lists_the_shortest_first(self) -> None:
++        self.inventory.reserve("SR-1", 9)
++        lines = report.low_stock_report(self.inventory).splitlines()
++        self.assertEqual([line.split()[0] for line in lines[1:]], ["SR-1", "SR-3"])
++        self.assertTrue(lines[1].endswith(" 2"))
++        self.assertEqual(report.low_stock_report(Inventory()), "Nothing is low on stock.\n")
++
+     def test_valuation_and_restock(self) -> None:
+         self.assertIn("fasteners", report.valuation_report(self.inventory).splitlines()[3])
+         self.assertIn("SR-3", report.restock_report(self.inventory))

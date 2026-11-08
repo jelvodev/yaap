@@ -1,0 +1,127 @@
+services:
+  yaap:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: yaap:local
+    environment:
+      # The master key: in .env, or in a file named by YAAP_MASTER_KEY_FILE (a Docker secret, set in the
+      # override file). YAAP says how to make one when neither is set.
+      YAAP_MASTER_KEY: ${YAAP_MASTER_KEY:-}
+      YAAP_MASTER_KEY_FILE: ${YAAP_MASTER_KEY_FILE:-}
+      # Only while rotating the master key: the old key. Remove it when Settings › Vault says so.
+      YAAP_MASTER_KEY_PREVIOUS: ${YAAP_MASTER_KEY_PREVIOUS:-}
+      # Extra host names YAAP answers on besides localhost, 127.0.0.1 and [::1] (docs/configuration.md).
+      YAAP_ALLOWED_HOSTS: ${YAAP_ALLOWED_HOSTS:-}
+      # The agent's web_search tool searches through the SearXNG service below.
+      YAAP_SEARCH_URL: http://searxng:8080
+      # The sandbox helper below: it starts the runner of each environment, where the agent's commands, MCP servers
+      # over stdio and browser run (docs/architecture.md), and the sandboxes of projects that choose one.
+      YAAP_SANDBOX_URL: http://yaap-sandbox:8000
+      # The preview of a project's app beside the chat, on an origin of its own (docs/configuration.md).
+      YAAP_PREVIEW_PORT: ${YAAP_PREVIEW_PORT:-8081}
+    ports:
+      - "127.0.0.1:8080:8080"
+      # The preview: like YAAP's port, only on this computer.
+      - "127.0.0.1:${YAAP_PREVIEW_PORT:-8081}:${YAAP_PREVIEW_PORT:-8081}"
+    volumes:
+      - ${YAAP_DATA_HOST:-./data}:/data
+      # Only the helper's token, which the helper writes; YAAP never gets the Docker socket.
+      - sandbox-control:/run/yaap-sandbox:ro
+    networks:
+      - default
+      - sandbox-control
+    depends_on:
+      - searxng
+      - yaap-sandbox
+    # YAAP runs as an unprivileged user on port 8080 and needs no Linux capabilities; nothing it starts may gain
+    # privileges through a setuid binary either.
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+
+  # Web search without an API key: only YAAP reaches it, so it publishes no port.
+  searxng:
+    build:
+      context: .
+      dockerfile: docker/searxng/Dockerfile
+    image: yaap-searxng:local
+    # The image keeps its settings in volumes; tmpfs makes every start take docker/searxng/settings.yml afresh.
+    tmpfs:
+      - /etc/searxng
+      - /var/cache/searxng
+    restart: unless-stopped
+
+  # --- Runners and sandboxes: always part of YAAP, see docs/install.md. ---
+
+  # Starts, stops and removes the runner of each environment and the sandbox of each project that chose one, and
+  # relays YAAP's SSH connection to them. It alone talks to Docker, through the proxy below, and only to containers
+  # with YAAP's sandbox label.
+  yaap-sandbox:
+    build:
+      context: .
+      dockerfile: docker/sandbox-helper/Dockerfile
+    image: yaap-sandbox-helper:local
+    environment:
+      DOCKER_HOST: tcp://docker-proxy:2375
+      # Extra packages: an image with an extra layer on yaap-sandbox:local, named in docker-compose.override.yml
+      # (docs/configuration.md, "Extra packages for the runner").
+      YAAP_SANDBOX_IMAGE: ${YAAP_SANDBOX_IMAGE:-yaap-sandbox:local}
+      # Per runner and per sandbox; see docs/configuration.md.
+      YAAP_SANDBOX_CPUS: ${YAAP_SANDBOX_CPUS:-2}
+      YAAP_SANDBOX_MEMORY: ${YAAP_SANDBOX_MEMORY:-4g}
+    volumes:
+      - sandbox-control:/run/yaap-sandbox
+      # To check a project folder exists, and to learn where the workspace is on the host for the sandbox's mount.
+      - ${YAAP_DATA_HOST:-./data}/workspace:/workspace:ro
+    networks:
+      - sandbox-control
+      - docker-api
+      - sandbox-offline
+      - sandbox-online
+    depends_on:
+      - docker-proxy
+    restart: unless-stopped
+
+  # The Docker socket, limited to the container and image sections of the API; reachable only by the helper.
+  docker-proxy:
+    image: tecnativa/docker-socket-proxy:v0.5.0
+    environment:
+      CONTAINERS: 1
+      IMAGES: 1
+      POST: 1
+      EVENTS: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - docker-api
+    restart: unless-stopped
+
+  # Only builds the sandbox image (yaap-sandbox:local), with the agent's browser in it; the helper starts the runners
+  # and sandboxes from it. This service itself exits at once.
+  sandbox-image:
+    build:
+      context: docker/sandbox
+    image: yaap-sandbox:local
+    entrypoint: ["true"]
+    network_mode: none
+    restart: "no"
+
+networks:
+  default: {}
+  # YAAP and the helper only.
+  sandbox-control:
+    internal: true
+  # The helper and the socket proxy only.
+  docker-api:
+    internal: true
+  # Runners and sandboxes without network (the default of a sandbox): no route outside; only the helper reaches them.
+  sandbox-offline:
+    name: yaap-sandbox-offline
+    internal: true
+  # Runners (online by default) and sandboxes of projects that switched the network on. YAAP is not on it.
+  sandbox-online:
+    name: yaap-sandbox-online
+
+volumes:
+  sandbox-control: {}

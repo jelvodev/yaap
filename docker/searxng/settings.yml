@@ -1,0 +1,26 @@
+# SearXNG for the agent's web_search tool, a self-hosted meta search engine, no API key,
+# queries not tied to one commercial search provider. SearXNG's default engines, with the JSON format on and no rate
+# limiter, since only YAAP reaches it over the compose network (no published port). On first start the image's
+# entrypoint copies this file to /etc/searxng/settings.yml and replaces the secret key placeholder with a random one.
+use_default_settings:
+  engines:
+    # Tor-only engines; without a Tor proxy they fail to load.
+    remove:
+      - ahmia
+      - torch
+
+general:
+  instance_name: "YAAP search"
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  formats:
+    - html
+    - json
+
+server:
+  secret_key: "ultrasecretkey"
+  limiter: false
+  public_instance: false
+  image_proxy: false

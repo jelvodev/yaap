@@ -1,0 +1,41 @@
+{
+  "name": "yaap-plugin",
+  "version": 1,
+  "messages": {
+    "hello": "hello",
+    "init": "init",
+    "context": "context",
+    "theme": "theme",
+    "request": "request",
+    "response": "response"
+  },
+  "themeTokens": [
+    "--bg",
+    "--panel",
+    "--surface",
+    "--raised",
+    "--raised-strong",
+    "--border",
+    "--border-strong",
+    "--text",
+    "--text-strong",
+    "--text-soft",
+    "--muted",
+    "--faint",
+    "--danger",
+    "--ok",
+    "--warning",
+    "--accent",
+    "--accent-soft",
+    "--accent-text",
+    "--on-accent",
+    "--link",
+    "--link-hover",
+    "--line",
+    "--hover",
+    "--code-bg",
+    "--shadow",
+    "--font",
+    "--mono"
+  ]
+}
