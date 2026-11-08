@@ -82,6 +82,17 @@ docker buildx imagetools inspect python:3.14-slim
 
 Take the `Digest:` at the top of the output (the index for all platforms, not one of the platform manifests below it), replace the old digest everywhere the image is named, build the images and commit with what changed in the new image.
 
+### Audit
+
+`scripts/audit.sh` (Linux, macOS, Git Bash) or `scripts/audit.ps1` (Windows) check the pinned packages against the published vulnerability databases. They need npm and uv.
+
+```bash
+./scripts/audit.sh
+powershell -ExecutionPolicy Bypass -File scripts\audit.ps1
+```
+
+They check the frontend (`npm audit` on `frontend/package-lock.json`), both Python lock files (`pip-audit`), and the npm packages installed globally in the images (Codex, Playwright MCP, pyright, the TypeScript language server and TypeScript), at the versions their `ARG` in the Dockerfile names. Each check is listed as `ok` or `FAILED` at the end, and the exit code is non-zero when any check has a finding or could not run. The global packages have no lock file in the images, so their dependencies are resolved as a build today would. Debian's own packages in the images are not checked.
+
 ## Pull requests
 
 - One subject per pull request, with tests for new behaviour.
