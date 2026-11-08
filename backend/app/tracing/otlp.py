@@ -32,13 +32,14 @@ from sqlalchemy.orm import Session
 
 from app.storage.models import AgentRunRecord, Conversation, RunStep
 from app.tracing.snapshots import JsonValue, StoredSnapshot
+from app.version import VERSION
 
 SEMCONV_VERSION = "1.37.0"
 SCHEMA_URL = f"https://opentelemetry.io/schemas/{SEMCONV_VERSION}"
 SCOPE_NAME = "yaap.tracing"
 SERVICE_NAME = "yaap"
 # YAAP's version, as the app and its MCP server and client name it.
-SERVICE_VERSION = "0.1.0"
+SERVICE_VERSION = VERSION
 SPAN_KIND_INTERNAL = 1
 SPAN_KIND_CLIENT = 3
 STATUS_ERROR = 2

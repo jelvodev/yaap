@@ -18,11 +18,12 @@ import httpx
 
 from app.core.subprocess_env import safe_subprocess_env
 from app.mcp_client.config import ServerConfig
+from app.version import VERSION
 
 logger = logging.getLogger(__name__)
 
 PROTOCOL_VERSION = "2025-06-18"
-CLIENT_INFO = {"name": "YAAP", "version": "0.1.0"}
+CLIENT_INFO = {"name": "YAAP", "version": VERSION}
 LOG_LINES = 200
 MAX_LINE_BYTES = 16 * 1024 * 1024
 

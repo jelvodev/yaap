@@ -48,6 +48,7 @@ from app.core.restore import apply_pending_restore
 from app.agent.outputs import prune_outputs
 from app.mcp_client.manager import McpManager
 from app.browser.service import find_command as find_browser_command
+from app.version import VERSION
 from app.websearch.service import SearxngSearch
 from app.core.settings import SETTING_DEFINITIONS, resolve_setting
 from app.providers.ollama_provider import refresh as refresh_ollama
@@ -250,7 +251,7 @@ def create_app(
     providers: ProviderRegistry | None = None,
     static_dir: Path | None = None,
 ) -> FastAPI:
-    app = FastAPI(title="YAAP", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="YAAP", version=VERSION, lifespan=lifespan)
     # Every API route needs a signed-in browser or an API token.
     app.add_middleware(AuthGate)
     # Added last, so it runs first: the host allowlist and the origin check guard everything, the frontend included.

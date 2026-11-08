@@ -17,6 +17,7 @@ from app.lsp.connection import JsonRpcConnection, LspError, MethodNotFound
 from app.lsp.paths import PathMap
 from app.lsp.process import ServerProcess
 from app.lsp.servers import ServerSpec, suffix
+from app.version import VERSION
 
 START_SECONDS = 60
 REQUEST_SECONDS = 30
@@ -24,7 +25,7 @@ STOP_SECONDS = 3
 CLOSED_CHECK_SECONDS = 0.25
 # Documents kept open per server; the least recently used is closed beyond this.
 MAX_OPEN_DOCUMENTS = 60
-CLIENT_INFO = {"name": "YAAP", "version": "0.1.0"}
+CLIENT_INFO = {"name": "YAAP", "version": VERSION}
 # The symbol kinds YAAP understands: all 26 of the protocol.
 SYMBOL_KINDS = list(range(1, 27))
 

@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 from app.agent.gate import call_tool
 from app.agent.runs import AgentRun, RunRegistry
 from app.agent.tools import mcp_listed_tools
+from app.version import VERSION
 
 router = APIRouter(include_in_schema=False)
 
@@ -76,7 +77,7 @@ async def serve_message(
             {
                 "protocolVersion": params.get("protocolVersion") or DEFAULT_PROTOCOL_VERSION,
                 "capabilities": {"tools": {"listChanged": False}},
-                "serverInfo": {"name": SERVER_NAME, "version": "0.1.0"},
+                "serverInfo": {"name": SERVER_NAME, "version": VERSION},
                 "instructions": instructions,
             },
         )
