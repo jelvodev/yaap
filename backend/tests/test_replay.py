@@ -132,7 +132,8 @@ def test_a_replay_from_step_3_starts_with_its_messages_and_files_and_leaves_the_
     assert [item["id"] for item in listed] == [replay["id"]]
     with client.app.state.session_factory() as session:
         assert session.get_one(Conversation, replay["conversation_id"]).archived_at is not None
-    assert not (client.app.state.workspace_dir / "default" / ".evals" / "replays" / str(replay["id"])).exists()
+        slug = session.get_one(Environment, session.get_one(Replay, replay["id"]).environment_id).slug
+    assert not workspace_folder(client.app.state.workspace_dir, slug, replay["id"]).exists()
     # The original run, its conversation and the project folder are as they were.
     after_trace = client.get(f"/api/v1/conversations/{conversation_id}/runs/{trace['run']['id']}/trace").json()
     assert after_trace == before_trace
