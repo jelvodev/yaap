@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { type ModelInfo, api } from "../../api/client";
 import type { components } from "../../api/schema";
 import ModelOptions from "../../components/ModelOptions";
+import { modelState, stateMark } from "../../components/modelState";
 import { Badge, EmptyState, Panel } from "../../components/workbench/Workbench";
 import { type LevelSettings, type SettingsLevel, isOwn } from "./shared";
 import { loadClaudeCodeStatus, loadCodexStatus } from "./StatusFields";
@@ -41,6 +42,24 @@ function BillingBadge({ billing }: { billing: Worker["billing"] }) {
   return billing === "subscription" ? <Badge tone="ok">subscription</Badge> : <Badge tone="off">per token</Badge>;
 }
 
+/** Whether a preset's worker can run, and if not why: the model policy, or a missing key or connection. */
+function WorkerStatus({ worker }: { worker: Worker }) {
+  const state = modelState(worker);
+  if (state.kind === "ok") return <Badge tone="ok">ready</Badge>;
+  if (state.kind === "not_allowed") {
+    return (
+      <Badge tone="danger" title={state.reason ?? undefined}>
+        {stateMark(state)}: {state.reason ?? "the model policy forbids it"}
+      </Badge>
+    );
+  }
+  return (
+    <Badge tone="warn" title={state.reason ?? undefined}>
+      {state.reason ?? "unavailable"}
+    </Badge>
+  );
+}
+
 /** A CLI worker: its model and effort are a setting of this level; its sign-in is shared by every environment. */
 function CliWorkerRow({
   cli,
@@ -58,10 +77,11 @@ function CliWorkerRow({
   const [message, setMessage] = useState<string | null>(null);
   const setting = store.find(cli.setting);
   const value = (setting?.value ?? null) as CliValue | null;
-  // The CLI signs in itself, so its models need no key here.
+  // The CLI signs in itself, so its models need no key here; whether the policy allows the CLI's connection is the
+  // status beside it, not the API connection's answer the model list carries.
   const choices = models
     .filter((model) => model.provider === cli.provider)
-    .map((model) => ({ ...model, available: true, unavailable_reason: null }));
+    .map((model) => ({ ...model, available: true, allowed: true, unavailable_reason: null }));
   const model = choices.find((item) => item.id === value?.model);
   const save = (next: CliValue) => void store.save(cli.setting, next).then(setMessage);
 
@@ -119,7 +139,7 @@ function CliWorkerRow({
         </td>
         <td>
           <SignInBadge cli={cli} />
-          {info && info.allowed === false && <Badge tone="danger">not allowed</Badge>}
+          {info && modelState(info).kind === "not_allowed" && <Badge tone="danger">not allowed</Badge>}
           {info && !info.available && (
             <div className="faint small" title={info.unavailable_reason ?? undefined}>
               {info.unavailable_reason}
@@ -194,17 +214,7 @@ export default function WorkersPanel({
                   {worker.connection || "–"} <BillingBadge billing={worker.billing} />
                 </td>
                 <td>
-                  {worker.available ? (
-                    <Badge tone="ok">ready</Badge>
-                  ) : worker.allowed === false ? (
-                    <Badge tone="danger" title={worker.unavailable_reason ?? undefined}>
-                      not allowed: {worker.unavailable_reason ?? "the model policy forbids it"}
-                    </Badge>
-                  ) : (
-                    <Badge tone="warn" title={worker.unavailable_reason ?? undefined}>
-                      {worker.unavailable_reason ?? "unavailable"}
-                    </Badge>
-                  )}
+                  <WorkerStatus worker={worker} />
                 </td>
               </tr>
             ))}

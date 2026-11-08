@@ -320,6 +320,24 @@ def test_a_request_blocked_by_an_outgoing_check_is_recorded_as_refused_by_the_se
     assert SECRET_VALUE not in row_text(row)
 
 
+def test_a_reply_refused_by_the_model_policy_is_recorded_as_refused(client, fake):
+    add_key(client)
+    conversation_id = start_conversation(client)
+    policy = {"value": {"models": ["claude-haiku-5-5"]}}
+    assert client.put("/api/v1/environments/1/settings/model_policy", json=policy).status_code == 200
+
+    response = client.post(f"/api/v1/conversations/{conversation_id}/messages", json={"text": "Hello"})
+
+    assert response.status_code != 200 and "Claude Opus 5.5 is not allowed" in response.text
+    (row,) = rows(client)
+    assert fake.requests == []
+    assert (row.purpose, row.model, row.conversation_id, row.outcome) == (
+        "reply", "claude-opus-5-5", conversation_id, "refused"
+    )
+    assert row.data_classes == ["conversation"]
+    assert row.reason is not None and "Refused by the model policy of the environment" in row.reason
+
+
 def test_a_sub_run_refused_by_the_model_policy_is_recorded_as_refused(client, fake):
     _, conversation_id = project_conversation(client)
     assert client.put("/api/v1/environments/1/secrets/API_TOKEN", json={"value": SECRET_VALUE}).status_code == 200

@@ -122,6 +122,9 @@ class ModelOut(BaseModel):
     # Per environment only: whether the environment can use the model now, and if not, what is missing.
     available: bool = True
     unavailable_reason: str | None = None
+    # Per environment only: False when the model policy forbids the model; unavailable_reason then names the policy
+    # and its level.
+    allowed: bool = True
     # The catalog's mark for business data processing, which a model policy can require.
     business_data: bool = False
 

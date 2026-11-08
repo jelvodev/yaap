@@ -1,20 +1,32 @@
 import { Link } from "react-router-dom";
 
-import type { Conversation, ModelInfo } from "../../api/client";
+import type { Conversation, Environment, ModelInfo } from "../../api/client";
+import { modelState } from "../../components/modelState";
 
-/** The model in use cannot be used in this environment yet, and why. */
+/** The model in use cannot be used here, and why: the model policy forbids it, or a key is missing. */
 export function ModelNotice({
   model,
-  environmentName,
+  environment,
   hasConversation,
 }: {
   model: ModelInfo;
-  environmentName: string;
+  environment: Environment;
   hasConversation: boolean;
 }) {
+  const state = modelState(model);
+  if (state.kind === "not_allowed") {
+    return (
+      <div className="notice notice-warning">
+        {model.display_name} is not allowed by the model policy in the <strong>{environment.name}</strong>{" "}
+        environment. {state.reason} See{" "}
+        <Link to={`/settings/models/policy?environment=${environment.id}`}>Settings › Models › Policy</Link>
+        {hasConversation ? "." : ", or choose another model."}
+      </div>
+    );
+  }
   return (
     <div className="notice">
-      {model.display_name} cannot be used in the <strong>{environmentName}</strong> environment yet:{" "}
+      {model.display_name} cannot be used in the <strong>{environment.name}</strong> environment yet:{" "}
       {model.unavailable_reason} <Link to="/settings">Open Settings</Link>
       {hasConversation ? "." : ", or choose another model."}
     </div>

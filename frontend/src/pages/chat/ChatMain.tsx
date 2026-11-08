@@ -5,6 +5,7 @@ import Composer from "../../components/Composer";
 import GoalStrip from "../../components/GoalStrip";
 import type { CheckpointLinks } from "../../components/message/contexts";
 import type { MessageActions } from "../../components/message/MessageActions";
+import { modelState } from "../../components/modelState";
 import QueueStrip from "../../components/QueueStrip";
 import TraceDialog from "../../components/trace/TraceDialog";
 import type { ToolCallRef } from "../../components/trace/traceOrder";
@@ -55,7 +56,7 @@ export default function ChatMain(props: ChatMainProps) {
   // The model in use decides: its connection needs a key, or none (Claude Code; when that is not signed in, the
   // reply says how to sign in).
   const activeModel = conversation ? conversationModel : draft.modelInfo;
-  const canChat = catalog.models.length === 0 || (activeModel?.available ?? true);
+  const canChat = catalog.models.length === 0 || !activeModel || modelState(activeModel).kind === "ok";
   const [trace, setTrace] = useState<TraceTarget | null>(null);
   const goal = session.goal.shown;
   const goalEstimate = useGoalEstimate(
@@ -76,7 +77,7 @@ export default function ChatMain(props: ChatMainProps) {
     <section className="chat-main">
       <MainHeading {...props} lastReplyId={lastReplyId} onShowTrace={(messageId) => showTrace(messageId)} />
       {!canChat && activeModel && (
-        <ModelNotice model={activeModel} environmentName={environment.name} hasConversation={conversation !== null} />
+        <ModelNotice model={activeModel} environment={environment} hasConversation={conversation !== null} />
       )}
       {conversation && <ContextNotice conversation={conversation} onNewConversation={props.onNewConversation} />}
       <MessageList

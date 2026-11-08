@@ -5,10 +5,10 @@ import type { components } from "../../api/schema";
 
 export type TargetInfo = components["schemas"]["TargetOut"];
 
-export interface ChatCatalog {
-  /** True once models, projects and presets have arrived. */
+/** What the chat of an environment offers besides its models. */
+export interface ChatBasics {
+  /** True once projects and presets have arrived. */
   loaded: boolean;
-  models: ModelInfo[];
   presets: Preset[];
   projects: Project[];
   /** Computers outside YAAP a conversation outside a project can work on. */
@@ -18,10 +18,16 @@ export interface ChatCatalog {
   removeProject: (projectId: number) => void;
 }
 
-/** What the chat of an environment offers: its models, presets, projects and targets. */
-export function useChatCatalog(environmentId: number): ChatCatalog {
+export interface ChatCatalog extends ChatBasics {
+  /** True once models, projects and presets have arrived. */
+  loaded: boolean;
+  /** Every model, marked for the environment and the project of the chat (a key, the model policy). */
+  models: ModelInfo[];
+}
+
+/** What the chat of an environment offers: its presets, projects and targets. */
+export function useChatCatalog(environmentId: number): ChatBasics {
   const [loaded, setLoaded] = useState(false);
-  const [models, setModels] = useState<ModelInfo[]>([]);
   const [presets, setPresets] = useState<Preset[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [targets, setTargets] = useState<TargetInfo[]>([]);
@@ -30,12 +36,10 @@ export function useChatCatalog(environmentId: number): ChatCatalog {
     let current = true;
     const path = { params: { path: { environment_id: environmentId } } };
     void Promise.all([
-      api.GET("/api/v1/environments/{environment_id}/models", path),
       api.GET("/api/v1/environments/{environment_id}/projects", path),
       api.GET("/api/v1/environments/{environment_id}/presets", path),
-    ]).then(([modelsResult, projectsResult, presetsResult]) => {
+    ]).then(([projectsResult, presetsResult]) => {
       if (!current) return;
-      setModels(modelsResult.data ?? []);
       setProjects(projectsResult.data ?? []);
       setPresets(presetsResult.data ?? []);
       setLoaded(true);
@@ -58,5 +62,29 @@ export function useChatCatalog(environmentId: number): ChatCatalog {
     setProjects((list) => list.filter((item) => item.id !== projectId));
   }, []);
 
-  return { loaded, models, presets, projects, targets, addProject, replaceProject, removeProject };
+  return { loaded, presets, projects, targets, addProject, replaceProject, removeProject };
+}
+
+/**
+ * The catalog with the models of the environment, marked for the chat's project: a project's model policy can forbid
+ * models the environment allows. A separate hook, since the project follows from the catalog's projects.
+ */
+export function useChatModels(basics: ChatBasics, environmentId: number, projectId: number | null): ChatCatalog {
+  // Another project's list stays until this one's arrives, so the pickers do not empty in between.
+  const [models, setModels] = useState<ModelInfo[] | null>(null);
+
+  useEffect(() => {
+    let current = true;
+    const query = projectId === null ? {} : { project_id: projectId };
+    void api
+      .GET("/api/v1/environments/{environment_id}/models", {
+        params: { path: { environment_id: environmentId }, query },
+      })
+      .then(({ data }) => current && setModels(data ?? []));
+    return () => {
+      current = false;
+    };
+  }, [environmentId, projectId]);
+
+  return { ...basics, loaded: basics.loaded && models !== null, models: models ?? [] };
 }

@@ -6325,6 +6325,11 @@
       },
       "ModelOut": {
         "properties": {
+          "allowed": {
+            "default": true,
+            "title": "Allowed",
+            "type": "boolean"
+          },
           "available": {
             "default": true,
             "title": "Available",
@@ -20121,7 +20126,7 @@
     },
     "/api/v1/environments/{environment_id}/models": {
       "get": {
-        "description": "Every model, marked with whether this environment has a working connection for it.",
+        "description": "Every model, marked with whether this environment has a working connection for it and whether the model\npolicy allows it. With project_id, the policy of that project of the environment applies as well.",
         "operationId": "list_environment_models_api_v1_environments__environment_id__models_get",
         "parameters": [
           {
@@ -20131,6 +20136,22 @@
             "schema": {
               "title": "Environment Id",
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
             }
           }
         ],

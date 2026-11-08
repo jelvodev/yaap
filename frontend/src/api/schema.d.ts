@@ -2210,7 +2210,8 @@ export interface paths {
         };
         /**
          * List Environment Models
-         * @description Every model, marked with whether this environment has a working connection for it.
+         * @description Every model, marked with whether this environment has a working connection for it and whether the model
+         *     policy allows it. With project_id, the policy of that project of the environment applies as well.
          */
         get: operations["list_environment_models_api_v1_environments__environment_id__models_get"];
         put?: never;
@@ -6316,6 +6317,11 @@ export interface components {
         };
         /** ModelOut */
         ModelOut: {
+            /**
+             * Allowed
+             * @default true
+             */
+            allowed: boolean;
             /**
              * Available
              * @default true
@@ -12765,7 +12771,9 @@ export interface operations {
     };
     list_environment_models_api_v1_environments__environment_id__models_get: {
         parameters: {
-            query?: never;
+            query?: {
+                project_id?: number | null;
+            };
             header?: never;
             path: {
                 environment_id: number;

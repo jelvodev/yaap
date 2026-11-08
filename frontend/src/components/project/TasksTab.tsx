@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 
 import { api, errorMessage } from "../../api/client";
 import type { components } from "../../api/schema";
+import ModelOptions from "../ModelOptions";
+import { modelState } from "../modelState";
 import TaskEstimate from "./TaskEstimate";
 
 type Task = components["schemas"]["TaskOut"];
@@ -67,7 +69,9 @@ function TaskEditor({
   onSaved: () => void;
   onCancel: () => void;
 }) {
-  const [draft, setDraft] = useState<TaskIn>(() => (task ? { ...task } : blankTask(models.find((model) => model.available !== false))));
+  const [draft, setDraft] = useState<TaskIn>(() =>
+    task ? { ...task } : blankTask(models.find((model) => modelState(model).kind === "ok")),
+  );
   const [moments, setMoments] = useState((task?.moments ?? []).join("\n"));
   const [commands, setCommands] = useState((task?.allowed_commands ?? []).join("\n"));
   const [domains, setDomains] = useState((task?.allowed_domains ?? []).join("\n"));
@@ -130,11 +134,7 @@ function TaskEditor({
               setDraft((current) => ({ ...current, model: event.target.value, effort: chosen?.default_effort ?? current.effort }));
             }}
           >
-            {models.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.display_name}
-              </option>
-            ))}
+            <ModelOptions models={models} current={draft.model} />
           </select>
         </label>
         <label>
@@ -262,12 +262,15 @@ export default function TasksTab({ projectId, environmentId }: { projectId: numb
 
   useEffect(() => {
     void load();
+    // The project's tasks run under its model policy, so the list is asked for the project.
     void api
-      .GET("/api/v1/environments/{environment_id}/models", { params: { path: { environment_id: environmentId } } })
+      .GET("/api/v1/environments/{environment_id}/models", {
+        params: { path: { environment_id: environmentId }, query: { project_id: projectId } },
+      })
       .then(({ data }) => setModels(data ?? []));
     const timer = window.setInterval(() => void load(), 30_000);
     return () => window.clearInterval(timer);
-  }, [load, environmentId]);
+  }, [load, environmentId, projectId]);
 
   async function runNow(task: Task) {
     const { data, error } = await api.POST("/api/v1/projects/{project_id}/tasks/{task_id}/run", {

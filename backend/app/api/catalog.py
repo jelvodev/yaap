@@ -1,13 +1,13 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, status
 
 from app.api.dependencies import EnvironmentDependency, ProviderRegistryDependency, SessionDependency
-from app.core.settings import resolve_connection
-from app.credentials.store import find_credential
+from app.core.model_listing import model_availability
 from app.providers.catalog import ModelInfo
 from app.providers.registry import ProviderRegistry
 from app.api.schemas import ClaudeCodeStatusOut, CodexStatusOut, ModelOut, ModelPricingOut, ProviderOut
 from app.providers.claude_code_provider import read_claude_code_status
 from app.providers.codex_provider import read_codex_status
+from app.storage.models import Project
 
 router = APIRouter(tags=["catalog"])
 
@@ -92,18 +92,22 @@ def list_models(providers: ProviderRegistryDependency, session: SessionDependenc
 
 @router.get("/environments/{environment_id}/models", response_model=list[ModelOut])
 def list_environment_models(
-    environment: EnvironmentDependency, session: SessionDependency, providers: ProviderRegistryDependency
+    environment: EnvironmentDependency,
+    session: SessionDependency,
+    providers: ProviderRegistryDependency,
+    project_id: int | None = None,
 ) -> list[ModelOut]:
-    """Every model, marked with whether this environment has a working connection for it."""
+    """Every model, marked with whether this environment has a working connection for it and whether the model
+    policy allows it. With project_id, the policy of that project of the environment applies as well."""
+    if project_id is not None:
+        project = session.get(Project, project_id)
+        if project is None or project.environment_id != environment.id:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found in this environment.")
     refresh_local_models(session, providers)
     result = []
     for model in providers.models:
+        state = model_availability(session, providers, environment.id, model, project_id)
         out = model_to_out(model, providers)
-        spec = providers.find_provider(model.provider, resolve_connection(session, model.provider, environment.id))
-        if spec is None:
-            out.available, out.unavailable_reason = False, "This connection is not available."
-        elif spec.credential_kind is not None and find_credential(session, environment.id, spec.credential_kind) is None:
-            out.available = False
-            out.unavailable_reason = f"Add an {spec.display_name} API key in Settings to use this model."
+        out.available, out.allowed, out.unavailable_reason = state.available, state.allowed, state.reason
         result.append(out)
     return result

@@ -5,7 +5,7 @@ import ChatMain from "./chat/ChatMain";
 import ChatSidebar from "./chat/ChatSidebar";
 import ChatSidePanels from "./chat/ChatSidePanels";
 import { useActiveConversation } from "./chat/useActiveConversation";
-import { useChatCatalog } from "./chat/useChatCatalog";
+import { useChatCatalog, useChatModels } from "./chat/useChatCatalog";
 import { useChatAddress, useChatLinks } from "./chat/useChatLinks";
 import { useChatSession } from "./chat/useChatSession";
 import { useBlueprintOffer } from "./chat/useCommands";
@@ -29,11 +29,11 @@ const WATCH_RAIL_COUNTS = true;
 export default function ChatPage({ environment }: { environment: Environment }) {
   const navigate = useNavigate();
   const { selectedId, focusMessageId } = useChatAddress();
-  const catalog = useChatCatalog(environment.id);
+  const basics = useChatCatalog(environment.id);
   const usage = useUsage(environment.id);
   const list = useConversationList(environment.id);
   const running = useRunningReplies(environment.id);
-  const scope = useProjectScope(environment.id, catalog.projects, catalog.loaded);
+  const scope = useProjectScope(environment.id, basics.projects, basics.loaded);
   const selection = useRailSelection();
   const active = useActiveConversation({
     environmentId: environment.id,
@@ -45,6 +45,8 @@ export default function ChatPage({ environment }: { environment: Environment }) 
   const conversation = active.conversation;
   // The project the conversation works in; for a new conversation, the one chosen in the sidebar.
   const projectId = conversation ? (conversation.project_id ?? null) : scope.scope;
+  // The models marked for that project, whose model policy can forbid some.
+  const catalog = useChatModels(basics, environment.id, projectId);
   const offer = useBlueprintOffer(environment.id, projectId);
   // The preview beside the chat: the project's app, reloaded after each file change of the agent.
   const preview = usePreviewPanel(conversation?.project_id ?? null, conversation?.id ?? null, {

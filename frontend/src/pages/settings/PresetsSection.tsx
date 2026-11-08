@@ -3,6 +3,7 @@ import { type FormEvent, useCallback, useEffect, useRef, useState } from "react"
 import { type ModelInfo, type Preset, api, errorMessage } from "../../api/client";
 import type { components } from "../../api/schema";
 import ModelOptions from "../../components/ModelOptions";
+import { modelState, stateMark } from "../../components/modelState";
 import { Badge, EmptyState, Panel } from "../../components/workbench/Workbench";
 import PresetRouting from "./PresetRouting";
 import PresetVendorSwitch from "./PresetVendorSwitch";
@@ -16,10 +17,11 @@ const UTILITY_HINT = "Titles, commit messages and other small tasks. Fallback: t
 
 function UnavailableBadge({ models, id }: { models: ModelInfo[]; id: string | null | undefined }) {
   const model = models.find((item) => item.id === id);
-  if (!model || model.available) return null;
+  const state = model ? modelState(model) : null;
+  if (!state || state.kind === "ok") return null;
   return (
-    <Badge tone="warn" title={model.unavailable_reason ?? undefined}>
-      no key
+    <Badge tone={state.kind === "not_allowed" ? "danger" : "warn"} title={state.reason ?? undefined}>
+      {stateMark(state)}
     </Badge>
   );
 }

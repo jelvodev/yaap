@@ -13,8 +13,8 @@ from app.agents.definitions import AgentDefinition, agent_part, find_agent
 from app.blueprint.context import build_system_parts, project_part
 from app.blueprint.layers import Layer
 from app.blueprint.levels import layers_for
-from app.core.audit import NO_PROJECT_DATA, ProjectData
-from app.core.model_choice import ForReply, ModelChoiceError, read_key, resolve_provider
+from app.core.audit import NO_PROJECT_DATA, ProjectData, record_request, reply_entry, with_refusal
+from app.core.model_choice import ForReply, ModelChoiceError, PolicyForbids, read_key, resolve_provider
 from app.core.outgoing_checks import OutgoingRules, outgoing_rules
 from app.core.prompts import Languages
 from app.core.reply_errors import ReplyBusy, ReplyUnavailable
@@ -28,7 +28,7 @@ from app.knowledge.service import project_documents
 from app.projects.memory import has_entries, read_memory
 from app.projects.service import project_path
 from app.sandbox.host_path import project_host_folder
-from app.providers.base import SystemPart
+from app.providers.base import AgentRequest, SystemPart
 from app.providers.registry import ProviderSpec
 from app.secrets.service import list_secrets
 from app.storage.models import Conversation, Environment, Project
@@ -81,6 +81,9 @@ def prepare_reply(services: ReplyServices, session: Session, conversation: Conve
     try:
         choice = resolve_provider(session, services.providers, conversation.environment_id, model_request)
         api_key = read_key(session, services.cipher, services.credential_types, choice, conversation.id)
+    except PolicyForbids as refusal:
+        record_policy_refusal(services, conversation, refusal)
+        raise ReplyUnavailable(str(refusal)) from refusal
     except ModelChoiceError as error:
         raise ReplyUnavailable(str(error)) from error
     provider_spec = choice.spec
@@ -114,6 +117,14 @@ def prepare_reply(services: ReplyServices, session: Session, conversation: Conve
         provider_spec, api_key, environment, layers, agent_project, agent, system, project_text,
         turn_context(session, recalled_memory), languages, on_target, outgoing, project_data,
     )
+
+
+def record_policy_refusal(services: ReplyServices, conversation: Conversation, refusal: PolicyForbids) -> None:
+    """A reply the model policy refused is recorded in the audit log, as a refused sub-run or utility task is. It
+    would have carried the conversation; what of the project it would have carried is not known yet."""
+    refused = AgentRequest(refusal.choice.model, refusal.choice.effort, [], [])
+    entry = reply_entry(conversation, refusal.choice.spec, refused, NO_PROJECT_DATA, False)
+    record_request(services.session_factory, with_refusal(entry, str(refusal)))
 
 
 def project_context(

@@ -4,6 +4,7 @@ import type { Conversation, ModelInfo, Preset } from "../../api/client";
 import ContextBreakdown from "../../components/ContextBreakdown";
 import ContextLimitSelect from "../../components/ContextLimitSelect";
 import ModelOptions from "../../components/ModelOptions";
+import { modelState, stateSuffix } from "../../components/modelState";
 import { type ContextUse, formatTokens } from "../../components/composer/modelSetup";
 import type { AgentInfo } from "./useCommands";
 import type { DraftConversation } from "./useDraftConversation";
@@ -192,14 +193,16 @@ export function DraftRows({ draft, use, models, presets, agents }: DraftRowsProp
         <select id="setup-preset" value={draft.preset} onChange={(event) => draft.choosePreset(event.target.value)}>
           {presets.map((preset) => {
             const model = models.find((item) => item.id === preset.model);
+            const state = model ? modelState(model) : null;
+            const reason = state && state.kind !== "ok" ? state.reason : null;
             return (
               <option
                 key={preset.id}
                 value={String(preset.id)}
-                title={model?.unavailable_reason ?? `${model?.display_name ?? preset.model} · ${preset.effort}`}
+                title={reason ?? `${model?.display_name ?? preset.model} · ${preset.effort}`}
               >
                 {preset.name}
-                {model && !model.available ? " (no key)" : ""}
+                {state ? stateSuffix(state) : ""}
               </option>
             );
           })}
