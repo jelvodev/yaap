@@ -28,11 +28,12 @@ from app.attachments.service import AttachmentResolver, claim_attachments, conve
 from app.blueprint.check import CheckError, check_block
 from app.core.audit import record_request, reply_entry, with_refusal
 from app.core.cache_policy import reply_cache_ttl
-from app.core.budget_stop import GuardedReply, both_listeners, reply_budget_guard, with_budget_stop
+from app.core.budget_stop import both_listeners, reply_budget_guard, with_budget_stop
 from app.core.chat import add_user_message, build_request, load_branch, server_sent_event, stream_reply
 from app.core.context_control import output_tokens
 from app.core.goals import GoalError, create_goal, end_goal, goal_block, goal_objective, next_turn, start_text
 from app.core.message_parts import expand_command, skill_blocks
+from app.core.model_choice import Billing
 from app.core.outgoing_checks import checked_provider, request_refusal
 from app.core.replies import ReplyJob
 from app.core.reply_errors import CommandRefused, InvalidReplyRequest, ReplyError
@@ -148,6 +149,7 @@ class ReplyService:
         entry = reply_entry(conversation, setup.provider_spec, agent_request, setup.project_data, bool(attachments))
         record_request(services.session_factory, with_refusal(entry, request_refusal(agent_request, setup.outgoing)))
         trace = reply_model_trace(services, session, conversation, setup, run, on_step)
+        billing: Billing = "metered" if setup.provider_spec.metered else "subscription"
         events = stream_reply(
             services.session_factory,
             services.providers,
@@ -160,12 +162,10 @@ class ReplyService:
             self.title_task(conversation, setup, request.title_text),
             record_id=trace.run_id if run is None else None,
             route=setup.route.stored() if setup.route is not None else None,
+            billing=billing,
         )
         if guard is not None:
-            billing = "metered" if setup.provider_spec.metered else "subscription"
-            events = with_budget_stop(
-                services.session_factory, guard, GuardedReply(conversation_id, trace.run_id, billing), events
-            )
+            events = with_budget_stop(services.session_factory, guard, conversation_id, events)
         events = self.after_reply(conversation, run, events)
         events = with_telemetry_export(services.telemetry, trace.run_id, events)
         # The reply runs on its own: whoever started it only follows it, and leaving does not stop it.

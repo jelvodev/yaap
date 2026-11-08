@@ -17,7 +17,9 @@ from app.agents.records import finish_record, finish_run_record
 from app.attachments.service import AttachmentResolver, attachment_block
 from app.core.conversation_schemas import ConversationSummaryOut, message_to_out
 from app.core.message_parts import model_content
+from app.core.model_choice import Billing
 from app.core.prompts import base_system_parts
+from app.core.stopped_usage import StoppedRun, store_stopped_usage
 from app.core.summaries import apply_summary
 from app.core.trimming import apply_trim
 from app.imports.sessions import imported_model_content, is_imported
@@ -367,11 +369,13 @@ async def stream_reply(
     title_task: Callable[[str], Awaitable[str | None]] | None = None,
     record_id: int | None = None,
     route: dict[str, Any] | None = None,
+    billing: Billing = "metered",
 ) -> AsyncIterator[str]:
     """Stream the reply as server-sent events. The reply is stored even when the client disconnects.
 
     record_id is the run record of a reply without an agent run; it is finished with the reply. route is how the
-    preset routed the reply, stored with it.
+    preset routed the reply, stored with it. A stopped reply gets no final message with its usage: its usage is what
+    its recorded model calls add up to, billed as billing says.
 
     After the first reply of a conversation, title_task proposes a better title; it arrives as a "title" event
     after "done", so the user is not kept waiting for it.
@@ -446,7 +450,7 @@ async def stream_reply(
     finally:
         if not stored:
             # The client went away mid-stream: keep what arrived, marked incomplete and left out of history.
-            stopped, _ = store_assistant_reply(
+            stopped, conversation = store_assistant_reply(
                 session_factory,
                 providers,
                 conversation_id,
@@ -457,6 +461,19 @@ async def stream_reply(
                 route,
             )
             reply_id = stopped.id
+            steps_run_id = run.state.record_id if run is not None else record_id
+            if steps_run_id is not None:
+                stopped_run = StoppedRun(
+                    steps_run_id,
+                    conversation.environment_id,
+                    conversation_id,
+                    stopped.id,
+                    conversation.provider,
+                    request.model or conversation.model,
+                    "main",
+                    billing,
+                )
+                store_stopped_usage(session_factory, stopped_run)
         if run is not None and runs is not None:
             runs.finish(run)
             tool_calls = sum(1 for block in reply.blocks if block["type"] == "tool_call")
