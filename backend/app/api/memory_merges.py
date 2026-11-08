@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import ProjectDependency, SessionDependency, WorkspaceDirDependency
 from app.api.projects import memory_entries, memory_error
 from app.api.schemas import MemoryEntriesOut
+from app.core.utility_skips import project_skip_message
 from app.projects.consolidation import accept_merge, app_context, open_merges, refresh_open, tidy
 from app.projects.memory import MAX_ENTRY_CHARS, MemoryChangedError, ProjectMemoryError, read_memory
 from app.projects.service import project_path
@@ -72,6 +73,10 @@ async def tidy_memory(
     session.close()
     created = await tidy(app_context(request.app), project_id, folder)
     if created is None:
+        with request.app.state.session_factory() as fresh:
+            skipped = project_skip_message(fresh, project_id, "memory_tidy")
+        if skipped is not None:
+            raise HTTPException(status.HTTP_409_CONFLICT, skipped)
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE, "The utility model is not available; check the connection in Settings."
         )

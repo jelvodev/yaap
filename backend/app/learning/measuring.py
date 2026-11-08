@@ -18,7 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.blueprint.layers import LayerKind, active_items
-from app.core.utility import run_utility
+from app.core.utility import UtilitySkipped, run_utility_or_skip
 from app.evals.compare import FINISHED, compare
 from app.evals.runs import COMPARISON_REPEATS, EvalError, EvalService, result_plays
 from app.evals.variants import Variant
@@ -62,6 +62,8 @@ class ContradictionReport:
     # False when no utility model answered; the report is then empty.
     available: bool
     contradictions: tuple[Contradiction, ...]
+    # Why no model was asked, when the model policy skipped the check.
+    skipped: str | None = None
 
 
 def effect_of(without: float | None, with_change: float | None) -> Effect | None:
@@ -162,7 +164,7 @@ async def find_contradictions(service: LearningService, project_id: int) -> Cont
     if len(rules) < 2:
         return ContradictionReport(True, ())
     listed = "\n".join(f"{number}. [{rule.level}] {rule.path}: {rule.rule}" for number, rule in enumerate(rules, 1))
-    answer = await run_utility(
+    answer = await run_utility_or_skip(
         service.utility,
         scope.environment_id,
         CONTRADICTION_PROMPT.format(rules=listed),
@@ -170,6 +172,8 @@ async def find_contradictions(service: LearningService, project_id: int) -> Cont
         task="learning",
         project_id=project_id,
     )
+    if isinstance(answer, UtilitySkipped):
+        return ContradictionReport(False, (), answer.message)
     if answer is None:
         return ContradictionReport(False, ())
     return ContradictionReport(True, parse_contradictions(answer, rules))

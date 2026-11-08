@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.core.audit import record_request, utility_entry, with_refusal
 from app.core.model_choice import ForUtility, ModelChoice, ModelChoiceError, PolicyForbids, read_key, resolve_provider
 from app.core.outgoing_checks import OutgoingRules, checked_provider, outgoing_rules, request_refusal
+from app.core.utility_tasks import task_label
 from app.credentials.crypto import CredentialCipher
 from app.credentials.types import CredentialType
 from app.providers.base import AgentRequest, Completed, HistoryMessage, ProviderError, SystemPart, TextDelta
@@ -39,6 +40,20 @@ class UtilityContext:
     providers: ProviderRegistry
 
 
+@dataclass(frozen=True)
+class UtilitySkipped:
+    """The model policy allows no model for a utility task, so it was not asked. reason is the policy's own text,
+    which names the level that refuses and where to change it."""
+
+    task: str | None
+    reason: str
+
+    @property
+    def message(self) -> str:
+        """One sentence for the user who asked for the task."""
+        return f"No model was asked for {task_label(self.task).lower()}. {self.reason}"
+
+
 async def run_utility(
     context: UtilityContext,
     environment_id: int,
@@ -49,10 +64,28 @@ async def run_utility(
     role: Literal["utility", "worker"] = "utility",
     project_id: int | None = None,
 ) -> str | None:
-    """The utility model's answer, or None when it is not available. With role worker, the preset's worker model
-    answers (for larger tasks such as summaries), else the utility model. project_id names the project a task
-    without a conversation works for (a commit message): its model policy applies, and the audit log records it. A
-    conversation brings its own."""
+    """The utility model's answer, or None when it is not available or the model policy skipped the task. A caller
+    that tells the user why uses run_utility_or_skip()."""
+    answer = await run_utility_or_skip(
+        context, environment_id, prompt, conversation_id, max_tokens, task, role, project_id
+    )
+    return None if isinstance(answer, UtilitySkipped) else answer
+
+
+async def run_utility_or_skip(
+    context: UtilityContext,
+    environment_id: int,
+    prompt: str,
+    conversation_id: int | None = None,
+    max_tokens: int = 1000,
+    task: str | None = None,
+    role: Literal["utility", "worker"] = "utility",
+    project_id: int | None = None,
+) -> str | UtilitySkipped | None:
+    """The utility model's answer; UtilitySkipped when the model policy allows no model for the task; None when no
+    model is available otherwise. With role worker, the preset's worker model answers (for larger tasks such as
+    summaries), else the utility model. project_id names the project a task without a conversation works for (a
+    commit message): its model policy applies, and the audit log records it. A conversation brings its own."""
     with context.session_factory() as session:
         conversation = session.get(Conversation, conversation_id) if conversation_id is not None else None
         preset = conversation.preset if conversation else None
@@ -70,7 +103,7 @@ async def run_utility(
                 refusal.choice, utility_request(refusal.choice, prompt, max_tokens), task, project_id, conversation_id
             )
             record_request(context.session_factory, with_refusal(refused, str(refusal)))
-            return None
+            return UtilitySkipped(task, str(refusal))
         except ModelChoiceError:
             return None
     answer = await ask_utility_model(
@@ -223,7 +256,7 @@ async def propose_commit_message(
     diff: str,
     work_language: str = "English",
     project_id: int | None = None,
-) -> str | None:
+) -> str | UtilitySkipped | None:
     shortened = diff if len(diff) <= MAX_DIFF_CHARS else diff[:MAX_DIFF_CHARS] + "\n[Diff shortened.]"
     prompt = (
         f"Write a git commit message in {work_language} for these changes. First line: a summary in the imperative mood of "
@@ -231,11 +264,11 @@ async def propose_commit_message(
         "about what changed and why. Reply with the message only.\n\n"
         f"Changed files:\n{status}\n\nDiff:\n{shortened}"
     )
-    answer = await run_utility(
+    answer = await run_utility_or_skip(
         context, environment_id, prompt, max_tokens=500, task="commit_message", project_id=project_id
     )
-    if not answer:
-        return None
+    if not answer or isinstance(answer, UtilitySkipped):
+        return answer or None
     return answer.strip().strip("`").strip()
 
 
@@ -248,7 +281,7 @@ async def propose_pull_request(
     files: str,
     work_language: str = "English",
     project_id: int | None = None,
-) -> tuple[str, str] | None:
+) -> tuple[str, str] | UtilitySkipped | None:
     """A pull request title and description from the branch's commits and changed files."""
     prompt = (
         f"Write a GitHub pull request in {work_language} for merging the branch {branch} into {base}. First line: the "
@@ -257,11 +290,11 @@ async def propose_pull_request(
         "do not mention. Reply with the title and description only.\n\n"
         f"Commits:\n{commits[:20000] or '(none)'}\n\nChanged files:\n{files[:20000] or '(none)'}"
     )
-    answer = await run_utility(
+    answer = await run_utility_or_skip(
         context, environment_id, prompt, max_tokens=900, task="pull_request", project_id=project_id
     )
-    if not answer:
-        return None
+    if not answer or isinstance(answer, UtilitySkipped):
+        return answer or None
     lines = answer.strip().strip("`").strip().splitlines()
     title = lines[0].lstrip("# ").strip() if lines else ""
     return title[:200], "\n".join(lines[1:]).strip()

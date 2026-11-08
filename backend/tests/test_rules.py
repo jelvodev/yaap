@@ -83,6 +83,7 @@ def test_rule_proposal_from_the_utility_model_and_its_fallback(client, fake):
         "level": "global",
         "path": None,
         "from_model": True,
+        "skipped": None,
     }
     prompt = json.dumps([part for part in fake.requests[-1].messages], default=str)
     assert "Antwoord altijd in het Nederlands" in prompt and "long answer in English" in prompt
@@ -97,6 +98,7 @@ def test_rule_proposal_from_the_utility_model_and_its_fallback(client, fake):
         "level": "environment",
         "path": None,
         "from_model": False,
+        "skipped": None,
     }
 
     # Only the user's own messages.

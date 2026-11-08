@@ -17,7 +17,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.utility import UtilityContext, run_utility
+from app.core.utility import UtilityContext, UtilitySkipped, run_utility_or_skip
 from app.providers.base import HistoryMessage
 from app.providers.registry import ProviderRegistry
 from app.storage.models import Conversation, Message, UsageRecord
@@ -221,9 +221,11 @@ async def summarise(context: UtilityContext, conversation_id: int, focus: str | 
         covered_id = branch[point].id
         environment_id = conversation.environment_id
         prompt = summary_prompt(previous, messages, focus)
-    text = await run_utility(
+    text = await run_utility_or_skip(
         context, environment_id, prompt, conversation_id, max_tokens=SUMMARY_TOKENS, task="summary", role="worker"
     )
+    if isinstance(text, UtilitySkipped):
+        raise SummaryError(text.message)
     if not text:
         raise SummaryError("No model was available to write the summary. Check the connection and the budget.")
     with context.session_factory() as session:

@@ -34,6 +34,19 @@ ROUTABLE_TASKS: dict[str, str] = {
 ROUTED_AS: dict[str, str] = {"title_and_memory": "memory_suggestion"}
 # Tasks that never leave the capable utility model, whatever the setting holds.
 CAPABLE_ONLY: frozenset[str] = frozenset({"injection_check"})
+# What the app calls each task when it says one was skipped: the routable ones and those that cannot be routed.
+TASK_LABELS: dict[str, str] = {
+    **ROUTABLE_TASKS,
+    "title_and_memory": "Conversation titles and memory suggestions",
+    "injection_check": "Checks of outside content",
+    "summary": "Summaries",
+    "eval_rubric": "Eval rubric scores",
+}
+
+
+def task_label(task: str | None) -> str:
+    """The task's label, for a notice or an error; an unnamed or unknown task is a utility task."""
+    return TASK_LABELS.get(task or "", "Utility tasks")
 
 
 def task_model(task: str | None, task_models: Mapping[str, Any]) -> str | None:

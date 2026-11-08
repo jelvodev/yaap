@@ -82,6 +82,8 @@ class ContradictionReportOut(BaseModel):
     # False when no utility model was available to check.
     available: bool
     contradictions: list[ContradictionOut]
+    # Why no model was asked, when the model policy skipped the check.
+    skipped: str | None = None
 
 
 def learning(request: Request) -> LearningService:
@@ -227,5 +229,7 @@ async def check_contradictions(
     session.close()
     report = await find_contradictions(learning(request), project_id)
     return ContradictionReportOut(
-        available=report.available, contradictions=[contradiction_out(item) for item in report.contradictions]
+        available=report.available,
+        contradictions=[contradiction_out(item) for item in report.contradictions],
+        skipped=report.skipped,
     )

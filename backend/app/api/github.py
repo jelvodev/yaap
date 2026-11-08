@@ -21,7 +21,7 @@ from app.api.dependencies import (
 )
 from app.api.git import RepositoryDependency, github_token, status_out, RepositoryOut
 from app.core.settings import resolve_languages
-from app.core.utility import UtilityContext, propose_pull_request
+from app.core.utility import UtilityContext, UtilitySkipped, propose_pull_request
 from app.credentials.crypto import CredentialCipher, CredentialDecryptionError
 from app.credentials.store import read_credential_value
 from app.git.service import (
@@ -451,6 +451,8 @@ async def propose_pull(
     proposal = await propose_pull_request(
         context, environment.id, current, base, commits, files, work_language, project_id
     )
+    if isinstance(proposal, UtilitySkipped):
+        raise HTTPException(status.HTTP_409_CONFLICT, proposal.message)
     if proposal is None:
         raise HTTPException(
             status.HTTP_409_CONFLICT, "The utility model is not available. Check the Claude connection in Settings."

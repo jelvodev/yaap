@@ -8,9 +8,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 from pydantic import BaseModel
 
-from app.api.dependencies import EnvironmentDependency, SessionDependency
+from app.api.conversations import ConversationDependency
+from app.api.dependencies import EnvironmentDependency, ProjectDependency, SessionDependency
 from app.core.audit import AUDIT_PURPOSES, DATA_CLASSES, AuditOutcome, AuditPurpose, DataClass
 from app.core.audit_report import AuditFilter, audit_models, list_audit, to_csv, to_json
+from app.core.utility_skips import UtilitySkipOut, conversation_skips, project_skips
 
 router = APIRouter(tags=["audit"])
 
@@ -51,11 +53,12 @@ def audit_filter(
     project_id: int | None = None,
     model: str | None = Query(default=None, max_length=80),
     purpose: AuditPurpose | None = None,
+    outcome: AuditOutcome | None = None,
 ) -> AuditFilter:
     """The filter from the query; start and end are days in UTC, both included."""
     if start is not None and end is not None and end < start:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "The period ends before it starts.")
-    return AuditFilter(start, end, project_id, model or None, purpose)
+    return AuditFilter(start, end, project_id, model or None, purpose, outcome)
 
 
 AuditFilterDependency = Annotated[AuditFilter, Depends(audit_filter)]
@@ -77,6 +80,21 @@ def environment_audit_log(
         purposes=list(AUDIT_PURPOSES),
         data_classes=list(DATA_CLASSES),
     )
+
+
+@router.get("/conversations/{conversation_id}/utility-skips", response_model=list[UtilitySkipOut])
+def conversation_utility_skips(
+    conversation: ConversationDependency, session: SessionDependency
+) -> list[UtilitySkipOut]:
+    """The utility tasks of the conversation's last exchange (title, memory suggestions, routing, checks of outside
+    content) that a check skipped, from their audit rows."""
+    return conversation_skips(session, conversation.id)
+
+
+@router.get("/projects/{project_id}/utility-skips", response_model=list[UtilitySkipOut])
+def project_utility_skips(project: ProjectDependency, session: SessionDependency) -> list[UtilitySkipOut]:
+    """The project's background tasks (memory tidying, learning) whose latest attempt a check skipped."""
+    return project_skips(session, project.id)
 
 
 @router.get(

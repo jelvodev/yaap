@@ -22,6 +22,7 @@ from app.core.prompts import base_system_parts
 from app.core.stopped_usage import StoppedRun, store_stopped_usage
 from app.core.summaries import apply_summary
 from app.core.trimming import apply_trim
+from app.core.utility_skips import skipped_since
 from app.imports.sessions import imported_model_content, is_imported
 from app.providers.base import (
     AgentEvent,
@@ -484,6 +485,9 @@ async def stream_reply(
             summary = await apply_title(session_factory, conversation_id, title_task, reply_text)
             if summary is not None:
                 yield server_sent_event("title", {"conversation": summary})
+        # Utility tasks of this exchange that the model policy skipped (routing, outside-content checks, the title).
+        for skip in skipped_since(session_factory, conversation_id, user_message.created_at):
+            yield server_sent_event("utility_skipped", skip.model_dump(mode="json"))
     finally:
         if not stored:
             # The client went away mid-stream: keep what arrived, marked incomplete and left out of history.

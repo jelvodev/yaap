@@ -14,7 +14,7 @@ from datetime import UTC, date, datetime, time, timedelta
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
 
-from app.core.audit import AuditPurpose
+from app.core.audit import AuditOutcome, AuditPurpose
 from app.storage.models import AuditRecord, Project
 
 EXPORT_COLUMNS = (
@@ -42,6 +42,8 @@ class AuditFilter:
     project_id: int | None = None
     model: str | None = None
     purpose: AuditPurpose | None = None
+    # refused: the requests a check stopped, such as utility tasks the model policy skipped.
+    outcome: AuditOutcome | None = None
 
 
 @dataclass(frozen=True)
@@ -81,6 +83,8 @@ def filtered(environment_id: int, where: AuditFilter) -> Select[tuple[AuditRecor
         query = query.where(AuditRecord.model == where.model)
     if where.purpose is not None:
         query = query.where(AuditRecord.purpose == where.purpose)
+    if where.outcome is not None:
+        query = query.where(AuditRecord.outcome == where.outcome)
     return query
 
 

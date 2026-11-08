@@ -317,7 +317,7 @@ Every model call is recorded with its tokens and cost. Calls through a subscript
 
 **Settings › Usage and audit › Audit log** (per environment) lists every model request that left YAAP: replies, sub-runs, coding agents as workers, utility tasks (by name: title, commit message, summary, …), calls to remote A2A agents and traces sent to an OpenTelemetry collector. Each row shows the time, the project and conversation, the model and connection, and which kinds of data went along: the conversation, files and tool output, knowledge, project memory, attachments and secrets. Secrets appear only by their placeholder names, never their values, and no prompt or reply is stored. A request a check refused before it left is marked *refused* with the reason.
 
-Filter by period, project, model and purpose; *Export CSV* and *Export JSON* download the rows that match. Rows are kept for a year. Embeddings are made by the local model and never leave YAAP, so they are not listed.
+Filter by period, project, model, purpose and outcome (*Skipped by the policy* lists the refused requests, such as utility tasks the model policy skipped); *Export CSV* and *Export JSON* download the rows that match. Rows are kept for a year. Embeddings are made by the local model and never leave YAAP, so they are not listed.
 
 ## OpenTelemetry export
 

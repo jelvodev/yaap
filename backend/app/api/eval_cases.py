@@ -11,7 +11,7 @@ from app.api.dependencies import ProjectDependency, SessionDependency, Workspace
 from app.blueprint.levels import project_layer
 from app.checkpoints.pins import case_owner, pin_checkpoint
 from app.checkpoints.service import CheckpointStore
-from app.core.utility import run_utility
+from app.core.utility import UtilitySkipped, run_utility_or_skip
 from app.evals.case_writer import CaseExistsError, CaseWriteError, save_case
 from app.evals.cases import DEFAULT_COMMAND_TIMEOUT
 from app.evals.conversation_facts import CaseFromConversationError
@@ -202,9 +202,10 @@ async def propose_eval_case(
     state = request.app.state
     checkpoints = CheckpointStore(state.session_factory, state.data_dir)
     context = utility_context(request)
+    skipped: list[UtilitySkipped] = []
 
     async def ask(prompt: str) -> str | None:
-        return await run_utility(
+        answer = await run_utility_or_skip(
             context,
             conversation.environment_id,
             prompt,
@@ -212,12 +213,18 @@ async def propose_eval_case(
             max_tokens=PROPOSAL_MAX_TOKENS,
             task="eval_case",
         )
+        if isinstance(answer, UtilitySkipped):
+            skipped.append(answer)
+            return None
+        return answer
 
     try:
         proposal = await propose_for_conversation(session, checkpoints, conversation, folder, ask)
     except CaseFromConversationError as error:
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
-    return proposal_out(proposal)
+    proposed = proposal_out(proposal)
+    # The standard checks stand in; the note says the policy, not a missing model, is why.
+    return proposed.model_copy(update={"notes": [*proposed.notes, *(skip.message for skip in skipped)]})
 
 
 @router.post("/projects/{project_id}/eval-cases", response_model=EvalCaseSavedOut, status_code=status.HTTP_201_CREATED)

@@ -21,7 +21,7 @@ from app.api.dependencies import (
     WorkspaceDirDependency,
 )
 from app.core.settings import resolve_languages, resolve_text
-from app.core.utility import UtilityContext, propose_commit_message
+from app.core.utility import UtilityContext, UtilitySkipped, propose_commit_message
 from app.credentials.crypto import CredentialDecryptionError
 from app.credentials.store import read_credential_value
 from app.blueprint.levels import environment_layer, global_layer
@@ -276,6 +276,8 @@ async def suggest_commit_message(
     work_language = resolve_languages(session, environment.id, project_id).work
     session.close()
     message = await propose_commit_message(context, environment.id, changes, diff, work_language, project_id)
+    if isinstance(message, UtilitySkipped):
+        raise HTTPException(status.HTTP_409_CONFLICT, message.message)
     if message is None:
         raise HTTPException(
             status.HTTP_409_CONFLICT, "The utility model is not available. Check the Claude connection in Settings."

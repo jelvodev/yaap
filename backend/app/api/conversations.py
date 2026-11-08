@@ -52,7 +52,7 @@ from app.core.context_control import ContextControl, check_conversation_limit, r
 from app.core.summaries import MAX_FOCUS_CHARS, SummaryError, summarise, yaap_compacts
 from app.core.message_parts import MessagePartError, active_of_kind, check_skills
 from app.core.settings import SETTING_DEFINITIONS, resolve_languages, resolve_setting
-from app.core.utility import UtilityContext, run_utility
+from app.core.utility import UtilityContext, UtilitySkipped, run_utility_or_skip
 from app.blueprint.layers import Layer, active_items
 from app.blueprint.levels import layers_for
 from app.mcp_client.runs import server_place
@@ -632,6 +632,8 @@ class RuleProposalOut(BaseModel):
     path: str | None
     # False when the utility model was not available and the proposal is the user's own text.
     from_model: bool
+    # Why no model drafted it, when the model policy skipped the task.
+    skipped: str | None = None
 
 
 def parse_rule_proposal(answer: str | None) -> dict[str, Any] | None:
@@ -685,13 +687,16 @@ async def propose_rule(
         reply=reply[:3000] or "(none)",
         correction=correction[:3000],
     )
-    answer = await run_utility(
+    answer = await run_utility_or_skip(
         utility_context(request), conversation.environment_id, prompt, conversation.id, max_tokens=300, task="rule"
     )
-    proposal = parse_rule_proposal(answer)
+    skipped = answer.message if isinstance(answer, UtilitySkipped) else None
+    proposal = parse_rule_proposal(answer if isinstance(answer, str) else None)
     fallback_level = "project" if project else "environment"
     if proposal is None:
-        return RuleProposalOut(rule=correction[:500], level=fallback_level, path=None, from_model=False)
+        return RuleProposalOut(
+            rule=correction[:500], level=fallback_level, path=None, from_model=False, skipped=skipped
+        )
     level = proposal.get("level") if proposal.get("level") in ("global", "environment", "project") else fallback_level
     if level == "project" and project is None:
         level = "environment"
