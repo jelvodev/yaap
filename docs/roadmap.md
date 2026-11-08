@@ -5,15 +5,7 @@ Where YAAP is going. Each version has a theme. The order is what is intended, no
 - **Numbers.** Every item has a number to refer to, and a number is never reused.
 - **Finished items** leave this list. The release notes say what came in each release.
 
-The current version is **0.5.5**.
-
-## 0.5.x: fixes and hardening
-
-Patch releases: no new features or settings, so you can update without reading the notes first.
-
-1. **Background work stops cleanly.** Summaries, learning after a reply, project consolidation, the OpenTelemetry
-   export, replays, eval runs and the stop button finish or stop their work, instead of leaving a worker thread
-   running.
+The current version is **0.5.6**.
 
 ## 0.6.0: ready for others
 
