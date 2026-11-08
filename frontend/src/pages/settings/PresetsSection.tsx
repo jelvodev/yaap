@@ -7,6 +7,7 @@ import { Badge, EmptyState, Panel } from "../../components/workbench/Workbench";
 import PresetRouting from "./PresetRouting";
 import PresetVendorSwitch from "./PresetVendorSwitch";
 import { type LevelSettings, type SettingsLevel, SectionHeader, SelectSetting, useModels } from "./shared";
+import { useConfirm } from "../../components/dialog/ConfirmDialog";
 
 const PLAIN_CHAT_KEY = "plain_chat_preset";
 
@@ -124,6 +125,7 @@ function PresetRow({
   models: ModelInfo[];
   onChanged: () => Promise<void>;
 }) {
+  const confirm = useConfirm();
   const [name, setName] = useState(preset.name);
   const [message, setMessage] = useState<string | null>(null);
   const model = models.find((item) => item.id === preset.model);
@@ -140,7 +142,7 @@ function PresetRow({
   }
 
   async function remove() {
-    if (!window.confirm(`Remove the preset ${preset.name}?`)) return;
+    if (!(await confirm({ message: `Remove the preset ${preset.name}?`, confirmLabel: "Remove", tone: "danger" }))) return;
     const { error } = await api.DELETE("/api/v1/presets/{preset_id}", { params: { path: { preset_id: preset.id } } });
     setMessage(error ? errorMessage(error) : null);
     await onChanged();

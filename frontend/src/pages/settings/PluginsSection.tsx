@@ -5,6 +5,7 @@ import type { components } from "../../api/schema";
 import { Badge, EmptyState, Panel } from "../../components/workbench/Workbench";
 import PluginFrame from "../../plugins/PluginFrame";
 import { type SettingsLevel, SectionHeader } from "./shared";
+import { useConfirm } from "../../components/dialog/ConfirmDialog";
 
 type Plugin = components["schemas"]["PluginOut"];
 
@@ -31,6 +32,7 @@ function registers(plugin: Plugin): string {
 
 /** Global only: the user's own plugins in data/plugins, switched on one by one, and their pages. */
 export default function PluginsSection({ level }: { level: SettingsLevel }) {
+  const confirm = useConfirm();
   const [plugins, setPlugins] = useState<Plugin[] | null>(null);
   const [message, setMessage] = useState<{ error: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -49,9 +51,8 @@ export default function PluginsSection({ level }: { level: SettingsLevel }) {
 
   async function toggle(plugin: Plugin) {
     const enabled = !plugin.enabled;
-    if (enabled && !window.confirm(`Switch on ${plugin.name}?\n\n${RIGHTS_WARNING}\n\nIt is loaded at the next start of YAAP.`)) {
-      return;
-    }
+    const question = `${RIGHTS_WARNING}\n\nIt is loaded at the next start of YAAP.`;
+    if (enabled && !(await confirm({ title: `Switch on ${plugin.name}?`, message: question, confirmLabel: "Switch on", tone: "danger" }))) return;
     setBusy(plugin.name);
     setMessage(null);
     const { error } = await api.PUT("/api/v1/plugins/{name}", {
@@ -64,7 +65,8 @@ export default function PluginsSection({ level }: { level: SettingsLevel }) {
   }
 
   async function restart() {
-    if (!window.confirm("Restart YAAP now? Replies in progress stop; the page reloads when YAAP is back.")) return;
+    const question = "Replies in progress stop; the page reloads when YAAP is back.";
+    if (!(await confirm({ title: "Restart YAAP now?", message: question, confirmLabel: "Restart" }))) return;
     setRestarting(true);
     const { error } = await api.POST("/api/v1/plugins/restart");
     if (error) {

@@ -4,6 +4,7 @@ import { formatSize } from "../../api/attachments";
 import { api, errorMessage } from "../../api/client";
 import { changedAgo, rawFileUrl } from "../../api/files";
 import type { components } from "../../api/schema";
+import { useConfirm } from "../dialog/ConfirmDialog";
 
 type Content = components["schemas"]["FileContentOut"];
 
@@ -34,6 +35,7 @@ export default function FileEditor({
   /** Open a Markdown file as the conversation's shared document beside the chat. */
   onOpenAsDocument?: (path: string) => void;
 }) {
+  const confirm = useConfirm();
   const [file, setFile] = useState<Content | null>(null);
   const [text, setText] = useState("");
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -84,13 +86,13 @@ export default function FileEditor({
     onSaved?.();
   }, [file, dirty, saving, projectId, text, onSaved]);
 
-  function close() {
-    if (dirty && !window.confirm("Close without saving your changes?")) return;
+  async function close() {
+    if (dirty && !(await confirm({ message: "Close without saving your changes?", confirmLabel: "Close without saving", tone: "danger" }))) return;
     onClose();
   }
 
-  function reload() {
-    if (dirty && !window.confirm("Reload the file and drop your changes?")) return;
+  async function reload() {
+    if (dirty && !(await confirm({ message: "Reload the file and drop your changes?", confirmLabel: "Reload", tone: "danger" }))) return;
     setNotice(null);
     void load();
   }

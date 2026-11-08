@@ -3,6 +3,7 @@ import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react
 import { api, errorMessage } from "../api/client";
 import type { components } from "../api/schema";
 import { Badge, EmptyState } from "./workbench/Workbench";
+import { useConfirm } from "./dialog/ConfirmDialog";
 
 type Entry = components["schemas"]["VaultEntryOut"];
 type Kind = components["schemas"]["VaultKindOut"];
@@ -281,6 +282,7 @@ function EntryDetail({
   onChanged: () => Promise<void>;
   onRemoved: () => void;
 }) {
+  const confirm = useConfirm();
   const [detail, setDetail] = useState<Detail | null>(null);
   const [description, setDescription] = useState("");
   const [value, setValue] = useState("");
@@ -327,7 +329,8 @@ function EntryDetail({
 
   async function remove() {
     if (!detail) return;
-    if (!window.confirm(`Remove ${detail.entry.name} from the vault? Its value cannot be brought back.`)) return;
+    const question = `Remove ${detail.entry.name} from the vault? Its value cannot be brought back.`;
+    if (!(await confirm({ message: question, confirmLabel: "Remove", tone: "danger" }))) return;
     const { error } = await api.DELETE("/api/v1/vault/entries/{entry_id}", { params: { path: { entry_id: entryId } } });
     if (error) {
       setMessage(errorMessage(error, "The entry could not be removed."));

@@ -4,6 +4,7 @@ import { api, errorMessage } from "../../api/client";
 import type { components } from "../../api/schema";
 import DiffView from "../DiffView";
 import { Badge } from "../workbench/Workbench";
+import { useConfirm } from "../dialog/ConfirmDialog";
 
 type Branches = components["schemas"]["BranchesOut"];
 type Pulls = components["schemas"]["PullsOut"];
@@ -23,6 +24,7 @@ export default function BranchesTab({
   repositoryId: string;
   onRepositoryChanged: (repository: Repository) => void;
 }) {
+  const confirm = useConfirm();
   const [branches, setBranches] = useState<Branches | null>(null);
   const [name, setName] = useState("");
   const [notice, setNotice] = useState<Notice>(null);
@@ -78,7 +80,7 @@ export default function BranchesTab({
   }
 
   async function remove(branch: string) {
-    if (!window.confirm(`Delete the local branch ${branch}?`)) return;
+    if (!(await confirm({ message: `Delete the local branch ${branch}?`, confirmLabel: "Delete", tone: "danger" }))) return;
     const url = "/api/v1/environments/{environment_id}/git/repositories/{repository_id}/branches/delete" as const;
     const { data, error } = await api.POST(url, { ...path, body: { name: branch, force: false } });
     if (data) {
@@ -87,7 +89,8 @@ export default function BranchesTab({
       return;
     }
     const text = errorMessage(error);
-    if (text.includes("not merged") && window.confirm(`${text}\n\nDelete ${branch} anyway?`)) {
+    const anyway = { message: `${text}\n\nDelete ${branch} anyway?`, confirmLabel: "Delete anyway", tone: "danger" } as const;
+    if (text.includes("not merged") && (await confirm(anyway))) {
       await act(() => api.POST(url, { ...path, body: { name: branch, force: true } }), `${branch} deleted.`);
       return;
     }
@@ -157,6 +160,7 @@ function PullRequests({
   currentBranch: string | null;
   refresh: unknown;
 }) {
+  const confirm = useConfirm();
   const [pulls, setPulls] = useState<Pulls | null>(null);
   const [state, setState] = useState<"open" | "closed">("open");
   const [open, setOpen] = useState<PullDetail | null>(null);
@@ -206,8 +210,8 @@ function PullRequests({
     event.preventDefault();
     if (!draft) return;
     const base = draft.base || pulls?.default_branch || "the default branch";
-    if (!window.confirm(`Open a pull request from ${currentBranch} into ${base}? The branch is pushed first when GitHub does not have it all yet.`))
-      return;
+    const question = `Open a pull request from ${currentBranch} into ${base}? The branch is pushed first when GitHub does not have it all yet.`;
+    if (!(await confirm({ title: "Open pull request", message: question, confirmLabel: "Open pull request" }))) return;
     setBusy("create");
     const { data, error } = await api.POST("/api/v1/environments/{environment_id}/git/repositories/{repository_id}/pulls", {
       params: { path: pathParams },
@@ -225,8 +229,8 @@ function PullRequests({
 
   async function merge(pull: PullDetail, method: MergeMethod, deleteBranch: boolean) {
     const how = { squash: "Squash and merge", merge: "Merge commit", rebase: "Rebase and merge" }[method];
-    if (!window.confirm(`${how} #${pull.number} "${pull.title}" into ${pull.base}?${deleteBranch ? ` Then delete ${pull.head} on GitHub.` : ""}`))
-      return;
+    const then = deleteBranch ? ` Then delete ${pull.head} on GitHub.` : "";
+    if (!(await confirm({ title: how, message: `${how} #${pull.number} "${pull.title}" into ${pull.base}?${then}`, confirmLabel: how }))) return;
     setBusy("merge");
     const { data, error } = await api.POST(
       "/api/v1/environments/{environment_id}/git/repositories/{repository_id}/pulls/{number}/merge",

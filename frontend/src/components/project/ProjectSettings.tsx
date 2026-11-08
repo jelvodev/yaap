@@ -15,6 +15,7 @@ import PermissionsSection from "../PermissionsSection";
 import ProcessesSection from "../ProcessesSection";
 import VaultList from "../VaultList";
 import McpServersPanel from "../McpServersPanel";
+import { useConfirm } from "../dialog/ConfirmDialog";
 
 type Agent = components["schemas"]["AgentOut"];
 
@@ -31,6 +32,7 @@ export default function ProjectSettings({
   /** The project's git state, shared with the Changes panel, for the remote. */
   git: ProjectRepository;
 }) {
+  const confirm = useConfirm();
   const { active, environments, selectEnvironment } = useEnvironment();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [presets, setPresets] = useState<Preset[]>([]);
@@ -91,7 +93,7 @@ export default function ProjectSettings({
     const target = environments.find((environment) => environment.id === moveTarget);
     setMoveTarget(null);
     const cleared = data.cleared.length ? ` Cleared because ${target?.name ?? "it"} does not have it: ${data.cleared.join(", ")}.` : "";
-    window.alert(`Moved to ${target?.name ?? "the other environment"}.${cleared}`);
+    await confirm({ title: "Project moved", message: `Moved to ${target?.name ?? "the other environment"}.${cleared}`, cancelLabel: null });
     selectEnvironment(data.project.environment_id);
   }
 

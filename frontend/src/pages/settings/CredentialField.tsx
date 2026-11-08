@@ -3,6 +3,7 @@ import { type FormEvent, useState } from "react";
 import { type CredentialStatus, api, errorMessage } from "../../api/client";
 import { Badge, FieldRow } from "../../components/workbench/Workbench";
 import { formatDate } from "./shared";
+import { useConfirm } from "../../components/dialog/ConfirmDialog";
 
 /** A key or token of one environment: paste, test, replace or remove it. Keys are never shown again. */
 export default function CredentialField({
@@ -17,6 +18,7 @@ export default function CredentialField({
   /** Shown above the description, for example when the key is not in use. */
   note?: string;
 }) {
+  const confirm = useConfirm();
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
@@ -50,7 +52,8 @@ export default function CredentialField({
   }
 
   async function remove() {
-    if (!window.confirm(`Remove the ${credential.label} from this environment?`)) return;
+    const question = `Remove the ${credential.label} from this environment?`;
+    if (!(await confirm({ message: question, confirmLabel: "Remove", tone: "danger" }))) return;
     setBusy(true);
     const { error } = await api.DELETE("/api/v1/environments/{environment_id}/credentials/{kind}", {
       params: { path },

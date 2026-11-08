@@ -5,6 +5,7 @@ import type { components } from "../../api/schema";
 import { Badge, EmptyState, FieldRow, Panel, Segmented } from "../../components/workbench/Workbench";
 import RunnerPanel from "./RunnerPanel";
 import { type SettingsLevel, SectionHeader } from "./shared";
+import { useConfirm } from "../../components/dialog/ConfirmDialog";
 
 type Target = components["schemas"]["TargetOut"];
 type Rights = "standard" | "administrator";
@@ -219,6 +220,7 @@ function TargetDetail({
   onChange: (target: Target) => void;
   onRemoved: () => void;
 }) {
+  const confirm = useConfirm();
   const [rights, setRights] = useState<Rights>(target.rights === "administrator" ? "administrator" : "standard");
   const [script, setScript] = useState<string | null>(null);
   const [folders, setFolders] = useState(target.folders.join("\n"));
@@ -258,16 +260,19 @@ function TargetDetail({
       api.POST("/api/v1/targets/{target_id}/host-key", { ...path, body: { fingerprint: target.pending_fingerprint ?? "" } }),
     );
 
-  function switchFullAccess() {
+  async function switchFullAccess() {
     if (target.allow_full_access) {
       void run(() => api.PATCH("/api/v1/targets/{target_id}", { ...path, body: { allow_full_access: false, confirm_full_access: false } }), "Full access is off.");
       return;
     }
     const who = target.rights === "administrator" ? "an administrator" : target.rights === "standard" ? "a standard user" : "a user whose rights were not tested yet";
     if (
-      !window.confirm(
-        `Allow full access on ${target.name}? Conversations with the access choice "full" then run every tool there without asking, as ${who}. Only pushing and commands with a secret still ask. Scheduled tasks never get full access.`,
-      )
+      !(await confirm({
+        title: "Allow full access",
+        confirmLabel: "Allow full access",
+        tone: "danger",
+        message: `Allow full access on ${target.name}? Conversations with the access choice "full" then run every tool there without asking, as ${who}. Only pushing and commands with a secret still ask. Scheduled tasks never get full access.`,
+      }))
     )
       return;
     void run(
@@ -276,17 +281,22 @@ function TargetDetail({
     );
   }
 
-  function switchWholeComputer() {
+  async function switchWholeComputer() {
     if (
       !target.whole_computer &&
-      !window.confirm(`Let the agent work anywhere on ${target.name}, not only in its folders?`)
+      !(await confirm({
+        message: `Let the agent work anywhere on ${target.name}, not only in its folders?`,
+        confirmLabel: "Allow",
+        tone: "danger",
+      }))
     )
       return;
     void run(() => api.PATCH("/api/v1/targets/{target_id}", { ...path, body: { whole_computer: !target.whole_computer, confirm_full_access: false } }));
   }
 
   async function remove() {
-    if (!window.confirm(`Remove ${target.name} and its key? Conversations on it go back to YAAP's container.`)) return;
+    const question = `Remove ${target.name} and its key? Conversations on it go back to YAAP's container.`;
+    if (!(await confirm({ message: question, confirmLabel: "Remove", tone: "danger" }))) return;
     const { error } = await api.DELETE("/api/v1/targets/{target_id}", path);
     if (error) {
       setNote({ error: true, text: errorMessage(error, "The target could not be removed.") });

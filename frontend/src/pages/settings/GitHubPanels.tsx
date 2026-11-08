@@ -9,6 +9,7 @@ import {
   FieldRow,
   Panel,
 } from "../../components/workbench/Workbench";
+import { useConfirm } from "../../components/dialog/ConfirmDialog";
 
 type TokenCheck = components["schemas"]["TokenCheckOut"];
 type GitHubRepository = components["schemas"]["GitHubRepositoryOut"];
@@ -55,6 +56,7 @@ export function GitHubRepositoriesPanel({
 }: {
   environmentId: number;
 }) {
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const [repositories, setRepositories] = useState<GitHubRepository[] | null>(
     null,
@@ -125,12 +127,8 @@ export function GitHubRepositoriesPanel({
     const what = draft.template
       ? `from the template ${draft.template}`
       : "empty, with a README";
-    if (
-      !window.confirm(
-        `Create the ${draft.private ? "private" : "public"} repository ${name} on GitHub, ${what}?`,
-      )
-    )
-      return;
+    const question = `Create the ${draft.private ? "private" : "public"} repository ${name} on GitHub, ${what}?`;
+    if (!(await confirm({ title: "New repository", message: question, confirmLabel: "Create repository" }))) return;
     setBusy(true);
     const { data, error } = await api.POST(
       "/api/v1/environments/{environment_id}/github/repositories",

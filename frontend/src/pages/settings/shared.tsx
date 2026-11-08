@@ -3,6 +3,7 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { type Environment, type ModelInfo, type Setting, api, errorMessage } from "../../api/client";
 import { Badge, FieldRow, PageHeader } from "../../components/workbench/Workbench";
 import { useSectionFrame } from "./sectionFrame";
+import { useConfirm } from "../../components/dialog/ConfirmDialog";
 
 /** The level the settings page shows: Global, or one environment. */
 export type SettingsLevel = { kind: "global" } | { kind: "environment"; environment: Environment };
@@ -202,6 +203,7 @@ export function SectionHeader({
   /** Called after the section was reset, for parts that keep their own state. */
   onReset?: () => void;
 }) {
+  const confirm = useConfirm();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const frame = useSectionFrame();
@@ -210,7 +212,8 @@ export function SectionHeader({
 
   async function resetSection() {
     if (!store || overridden.length === 0) return;
-    if (!window.confirm(`Drop the ${overridden.length} value(s) ${levelTitle(level)} overrides in ${title}?`)) return;
+    const question = `Drop the ${overridden.length} value(s) ${levelTitle(level)} overrides in ${title}?`;
+    if (!(await confirm({ message: question, confirmLabel: "Reset", tone: "danger" }))) return;
     setBusy(true);
     setMessage(await store.resetMany(overridden));
     setBusy(false);

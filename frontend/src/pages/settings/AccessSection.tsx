@@ -7,6 +7,7 @@ import { Badge, EmptyState, FieldRow, Panel, Segmented } from "../../components/
 import { useEnvironment } from "../../environment/EnvironmentProvider";
 import { type SettingsLevel, SectionHeader } from "./shared";
 import "../../auth/auth.css";
+import { useConfirm } from "../../components/dialog/ConfirmDialog";
 
 type Token = components["schemas"]["ApiTokenOut"];
 type Created = components["schemas"]["ApiTokenCreatedOut"];
@@ -115,6 +116,7 @@ function PasswordPanel() {
 }
 
 function TokensPanel() {
+  const confirm = useConfirm();
   const { environments } = useEnvironment();
   const [tokens, setTokens] = useState<Token[] | null>(null);
   const [created, setCreated] = useState<Created | null>(null);
@@ -168,7 +170,8 @@ function TokensPanel() {
   }
 
   async function revoke(token: Token) {
-    if (!window.confirm(`Revoke ${token.name}? Whatever uses it stops working at once.`)) return;
+    const question = `Revoke ${token.name}? Whatever uses it stops working at once.`;
+    if (!(await confirm({ message: question, confirmLabel: "Revoke", tone: "danger" }))) return;
     const { error } = await api.DELETE("/api/v1/auth/tokens/{token_id}", { params: { path: { token_id: token.id } } });
     if (error) {
       setMessage({ error: true, text: errorMessage(error) });

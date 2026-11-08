@@ -116,8 +116,12 @@ input[type="color"] {
   height: 38px;
 }
 
+/* Pinned to the top left: at its static place far down a scrolling pane it would make the whole page taller than
+   the window, so the page scrolls and the header slides away. */
 .visually-hidden {
   position: absolute;
+  top: 0;
+  left: 0;
   width: 1px;
   height: 1px;
   overflow: hidden;

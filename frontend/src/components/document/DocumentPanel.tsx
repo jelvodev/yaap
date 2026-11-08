@@ -8,6 +8,7 @@ import { CloseIcon } from "../icons";
 import { Segmented } from "../workbench/Workbench";
 import type { Decision, SharedDocument } from "./useConversationDocument";
 import "./document-panel.css";
+import { useConfirm } from "../dialog/ConfirmDialog";
 
 type Content = components["schemas"]["FileContentOut"];
 type View = "changes" | "rendered" | "source";
@@ -49,6 +50,7 @@ export default function DocumentPanel({
   onSaved: () => void;
   onClose: () => void;
 }) {
+  const confirm = useConfirm();
   const [file, setFile] = useState<Content | null>(null);
   const [text, setText] = useState("");
   const [draft, setDraft] = useState<string | null>(null);
@@ -153,13 +155,14 @@ export default function DocumentPanel({
     setView("source");
   }
 
-  function close() {
-    if ((dirty || draft !== null) && !window.confirm("Close the document without saving your changes?")) return;
+  async function close() {
+    const ask = { message: "Close the document without saving your changes?", confirmLabel: "Close without saving", tone: "danger" } as const;
+    if ((dirty || draft !== null) && !(await confirm(ask))) return;
     onClose();
   }
 
-  function reload() {
-    if (dirty && !window.confirm("Read the document again? Your changes are kept aside.")) return;
+  async function reload() {
+    if (dirty && !(await confirm({ message: "Read the document again? Your changes are kept aside.", confirmLabel: "Read again" }))) return;
     setNotice(null);
     void load();
   }

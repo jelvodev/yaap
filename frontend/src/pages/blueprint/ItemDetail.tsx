@@ -26,6 +26,7 @@ import {
   serializeStandard,
   stateLabel,
 } from "./model";
+import { useConfirm } from "../../components/dialog/ConfirmDialog";
 
 /** One level of the chain an item is inherited along, with the item as that level sees it. */
 export interface ChainEntry {
@@ -218,6 +219,7 @@ export default function ItemDetail({
   onChanged: () => Promise<void>;
   onRemoved: () => void;
 }) {
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const query = levelQuery(level);
   const kind: ItemKind = isNew ?? item?.kind ?? "standard";
@@ -333,8 +335,9 @@ export default function ItemDetail({
           type="button"
           className="button button-danger"
           disabled={busy}
-          onClick={() => {
-            if (window.confirm(`Delete ${path} from ${levelName}? It stays in the git history of this layer.`)) void remove("removed");
+          onClick={async () => {
+            const question = `Delete ${path} from ${levelName}? It stays in the git history of this layer.`;
+            if (await confirm({ message: question, confirmLabel: "Delete", tone: "danger" })) void remove("removed");
           }}
         >
           Delete
