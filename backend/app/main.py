@@ -161,10 +161,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     idle_language_servers = asyncio.create_task(LANGUAGE_SERVERS.stop_idle_periodically())
     # Scheduled tasks: runs cut off by a restart end; the loop starts what is due.
     recover_runs(app)
-    # Eval runs cut off by a restart end as stopped.
     with app.state.session_factory() as session:
         # Agent runs and sub-runs cut off by a restart end as incomplete.
         close_stale_runs(session)
+        # Eval runs cut off by a restart end as stopped.
         recover_eval_runs(session)
         # Replays (45.5) too; their workspaces and pins go.
         recover_replays(session, settings.workspace_dir, settings.data_dir)
