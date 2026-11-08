@@ -22,7 +22,7 @@ const CodeEditor = lazy(() => import("../editor/CodeEditor"));
  * there and saved with the hash check of the Files tab, so a save never overwrites a change it has not
  * seen.
  *
- * Taking turns (34.2): while the agent writes the document the panel is read-only and follows each change; then it
+ * Taking turns: while the agent writes the document the panel is read-only and follows each change; then it
  * shows the change as a diff to accept or roll back, and stays read-only until the user chose. Unsaved text of the
  * user is kept aside meanwhile and can be put back afterwards.
  */

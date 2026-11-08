@@ -1,6 +1,6 @@
 """The check before accepting.
 
-A Blueprint proposal waits on a branch of its layer. Measuring it starts an eval comparison (44.3): the project's
+A Blueprint proposal waits on a branch of its layer. Measuring it starts an eval comparison: the project's
 cases in the normal setup and with the layer read at the proposal's branch, each played COMPARISON_REPEATS times.
 The comparison is read back from the two runs whenever the proposal is shown. A project without eval cases shows the
 proposal as *not measured*; it can be accepted all the same.

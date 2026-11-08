@@ -36,10 +36,10 @@ The package folder holds a file `blueprint-package.json`:
 Other top-level fields are ignored, so a package may add its own (for example a homepage). Two items may not end up at
 the same Blueprint path.
 
-An item is written to the layer exactly as it is in the package, at the path its kind and name give:
+An item is written to the layer as it is in the package, at the path its kind and name give:
 `standards/<name>.md`, `engineering/<name>.md`, `commands/<name>.md`, `agents/<name>.md` or `skills/<name>/` (the
-whole folder). The files use the normal Blueprint format ("File format"), with front matter where the kind
-expects it.
+whole folder). Only the line endings of a single-file item (every kind but a skill) change: they become LF. The files use the
+normal Blueprint format, with front matter where the kind expects it.
 
 ## Text only
 
@@ -50,8 +50,12 @@ A package is text, never code. YAAP refuses an item when it contains any of the 
 - a binary file, by suffix (`.exe`, `.dll`, `.zip`, …) or because it contains a zero byte;
 - a file that is not UTF-8 text.
 
-Symlinks and submodules are skipped. Limits per item: 512 KB for a single file, 5 MB and 200 files for a skill. The
-manifest itself is at most 64 KB. A standard, command or agent whose front matter is not valid YAML is refused too.
+Symlinks and submodules are skipped, and so is a `source.json` in a skill's folder (YAAP writes its own). Limits per
+item: 512 KB for a single file, 5 MB and 200 files for a skill. The manifest itself is at most 64 KB. An item whose
+front matter is not valid YAML is refused too; for a skill it is only a warning in the review.
+
+The review also warns when an item's text tells the agent to download or install things (such as `curl … | sh`,
+`pip install`, `npm install` or `sudo`). The item can still be chosen; read it first.
 
 ## Links
 

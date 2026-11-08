@@ -9,15 +9,18 @@ YAAP (Your AI Agent Platform) is a personal, self-hosted, model-agnostic AI deve
 
 ## Code standards
 
-They apply to every change; new code follows them, and code
-that a change touches moves toward them. When a rule cannot be followed, say why in the commit message.
+These standards apply to every change: new code follows them, and code that a change touches moves toward them.
+When a rule cannot be followed, say why in the commit message.
 
 ### Structure
 
 - **Thin HTTP layer.** Routers in `backend/app/api/` parse the request, call a service and translate its result and
-  domain errors to responses. Logic lives in `core/`, `agent/` and the feature packages. Only `api/` raises
-  `HTTPException`; nothing outside `api/` imports from `app.api` (schemas included). A second entry point (goal mode,
-  the scheduler, A2A, triggers) calls the same service, never a router or a fake request.
+  domain errors to responses. Logic lives in `core/`, `agent/` and the feature packages. The only other HTTP
+  endpoints are the MCP and A2A protocol endpoints (`backend/app/a2a/server.py`, `backend/app/agent/mcp_server.py`,
+  `backend/app/agent/outside_mcp.py`) and the route in `backend/app/main.py` that serves the built frontend. They
+  and the API token dependency in `backend/app/auth/` may raise `HTTPException` as `api/` does; nothing else does.
+  Nothing outside `api/` imports from `app.api` (schemas included). Every other entry point (goal mode, the
+  scheduler, A2A) calls the same service, never a router or a fake request.
 - **One place per concern.** Before writing a helper, search for an existing one and reuse or extend it. Concerns
   with a single owner: the environment for subprocesses (`safe_subprocess_env()`, never `os.environ` as a whole),
   choosing provider, model and key (`resolve_provider()`), and the permission decision (a pure function). No second
@@ -55,5 +58,6 @@ that a change touches moves toward them. When a rule cannot be followed, say why
 
 - Tests are named after the behaviour they check. Decision logic gets table-driven tests (`pytest.mark.parametrize`).
 - Every model change has a migration, and the test suite checks that the migrated schema matches the models.
-- Parallel work: keep edits to shared files (`main.py`, `models.py`, `settings.py`, `tools.py`, `ChatPage.tsx`)
-  small and local, and put new code in its own module.
+- Parallel work: keep edits to shared files (`backend/app/main.py`, `backend/app/storage/models.py`,
+  `backend/app/core/settings.py`, `backend/app/agent/tools.py`, `frontend/src/pages/ChatPage.tsx`) small and local,
+  and put new code in its own module.

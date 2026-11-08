@@ -147,7 +147,7 @@ def choose(client, registry: ProviderRegistry, vendors: set[str]) -> str:
         ({"openai"}, None, "claude-haiku-5-5"),
         # Of the same vendor: the cheapest allowed model of another vendor.
         ({"anthropic"}, None, CHEAPEST_OPENAI),
-        # A model of its own for the review (46.8) that is of another vendor is used as it is.
+        # A model of its own for the review that is of another vendor is used as it is.
         ({"anthropic"}, "gpt-6-astra", "gpt-6-astra"),
         # ... and one of the code's vendor is passed over.
         ({"openai"}, "gpt-6-astra", "claude-haiku-5-5"),

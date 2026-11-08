@@ -82,7 +82,7 @@ def test_every_situation_has_its_parts(measured: tuple[Footprint, Footprint]) ->
     results = [part.name for part in project.parts if part.group == "tool_result"]
     assert results == ["result:1:list_files", "result:2:search", "result:3:read_file", "result:4:run_command"]
     assert names["project"]["result:3:read_file"].chars > 10_000
-    # Stored from 6,000 characters on (46.3): the model sees its start, its end and a note.
+    # Stored from 6,000 characters on: the model sees its start, its end and a note.
     assert 4_000 < names["project"]["result:4:run_command"].chars < 6_000
     assert "finish_goal" in dict(situations["goal_turn"].tools) and "finish_goal" not in dict(project.tools)
     assert names["goal_turn"]["message:user"].chars > names["project"]["message:user"].chars

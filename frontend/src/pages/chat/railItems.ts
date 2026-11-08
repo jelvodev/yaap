@@ -75,7 +75,7 @@ export function anyRailBadge(panels: readonly RailPanel[], counts: RailBadgeCoun
 }
 
 /**
- * Below this width the rail folds into one button (choice 4 of `plan-chat-interface.md`). The same width is the
+ * Below this width the rail folds into one button. The same width is the
  * `max-width: 899px` media query of `project-rail.css`, which places the panels as a drawer.
  */
 export const RAIL_NARROW_QUERY = "(max-width: 899px)";

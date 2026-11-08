@@ -29,7 +29,7 @@ def age(shells: ShellSessions, hours: float) -> None:
         session.commit()
 
 
-# --- Sessions per conversation (32.1) -----------------------------------------------------------------------------
+# --- Sessions per conversation ------------------------------------------------------------------------------------
 
 
 def test_a_variable_set_in_one_reply_is_there_in_the_next(project, bash):
@@ -147,7 +147,7 @@ def test_a_session_made_elsewhere_starts_again(tmp_path):
     assert shells.folder(moved) is None
 
 
-# --- Sessions on a target (32.2) ----------------------------------------------------------------------------------
+# --- Sessions on a target -----------------------------------------------------------------------------------------
 
 
 def local_bash() -> str | None:

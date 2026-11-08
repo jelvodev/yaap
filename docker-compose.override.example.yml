@@ -4,7 +4,7 @@
 services:
   yaap:
     volumes:
-      # A backup destination (Settings > Backup > Destinations, kind Folder, path /backup): a folder of this
+      # A backup destination (Settings › System › Backup, kind Folder, path /backup): a folder of this
       # computer, preferably on another disk than the data folder. On Windows, for example:
       - D:/Backups/YAAP:/backup
       # On macOS or Linux, for example:

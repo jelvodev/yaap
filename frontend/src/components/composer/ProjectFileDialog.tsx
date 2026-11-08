@@ -14,7 +14,7 @@ async function projectFile(projectId: number, path: string): Promise<File> {
 }
 
 /**
- * Attach a file from the project (plan-chat-interface 2.2): the project's file tree with its search, as in the Files
+ * Attach a file from the project: the project's file tree with its search, as in the Files
  * panel; a click on a file attaches a copy of it, as a file from the computer would be.
  */
 export default function ProjectFileDialog({

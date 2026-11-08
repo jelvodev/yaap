@@ -2,7 +2,7 @@
 
 Thank you for helping. YAAP is a personal project, so larger changes are best discussed in an issue first.
 
-## Read the design first
+## Read the architecture first
 
 [docs/architecture.md](docs/architecture.md) is the map of the code: how YAAP is put together and where each part lives. A change that alters behaviour updates it and the user documentation in the same commit.
 
@@ -18,13 +18,13 @@ Thank you for helping. YAAP is a personal project, so larger changes are best di
 
 ## Development setup
 
-Backend (Python 3.12 or later):
+Backend (Python 3.12 or later). On Linux and macOS use `.venv/bin/python` wherever these commands say `.venv/Scripts/python`.
 
 ```bash
 cd backend
 python -m venv .venv
-.venv/Scripts/python -m pip install -r requirements-dev.txt   # Linux/macOS: .venv/bin/python
-YAAP_MASTER_KEY=<key> YAAP_DATA_DIR=../data YAAP_INTERNAL_URL=http://127.0.0.1:8000 .venv/Scripts/python -m uvicorn app.main:app --reload --port 8000
+.venv/Scripts/python -m pip install -r requirements-dev.txt
+YAAP_MASTER_KEY=<key> YAAP_DATA_DIR=../data YAAP_RUNNER=off YAAP_INTERNAL_URL=http://127.0.0.1:8000 .venv/Scripts/python -m uvicorn app.main:app --reload --port 8000
 ```
 
 Frontend, with the Vite dev server proxying `/api` to port 8000:
@@ -35,14 +35,18 @@ npm install
 npm run dev
 ```
 
-Some features need tools that the Docker images provide (Claude Code, Codex, Tesseract, the embedding model; Playwright and Chromium in the sandbox image). Run the whole application with `docker compose up -d --build` to try them. Outside Docker there is no runner, so set `YAAP_RUNNER=off` to let the agent's commands run in your backend process (with everything that process can read); the test suite does the same.
+Some features need tools that the Docker images provide (Claude Code, Codex, Tesseract, the embedding model; Playwright and Chromium in the sandbox image). Run the whole application with `docker compose up -d --build` to try them. Outside Docker there is no runner, so the command above sets `YAAP_RUNNER=off`: the agent's commands then run in your backend process (with everything that process can read). The test suite does the same.
 
 ## Checks
 
 ```bash
 cd backend && .venv/Scripts/python -m pytest
-cd frontend && npm run typecheck
+cd frontend && npm run typecheck && npm run test:unit && npm run test:sdk && npm run build
 ```
+
+`npm run build` also generates the plugin SDK from `openapi.json` and type-checks it.
+
+Backend tests are in `backend/tests/` (`test_<subject>.py`). Frontend unit tests are `*.test.mjs` files next to the code they test; the plugin SDK's tests are in `frontend/plugin-sdk/`.
 
 After a change to the API, regenerate the frontend types:
 
@@ -54,5 +58,6 @@ cd frontend && npm run gen:api
 ## Pull requests
 
 - One subject per pull request, with tests for new behaviour.
+- Commit messages have a short subject in the imperative, in sentence case ("Add a public roadmap").
 - Describe what changes for the user and how you checked it.
-- Keep the design and the user documentation in step with the change.
+- Keep [docs/architecture.md](docs/architecture.md) and the user documentation in step with the change.

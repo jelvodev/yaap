@@ -92,7 +92,7 @@ has `hello_greet` in every conversation, and **Open page** shows the page.
 | `version` | Any text, such as `1.0.0`; shown in Settings |
 | `description` | One or two sentences, shown in Settings |
 | `registers` | Lists of what `register()` adds: `tools` (tool names), `providers` (provider names), `credential_types` (kinds). Optional; empty lists by default |
-| `page` | Optional: the page's entry file, inside a subfolder of the plugin, such as `page/index.html` |
+| `page` | Optional: the page's entry file, inside a subfolder of the plugin that is not hidden, such as `page/index.html`. Hidden files in the page's folder are not served |
 | `api` | Optional, with a page: the API routes the page may call, such as `"GET /api/v1/environments"` (see [The page](#the-page)) |
 
 The lists must match what `register()` does: registering something that is not listed, or listing something that is
@@ -232,12 +232,13 @@ the types of every route; a plugin written in TypeScript downloads that file and
 | | |
 |---|---|
 | `await connect(options?)` | Connects to the YAAP page that shows this one and returns the connection. Rejects after `timeoutMs` (10 s) when the page is not shown by YAAP, for example when its address is opened on its own. `applyTheme: false` leaves the theme tokens off the page |
-| `yaap.api.GET(path, init?)`, `POST`, `PUT`, `PATCH`, `DELETE` | Asks YAAP to call its API for the page. `path` is the route as the OpenAPI description writes it; `init` holds `params: { path, query }`, a JSON `body` and a `signal`. Returns `{ data, status }` or `{ error, status }`, where `error` is YAAP's `{ detail }`. A path that is not a route of YAAP's API, or a missing path parameter, throws before anything is sent; a call rejects when YAAP does not answer within `callTimeoutMs` (30 s) or the signal aborts it |
+| `yaap.api.GET(path, init?)`, `POST`, `PUT`, `PATCH`, `DELETE` | Asks YAAP to call its API for the page. `path` is the route as the OpenAPI description writes it; `init` holds `params: { path, query }`, a JSON `body` and a `signal`. Returns `{ data, status }` or `{ error, status }`, where `error` is YAAP's `{ detail }`. A path that is not a route of YAAP's API, or a missing path parameter, rejects at once, before anything is sent; a call rejects when YAAP does not answer within `callTimeoutMs` (30 s) or the signal aborts it |
 | `yaap.environment`, `yaap.project` | The environment active in YAAP (`id`, `name`, `colour`) and the project the chat shows in it (`id`, `name`), or `null` outside a project |
 | `yaap.theme` | `scheme` (`dark` or `light`) and `tokens`: YAAP's colours and fonts as CSS custom properties (`--bg`, `--text`, `--accent`, `--font` and more), also put on the page's root element |
 | `yaap.on("context", handler)` | The active environment or project changed; the handler gets `{ environment, project }`. Returns a function that stops following |
 | `yaap.on("theme", handler)` | The user switched between dark and light, or the accent changed with the environment |
 | `yaap.plugin`, `yaap.routes` | The plugin's name and the routes its manifest lists |
+| `yaap.apiVersion` | The version of YAAP's API the SDK was generated from |
 | `createClient({ timeoutMs })`, `applyTheme(theme)` | The client and the theme helper on their own |
 
 How the page talks to YAAP: `connect()` sends a hello to the YAAP page around the frame with `postMessage`, and
@@ -256,12 +257,13 @@ The page's Content-Security-Policy allows:
 - no forms, no frames, no storage (the page runs on an opaque origin).
 
 The routes a manifest may list are YAAP's API routes under `/api/v1/`, with `{name}` for a path parameter, which
-matches exactly one path segment. Never open to a page, also when listed: the account, sessions and API tokens
-(`/api/v1/auth/…`) and the plugin routes (`/api/v1/plugins…`). Everything else follows from what you list: a page
+matches exactly one path segment; a manifest lists at most 200 routes. The account, sessions and API tokens (`/api/v1/auth/…`)
+and the plugin routes (`/api/v1/plugins…`) are never open to a page: a manifest that lists one is refused, so the
+plugin cannot be switched on. Everything else follows from what you list: a page
 that lists `PUT /api/v1/settings/{key}` can change settings, so list what the page needs and nothing more.
 
 The frame runs on an opaque origin, so the browser sends `Origin: null` when it loads the page's ES modules and the
-SDK. YAAP accepts `Origin: null` for exactly that, a `GET` of `/plugin-sdk.js` or of a file under the page's address,
+SDK. YAAP accepts `Origin: null` for exactly that, a `GET` or `HEAD` of `/plugin-sdk.js` or of a file under the page's address,
 and refuses it everywhere else, its API included.
 
 ## When a plugin fails
@@ -277,7 +279,8 @@ switched off at the next start.
 ## Changing a plugin
 
 Python cannot replace an imported package safely in a running process, so every change takes effect at the next
-start: switching on or off, and editing the code of a switched-on plugin. **Restart YAAP now** in Settings restarts
-the container (Docker starts it again); replies in progress stop.
+start: switching on or off, and editing the code of a switched-on plugin. While a switch on or off waits, **Restart
+YAAP now** in Settings restarts the container (Docker starts it again); replies in progress stop. The button does not
+show for an edit of the code: restart with `docker compose restart yaap`.
 
 `data/plugins` is part of backups, and the on/off switches are in the database.

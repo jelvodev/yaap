@@ -1,4 +1,4 @@
-"""Eval runs and variants of them (44.3), on a small fixture project with the fake provider."""
+"""Eval runs and variants of them, on a small fixture project with the fake provider."""
 
 import time
 from pathlib import Path

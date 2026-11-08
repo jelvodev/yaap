@@ -2,7 +2,7 @@
 
 A review is stored as `running` the moment it starts, with the diff it looks at, so the changes view and the
 conversation can show it; the model call runs in the background. The reviewer is chosen by other_vendor_choice():
-the review task's own utility model (46.8) when it is of none of the vendors that wrote the changes, else the
+the review task's own utility model when it is of none of the vendors that wrote the changes, else the
 cheapest allowed catalog model of another vendor. When the policy, the connections, the keys or the budget allow
 none, the review ends as `skipped` with the reason. The request goes through the utility model's path, so the audit
 log, the outgoing check and the usage records (task `review`) see it like every other model call. Secret values in

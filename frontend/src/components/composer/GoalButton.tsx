@@ -19,7 +19,7 @@ function TargetIcon({ size = 16 }: { size?: number }) {
 }
 
 /**
- * Goal mode (plan-chat-interface 2.2): starts `/goal ` in the message box, so the objective is typed after it and the
+ * Goal mode: starts `/goal ` in the message box, so the objective is typed after it and the
  * goal starts as a typed /goal does. Shown where /goal is offered (in a project); its title carries the estimate.
  */
 export default function GoalButton({ summary, onClick }: { summary: string; onClick: () => void }) {

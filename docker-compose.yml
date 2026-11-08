@@ -9,7 +9,7 @@ services:
       # override file). YAAP says how to make one when neither is set.
       YAAP_MASTER_KEY: ${YAAP_MASTER_KEY:-}
       YAAP_MASTER_KEY_FILE: ${YAAP_MASTER_KEY_FILE:-}
-      # Only while rotating the master key: the old key. Remove it when Settings › Vault says so.
+      # Only while rotating the master key: the old key. Remove it when Settings › Connections › Vault says so.
       YAAP_MASTER_KEY_PREVIOUS: ${YAAP_MASTER_KEY_PREVIOUS:-}
       # Extra host names YAAP answers on besides localhost, 127.0.0.1 and [::1] (docs/configuration.md).
       YAAP_ALLOWED_HOSTS: ${YAAP_ALLOWED_HOSTS:-}

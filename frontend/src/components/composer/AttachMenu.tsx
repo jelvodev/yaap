@@ -35,7 +35,7 @@ export interface AttachMenuProps {
   onError: (message: string | null) => void;
 }
 
-/** Attach as a menu (plan-chat-interface 2.2): files, a folder, a file from the project, a screenshot of the preview. */
+/** Attach as a menu: files, a folder, a file from the project, a screenshot of the preview. */
 export default function AttachMenu({ onFiles, onFolder, projectId, previewShot, onError }: AttachMenuProps) {
   const [open, setOpen] = useState(false);
   const [choosing, setChoosing] = useState(false);

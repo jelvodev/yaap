@@ -126,22 +126,22 @@ You (global)
 - **Keys, the GitHub token, secrets and projects belong to one environment.** Keeping billing and data apart is what environments are for. A conversation never receives keys, standards or memory of another environment.
 - The **active environment** is chosen in the header; its colour marks the interface.
 
-Settings has a level switch at the top of its rail. Project settings are in the project panel of the chat (the gear next to a project).
+Settings has a level switch at the top of its rail. Project settings are the last icon of the project rail in the chat (also the gear next to a project).
 
 ## Connections and models
 
-**Settings › Connections**, per environment:
+**Settings › Connections › Providers**, at Global and overridable per environment; API keys are added per environment:
 
 - **Claude connection**: *Claude Code* (your subscription, signed in once with `docker compose exec -it yaap claude auth login`) or *Anthropic API key*.
 - **OpenAI connection**: *API key* or *Codex* (your ChatGPT plan, signed in once with `docker compose exec -it yaap codex login --device-auth`).
-- **API keys** for Anthropic and OpenAI, and the **GitHub token** (a fine-grained personal access token, limited to the repositories YAAP may use). Keys are tested before they are stored, stored encrypted, and never shown again: only the last four characters.
+- **API keys** for Anthropic and OpenAI. The **GitHub token** (a fine-grained personal access token, limited to the repositories YAAP may use) is added in Settings › Git and GitHub. Keys are tested before they are stored, stored encrypted, and never shown again: only the last four characters.
 - **Ollama address** (at the Global level), for example `http://host.docker.internal:11434` for Ollama on this computer. Its models then appear in every model list, without cost.
 
-**Settings › Models › Presets**: model presets per environment. A preset is a named set of models by role: `main` (the conversation), `worker` (delegated tasks) and `utility` (titles, commit messages, summaries), each with an effort. One preset is the default for new conversations; a conversation can pick another, or *Custom*. The **utility model** setting is the fallback for presets without one. *Longest reply* sets the preset's `max_output_tokens`: the most tokens one reply may write; empty is the model's maximum (128,000 for the Claude 5.5 models), shown as the placeholder.
+**Settings › Models › Presets**: model presets per environment. A preset is a named set of models by role: `main` (the conversation), `worker` (delegated tasks) and `utility` (titles, commit messages, summaries), each with an effort. One preset is the default for new conversations; a conversation can pick another, or *Custom*. *Preset for chats outside a project* (per environment) names the preset a new conversation outside a project starts with; empty is the default preset. The **utility model** setting (in Utility and workers) is the fallback for presets without one, and *Utility model per task* gives a small task a model of its own, such as a local model for titles and commit messages; the check of outside content always uses the utility model. *Longest reply* sets the preset's `max_output_tokens`: the most tokens one reply may write; empty is the model's maximum (128,000 for the Claude 5.5 models), shown as the placeholder.
 
 The **Workers** panel in **Settings › Models › Utility and workers** lists who delegated work can go to, by the name the agent uses: each preset's worker (edited in the presets table) and the coding agents *Claude Code* (`claude_code`) and *Codex* (`codex`), with how each is reached, whether it is billed per token or on a subscription, and whether it can run. For the two CLIs you choose the model and effort here (`claude_code_worker`, default Claude Sonnet 5.5 at medium; `codex_worker`, default GPT-6.1 Sol at medium; global, overridable per environment). They need their sign-in from Settings › Connections, but not the matching connection: a conversation can run on an API key and still hand work to Claude Code.
 
-**Settings › Models › Context** (global and environment; per project in its settings): `context_limit`, how large a conversation's context may grow, in tokens, or *The model's window* (the default). YAAP shortens old tool output and summarises against this limit; the model keeps its full window. A conversation can choose its own limit next to its preset, which wins over the settings. `auto_compact` (on by default) lets YAAP keep conversations within the limit by itself: at `trim_at` percent of the limit (default 50) it shortens old tool output, at `compact_at` percent (default 70) it summarises the earlier messages. Claude Code and Codex compact their own sessions; Ollama models are compacted like API-key models.
+**Settings › Models › Context** (global and environment; per project in its settings): `context_limit`, how large a conversation's context may grow, in tokens, or *The model's window* (the default). YAAP shortens old tool output and summarises against this limit; the model keeps its full window. A conversation can choose its own limit next to its preset, which wins over the settings. `auto_compact` (on by default) lets YAAP keep conversations within the limit by itself: at `trim_at` percent of the limit (default 50) it shortens old tool output, at `compact_at` percent (default 70) it summarises the earlier messages. Claude Code and Codex compact their own sessions; Ollama models are compacted like API-key models. `repo_map` (on by default) starts a project conversation with a map of the project's folders, main modules and public symbols, about 1,500 tokens, made once per commit; off, the agent looks around with its tools.
 
 Every model list shows all models; one whose connection has no key in the active environment is marked "(no key)".
 
@@ -237,7 +237,7 @@ Each destination keeps its own number of backups; YAAP removes only files named 
 Every API route needs a signed-in browser or an API token. Open without either are only `GET /api/v1/health`, the sign-in state, signing in and the first-run password screen. YAAP still listens on `127.0.0.1` only.
 
 - **The password** is one local account, stored as an Argon2id hash in the database. Set it on the first-run screen or with the setup script; change it in **Settings › Account › Access** (every other browser is then signed out); reset a forgotten one with `docker compose exec -it yaap python -m app.scripts.set_password --reset`.
-- **The browser session** is an HttpOnly, SameSite=Strict cookie (`yaap_session`, with the port in its name when YAAP is not on port 80, such as `yaap_session_8080`). Requests that change something also send the session's CSRF token from the `yaap_csrf` cookie in the `X-CSRF-Token` header, and must come from YAAP's own page. A session ends after 30 days without use, on *Sign out*, or when the password changes. After five wrong passwords within a minute, signing in waits a minute.
+- **The browser session** is an HttpOnly, SameSite=Strict cookie (`yaap_session`, with the port in its name when YAAP is not on port 80, such as `yaap_session_8080`). Requests that change something also send the session's CSRF token from the `yaap_csrf` cookie (also with the port in its name, such as `yaap_csrf_8080`) in the `X-CSRF-Token` header, and must come from YAAP's own page. A session ends after 30 days without use, on *Sign out*, or when the password changes. After five wrong passwords within a minute, signing in waits a minute.
 - **API tokens** are made in **Settings › Account › Access**, one per program, optionally with an expiry date after which they are refused, and shown once. YAAP keeps each in the vault, encrypted, with only a hash to check it. Send it as `Authorization: Bearer <token>`. Purposes:
 
   | Purpose | Opens | Confined to |
@@ -247,7 +247,7 @@ Every API route needs a signed-in browser or an API token. Open without either a
   | A2A agent | YAAP's A2A agent card and tasks | an environment, and optionally a project |
 
   *Revoke* (or removing the entry in the Vault) stops a token at once.
-- **Unchanged:** Claude Code and Codex reach YAAP's tools at `/mcp` with a token YAAP makes for each reply; they need nothing new.
+- **Claude Code and Codex** reach YAAP's tools at `/mcp` with a token YAAP makes for each reply; they need no API token.
 
 ## MCP servers
 
@@ -337,14 +337,15 @@ The client gets YAAP's tools of the token's project (or, without a project, thos
 | Settings › Agent › Default skills | Skills pinned in every new conversation, for example an answer style |
 | Settings › Git and GitHub | Author name and email for commits; every repository of the environment with its state; the GitHub repositories the token reaches, templates, and *New repository*. The token needs `repo` (classic) or Administration, Contents and Pull requests write (fine-grained). |
 | Settings › Usage and audit › Usage and budget | Monthly budgets in US dollars for all environments and per environment. Only API-key use counts; subscriptions are never stopped. |
-| Settings › Usage and audit › Audit log (environment) | Nothing to set: every model request that left YAAP, kept for a year and removed after that by the minute loop. Filters and the CSV and JSON export are on the page; the export holds no content and no secret values. See [usage.md](usage.md#the-audit-log). |
+| Settings › Usage and audit › Audit log (environment) | Nothing to set: every model request that left YAAP, kept for a year and then removed automatically. Filters and the CSV and JSON export are on the page; the export holds no content and no secret values. See [usage.md](usage.md#the-audit-log). |
+| Settings › Usage and audit › Telemetry | Each reply as an OpenTelemetry trace to an OTLP/HTTP endpoint, with optional headers and, when switched on, the prompt content; at Global, overridable per environment. See [usage.md](usage.md#opentelemetry-export). |
 | Settings › Account › Profile (global) | Display name; time zone (taken from the browser until set) |
 | Settings › Models › Utility and workers (global) | Embedding model for semantic search: `bge-m3` (local, Dutch and English) or off |
 | Settings › Environment (environment) | The environment's name and colour |
 | Settings › Environments (global) | Add and rename environments |
 | Settings › System › Backup (global) | The schedule, destinations, recent runs; make, download, upload and restore backups (see [Backups](#backups)) |
 | Settings › System › Plugins (global) | Switch each plugin in `data/plugins/<name>/` on or off; takes effect after a restart. A plugin runs with YAAP's rights. See [plugins.md](plugins.md). |
-| Settings › Targets (environment) | *Runner*: whether the environment's runner, where its commands, MCP servers over stdio and browser run, can reach the internet (*Runner network*, online by default). Computers over SSH the agent can work on: address, folders, *Allow full access* and *Whole computer* (both off by default). Their keys are vault entries of kind SSH key. *Import a session* in the chat may also list and read Claude Code and Codex session files in the home folder of the target's user (`~/.claude/projects`, `~/.codex/sessions`), read-only and nothing else there. See [install.md](install.md#let-yaap-work-on-this-computer). |
+| Settings › Targets (environment) | *Runner*: whether the environment's runner, where its commands, MCP servers over stdio and browser run, can reach the internet (*Runner network*, online by default). Computers over SSH the agent can work on: address, folders, *Allow full access* and *Whole computer* (both off by default). Their keys are vault entries of kind *SSH key of a target*. *Import a session* in the chat may also list and read Claude Code and Codex session files in the home folder of the target's user (`~/.claude/projects`, `~/.codex/sessions`), read-only and nothing else there. See [install.md](install.md#let-yaap-work-on-this-computer). |
 | Project settings | Default preset and agent, where the agent works (the environment's runner, the project's own sandbox, or a target and the project's folder on it), language, permissions, default skills, knowledge folder (a project folder whose documents become knowledge), MCP servers, the project's own keys and secrets |
 | Preferences menu (sidebar) | Dark or light theme, showing utility calls in the chat and verbose tool calls (stored in YAAP, for every browser), and reading every reply aloud (kept per browser) |
 

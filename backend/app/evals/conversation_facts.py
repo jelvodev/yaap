@@ -9,7 +9,7 @@ Read from the database, the project's git history and the checkpoints, without a
 - **The changed files.** From the conversation's checkpoints: its first checkpoint against the state after its last
   action (the next checkpoint of the project, or the folder as it is now). Without checkpoints, the paths of its
   successful write_file and edit_file calls. Files of the Blueprint layer (`.blueprint/`) are left out.
-- **The commands** its run_command calls ran, and **the usage** of its runs' steps (45.1).
+- **The commands** its run_command calls ran, and **the usage** of its runs' steps.
 """
 
 from dataclasses import dataclass

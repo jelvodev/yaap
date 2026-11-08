@@ -60,12 +60,16 @@ flowchart LR
 
     subgraph docker["Docker on your computer"]
         yaap["YAAP<br/>FastAPI + React"]
+        helper["yaap-sandbox<br/>starts the runners"]
+        proxy["docker-proxy<br/>filtered Docker API"]
         runner["Runner<br/>what the agent runs"]
         searxng["SearXNG<br/>web search"]
         data[("./data<br/>database · Blueprint · projects · backups")]
     end
 
-    yaap --> runner
+    yaap --> helper
+    helper --> proxy
+    helper --> runner
     yaap --> searxng
     yaap --> data
     yaap --> models["Claude · OpenAI · Ollama"]

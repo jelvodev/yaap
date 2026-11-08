@@ -1,5 +1,5 @@
 /**
- * The pure parts of the message box's controls (plan-chat-interface 2.2): the model setup button's label, how full the
+ * The pure parts of the message box's controls: the model setup button's label, how full the
  * context is, and the text Goal mode puts in the box. Kept free of React and imports so `modelSetup.test.mjs` can load it.
  */
 

@@ -53,7 +53,7 @@ def test_the_search_index_follows_changes_and_deletes(client, fake):
         assert len(client.get("/api/v1/environments/1/search", params={"q": "wombats"}).json()) == 1
 
         session.execute(delete(UsageRecord).where(UsageRecord.conversation_id == conversation_id))
-        # Every reply has a run record with its steps (45.1); the steps go first.
+        # Every reply has a run record with its steps; the steps go first.
         runs = select(AgentRunRecord.id).where(AgentRunRecord.conversation_id == conversation_id)
         session.execute(delete(RunStep).where(RunStep.run_id.in_(runs)))
         session.execute(delete(AgentRunRecord).where(AgentRunRecord.conversation_id == conversation_id))

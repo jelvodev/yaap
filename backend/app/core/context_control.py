@@ -5,7 +5,7 @@ measured against it instead of against the model's window. The model keeps its f
 the limit. The limit comes from the conversation's own choice, else from the `context_limit` setting (project,
 environment, global), else it is the model's window; it is never more than the window.
 
-Compaction (31.2): with `auto_compact` on, old tool output is shortened at `trim_at` percent of the limit and the
+Compaction: with `auto_compact` on, old tool output is shortened at `trim_at` percent of the limit and the
 earlier messages are summarised at `compact_at` percent. YAAP compacts every connection except Claude Code and Codex,
 which compact their own sessions.
 

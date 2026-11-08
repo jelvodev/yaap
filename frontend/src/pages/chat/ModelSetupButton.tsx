@@ -21,7 +21,7 @@ export interface ModelSetupProps {
 }
 
 /**
- * The model setup beside the message box (plan-chat-interface 2.2): one button, `YAAP · Opus 5.5 · medium`, whose
+ * The model setup beside the message box: one button, `YAAP · Opus 5.5 · medium`, whose
  * icon's ring is the context meter; its popover holds the agent, preset, model, effort, context, limit and Compact
  * now. For a new conversation it sets what the conversation will start with.
  */

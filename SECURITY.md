@@ -7,7 +7,7 @@ YAAP is a personal tool that runs on your own computer. This page says what runs
 | Where | What runs there | What it holds |
 |---|---|---|
 | **YAAP's process** (the `yaap` container) | The web server and API, the agent loop, the vault, file tools, checkpoints, YAAP's own git (status, diff, commit, fetch, push, branches), semantic search, the editor, Claude Code and Codex (which get only YAAP's tools), your plugins | The master key, the database `/data/yaap.db`, every environment's projects and Blueprint, the Claude Code and Codex sign-ins, backups |
-| **The runner of an environment** (a container per environment, started by the `yaap-sandbox` helper) | Everything the agent or a third party chooses to run: `run_command`, background processes, shell sessions, MCP servers over stdio, the agent's browser | Only that environment's project folders, mounted as `/workspace`, and the secrets passed to one command or MCP server |
+| **The runner of an environment** (a container per environment, started by the `yaap-sandbox` helper) | Everything the agent or a third party chooses to run: `run_command`, background processes, shell sessions, MCP servers over stdio, language servers, the agent's browser | Only that environment's project folders, mounted as `/workspace`, and the secrets passed to one command or MCP server |
 | **A project's sandbox** (optional, per project) | The commands of that project instead of the runner | Only that project's folder; no network unless you switch it on |
 | **A target** (a computer over SSH, also the one that runs YAAP) | The commands and file changes of the projects and conversations that chose it | Whatever the SSH user on that computer may do |
 
@@ -36,7 +36,7 @@ Checkpoints are kept in YAAP's own shadow repositories under the data folder, wh
 
 ## Only local addresses, only local pages
 
-YAAP listens on `127.0.0.1:8080` only. It answers only when it is asked for by `localhost`, `127.0.0.1` or `[::1]` (plus names you add in `YAAP_ALLOWED_HOSTS`); any other `Host` gets 400, so a web page cannot reach YAAP by pointing its own domain at your computer (DNS rebinding). A browser request from another site's page gets 403, for the API, the interface, `/mcp`, `/a2a`, `/mcp/outside` and plugin pages alike. Programs that send no `Origin` (curl, scripts with a token) are not affected.
+YAAP listens on `127.0.0.1:8080` only. It answers only when it is asked for by `localhost`, `127.0.0.1` or `[::1]` (plus names you add in `YAAP_ALLOWED_HOSTS`); any other `Host` gets 400, so a web page cannot reach YAAP by pointing its own domain at your computer (DNS rebinding). A browser request from another site's page gets 403, for the API, the interface, `/mcp`, `/a2a`, `/mcp/outside` and plugin pages alike. The one exception is the static files a plugin page's sandboxed frame loads (`/plugin-sdk.js` and the page's own files), which pass with `Origin: null`. Programs that send no `Origin` (curl, scripts with a token) are not affected.
 
 **Do not publish the port to a network, put it behind a tunnel or a reverse proxy, or run YAAP on a shared machine.** The password is a second lock, not a reason to expose YAAP: TLS and the hardening of a public endpoint are not part of it.
 
@@ -65,7 +65,7 @@ What remains a risk: a preview page can read YAAP's CSRF cookie (it is not HttpO
 ## Keys and secrets
 
 - API keys, tokens and secrets are stored **encrypted** in the database with `YAAP_MASTER_KEY`, which lives outside the data folder in `.env` (or in a file, such as a Docker secret). A copy of the data folder or a backup alone does not expose them.
-- They are **write-only**: the interface and the API never return a value, only its last four characters.
+- They are **write-only**: the interface and the API never return a value, at most its last four characters (none for a short secret).
 - The master key can be changed without losing anything: YAAP re-encrypts every value on start (see [docs/configuration.md](docs/configuration.md#the-master-key)).
 - Every use of a key or secret is logged in the Vault (what used it and when, never the value), so an unexpected use shows.
 - The agent never sees YAAP's own keys. Secrets meant for the agent are used by name (`{{secret:NAME}}`), and every tool output is masked.

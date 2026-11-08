@@ -193,7 +193,7 @@ function ChatComposer({
 }: ChatMainProps & { goalEstimate: string | null }) {
   const conversation = active.conversation;
   const { queue, composer, stream, attachments } = session;
-  // A running preview can be attached as a screenshot (plan-chat-interface 2.2).
+  // A running preview can be attached as a screenshot.
   const previewProcess = rail.preview.processId;
   const agent = offer.agents.find((item) => item.name === (conversation ? conversation.agent : draft.agent));
   const { commands, skills } = useCommands(offer.items, agent, projectId !== null, goalEstimate);

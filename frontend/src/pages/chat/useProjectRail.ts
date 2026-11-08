@@ -1,7 +1,7 @@
 /**
  * The project rail: which panel beside the chat is open, on which view, and the counts on the rail's icons.
  *
- * The contract the chat header (2.1), the rail (2.4) and the Changes panel (2.5) of `plan-chat-interface.md` build on:
+ * The contract the chat header, the rail and the Changes panel build on:
  *
  * - `RailPanel` (`./railPanels`) names the panels, top to bottom: changes, files, branches (and pull requests),
  *   history (`view` "history" | "checkpoints"), preview, memory ("memory" | "learning"), knowledge, tasks, evals
@@ -17,9 +17,9 @@
  *   a second request: `rail.git` (the project's git state, also behind the Changes panel and the header chip),
  *   `rail.preview` (the preview panel's processes) and `rail.learning` (the Learning view's proposals).
  * - The counts are read while the panel that shows them is open. With `watchCounts` (set once the rail is always on
- *   screen, 2.4) they are read while the panels are closed too: the git state on every `refreshKey`, the processes
+ *   screen) they are read while the panels are closed too: the git state on every `refreshKey`, the processes
  *   every few seconds, the proposals when the project changes. `WATCH_RAIL_COUNTS` in `ChatPage` switches it on;
- *   the header chip (2.1) needs it as much as the rail (2.4) does.
+ *   the header chip needs it as much as the rail does.
  * - One panel is open at a time: the preview is a rail panel, so opening it closes the project panel and back.
  * - `rail.focusCheckpoint` and `rail.focusReview` open History on Checkpoints and Evals on Reviews at one item.
  *

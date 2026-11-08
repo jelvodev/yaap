@@ -4,7 +4,7 @@ How YAAP is put together, in six diagrams and a table of features. This page is 
 
 ## 1. Overview
 
-YAAP is one application container next to a SearXNG container, reached from your browser on `127.0.0.1:8080`, with a helper that starts a *runner* per environment: the container where the agent's commands, MCP servers over stdio and browser run (section 1a). Everything it keeps is in one data folder.
+YAAP is one application container next to a SearXNG container, reached from your browser on `127.0.0.1:8080` (and on `127.0.0.1:8081` for the preview of a project's app), with a helper that starts a *runner* per environment: the container where the agent's commands, MCP servers over stdio and browser run (section 1a). Everything it keeps is in one data folder.
 
 ```mermaid
 flowchart TB
@@ -14,13 +14,14 @@ flowchart TB
         subgraph yaap["yaap container"]
             api["FastAPI backend<br/>/api/v1 + server-sent events"]
             static["Built frontend<br/>(static files)"]
+            preview["Preview listener :8081<br/>a project's dev server"]
             clis["Claude Code CLI · Codex CLI"]
             onnx["Local embedding model<br/>bge-m3 (ONNX)"]
             tess["Tesseract OCR"]
             whisper["Local speech model<br/>faster-whisper"]
         end
         searxng["searxng container<br/>web search, no key"]
-        runner["runner per environment<br/>commands · stdio MCP servers<br/>Playwright MCP + Chromium"]
+        runner["runner per environment<br/>commands · stdio MCP servers · language servers<br/>Playwright MCP + Chromium"]
         data[("Data folder /data<br/>yaap.db · blueprint · workspace<br/>files · knowledge · backups · sign-ins")]
     end
 
@@ -38,6 +39,8 @@ flowchart TB
     browser -- "HTTP + SSE, allowed hosts only<br/>(localhost by default)" --> api
     clients -- "/mcp/outside · /a2a" --> api
     api --> static
+    browser -- "preview pages" --> preview
+    preview -- "SSH through the helper" --> runner
     api --> clis
     api -- "SSH through the helper" --> runner
     api --> onnx
@@ -66,7 +69,7 @@ flowchart TB
 
 ## 1a. Where commands run: the runner and its networks
 
-What the agent runs (`run_command`, `start_process`, shell sessions, MCP servers over stdio, the browser) runs in the *runner* of its environment, not in YAAP's container. A runner is a sandbox container of the whole environment: it mounts only `data/workspace/<environment>` as `/workspace`, so it cannot read YAAP's database, the master key, the Claude Code and Codex sign-ins, or another environment's projects. A project that chose its own sandbox or a computer over SSH works there instead.
+What the agent runs (`run_command`, `start_process`, shell sessions, MCP servers over stdio, language servers, the browser) runs in the *runner* of its environment, not in YAAP's container. A runner is a sandbox container of the whole environment: it mounts only `data/workspace/<environment>` as `/workspace`, so it cannot read YAAP's database, the master key, the Claude Code and Codex sign-ins, or another environment's projects. A project that chose its own sandbox or a computer over SSH works there instead.
 
 ```mermaid
 flowchart LR
@@ -127,7 +130,7 @@ flowchart LR
     subgraph agent["agent/"]
         runner["runs, delegation"]
         tools["tools, toolbox, toolkit"]
-        gate["policy (permission gate)<br/>guard (outside content)"]
+        gate["gate (every tool call) · permissions (the decision)<br/>policy (per-tool choices) · guard (outside content)"]
         mcpserver["mcp_server<br/>(YAAP's tools over MCP)"]
     end
 
@@ -173,8 +176,8 @@ flowchart LR
 | Folder in `backend/app/` | Responsibility |
 |---|---|
 | `api/` | HTTP routes and event streams under `/api/v1`, with an OpenAPI description from which the frontend's types are generated |
-| `core/` | The chat and its background replies, context assembly, summaries and trimming, search and embeddings, usage and budgets, settings resolution, export, backup and restore |
-| `agent/` | The agent's tools, the permission gate and approvals, the outside-content guard, delegation, processes, and YAAP's own MCP server through which Claude Code and Codex call YAAP's tools |
+| `core/` | The chat and its background replies, context assembly, summaries and trimming, search and embeddings, usage and budgets, settings resolution, the choice of provider, model and key (`model_choice`), the model policy, the audit log, export, backup and restore |
+| `agent/` | The agent's tools, the permission gate (`gate`) with its pure decision (`permissions`) and approvals, the outside-content guard, delegation, processes, and YAAP's own MCP server through which Claude Code and Codex call YAAP's tools |
 | `agents/` | Agent definitions and run records |
 | `auth/` | The local account, browser sessions, API tokens, and the host and origin checks on every request |
 | `vault/` | Encrypted entries per kind with defaults, expiry and the use log, and master key rotation |
@@ -195,7 +198,17 @@ flowchart LR
 | `plugins/` | The user's own plugins: manifest, loading and the stable interface |
 | `browser/`, `websearch/`, `mcp_client/` | The agent's headless browser (in the runner), web search through SearXNG, outside MCP servers (stdio ones in the runner) |
 | `attachments/` | Uploads, extraction and OCR |
+| `lsp/` | Language servers, one per project and language, run where the project's commands run |
+| `outline/`, `repomap/` | A file's outline; the repository map at the start of a conversation |
+| `preview/` | The preview of a project's app: a second listener that forwards to a dev server the agent started |
+| `tracing/` | What a run did step by step, context snapshots, and the OpenTelemetry export |
+| `evals/`, `replays/` | Eval cases, their checks and runs; replays of a run from one of its model calls |
+| `learning/` | Signals from run steps, and the proposals made from them |
+| `reviews/` | Reviews of changed code by a model of another vendor |
+| `scripts/` | Command-line scripts: OpenAPI export, password reset, measurements |
 | `storage/` | Database models and migrations |
+
+The helper is a separate package, `backend/yaap_sandbox/`: its API on port 8000 starts, stops and removes runners and sandboxes through the socket proxy, and its relay on port 2222 forwards YAAP's SSH connection to them.
 
 ## 3. One reply, step by step
 
@@ -263,7 +276,7 @@ flowchart LR
         bp["blueprint/<br/>git repositories per layer"]
         ws["workspace/<br/>project folders (git)"]
         files["files/ · knowledge/<br/>attachments, documents"]
-        other["checkpoints/ · outputs/ · shells/<br/>traces/ (context snapshots)"]
+        other["checkpoints/ · outputs/ · shells/<br/>traces/ (context snapshots)<br/>evals/ · browser/"]
         extra["plugins/ · models/whisper/"]
         signins["claude-code/ · codex/<br/>CLI sign-ins"]
         backups["backups/<br/>zips"]
@@ -282,17 +295,20 @@ flowchart LR
 |---|---|---|
 | Database, Blueprint, projects, attachments, knowledge, plugins | yes | never |
 | Checkpoints, long tool outputs, screenshots | no (rebuilt as you work) | never |
+| Eval runs, the agent's browser data | no | never |
 | Claude Code and Codex sign-ins | no (sign in again after a restore) | never |
 | The speech model (`models/whisper`) | no (downloaded again on first use) | never |
 | Master key (`.env`) | no (keep it apart) | never |
 
-Nothing leaves your computer except the requests you cause: model calls to the provider you chose, web search and pages the agent reads, git operations with GitHub, calls to MCP servers and A2A agents you configured, and the one-time download of the speech model from Hugging Face when you first use the microphone. Embeddings for search and transcription are made locally.
+A backup leaves out dependency and build folders in projects (`node_modules`, `.venv`, `dist`, `build` and the like).
+
+Nothing leaves your computer except the requests you cause: model calls to the provider you chose, web search and pages the agent reads, git operations with GitHub, calls to MCP servers and A2A agents you configured, traces to an OpenTelemetry endpoint when you set one, and the one-time download of the speech model from Hugging Face when you first use the microphone. Embeddings for search and transcription are made locally.
 
 ## 6. Background work
 
 ```mermaid
 flowchart LR
-    start(["YAAP starts"]) --> migrate["Migrate the database<br/>finish a pending restore<br/>harden the process<br/>re-encrypt after a key change<br/>prune old tool outputs and snapshots · load plugins"]
+    start(["YAAP starts"]) --> migrate["Harden the process<br/>finish a pending restore<br/>prune old tool outputs and snapshots<br/>migrate the database<br/>re-encrypt after a key change · load plugins"]
     migrate --> loops
 
     subgraph loops["Running in the background"]
@@ -320,18 +336,23 @@ flowchart LR
 | Knowledge | Project panel › Knowledge | `knowledge/` |
 | Scheduled tasks | Project panel › Tasks | `scheduling/` |
 | Checkpoints | Chat (per tool call), Project panel › Checkpoints | `checkpoints/` |
-| Processes, project settings, secrets, MCP servers | Project panel › Project | `agent/processes`, `secrets/`, `mcp_client/` |
+| Processes, project settings, secrets, MCP servers | Project panel › Project, Settings › Connections › MCP servers | `agent/processes`, `secrets/`, `mcp_client/` |
 | Blueprint items, import, skills from GitHub | Blueprint | `blueprint/` |
 | Agents and their runs | Blueprint › Agents | `agents/`, `agent/runs` |
 | Search | Ctrl K, Search page | `core/search`, `core/search_index` |
 | Connections, Ollama | Settings › Connections | `providers/` |
 | Keys and secrets, use log | Settings › Connections › Vault | `vault/`, `secrets/` |
 | Presets and roles | Settings › Models › Presets | `presets/` |
-| Permissions | Settings › Agent › Permissions | `core/settings`, `agent/policy` |
+| Permissions | Settings › Agent › Permissions | `core/settings`, `agent/policy`, `agent/permissions` |
+| Default skills, languages | Settings › Agent › Default skills, Language | `core/settings` |
+| Model policy | Settings › Models › Policy | `core/model_policy` |
 | Repositories | Settings › Git and GitHub | `git/` |
 | Usage and budgets | Settings › Usage and audit › Usage and budget | `core/usage_report`, `core/budget` |
+| Audit log | Settings › Usage and audit › Audit log | `core/audit` |
+| Telemetry (OpenTelemetry export) | Settings › Usage and audit › Telemetry | `tracing/` |
 | Backup and restore, schedule, destinations | Settings › System › Backup | `core/backup`, `core/restore`, `backups/` |
-| Context limit and compaction | Settings › Models › Context, Chat header | `core/context_control` |
+| Context limit and compaction, repository map | Settings › Models › Context, Chat header | `core/context_control`, `repomap/` |
+| Preview of a project's app | Beside the chat | `preview/` |
 | Files and editor | Project panel › Files | `files/` |
 | Shared document | Beside the chat | `documents/` |
 | Session import | Chat | `imports/` |

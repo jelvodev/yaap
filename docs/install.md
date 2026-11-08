@@ -64,19 +64,19 @@ YAAP asks for a password before it shows anything. There is one account; every b
 - **First run.** Without a password, the browser shows *Set a password for YAAP*. The first person to open YAAP sets it, so set it right after installing or updating.
 - **Forgotten password.** From the YAAP folder: `docker compose exec -it yaap python -m app.scripts.set_password --reset`. It asks twice and signs every browser out.
 - **Signing out.** *Sign out* at the top right; Settings › Account › Access also signs out every other browser and changes the password.
-- **Still only this computer.** YAAP listens on `127.0.0.1` only, as before. The password is a second lock, not an invitation to open the port to a network.
+- **Still only this computer.** YAAP listens on `127.0.0.1` only. The password is a second lock, not an invitation to open the port to a network.
 
 ## Connect a model
 
-Connections are set per environment in **Settings › Connections**. You can use several side by side.
+Connections are set in **Settings › Connections › Providers**, at Global and overridable per environment; API keys are added per environment (switch the level at the top of the Settings rail). You can use several side by side.
 
 | Connection | What you need | How |
 |---|---|---|
 | Claude through Claude Code (default for Claude) | A Claude Pro or Max subscription | `docker compose exec -it yaap claude auth login`, open the link, paste the code back |
-| Anthropic API key | A key from the Anthropic Console (billed per use) | Settings › Connections: set the Claude connection to *Anthropic API key* and add the key |
-| OpenAI API key (default for OpenAI) | A key from the OpenAI platform | Settings › Connections: add the key |
+| Anthropic API key | A key from the Anthropic Console (billed per use) | Settings › Connections › Providers: set the Claude connection to *Anthropic API key*, then add the key in the environment |
+| OpenAI API key (default for OpenAI) | A key from the OpenAI platform | Settings › Connections › Providers: add the key in the environment |
 | OpenAI through Codex | A ChatGPT plan | `docker compose exec -it yaap codex login --device-auth`, then set the OpenAI connection to *Codex* |
-| Ollama | An Ollama server, for example on this computer | Settings › Connections at the Global level: set the Ollama address, for example `http://host.docker.internal:11434` |
+| Ollama | An Ollama server, for example on this computer | Settings › Connections › Providers at the Global level: set the Ollama address, for example `http://host.docker.internal:11434` |
 
 YAAP never handles subscription credentials itself: Claude Code and Codex keep their own sign-in in the data folder (`data/claude-code`, `data/codex`), and one sign-in serves every environment. Keys are tested before they are stored and are never shown again.
 
@@ -108,11 +108,11 @@ git pull
 docker compose up -d --build
 ```
 
-The database is migrated automatically on start. Your data folder and `.env` are not touched. Claude Code and Codex inside the image update with the rebuild.
+The database is migrated automatically on start. Your data folder and `.env` are not touched. The Codex version is pinned and changes with YAAP's updates. Claude Code comes from Anthropic's stable channel when the image is built; to get its newest version, rebuild without the cache: `docker compose build --no-cache yaap`, then `docker compose up -d`.
 
 ## Backups
 
-**Settings › System › Backup** makes a zip of the database, the Blueprint, attachments, knowledge and project folders, every day at 03:00 by default. Add a destination on another disk or a network share there (see [configuration.md](configuration.md#backups)). Restore is in the same place. The master key and the Claude Code and Codex sign-ins are not in a backup. See [usage.md](usage.md#backup-and-restore), including the manual restore for when YAAP does not start.
+**Settings › System › Backup** makes a zip of the database, the Blueprint, attachments, knowledge, plugins and project folders, every day at 03:00 by default. Add a destination on another disk or a network share there (see [configuration.md](configuration.md#backups)). Restore is in the same place. The master key and the Claude Code and Codex sign-ins are not in a backup. See [usage.md](usage.md#backup-and-restore), including the manual restore for when YAAP does not start.
 
 ## Let YAAP work on this computer
 
@@ -140,19 +140,13 @@ Everything the agent runs (commands, background processes such as a dev server, 
 
 Docker gives the proxy the socket of your Docker engine, which is as much as administrator rights on the computer; that is why the helper is a separate container behind a filter. On Docker Desktop for Windows the helper turns the workspace folder it sees (such as `C:\YAAP\data\workspace`) into the path Docker's engine uses (`/run/desktop/mnt/host/c/YAAP/data/workspace`); if your setup differs, set `YAAP_SANDBOX_WORKSPACE_HOST` for the `yaap-sandbox` service in `docker-compose.override.yml`.
 
-**Upgrading an installation from before the runner**:
+An existing installation that still has `COMPOSE_PROFILES=sandbox` in `.env` can remove that line; the helper and the proxy always start. Packages installed in YAAP's own container (`pip install --user`, global npm packages) are not in the runner: let the agent install them there, or add them as [extra packages](configuration.md#extra-packages-for-the-runner).
 
-1. `git pull`, then `docker compose up -d --build`. This builds the new sandbox image (with Chromium, which left YAAP's image) and starts the helper and the proxy, which used to be the optional profile `sandbox`. If you had `COMPOSE_PROFILES=sandbox` in `.env`, remove it; it no longer does anything.
-2. Check that `docker compose ps` lists `yaap-sandbox` and `docker-proxy` as running. Until they run, YAAP refuses every command of the agent with *Commands run in this environment's runner, which YAAP cannot start*, and says to run `docker compose up -d --build`; it never runs them in its own container instead. Replies, files and git keep working meanwhile.
-3. Packages the agent installed in YAAP's container (`pip install --user`, global npm packages) are not in the runner. Let the agent install them again in the runner, or add them to the image as [extra packages](configuration.md#extra-packages-for-the-runner). Tools that MCP servers over stdio start (`npx`, `python3`) must exist in the runner too.
-4. Existing project sandboxes are made again from the new image on their next use (they get the browser); what was installed in them outside the project folder is lost, as with *Rebuild*.
-5. Commands now run as the user `yaap` in `/workspace/<project>` instead of `/data/workspace/<environment>/<project>`; scripts with absolute paths to the data folder need the new path.
-
-Removing old runners and sandboxes by hand, if ever needed: `docker rm -f $(docker ps -aq --filter label=org.yaap.sandbox=1)`; YAAP makes a runner again on the next command.
+To remove runners and sandboxes by hand: `docker rm -f $(docker ps -aq --filter label=org.yaap.sandbox=1)`; YAAP makes a runner again on the next command.
 
 ## A sandbox per project
 
-A project can also let its agent work in a container of its own instead of the environment's runner, the *sandbox*: the same image, but with only the project folder as `/workspace` and without network unless you switch it on for that project. Choose **Sandbox** under *Where the agent works* in a project's settings (see [usage.md](usage.md#the-project-panel)). After a `git pull` and `docker compose up -d --build`, a sandbox is made again from the new image on its next use; *Rebuild* does it at once.
+A project can also let its agent work in a container of its own instead of the environment's runner, the *sandbox*: the same image, but with only the project folder as `/workspace` and without network unless you switch it on for that project. Choose **Sandbox** under *Where the agent works* in a project's settings (see [usage.md](usage.md#the-project-rail)). After a `git pull` and `docker compose up -d --build`, a sandbox is made again from the new image on its next use; *Rebuild* does it at once.
 
 ## Moving to another computer
 
@@ -176,8 +170,8 @@ A project can also let its agent work in a container of its own instead of the e
 | "Too many wrong passwords" | After five wrong passwords within a minute YAAP waits; try again a minute later. |
 | A script gets 401 | The REST API needs a token: make one in Settings › Account › Access and send it as `Authorization: Bearer <token>`. `GET /api/v1/health` stays open. |
 | "YAAP_MASTER_KEY is missing or invalid" | `.env` lacks the key or it was changed. Put back the key you saved; a new key cannot read existing keys and secrets. |
-| Claude Code says it is not signed in | Run `docker compose exec -it yaap claude auth login` again. Settings › Connections shows the status. |
-| A model is shown with "(no key)" | That connection has no key or sign-in in the active environment; add one in Settings › Connections. |
+| Claude Code says it is not signed in | Run `docker compose exec -it yaap claude auth login` again. Settings › Connections › Providers shows the status. |
+| A model is shown with "(no key)" | That connection has no key or sign-in in the active environment; add one in Settings › Connections › Providers. |
 | Web search finds nothing | `docker compose logs searxng`; the search engines SearXNG asks may limit requests for a while. |
 | The first build fails while downloading | Run `docker compose up -d --build` again; downloads are checked against pinned hashes and resume from the cache. |
 | The microphone says the speech model could not be downloaded | YAAP needs to reach `huggingface.co` once. Click the microphone to try again, or place the files by hand (see [The speech model](#the-speech-model)). |

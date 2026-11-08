@@ -120,7 +120,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.files_dir = settings.files_dir
     app.state.workspace_dir = settings.workspace_dir
     app.state.blueprint_dir = settings.blueprint_dir
-    # Full tool outputs are kept for 30 days, context snapshots 30 days unless pinned (45.2).
+    # Full tool outputs are kept for 30 days, context snapshots 30 days unless pinned.
     prune_outputs(settings.data_dir)
     prune_traces(settings.data_dir)
     run_migrations(settings.database_url)
@@ -167,7 +167,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         close_stale_runs(session)
         # Eval runs cut off by a restart end as stopped.
         recover_eval_runs(session)
-        # Replays (45.5) too; their workspaces and pins go.
+        # Replays too; their workspaces and pins go.
         recover_replays(session, settings.workspace_dir, settings.data_dir)
     # Backups on a schedule: a backup cut off by a restart failed; a missed one runs once.
     app.state.backup_since = datetime.now(UTC)

@@ -41,7 +41,7 @@ interface ComposerProps {
   onPinnedSkillsChange: (skills: string[]) => void;
   // Speech input: where a recording is transcribed; without it there is no microphone.
   speech?: SpeechScope;
-  // The model setup button (plan-chat-interface 2.2), first in the bar.
+  // The model setup button, first in the bar.
   setup?: ReactNode;
   // The project whose files the Attach menu offers; without one it offers files and folders only.
   projectId?: number | null;
@@ -155,7 +155,7 @@ export default function Composer({
   const [packing, setPacking] = useState(0);
   // Why a folder, a project file or a screenshot could not be attached.
   const [attachError, setAttachError] = useState<string | null>(null);
-  // Goal mode (plan-chat-interface 2.2) is offered where /goal is.
+  // Goal mode is offered where /goal is.
   const goal = commands.find((command) => command.name === "goal");
   const uploading = packing > 0 || attachments.some((item) => item.status === "uploading");
   const ready = attachments.some((item) => item.status === "ready");
