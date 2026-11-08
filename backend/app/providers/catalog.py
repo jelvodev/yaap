@@ -6,6 +6,7 @@ pricing page when they change.
 """
 
 from dataclasses import dataclass
+from typing import Literal
 
 from app.providers.base import TokenUsage
 
@@ -16,6 +17,8 @@ OPENAI_EFFORTS_WITH_NONE = ["none", *OPENAI_EFFORTS]
 # The longest reply for models without a known maximum.
 DEFAULT_MAX_OUTPUT = 64_000
 CLAUDE_5_MAX_OUTPUT = 128_000
+# A model's place in its vendor's line-up: switching presets to another vendor picks the model of the same size.
+ModelSize = Literal["large", "medium", "small"]
 
 
 @dataclass(frozen=True)
@@ -56,6 +59,8 @@ class ModelInfo:
     # The mark for business data processing: the vendor processes prompts to this model under terms
     # meant for business data. A model policy can require it. Off until it is checked for the model and its terms.
     business_data: bool = False
+    # The size within the vendor's line-up; None for models that no preset switch should pick or replace.
+    size: ModelSize | None = None
 
 
 def calculate_cost(model: ModelInfo, usage: TokenUsage) -> float:
@@ -77,6 +82,7 @@ ANTHROPIC_MODELS = [
     ModelInfo(
         provider="anthropic",
         id="claude-opus-5-5",
+        size="large",
         display_name="Claude Opus 5.5",
         context_window=1_000_000,
         max_output_tokens=CLAUDE_5_MAX_OUTPUT,
@@ -91,6 +97,7 @@ ANTHROPIC_MODELS = [
     ModelInfo(
         provider="anthropic",
         id="claude-sonnet-5-5",
+        size="medium",
         display_name="Claude Sonnet 5.5",
         context_window=1_000_000,
         max_output_tokens=CLAUDE_5_MAX_OUTPUT,
@@ -104,6 +111,7 @@ ANTHROPIC_MODELS = [
     ModelInfo(
         provider="anthropic",
         id="claude-haiku-5-5",
+        size="small",
         display_name="Claude Haiku 5.5",
         context_window=1_000_000,
         max_output_tokens=CLAUDE_5_MAX_OUTPUT,
@@ -136,6 +144,7 @@ OPENAI_MODELS = [
     ModelInfo(
         provider="openai",
         id="gpt-6-astra",
+        size="large",
         display_name="GPT-6 Astra",
         context_window=1_050_000,
         efforts=OPENAI_EFFORTS,
@@ -145,6 +154,7 @@ OPENAI_MODELS = [
     ModelInfo(
         provider="openai",
         id="gpt-6.1-sol",
+        size="medium",
         display_name="GPT-6.1 Sol",
         context_window=1_050_000,
         efforts=OPENAI_EFFORTS,
@@ -154,6 +164,7 @@ OPENAI_MODELS = [
     ModelInfo(
         provider="openai",
         id="gpt-6.1-terra",
+        size="medium",
         display_name="GPT-6.1 Terra",
         context_window=1_050_000,
         efforts=OPENAI_EFFORTS_WITH_NONE,
@@ -163,6 +174,7 @@ OPENAI_MODELS = [
     ModelInfo(
         provider="openai",
         id="gpt-6-luna",
+        size="small",
         display_name="GPT-6 Luna",
         context_window=1_050_000,
         efforts=OPENAI_EFFORTS_WITH_NONE,

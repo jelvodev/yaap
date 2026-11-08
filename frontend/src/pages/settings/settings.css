@@ -161,6 +161,32 @@
   max-width: 260px;
 }
 
+/* The default vendor above the presets: one switch that moves every preset to Claude or OpenAI. */
+.settings-vendor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-vendor-label {
+  font-weight: 600;
+}
+
+.settings-vendor-choice {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.settings-vendor-hint {
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
 /* Old card-based components (permissions, default skills) inside the workbench stack. */
 
 .settings-legacy-cards > .card {

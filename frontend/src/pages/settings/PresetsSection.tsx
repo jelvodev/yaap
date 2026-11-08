@@ -5,6 +5,7 @@ import type { components } from "../../api/schema";
 import ModelOptions from "../../components/ModelOptions";
 import { Badge, EmptyState, Panel } from "../../components/workbench/Workbench";
 import PresetRouting from "./PresetRouting";
+import PresetVendorSwitch from "./PresetVendorSwitch";
 import { type LevelSettings, type SettingsLevel, SectionHeader, SelectSetting, useModels } from "./shared";
 
 const PLAIN_CHAT_KEY = "plain_chat_preset";
@@ -301,6 +302,12 @@ function PresetsPanel({
     void reload();
   }, [reload]);
 
+  // A vendor switch changes the presets and the environment's utility model setting.
+  const reloadSettings = store.reload;
+  const afterSwitch = useCallback(async () => {
+    await Promise.all([reload(), reloadSettings()]);
+  }, [reload, reloadSettings]);
+
   useEffect(() => {
     if (!modelId && models[0]) {
       setModelId(models[0].id);
@@ -337,6 +344,7 @@ function PresetsPanel({
         </button>
       }
     >
+      <PresetVendorSwitch environmentId={environmentId} onSwitched={afterSwitch} />
       <div className="wb-table-scroll settings-scroll">
         <table className="wb-table settings-presets">
           <thead>

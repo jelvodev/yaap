@@ -6,7 +6,17 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.dependencies import EnvironmentDependency, ProviderRegistryDependency, SessionDependency
 from app.agent.workers import list_workers
-from app.api.schemas import PresetCreate, PresetOut, PresetRouteOut, PresetUpdate, WorkerOut
+from app.api.schemas import (
+    PresetCreate,
+    PresetOut,
+    PresetRouteOut,
+    PresetUpdate,
+    PresetVendorOut,
+    PresetVendorSwitch,
+    PresetVendorSwitched,
+    VendorOut,
+    WorkerOut,
+)
 from app.core.routing import ROUTE_KINDS, preset_routes
 from app.presets.service import (
     PresetError,
@@ -17,6 +27,7 @@ from app.presets.service import (
     plain_chat_preset,
     update_preset,
 )
+from app.presets.vendor import VendorState, switch_vendor, vendor_state
 from app.storage.models import ModelPreset
 
 router = APIRouter(tags=["presets"])
@@ -105,6 +116,37 @@ def change_preset(
     except PresetError as error:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
     return preset_out(preset, plain_chat_preset(session, preset.environment_id))
+
+
+def vendor_out(state: VendorState) -> PresetVendorOut:
+    return PresetVendorOut(
+        vendors=[VendorOut(name=vendor.name, label=vendor.label, models=vendor.models) for vendor in state.vendors],
+        current=state.current,
+    )
+
+
+@router.get("/environments/{environment_id}/presets/vendor", response_model=PresetVendorOut)
+def read_preset_vendor(
+    environment: EnvironmentDependency, session: SessionDependency, providers: ProviderRegistryDependency
+) -> PresetVendorOut:
+    """Which vendor the environment's presets use, and the vendors they can switch to."""
+    return vendor_out(vendor_state(session, providers, environment.id))
+
+
+@router.put("/environments/{environment_id}/presets/vendor", response_model=PresetVendorSwitched)
+def change_preset_vendor(
+    payload: PresetVendorSwitch,
+    environment: EnvironmentDependency,
+    session: SessionDependency,
+    providers: ProviderRegistryDependency,
+) -> PresetVendorSwitched:
+    """Move the presets and the utility model of the environment to the vendor's models of the same size."""
+    try:
+        changed = switch_vendor(session, providers, environment.id, payload.vendor)
+    except PresetError as error:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
+    state = vendor_out(vendor_state(session, providers, environment.id))
+    return PresetVendorSwitched(vendors=state.vendors, current=state.current, changed=changed)
 
 
 @router.get("/environments/{environment_id}/workers", response_model=list[WorkerOut])

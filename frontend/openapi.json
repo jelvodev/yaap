@@ -7464,6 +7464,80 @@
         "title": "PresetUpdate",
         "type": "object"
       },
+      "PresetVendorOut": {
+        "properties": {
+          "current": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current"
+          },
+          "vendors": {
+            "items": {
+              "$ref": "#/components/schemas/VendorOut"
+            },
+            "title": "Vendors",
+            "type": "array"
+          }
+        },
+        "required": [
+          "vendors"
+        ],
+        "title": "PresetVendorOut",
+        "type": "object"
+      },
+      "PresetVendorSwitch": {
+        "properties": {
+          "vendor": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Vendor",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vendor"
+        ],
+        "title": "PresetVendorSwitch",
+        "type": "object"
+      },
+      "PresetVendorSwitched": {
+        "properties": {
+          "changed": {
+            "title": "Changed",
+            "type": "integer"
+          },
+          "current": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current"
+          },
+          "vendors": {
+            "items": {
+              "$ref": "#/components/schemas/VendorOut"
+            },
+            "title": "Vendors",
+            "type": "array"
+          }
+        },
+        "required": [
+          "vendors",
+          "changed"
+        ],
+        "title": "PresetVendorSwitched",
+        "type": "object"
+      },
       "PreviewLinkOut": {
         "properties": {
           "expires_at": {
@@ -12895,6 +12969,33 @@
           "conversation_id"
         ],
         "title": "VaultUseOut",
+        "type": "object"
+      },
+      "VendorOut": {
+        "description": "A vendor the presets can switch to, with the models a switch picks, largest first.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Models",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "label",
+          "models"
+        ],
+        "title": "VendorOut",
         "type": "object"
       },
       "WaitingApprovalOut": {
@@ -20051,6 +20152,100 @@
           }
         },
         "summary": "Add Preset",
+        "tags": [
+          "presets"
+        ]
+      }
+    },
+    "/api/v1/environments/{environment_id}/presets/vendor": {
+      "get": {
+        "description": "Which vendor the environment's presets use, and the vendors they can switch to.",
+        "operationId": "read_preset_vendor_api_v1_environments__environment_id__presets_vendor_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "environment_id",
+            "required": true,
+            "schema": {
+              "title": "Environment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresetVendorOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Preset Vendor",
+        "tags": [
+          "presets"
+        ]
+      },
+      "put": {
+        "description": "Move the presets and the utility model of the environment to the vendor's models of the same size.",
+        "operationId": "change_preset_vendor_api_v1_environments__environment_id__presets_vendor_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "environment_id",
+            "required": true,
+            "schema": {
+              "title": "Environment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresetVendorSwitch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresetVendorSwitched"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change Preset Vendor",
         "tags": [
           "presets"
         ]

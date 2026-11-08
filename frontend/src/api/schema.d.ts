@@ -2217,6 +2217,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/environments/{environment_id}/presets/vendor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Preset Vendor
+         * @description Which vendor the environment's presets use, and the vendors they can switch to.
+         */
+        get: operations["read_preset_vendor_api_v1_environments__environment_id__presets_vendor_get"];
+        /**
+         * Change Preset Vendor
+         * @description Move the presets and the utility model of the environment to the vendor's models of the same size.
+         */
+        put: operations["change_preset_vendor_api_v1_environments__environment_id__presets_vendor_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/environments/{environment_id}/projects": {
         parameters: {
             query?: never;
@@ -6641,6 +6665,27 @@ export interface components {
             /** Worker Model */
             worker_model?: string | null;
         };
+        /** PresetVendorOut */
+        PresetVendorOut: {
+            /** Current */
+            current?: string | null;
+            /** Vendors */
+            vendors: components["schemas"]["VendorOut"][];
+        };
+        /** PresetVendorSwitch */
+        PresetVendorSwitch: {
+            /** Vendor */
+            vendor: string;
+        };
+        /** PresetVendorSwitched */
+        PresetVendorSwitched: {
+            /** Changed */
+            changed: number;
+            /** Current */
+            current?: string | null;
+            /** Vendors */
+            vendors: components["schemas"]["VendorOut"][];
+        };
         /** PreviewLinkOut */
         PreviewLinkOut: {
             /**
@@ -8433,6 +8478,18 @@ export interface components {
             used_at: string;
             /** Used By */
             used_by: string;
+        };
+        /**
+         * VendorOut
+         * @description A vendor the presets can switch to, with the models a switch picks, largest first.
+         */
+        VendorOut: {
+            /** Label */
+            label: string;
+            /** Models */
+            models: string[];
+            /** Name */
+            name: string;
         };
         /** WaitingApprovalOut */
         WaitingApprovalOut: {
@@ -12721,6 +12778,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PresetOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_preset_vendor_api_v1_environments__environment_id__presets_vendor_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                environment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresetVendorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_preset_vendor_api_v1_environments__environment_id__presets_vendor_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                environment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PresetVendorSwitch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresetVendorSwitched"];
                 };
             };
             /** @description Validation Error */

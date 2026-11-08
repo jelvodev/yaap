@@ -248,7 +248,7 @@ Developers also measure what YAAP sends without a model: `python -m app.scripts.
 | › MCP servers | Per environment: outside tools for the agent, each with a test, its tools and its log |
 | › A2A agents | Per environment: other agents YAAP's agent may ask, each with a test |
 | **Models** | |
-| › Presets | Model presets with their roles and the longest reply, and the preset for chats outside a project (per environment; empty: the default preset). Under each preset: *Route each reply by the kind of message* (below) |
+| › Presets | Model presets with their roles and the longest reply, and the preset for chats outside a project (per environment; empty: the default preset). *Default vendor* (Anthropic or OpenAI) moves every preset and the environment's utility model to that vendor's model of the same size in one step; local models and per-task utility models stay, and conversations already started keep their model. Under each preset: *Route each reply by the kind of message* (below) |
 | › Utility and workers | The workers for delegated tasks, the utility model and a model per utility task (for example a local model for titles and commit messages; the outside-content check always uses the utility model), the embedding model |
 | › Context | The context limit, when YAAP shortens old tool output and summarises, automatic compaction on or off, and the repository map on or off |
 | › Policy | Per environment: which connections, models and A2A agents may be used, whether a model must be marked for business data processing, and patterns that block a request before it leaves YAAP. A project narrows it in its own settings. |

@@ -403,6 +403,29 @@ class PresetOut(BaseModel):
     routes: list[PresetRouteOut] = Field(default_factory=list)
 
 
+class VendorOut(BaseModel):
+    """A vendor the presets can switch to, with the models a switch picks, largest first."""
+
+    name: str
+    label: str
+    models: list[str]
+
+
+class PresetVendorOut(BaseModel):
+    vendors: list[VendorOut]
+    # The vendor all presets use; null when they mix vendors.
+    current: str | None = None
+
+
+class PresetVendorSwitch(BaseModel):
+    vendor: str = Field(min_length=1, max_length=40)
+
+
+class PresetVendorSwitched(PresetVendorOut):
+    # How many models moved, in the presets and the environment's utility model.
+    changed: int
+
+
 class PresetCreate(BaseModel):
     name: str = Field(min_length=1, max_length=40)
     model: str
