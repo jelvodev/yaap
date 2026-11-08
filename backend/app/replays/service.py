@@ -24,6 +24,7 @@ from app.blueprint.layers import Layer
 from app.blueprint.levels import layers_for
 from app.checkpoints.pins import pin_checkpoint, replay_owner, unpin_checkpoint
 from app.checkpoints.service import CheckpointStore
+from app.core.background import BackgroundWork
 from app.core.chat import add_user_message
 from app.core.replies import ReplyJob
 from app.core.reply_errors import ReplyError
@@ -84,6 +85,8 @@ class ReplayService:
         # Read when a replay starts, so a test that changes a switch on the application's state sees its change.
         self.services_factory = services
         self.tasks: dict[int, asyncio.Task[None]] = {}
+        # Shutdown stops this before the replies, so a replay does not go on to store once its reply has stopped.
+        self.work: BackgroundWork[None] = BackgroundWork()
 
     def services(self) -> ReplyServices:
         """The reply services of a replay: no titles, memory suggestions or summaries for its conversation."""
@@ -159,7 +162,7 @@ class ReplayService:
 
     def launch(self, replay_id: int) -> None:
         """On the event loop."""
-        task = asyncio.get_running_loop().create_task(self.execute(replay_id), name=f"replay-{replay_id}")
+        task = self.work.start(self.execute(replay_id), name=f"replay-{replay_id}")
         self.tasks[replay_id] = task
         task.add_done_callback(lambda _task: self.tasks.pop(replay_id, None))
 
@@ -181,17 +184,20 @@ class ReplayService:
         except ReplayError as error:
             await anyio.to_thread.run_sync(self.finish, services, replay_id, "error", str(error))
         except asyncio.CancelledError:
-            if not starting.done():
-                await asyncio.wait({starting})
-            if conversation:
-                await asyncio.shield(services.replies.stop(conversation[0]))
-            await asyncio.shield(anyio.to_thread.run_sync(self.finish, services, replay_id, "stopped", "Stopped."))
+            # Shielded: the replay's scope keeps cancelling every await until the replay has ended.
+            with anyio.CancelScope(shield=True):
+                if not starting.done():
+                    await asyncio.wait({starting})
+                if conversation:
+                    await services.replies.stop(conversation[0])
+                await anyio.to_thread.run_sync(self.finish, services, replay_id, "stopped", "Stopped.")
             raise
         except Exception:  # A background task: the replay ends as error and the cause is logged.
             logger.exception("Replay %s failed.", replay_id)
             await anyio.to_thread.run_sync(self.finish, services, replay_id, "error", "The replay failed; see the log.")
         finally:
-            await asyncio.shield(anyio.to_thread.run_sync(self.clean_up, services, replay_id))
+            with anyio.CancelScope(shield=True):
+                await anyio.to_thread.run_sync(self.clean_up, services, replay_id)
 
     def begin(self, services: ReplyServices, replay_id: int, conversation_ids: list[int]) -> Started:
         """In a worker thread: the workspace, the conversation and the reply."""
@@ -279,11 +285,9 @@ class ReplayService:
         task = self.tasks.get(replay_id)
         if task is None:
             return False
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
+        # Through its scope, so this waits for a worker thread the replay is in; the scope ends the cancellation.
+        self.work.cancel(task)
+        await self.work.wait(task)
         return True
 
 

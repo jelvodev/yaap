@@ -9,6 +9,7 @@ from sqlalchemy import select, update
 
 from app.checkpoints.pins import case_owner
 from app.checkpoints.service import CheckpointStore
+from app.core.shutdown import stop_replies_and_their_work
 from app.evals.cases import parse_case
 from app.evals.play import checkpoint_tree
 from app.evals.workspace import make_workspace
@@ -16,7 +17,8 @@ from app.git.service import run_git
 from app.providers.base import HistoryMessage, TokenUsage
 from app.providers.fake_provider import ScriptedResponse
 from app.replays.history import LEFT_OUT_NOTE, last_user_text, model_history, snapshot_messages
-from app.storage.models import Checkpoint, CheckpointPin, Conversation, Replay
+from app.replays.service import workspace_folder
+from app.storage.models import Checkpoint, CheckpointPin, Conversation, Environment, Replay
 from app.tracing.snapshots import LEFT_OUT, SnapshotStore, trace_dir
 from tests.test_eval_runs import fixture_project
 
@@ -280,3 +282,40 @@ def test_a_case_saved_from_a_conversation_pins_its_checkpoint_start(client, fake
     with client.app.state.session_factory() as session:
         pins = select(CheckpointPin.owner).where(CheckpointPin.checkpoint_id == checkpoint_id)
         assert list(session.scalars(pins)) == [case_owner(project["id"], "from-chat")]
+
+def running_replay(client, fake) -> tuple[int, dict, Path]:
+    """A replay whose reply streams slowly, once its workspace is there."""
+    _project, _folder, conversation_id, trace = fixture_run(client, fake)
+    fake.responses.append(ScriptedResponse(text=" ".join(["word"] * 200), delay=0.05))
+    started = start_replay(client, conversation_id, step_at(trace, 3)["id"])
+    with client.app.state.session_factory() as session:
+        environment_id = session.get_one(Replay, started["id"]).environment_id
+        slug = session.get_one(Environment, environment_id).slug
+    workspace = workspace_folder(client.app.state.workspace_dir, slug, started["id"])
+    for _ in range(100):
+        detail = client.get(f"/api/v1/conversations/{conversation_id}/replays/{started['id']}").json()
+        if detail["replay"]["conversation_id"] is not None and workspace.exists():
+            break
+        time.sleep(0.05)
+    assert workspace.exists()
+    return conversation_id, started, workspace
+
+
+@pytest.mark.parametrize("how", ["stop", "shutdown"])
+def test_a_replay_stopped_or_shut_down_while_playing_cleans_up_its_workspace(client, fake, how):
+    conversation_id, started, workspace = running_replay(client, fake)
+    state = client.app.state
+
+    if how == "stop":
+        response = client.post(f"/api/v1/conversations/{conversation_id}/replays/{started['id']}/stop")
+        assert response.status_code == 204
+    else:
+        client.portal.call(stop_replies_and_their_work, state.replies, (state.evals.work, state.replay_service.work))
+
+    # The stop waited for the replay's cleanup, which ran although the replay was being cancelled.
+    with state.session_factory() as session:
+        replay = session.get_one(Replay, started["id"])
+        assert (replay.status, replay.detail) == ("stopped", "Stopped.")
+        assert state.replies.running(replay.conversation_id) is None
+    assert not workspace.exists()
+    assert not state.replay_service.tasks

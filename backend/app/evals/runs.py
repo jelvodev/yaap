@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.blueprint.layers import Layer
 from app.blueprint.levels import layers_for
+from app.core.background import BackgroundWork
 from app.core.conversations import delete_conversation
 from app.core.reply_errors import CommandRefused
 from app.core.reply_services import ReplyServices
@@ -86,6 +87,9 @@ class EvalService:
         # Read when a run starts, so a test that changes a switch on the application's state sees its change.
         self.services_factory = services
         self.tasks: dict[int, asyncio.Task[None]] = {}
+        # The runs and the stops their plays ask for. Shutdown stops this before the replies, so a play does not go
+        # on to judge and store once its reply has stopped.
+        self.work: BackgroundWork[None] = BackgroundWork()
         self.busy: dict[int, int] = {}
         self.slots: asyncio.Condition | None = None
 
@@ -165,7 +169,7 @@ class EvalService:
 
     def launch(self, run_id: int) -> None:
         """On the event loop."""
-        task = asyncio.get_running_loop().create_task(self.execute(run_id), name=f"eval-run-{run_id}")
+        task = self.work.start(self.execute(run_id), name=f"eval-run-{run_id}")
         self.tasks[run_id] = task
         task.add_done_callback(lambda _task: self.tasks.pop(run_id, None))
 
@@ -175,7 +179,7 @@ class EvalService:
         services = self.services()
         try:
             requests, environment_id, limit = await anyio.to_thread.run_sync(self.prepare, services, run_id)
-            player = CasePlayer(services)
+            player = CasePlayer(services, self.work)
             queue = list(requests)
 
             async def worker() -> None:
@@ -185,12 +189,19 @@ class EvalService:
                     try:
                         await player.play(request)
                     finally:
-                        await self.release(environment_id)
+                        with anyio.CancelScope(shield=True):
+                            await self.release(environment_id)
 
-            await asyncio.gather(*(worker() for _ in range(min(limit, len(requests)) or 1)))
+            # A task group rather than gather: a stop reaches the plays through the run's cancel scope, which leaves
+            # their shielded cleanup alone; gather would cancel them again each time the run is cancelled.
+            async with anyio.create_task_group() as group:
+                for _ in range(min(limit, len(requests)) or 1):
+                    group.start_soon(worker)
             await anyio.to_thread.run_sync(self.finish, services, run_id, "done", None)
         except asyncio.CancelledError:
-            await anyio.to_thread.run_sync(self.finish, services, run_id, "stopped", "Stopped.")
+            # Shielded: the run's scope keeps cancelling every await until the run has ended.
+            with anyio.CancelScope(shield=True):
+                await anyio.to_thread.run_sync(self.finish, services, run_id, "stopped", "Stopped.")
             raise
         except (VariantError, EvalError) as error:
             await anyio.to_thread.run_sync(self.finish, services, run_id, "error", str(error))
@@ -277,11 +288,9 @@ class EvalService:
         task = self.tasks.get(run_id)
         if task is None:
             return False
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
+        # Through its scope, so this waits for a worker thread the run is in; the scope ends the cancellation.
+        self.work.cancel(task)
+        await self.work.wait(task)
         return True
 
 

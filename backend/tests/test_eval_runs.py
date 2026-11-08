@@ -5,6 +5,7 @@ from pathlib import Path
 
 from sqlalchemy import select
 
+from app.core.shutdown import stop_replies_and_their_work
 from app.git.service import commit_all, run_git
 from app.providers.base import TokenUsage
 from app.providers.fake_provider import ScriptedResponse
@@ -302,7 +303,8 @@ def test_a_comparison_plays_both_sides_three_times(client, fake):
     assert compared["pass_rate_a"] == compared["pass_rate_b"] == 1.0
 
 
-def test_stopping_a_run_stops_its_playing_case(client, fake):
+def playing_run(client, fake) -> tuple[dict, dict]:
+    """A project with one case, whose run is playing it: its reply streams slowly."""
     project, folder, commit = fixture_project(client)
     write_case(folder, "greet", commit)
     fake.responses.append(ScriptedResponse(text=" ".join(["word"] * 200), delay=0.05))
@@ -312,9 +314,31 @@ def test_stopping_a_run_stops_its_playing_case(client, fake):
         if detail["results"][0]["conversation_id"] is not None:
             break
         time.sleep(0.05)
+    return project, run
+
+
+def test_stopping_a_run_stops_its_playing_case(client, fake):
+    project, run = playing_run(client, fake)
 
     assert client.post(f"/api/v1/projects/{project['id']}/evals/runs/{run['id']}/stop").status_code == 204
 
-    stopped = finished_run(client, project["id"], run["id"])
+    # The stop waited for the run: it is stopped, and nothing judged or stored the play afterwards.
+    stopped = client.get(f"/api/v1/projects/{project['id']}/evals/runs/{run['id']}").json()
     assert stopped["status"] == "stopped" and stopped["results"][0]["status"] == "stopped"
     assert client.app.state.replies.running(stopped["results"][0]["conversation_id"]) is None
+    time.sleep(0.3)
+    assert client.get(f"/api/v1/projects/{project['id']}/evals/runs/{run['id']}").json() == stopped
+
+
+def test_shutdown_stops_a_playing_run_before_its_reply_so_the_play_is_not_judged(client, fake):
+    project, run = playing_run(client, fake)
+    state = client.app.state
+
+    client.portal.call(stop_replies_and_their_work, state.replies, (state.evals.work, state.replay_service.work))
+
+    # Had the reply stopped first, the play would have gone on to judge what arrived and store it as failed.
+    with state.session_factory() as session:
+        assert session.get_one(EvalRun, run["id"]).status == "stopped"
+        results = session.scalars(select(EvalResult).where(EvalResult.run_id == run["id"])).all()
+        assert [(result.status, result.detail) for result in results] == [("stopped", "Stopped.")]
+    assert not state.evals.tasks

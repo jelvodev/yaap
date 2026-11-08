@@ -4,9 +4,12 @@ engine goes, also when it waits on a worker thread."""
 import asyncio
 import threading
 import time
+from collections.abc import Callable
+from typing import Any
 
 import anyio
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import Pool
 
@@ -20,7 +23,8 @@ from app.reviews.service import REVIEWS
 from app.tracing.otlp_export import EXPORTS
 from tests.conftest import FakeBackend, make_test_app
 
-WORK = {
+# Work that replies start, the same for every app; the tests start work of their own in it, whatever its results.
+AFTER_REPLY_WORK: dict[str, BackgroundWork[Any]] = {
     "reply follow-up": BACKGROUND_WORK,
     "review": REVIEWS,
     "summary": SUMMARIES,
@@ -28,11 +32,23 @@ WORK = {
     "memory tidy check": TIDY_CHECKS,
     "telemetry export": EXPORTS,
 }
-KINDS = pytest.mark.parametrize("work", list(WORK.values()), ids=list(WORK))
+
+
+def on_every_app(work: BackgroundWork[Any]) -> Callable[[FastAPI], BackgroundWork[Any]]:
+    return lambda _app: work
+
+
+# Every kind of work shutdown stops, as found on an app.
+WORK: dict[str, Callable[[FastAPI], BackgroundWork[Any]]] = {
+    **{name: on_every_app(work) for name, work in AFTER_REPLY_WORK.items()},
+    "eval run": lambda app: app.state.evals.work,
+    "replay": lambda app: app.state.replay_service.work,
+}
+KINDS = pytest.mark.parametrize("kind", list(WORK.values()), ids=list(WORK))
 
 
 def test_shutdown_stops_every_kind_of_work_that_replies_start() -> None:
-    assert set(map(id, AFTER_REPLIES)) == set(map(id, WORK.values()))
+    assert set(map(id, AFTER_REPLIES)) == set(map(id, AFTER_REPLY_WORK.values()))
 
 
 @pytest.fixture
@@ -43,7 +59,7 @@ def data_dir(tmp_path, monkeypatch, master_key: str):
 
 @KINDS
 def test_work_a_reply_left_running_ends_before_the_database_engine_goes(
-    data_dir, fake: FakeBackend, work: BackgroundWork[None]
+    data_dir, fake: FakeBackend, kind: Callable[[FastAPI], BackgroundWork[Any]]
 ) -> None:
     app = make_test_app(fake)
     pools_when_ended: list[Pool] = []
@@ -58,7 +74,7 @@ def test_work_a_reply_left_running_ends_before_the_database_engine_goes(
                 pools_when_ended.append(engine.pool)
 
         async def start() -> None:
-            work.start(follow_up())
+            kind(app).start(follow_up())
 
         client.portal.call(start)
 
@@ -68,7 +84,7 @@ def test_work_a_reply_left_running_ends_before_the_database_engine_goes(
 
 @KINDS
 def test_work_in_a_worker_thread_finishes_its_thread_before_the_database_engine_goes(
-    data_dir, fake: FakeBackend, work: BackgroundWork[None]
+    data_dir, fake: FakeBackend, kind: Callable[[FastAPI], BackgroundWork[Any]]
 ) -> None:
     app = make_test_app(fake)
     in_thread = threading.Event()
@@ -87,7 +103,7 @@ def test_work_in_a_worker_thread_finishes_its_thread_before_the_database_engine_
             await asyncio.sleep(3600)
 
         async def start() -> None:
-            work.start(follow_up())
+            kind(app).start(follow_up())
 
         client.portal.call(start)
         assert in_thread.wait(5)

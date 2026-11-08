@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from app.agents.definitions import agent_part, find_agent
 from app.blueprint.context import build_system_parts
 from app.blueprint.layers import Layer
+from app.core.background import BackgroundWork
 from app.core.chat import add_user_message
 from app.core.replies import ReplyJob
 from app.core.reply_errors import ReplyError
@@ -83,19 +84,23 @@ def owner(result_id: int) -> str:
 
 
 class CasePlayer:
-    def __init__(self, services: ReplyServices) -> None:
+    def __init__(self, services: ReplyServices, work: BackgroundWork[None]) -> None:
         self.services = services
         self.snapshots = SnapshotStore(trace_dir(services.data_dir))
-        self.stopping: set[asyncio.Task[bool]] = set()
+        # The run's work: a stop that a budget asks for runs there, so stopping the run stops it too.
+        self.work = work
+        self.stopping: set[asyncio.Task[None]] = set()
+
+    async def stop_reply(self, conversation_id: int) -> None:
+        await self.services.replies.stop(conversation_id)
 
     async def play(self, request: PlayRequest) -> None:
         """Play the case and store its result; never raises for the case's own failures."""
-        loop = asyncio.get_running_loop()
         conversation: list[int] = []
 
         def stop(_reason: str) -> None:
             if conversation:
-                task = loop.create_task(self.services.replies.stop(conversation[0]))
+                task = self.work.start(self.stop_reply(conversation[0]))
                 self.stopping.add(task)
                 task.add_done_callback(self.stopping.discard)
 
@@ -109,13 +114,15 @@ class CasePlayer:
             await anyio.to_thread.run_sync(self.store_error, request, str(error))
             return
         except asyncio.CancelledError:
-            # Stopped while starting: once the start is done, a reply it launched is stopped too.
-            await asyncio.wait({starting})
-            if not starting.cancelled() and starting.exception() is not None:
-                conversation.clear()  # It failed before or while launching: nothing to stop.
-            if conversation:
-                await asyncio.shield(self.services.replies.stop(conversation[0]))
-            await asyncio.shield(anyio.to_thread.run_sync(self.store_error, request, "Stopped.", "stopped"))
+            # Stopped while starting: once the start is done, a reply it launched is stopped too. Shielded: the
+            # run's scope keeps cancelling every await until the run has ended.
+            with anyio.CancelScope(shield=True):
+                await asyncio.wait({starting})
+                if not starting.cancelled() and starting.exception() is not None:
+                    conversation.clear()  # It failed before or while launching: nothing to stop.
+                if conversation:
+                    await self.services.replies.stop(conversation[0])
+                await anyio.to_thread.run_sync(self.store_error, request, "Stopped.", "stopped")
             raise
         except Exception:  # A background play: the run goes on with its other cases, the failure is logged.
             logger.exception("Eval play %s could not start.", request.result_id)
@@ -127,8 +134,9 @@ class CasePlayer:
             await anyio.to_thread.run_sync(self.store, request, started, result, used, watch.overrun)
         except asyncio.CancelledError:
             # The run was stopped: the reply stops too, and the play is kept as stopped with its workspace.
-            await asyncio.shield(self.services.replies.stop(started.conversation_id))
-            await asyncio.shield(anyio.to_thread.run_sync(self.store_error, request, "Stopped.", "stopped"))
+            with anyio.CancelScope(shield=True):
+                await self.services.replies.stop(started.conversation_id)
+                await anyio.to_thread.run_sync(self.store_error, request, "Stopped.", "stopped")
             raise
         except Exception:  # A background play: the run goes on with its other cases, the failure is logged.
             logger.exception("Eval play %s failed.", request.result_id)

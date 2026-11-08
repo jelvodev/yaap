@@ -1,6 +1,8 @@
 """Stopping the replies and the work they leave running, when YAAP shuts down, before the database engine goes
 (background.py says why)."""
 
+from collections.abc import Sequence
+
 from app.core.background import Stoppable
 from app.core.replies import ReplyRegistry
 from app.core.reply_events import BACKGROUND_WORK
@@ -25,8 +27,12 @@ AFTER_REPLIES: tuple[Stoppable, ...] = (
 )
 
 
-async def stop_replies_and_their_work(replies: ReplyRegistry) -> None:
+async def stop_replies_and_their_work(replies: ReplyRegistry, players: Sequence[Stoppable] = ()) -> None:
+    """Players (eval runs, replays) wait for a reply and then judge or store it: they stop first, so they do not go
+    on once their reply has stopped."""
     for _ in range(ROUNDS):
+        for player in players:
+            await player.stop()
         await replies.shutdown()
         for work in AFTER_REPLIES:
             await work.stop()

@@ -204,7 +204,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await app.state.processes.shutdown()
     await LANGUAGE_SERVERS.stop_all()
     # Before the engine goes: work still running would keep a connection, and the database file, open.
-    await stop_replies_and_their_work(app.state.replies)
+    await stop_replies_and_their_work(app.state.replies, (app.state.evals.work, app.state.replay_service.work))
     app.state.plugins.unload_all()
     engine.dispose()
 

@@ -30,7 +30,7 @@ class BackgroundWork(Generic[T]):
     def __init__(self) -> None:
         self.scopes: dict[asyncio.Task[T | None], anyio.CancelScope] = {}
 
-    def start(self, work: Coroutine[Any, Any, T]) -> asyncio.Task[T | None]:
+    def start(self, work: Coroutine[Any, Any, T], name: str | None = None) -> asyncio.Task[T | None]:
         """Run work by itself on the running event loop, referenced until it ends. On the event loop."""
         scope = anyio.CancelScope()
 
@@ -39,7 +39,7 @@ class BackgroundWork(Generic[T]):
                 return await work
             return None
 
-        task = asyncio.get_running_loop().create_task(run())
+        task = asyncio.get_running_loop().create_task(run(), name=name)
         self.scopes[task] = scope
         task.add_done_callback(self.forget)
         return task
@@ -58,6 +58,11 @@ class BackgroundWork(Generic[T]):
         scope = self.scopes.get(task)
         if scope is not None:
             scope.cancel()
+
+    async def wait(self, task: asyncio.Task[T | None]) -> None:
+        """Until the task has ended. asyncio.wait rather than await: a waiter that is cancelled itself must not cancel
+        the task, whose cleanup would then be cut short."""
+        await asyncio.wait({task})
 
     async def stop(self) -> None:
         """Stop the work that runs on this event loop and wait until it has ended, worker threads included."""
