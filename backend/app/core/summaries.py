@@ -6,7 +6,6 @@ from then on the model receives the summary and the messages after that message.
 reading, search and export. Claude Code and Codex compact their own sessions, so they are left alone.
 """
 
-import asyncio
 import json
 import logging
 import re
@@ -17,6 +16,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.background import BackgroundWork
 from app.core.utility import UtilityContext, UtilitySkipped, run_utility_or_skip
 from app.providers.base import HistoryMessage
 from app.providers.registry import ProviderRegistry
@@ -312,11 +312,9 @@ async def compact_events(context: UtilityContext, conversation_id: int, focus: s
     )
 
 
-# Background summaries, kept so they are not collected before they finish.
-_tasks: set[asyncio.Task[bool]] = set()
+# Summaries started after replies; a reply that is stopped starts one too, so shutdown stops these after the replies.
+SUMMARIES: BackgroundWork[bool] = BackgroundWork()
 
 
 def start_background_summary(context: UtilityContext, conversation_id: int) -> None:
-    task = asyncio.get_running_loop().create_task(summarise_if_needed(context, conversation_id))
-    _tasks.add(task)
-    task.add_done_callback(_tasks.discard)
+    SUMMARIES.start(summarise_if_needed(context, conversation_id))

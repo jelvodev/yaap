@@ -52,7 +52,7 @@ ReviewStatus = Literal["running", "done", "skipped", "failed"]
 REVIEW_TASK = "review"
 REVIEW_MAX_TOKENS = 4000
 # Reviews run on their own.
-REVIEWS = BackgroundWork()
+REVIEWS: BackgroundWork[None] = BackgroundWork()
 # Two entry points can see the same goal end (the next-turn check and the scheduled run's end).
 GOAL_LOCK = threading.Lock()
 

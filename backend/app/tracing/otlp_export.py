@@ -14,7 +14,6 @@ What leaves YAAP goes through the same checks as other outgoing data:
 - every export, sent or refused, gets a row in the audit log (purpose `telemetry`, the collector's host as model).
 """
 
-import asyncio
 import json
 import logging
 from collections.abc import AsyncIterator
@@ -22,10 +21,12 @@ from dataclasses import dataclass, field
 from typing import Literal
 from urllib.parse import urlsplit
 
+import anyio
 import httpx
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.audit import record_request, telemetry_entry, with_refusal
+from app.core.background import BackgroundWork
 from app.core.outgoing_checks import outgoing_rules, text_refusal
 from app.core.settings import SETTING_DEFINITIONS, resolve_setting
 from app.credentials.crypto import CredentialCipher
@@ -41,8 +42,8 @@ SEND_TIMEOUT = 10.0
 SECRET_USER = "OpenTelemetry export"
 ExportOutcome = Literal["off", "sent", "failed", "refused"]
 
-# Exports started after replies, kept referenced until they end.
-EXPORT_TASKS: set["asyncio.Task[ExportOutcome]"] = set()
+# Exports started after replies; a reply that is stopped starts one too, so shutdown stops these after the replies.
+EXPORTS: BackgroundWork[ExportOutcome] = BackgroundWork()
 
 
 @dataclass(frozen=True)
@@ -169,7 +170,7 @@ async def post_export(prepared: PreparedExport, transport: httpx.AsyncBaseTransp
 async def export_reply(sender: TelemetrySender, record_id: int) -> ExportOutcome:
     """Send one reply's trace when an endpoint is set. Never raises: the reply is already done."""
     try:
-        prepared = await asyncio.to_thread(prepare_export, sender, record_id)
+        prepared = await anyio.to_thread.run_sync(prepare_export, sender, record_id)
         if not isinstance(prepared, PreparedExport):
             return prepared
         return await post_export(prepared, sender.transport)
@@ -179,9 +180,7 @@ async def export_reply(sender: TelemetrySender, record_id: int) -> ExportOutcome
 
 
 def start_export(sender: TelemetrySender, record_id: int) -> None:
-    task = asyncio.get_running_loop().create_task(export_reply(sender, record_id))
-    EXPORT_TASKS.add(task)
-    task.add_done_callback(EXPORT_TASKS.discard)
+    EXPORTS.start(export_reply(sender, record_id))
 
 
 async def with_telemetry_export(

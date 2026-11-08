@@ -38,7 +38,7 @@ class TitleRequest:
     reply_language: str = ""
 
 # Background work started after replies.
-BACKGROUND_WORK = BackgroundWork()
+BACKGROUND_WORK: BackgroundWork[None] = BackgroundWork()
 
 
 async def with_steering_fallback(

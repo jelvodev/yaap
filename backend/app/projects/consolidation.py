@@ -6,7 +6,6 @@ merge is one commit of the memory file, so it can be undone like any memory edit
 (*Tidy up* in the Memory tab) and by themselves once TIDY_EVERY new entries came since the last tidy-up.
 """
 
-import asyncio
 import json
 import logging
 import re
@@ -18,6 +17,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.background import BackgroundWork
 from app.core.settings import resolve_languages
 from app.core.utility import UtilityContext, run_utility
 from app.projects.memory import (
@@ -233,17 +233,15 @@ def app_context(app: Any) -> UtilityContext:
     return UtilityContext(state.session_factory, state.cipher, state.credential_types, state.providers)
 
 
-# Background tidy checks, kept referenced until they end.
-TIDY_TASKS: set[asyncio.Task[None]] = set()
+# Background tidy checks, started after replies.
+TIDY_CHECKS: BackgroundWork[None] = BackgroundWork()
 
 
 def start_tidy_check(context: UtilityContext, project_id: int | None, folder: Path | None) -> None:
     """Check in the background whether a tidy-up is due (after a reply or a new entry)."""
     if project_id is None or folder is None:
         return
-    task = asyncio.get_running_loop().create_task(tidy_if_due(context, project_id, folder))
-    TIDY_TASKS.add(task)
-    task.add_done_callback(TIDY_TASKS.discard)
+    TIDY_CHECKS.start(tidy_if_due(context, project_id, folder))
 
 
 def start_tidy_after_reply(context: UtilityContext, workspace_dir: Path, conversation_id: int) -> None:

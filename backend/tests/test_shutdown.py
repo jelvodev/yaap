@@ -12,10 +12,27 @@ from sqlalchemy.pool import Pool
 
 from app.core.background import BackgroundWork
 from app.core.reply_events import BACKGROUND_WORK
+from app.core.shutdown import AFTER_REPLIES
+from app.core.summaries import SUMMARIES
+from app.learning.after_reply import LEARNING_REVIEWS
+from app.projects.consolidation import TIDY_CHECKS
 from app.reviews.service import REVIEWS
+from app.tracing.otlp_export import EXPORTS
 from tests.conftest import FakeBackend, make_test_app
 
-KINDS = pytest.mark.parametrize("work", [BACKGROUND_WORK, REVIEWS], ids=["reply follow-up", "review"])
+WORK = {
+    "reply follow-up": BACKGROUND_WORK,
+    "review": REVIEWS,
+    "summary": SUMMARIES,
+    "learning review": LEARNING_REVIEWS,
+    "memory tidy check": TIDY_CHECKS,
+    "telemetry export": EXPORTS,
+}
+KINDS = pytest.mark.parametrize("work", list(WORK.values()), ids=list(WORK))
+
+
+def test_shutdown_stops_every_kind_of_work_that_replies_start() -> None:
+    assert set(map(id, AFTER_REPLIES)) == set(map(id, WORK.values()))
 
 
 @pytest.fixture
@@ -26,7 +43,7 @@ def data_dir(tmp_path, monkeypatch, master_key: str):
 
 @KINDS
 def test_work_a_reply_left_running_ends_before_the_database_engine_goes(
-    data_dir, fake: FakeBackend, work: BackgroundWork
+    data_dir, fake: FakeBackend, work: BackgroundWork[None]
 ) -> None:
     app = make_test_app(fake)
     pools_when_ended: list[Pool] = []
@@ -51,7 +68,7 @@ def test_work_a_reply_left_running_ends_before_the_database_engine_goes(
 
 @KINDS
 def test_work_in_a_worker_thread_finishes_its_thread_before_the_database_engine_goes(
-    data_dir, fake: FakeBackend, work: BackgroundWork
+    data_dir, fake: FakeBackend, work: BackgroundWork[None]
 ) -> None:
     app = make_test_app(fake)
     in_thread = threading.Event()

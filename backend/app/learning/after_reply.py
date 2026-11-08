@@ -6,7 +6,6 @@ new signal there is nothing to review, so no utility call is made. The review fo
 suggestions, which eval plays and replays turn off.
 """
 
-import asyncio
 import logging
 from collections.abc import AsyncIterator
 
@@ -14,6 +13,7 @@ import anyio
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.core.background import BackgroundWork
 from app.core.reply_services import ReplyServices
 from app.learning.proposals import has_signals
 from app.learning.service import LearningService
@@ -22,7 +22,8 @@ from app.storage.models import Conversation, Goal
 logger = logging.getLogger(__name__)
 
 ENDED_GOALS = ("done", "blocked", "limit")
-BACKGROUND_REVIEWS: set[asyncio.Task[None]] = set()
+# Reviews started after replies.
+LEARNING_REVIEWS: BackgroundWork[None] = BackgroundWork()
 
 
 def review_due(session_factory: sessionmaker[Session], conversation_id: int) -> bool:
@@ -61,6 +62,4 @@ async def with_learning_review(
         except Exception:  # A background task: a failure is logged and the user's work goes on.
             logger.exception("The learning review failed.")
 
-    task = asyncio.get_running_loop().create_task(run())
-    BACKGROUND_REVIEWS.add(task)
-    task.add_done_callback(BACKGROUND_REVIEWS.discard)
+    LEARNING_REVIEWS.start(run())
