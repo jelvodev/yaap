@@ -25,11 +25,6 @@ Patch releases: no new features or settings, so you can update without reading t
 6. **Base images by digest.** The Docker base images are pinned by digest and updated on purpose.
 7. **An audit script.** `scripts/audit` checks the frontend and every package in the image against known
    vulnerabilities.
-8. **Linting and formatting.** One pass of ruff, mypy, ESLint and Prettier over the whole code base, with a script
-   to run them.
-9. **A baseline measurement.** The bundled eval set is run on 0.5 and the result is recorded, so later versions can be
-   compared with it.
-10. **Correct update notes.** `docs/install.md` says correctly when Claude Code and Codex inside the image are updated.
 
 ## 0.6.0: ready for others
 
@@ -111,3 +106,10 @@ Ideas without a version.
     its own.
 41. **Azure and work modes.**
 42. **YAAP on the phone.** An installable app with approvals, the board's *Waiting for me* and push notifications.
+
+For the code base itself:
+
+8. **Linting and formatting.** One pass of ruff, mypy, ESLint and Prettier over the whole code base, with a script
+   to run them.
+9. **A baseline measurement.** The bundled eval set is run and the result is recorded, so later versions can be
+   compared with it.
