@@ -13,6 +13,7 @@ from pathlib import Path
 import anyio
 
 from app.agent.runs import AgentRun
+from app.core.background import BackgroundWork
 from app.core.goals import ACTIVE, open_goal
 from app.core.message_queue import queue_undelivered_steering
 from app.core.reply_services import ReplyServices
@@ -36,8 +37,8 @@ class TitleRequest:
     title_text: str
     reply_language: str = ""
 
-# Background work started after replies, kept referenced until it ends.
-BACKGROUND_TASKS: set[asyncio.Task[None]] = set()
+# Background work started after replies.
+BACKGROUND_WORK = BackgroundWork()
 
 
 async def with_steering_fallback(
@@ -73,9 +74,7 @@ async def with_memory_suggestions(
         except Exception:  # A background task: a failure is logged and the user's work goes on.
             logger.exception("Memory suggestions failed.")
 
-    task = asyncio.get_running_loop().create_task(run())
-    BACKGROUND_TASKS.add(task)
-    task.add_done_callback(BACKGROUND_TASKS.discard)
+    BACKGROUND_WORK.start(run())
 
 
 def memory_folder(services: ReplyServices, conversation_id: int) -> Path | None:
@@ -152,6 +151,4 @@ async def with_goal_follow_up(
     with services.session_factory() as session:
         goal = open_goal(session, conversation_id)
         goal_id = goal.id if goal is not None and goal.status == ACTIVE else None
-    task = asyncio.get_running_loop().create_task(next_turn(conversation_id, goal_id))
-    BACKGROUND_TASKS.add(task)
-    task.add_done_callback(BACKGROUND_TASKS.discard)
+    BACKGROUND_WORK.start(next_turn(conversation_id, goal_id))

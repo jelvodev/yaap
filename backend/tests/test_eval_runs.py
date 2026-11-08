@@ -152,7 +152,6 @@ def test_a_budget_overrun_stops_the_case_during_the_run_and_fails_it(client, fak
     )
     fake.responses.append(slow)
 
-    started = time.monotonic()
     run = finished_run(client, project["id"], start_run(client, project["id"])["id"])
 
     (result,) = run["results"]
@@ -160,8 +159,10 @@ def test_a_budget_overrun_stops_the_case_during_the_run_and_fails_it(client, fak
     assert result["detail"].startswith("Stopped during the run: over budget (510 tokens of 100 tokens")
     budget = next(check for check in result["checks"] if check["kind"] == "budget")
     assert budget["status"] == "failed"
-    # Stopped well before the 60 slow words: the reply was cut off and stored as incomplete.
-    assert time.monotonic() - started < 2.5
+    # Stopped well before the 60 slow words (3 seconds): the reply was cut off and stored as incomplete. The play's
+    # seconds count from the reply's start; the test's wall time also holds the clone of the workspace and a dozen git
+    # processes, each a tenth of a second or more on Windows, which say nothing about the stop.
+    assert result["seconds"] < 1.5
     with client.app.state.session_factory() as session:
         reply = session.scalars(
             select(Message).where(Message.conversation_id == result["conversation_id"], Message.role == "assistant")

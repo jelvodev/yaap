@@ -9,7 +9,6 @@ log, the outgoing check and the usage records (task `review`) see it like every 
 the diff and the rules are replaced by placeholders before anything is stored or sent. Nothing is ever applied.
 """
 
-import asyncio
 import logging
 import threading
 from collections.abc import Coroutine
@@ -25,6 +24,7 @@ from app.blueprint.context import standards_part
 from app.blueprint.layers import active_items
 from app.blueprint.levels import layers_for
 from app.checkpoints.service import CheckpointStore
+from app.core.background import BackgroundWork
 from app.core.goals import OPEN_STATUSES, latest_goal
 from app.core.model_choice import ForUtility, ModelChoiceError, read_key
 from app.core.other_vendor import other_vendor_choice
@@ -51,8 +51,8 @@ logger = logging.getLogger(__name__)
 ReviewStatus = Literal["running", "done", "skipped", "failed"]
 REVIEW_TASK = "review"
 REVIEW_MAX_TOKENS = 4000
-# Reviews run on their own; a reference keeps each task alive until it ends.
-REVIEW_TASKS: set[asyncio.Task[None]] = set()
+# Reviews run on their own.
+REVIEWS = BackgroundWork()
 # Two entry points can see the same goal end (the next-turn check and the scheduled run's end).
 GOAL_LOCK = threading.Lock()
 
@@ -78,9 +78,7 @@ class ReviewOutcome:
 
 def spawn(work: Coroutine[Any, Any, None]) -> None:
     """Run a review on the event loop by itself. On the event loop."""
-    task = asyncio.get_running_loop().create_task(work)
-    REVIEW_TASKS.add(task)
-    task.add_done_callback(REVIEW_TASKS.discard)
+    REVIEWS.start(work)
 
 
 @dataclass(frozen=True)
