@@ -37,6 +37,45 @@
   border-bottom: 1px solid var(--border);
 }
 
+/* The head button and, shown on hover or keyboard focus, the discard button beside it. */
+.cp-file-line {
+  display: flex;
+  align-items: center;
+}
+
+.cp-file-line:hover {
+  background: var(--hover);
+}
+
+.cp-file-discard {
+  flex: none;
+  margin-right: 10px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.cp-file-line:hover .cp-file-discard,
+.cp-file-discard:focus-visible {
+  opacity: 1;
+}
+
+.cp-discard-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 16px 10px;
+  background: var(--surface);
+}
+
+.cp-discard-confirm p {
+  margin: 0;
+}
+
+.cp-discard-buttons {
+  display: flex;
+  gap: 8px;
+}
+
 .cp-file-head {
   display: flex;
   align-items: center;
@@ -49,10 +88,6 @@
   text-align: left;
   font-size: 12.5px;
   cursor: pointer;
-}
-
-.cp-file-head:hover {
-  background: var(--hover);
 }
 
 .cp-chevron {

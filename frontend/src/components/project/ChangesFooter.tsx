@@ -2,11 +2,12 @@ import { type FormEvent, useState } from "react";
 
 import type { GitRepository } from "../../api/client";
 import { SparkleIcon } from "../icons";
-import { type ChangesActions, commitLabel } from "./changesState";
+import { type ChangesActions, commitLabel, discardQuestion } from "./changesState";
+import DiscardConfirm from "./DiscardConfirm";
 import SyncMenu from "./SyncMenu";
 import type { GitChanges, SyncAction } from "./useGitChanges";
 
-/** The Changes panel's sticky bottom: the commit message with Suggest, *Commit N files*, Sync, and Review. */
+/** The Changes panel's sticky bottom: the commit message with Suggest, *Commit N files*, Sync, Review and Discard all. */
 export default function ChangesFooter({
   repository,
   actions,
@@ -26,6 +27,7 @@ export default function ChangesFooter({
   onOpenSettings?: () => void;
 }) {
   const [message, setMessage] = useState("");
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const { busy, notice } = git;
   const working = Boolean(busy) || reviewStarting;
   const syncBusy: SyncAction | null = busy === "fetch" || busy === "pull" || busy === "push" ? busy : null;
@@ -33,6 +35,11 @@ export default function ChangesFooter({
   async function suggest() {
     const proposed = await git.suggestMessage();
     if (proposed !== null) setMessage(proposed);
+  }
+
+  async function discardAll() {
+    await git.discard(null);
+    setConfirmDiscard(false);
   }
 
   async function commit(event: FormEvent) {
@@ -96,18 +103,39 @@ export default function ChangesFooter({
           )}
         </p>
       )}
-      {actions.review && (
+      {(actions.review || actions.discard) && (
         <div className="cp-links">
-          <button
-            type="button"
-            className="link-button small"
-            disabled={working}
-            title="Let a model of another vendor than the one that wrote the code review these changes"
-            onClick={onReview}
-          >
-            {reviewStarting ? "Starting the review…" : "Review these changes"}
-          </button>
+          {actions.review && (
+            <button
+              type="button"
+              className="link-button small"
+              disabled={working}
+              title="Let a model of another vendor than the one that wrote the code review these changes"
+              onClick={onReview}
+            >
+              {reviewStarting ? "Starting the review…" : "Review these changes"}
+            </button>
+          )}
+          {actions.discard && (
+            <button
+              type="button"
+              className="link-button small"
+              disabled={working}
+              title="Discard every uncommitted change, after a checkpoint"
+              onClick={() => setConfirmDiscard(true)}
+            >
+              Discard all…
+            </button>
+          )}
         </div>
+      )}
+      {actions.discard && confirmDiscard && (
+        <DiscardConfirm
+          question={discardQuestion({ all: repository.changes.length })}
+          busy={busy === "discard"}
+          onCancel={() => setConfirmDiscard(false)}
+          onDiscard={() => void discardAll()}
+        />
       )}
       {notice && <p className={notice.error ? "form-error small" : "muted small"}>{notice.text}</p>}
     </div>

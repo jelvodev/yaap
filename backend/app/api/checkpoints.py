@@ -11,7 +11,7 @@ from app.api.dependencies import ProjectDependency, SessionDependency, Workspace
 from app.checkpoints.service import CheckpointStore
 from app.checkpoints.shadow import CheckpointError
 from app.core.replies import ReplyRegistry
-from app.projects.service import ProjectError, project_path
+from app.projects.service import REPLY_RUNNING, ProjectError, project_path, reply_running_in_project
 from app.storage.models import Checkpoint, Conversation
 
 router = APIRouter(tags=["checkpoints"])
@@ -140,15 +140,8 @@ async def restore_checkpoint(
     """Roll the project folder back to the checkpoint. The state before is kept as a checkpoint of its own."""
     checkpoint = find(session, project.id, checkpoint_id)
     replies: ReplyRegistry = request.app.state.replies
-    running = set(replies.running_in(project.environment_id))
-    if running:
-        in_project = session.scalars(
-            select(Conversation.id).where(Conversation.project_id == project.id, Conversation.id.in_(running))
-        ).first()
-        if in_project is not None:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT, "A reply is running in this project. Stop it or wait until it ends."
-            )
+    if reply_running_in_project(session, replies.running_in(project.environment_id), project.id):
+        raise HTTPException(status.HTTP_409_CONFLICT, REPLY_RUNNING)
     folder = folder_of(project, workspace_dir)
     try:
         before = await asyncio.to_thread(store(request).restore, checkpoint, folder, conversation_id)

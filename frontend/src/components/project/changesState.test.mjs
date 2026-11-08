@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { changesActions, commitLabel, stateLetter, syncLabel, syncText } from "./changesState.ts";
+import { changesActions, commitLabel, discardQuestion, stateLetter, syncLabel, syncText } from "./changesState.ts";
 
 const REMOTE = "https://github.com/owner/repository.git";
 
@@ -22,7 +22,7 @@ function repository(facts = {}) {
 const NO_REMOTE = { remote: null, upstream: null };
 const UNBORN = { upstream: null, commits: false };
 
-// name, state, [commit and review, sync, fetch, pull, push, remote hint], Sync label
+// name, state, [commit, review and discard, sync, fetch, pull, push, remote hint], Sync label
 const STATES = [
   ["nothing changed", {}, [false, "secondary", true, true, true, false], "Sync · ↑0 · ↓0"],
   ["changes", { changed: 2 }, [true, "secondary", true, true, true, false], "Sync · ↑0 · ↓0"],
@@ -39,7 +39,7 @@ const STATES = [
 for (const [name, facts, [commit, sync, fetch, pull, push, remoteHint], label] of STATES) {
   test(`${name}: the actions and the Sync label`, () => {
     const state = repository(facts);
-    assert.deepEqual(changesActions(state), { commit, review: commit, sync, fetch, pull, push, remoteHint });
+    assert.deepEqual(changesActions(state), { commit, review: commit, discard: commit, sync, fetch, pull, push, remoteHint });
     assert.equal(syncLabel(state), label);
   });
 }
@@ -57,3 +57,20 @@ test("stateLetter gives git's letter for each state, commitLabel counts the file
   assert.equal(commitLabel(1), "Commit 1 file");
   assert.equal(commitLabel(5), "Commit 5 files");
 });
+
+// target, the start of the question
+const QUESTIONS = [
+  [{ all: 1 }, "Discard the changes to all 1 changed file? Edits are lost and new files are deleted."],
+  [{ all: 3 }, "Discard the changes to all 3 changed files?"],
+  [{ path: "a.txt", state: "modified" }, "Discard the changes to a.txt? It goes back to the last commit."],
+  [{ path: "new.txt", state: "untracked" }, "Delete the new file new.txt?"],
+  [{ path: "staged.txt", state: "added" }, "Delete the new file staged.txt?"],
+];
+
+for (const [target, start] of QUESTIONS) {
+  test(`discardQuestion names what is lost: ${start}`, () => {
+    const question = discardQuestion(target);
+    assert.ok(question.startsWith(start), question);
+    assert.ok(question.endsWith("cannot be undone, except by rolling back to the checkpoint taken first (Checkpoints tab)."));
+  });
+}

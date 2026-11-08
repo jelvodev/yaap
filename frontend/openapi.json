@@ -3245,6 +3245,49 @@
         "title": "DiffOut",
         "type": "object"
       },
+      "DiscardIn": {
+        "properties": {
+          "path": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          }
+        },
+        "title": "DiscardIn",
+        "type": "object"
+      },
+      "DiscardOut": {
+        "properties": {
+          "checkpoint_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkpoint Id"
+          },
+          "repository": {
+            "$ref": "#/components/schemas/RepositoryOut"
+          }
+        },
+        "required": [
+          "repository",
+          "checkpoint_id"
+        ],
+        "title": "DiscardOut",
+        "type": "object"
+      },
       "DocumentDecisionIn": {
         "properties": {
           "hash": {
@@ -19048,6 +19091,68 @@
           }
         },
         "summary": "Read Diff",
+        "tags": [
+          "git"
+        ]
+      }
+    },
+    "/api/v1/environments/{environment_id}/git/repositories/{repository_id}/discard": {
+      "post": {
+        "description": "Discard uncommitted changes of a project: every change, or one changed file's. Tracked files return to HEAD\n(work tree and index), untracked files are removed, ignored files stay. A checkpoint is taken first, and the\ndiscard is refused while a reply runs in the project.",
+        "operationId": "discard_api_v1_environments__environment_id__git_repositories__repository_id__discard_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "repository_id",
+            "required": true,
+            "schema": {
+              "title": "Repository Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "environment_id",
+            "required": true,
+            "schema": {
+              "title": "Environment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiscardIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscardOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Discard",
         "tags": [
           "git"
         ]

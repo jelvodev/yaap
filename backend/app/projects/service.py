@@ -1,6 +1,7 @@
 """Projects: a working folder under /workspace/<environment>/<project>, with its conversations."""
 
 import shutil
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -31,6 +32,21 @@ def project_path(workspace_dir: Path, project: Project) -> Path:
     if not path.is_relative_to(workspace_dir.resolve()):
         raise ProjectError("The project folder lies outside the workspace.")
     return path
+
+
+REPLY_RUNNING = "A reply is running in this project. Stop it or wait until it ends."
+
+
+def reply_running_in_project(session: Session, running_conversation_ids: Iterable[int], project_id: int) -> bool:
+    """Whether one of the running replies (their conversation ids) belongs to the project: actions that rewrite the
+    project folder (a roll back, a discard) wait for it."""
+    running = set(running_conversation_ids)
+    if not running:
+        return False
+    found = session.scalars(
+        select(Conversation.id).where(Conversation.project_id == project_id, Conversation.id.in_(running))
+    ).first()
+    return found is not None
 
 
 def new_project(session: Session, environment: Environment, name: str, repository_url: str | None = None) -> Project:

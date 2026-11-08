@@ -545,7 +545,8 @@ class Checkpoint(Base):
     """The project folder as it was before one agent action.
 
     `kind` is `action` (taken before a tool call that can change files) or `restore` (the state just before a roll
-    back, so the roll back can be undone), or `edit` (before the user saves a file in the editor).
+    back, so the roll back can be undone), `edit` (before the user saves a file in the editor) or `discard` (before the
+    user discards uncommitted changes in the Changes panel).
     `call_key` identifies the tool call (name and arguments), so the chat can put the checkpoint next to it. The snapshot itself is `commit` in the project's shadow repository.
     """
 

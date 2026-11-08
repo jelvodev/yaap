@@ -12,7 +12,7 @@ import { useGitChanges } from "./useGitChanges";
 import type { ProjectRepository } from "./useProjectRepository";
 import "./changes-panel.css";
 
-/** The changed files with their diffs in one list, and the commit, sync and review actions below it. */
+/** The changed files with their diffs in one list, and the commit, sync, discard and review actions below it. */
 function RepositoryChanges({
   project,
   repository,
@@ -62,7 +62,10 @@ function RepositoryChanges({
                 change={change}
                 part={diffPart(parts, change.path)}
                 open={open.has(change.path)}
+                disabled={Boolean(git.busy) || review.starting}
+                discarding={git.busy === "discard"}
                 onToggle={() => toggle(change.path)}
+                onDiscard={() => git.discard(change.path)}
               />
             ))}
           </ul>

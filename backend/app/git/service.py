@@ -209,6 +209,8 @@ class FileChange:
     # Short state: added, modified, deleted, renamed, untracked, conflict.
     state: str
     staged: bool
+    # The path before a rename; None for any other change.
+    original_path: str | None = None
 
 
 @dataclass(frozen=True)
@@ -254,8 +256,8 @@ def repository_status(folder: Path) -> RepositoryStatus:
             changes.append(FileChange(fields[8], change_state(fields[1].replace(".", "")), fields[1][0] != "."))
         elif line.startswith("2 "):
             fields = line.split(" ", 9)
-            path = fields[9].split("\t", 1)[0]
-            changes.append(FileChange(path, "renamed", fields[1][0] != "."))
+            path, _, original = fields[9].partition("\t")
+            changes.append(FileChange(path, "renamed", fields[1][0] != ".", original or None))
         elif line.startswith("u "):
             changes.append(FileChange(line.split(" ", 10)[10], "conflict", False))
         elif line.startswith("? "):

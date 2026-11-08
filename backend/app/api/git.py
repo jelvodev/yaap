@@ -25,6 +25,7 @@ from app.core.utility import UtilityContext, propose_commit_message
 from app.credentials.crypto import CredentialDecryptionError
 from app.credentials.store import read_credential_value
 from app.blueprint.levels import environment_layer, global_layer
+from app.checkpoints.service import CheckpointStore
 from app.git.service import (
     GitError,
     RepositoryStatus,
@@ -39,7 +40,8 @@ from app.git.service import (
     repository_status,
     set_remote_url,
 )
-from app.projects.service import project_path
+from app.git.discard import discard_changes
+from app.projects.service import REPLY_RUNNING, project_path, reply_running_in_project
 from app.storage.models import Environment, Project
 
 router = APIRouter(prefix="/environments/{environment_id}/git", tags=["git"])
@@ -303,6 +305,46 @@ def pull_remote(
 ) -> RepositoryOut:
     token = github_token(session, cipher, environment, repository, "pull")
     return run(repository, lambda: pull(repository.path, token))
+
+
+class DiscardIn(BaseModel):
+    # One changed file, relative to the repository as the status lists it; null discards every change.
+    path: str | None = Field(default=None, min_length=1, max_length=500)
+
+
+class DiscardOut(BaseModel):
+    repository: RepositoryOut
+    # The checkpoint of the folder just before the discard; a roll back to it undoes the discard.
+    checkpoint_id: int | None
+
+
+@router.post("/repositories/{repository_id}/discard", response_model=DiscardOut)
+def discard(
+    payload: DiscardIn,
+    request: Request,
+    repository: RepositoryDependency,
+    environment: EnvironmentDependency,
+    session: SessionDependency,
+) -> DiscardOut:
+    """Discard uncommitted changes of a project: every change, or one changed file's. Tracked files return to HEAD
+    (work tree and index), untracked files are removed, ignored files stay. A checkpoint is taken first, and the
+    discard is refused while a reply runs in the project."""
+    if repository.kind != "project":
+        raise HTTPException(status.HTTP_409_CONFLICT, "Changes can only be discarded in a project repository.")
+    project_id = int(repository.id.removeprefix("project-"))
+    if reply_running_in_project(session, request.app.state.replies.running_in(environment.id), project_id):
+        raise HTTPException(status.HTTP_409_CONFLICT, REPLY_RUNNING)
+    store = CheckpointStore(request.app.state.session_factory, request.app.state.data_dir)
+
+    def take(summary: str) -> int | None:
+        return store.take(project_id, repository.path, "discard", summary, kind="discard")
+
+    try:
+        checkpoint_id = discard_changes(repository.path, payload.path, take)
+        repo_status = repository_status(repository.path)
+    except GitError as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
+    return DiscardOut(repository=status_out(repository, repo_status), checkpoint_id=checkpoint_id)
 
 
 @router.put("/repositories/{repository_id}/remote", response_model=RepositoryOut)

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { type GitRepository, api, errorMessage } from "../../api/client";
 
 export type SyncAction = "fetch" | "pull" | "push";
-type Busy = "suggest" | "commit" | SyncAction;
+type Busy = "suggest" | "commit" | "discard" | SyncAction;
 
 const SYNC_DONE: Record<SyncAction, string> = { fetch: "Fetched.", pull: "Pulled.", push: "Pushed." };
 
@@ -23,10 +23,15 @@ export interface GitChanges {
   /** Commit every change; true when it worked. */
   commit: (message: string) => Promise<boolean>;
   sync: (action: SyncAction) => Promise<boolean>;
+  /** Discard the uncommitted changes of one file, or of all (null), after a checkpoint; true when it worked. */
+  discard: (path: string | null) => Promise<boolean>;
   setNotice: (notice: Notice | null) => void;
 }
 
-/** The uncommitted diff of a repository and the git actions on it: suggest a message, commit, fetch, pull, push. */
+/**
+ * The uncommitted diff of a repository and the git actions on it: suggest a message, commit, discard, fetch, pull,
+ * push.
+ */
 export function useGitChanges(
   environmentId: number,
   repository: GitRepository,
@@ -96,5 +101,23 @@ export function useGitChanges(
       SYNC_DONE[action],
     );
 
-  return { diff, busy, notice, suggestMessage, commit, sync, setNotice };
+  async function discard(file: string | null) {
+    setBusy("discard");
+    setNotice(null);
+    const { data, error } = await api.POST(
+      "/api/v1/environments/{environment_id}/git/repositories/{repository_id}/discard",
+      { ...path, body: { path: file } },
+    );
+    setBusy(null);
+    if (error || !data) {
+      setNotice({ error: true, text: errorMessage(error, "Nothing was discarded.") });
+      return false;
+    }
+    const kept = data.checkpoint_id === null ? "" : " The checkpoint before it is in the Checkpoints tab.";
+    setNotice({ error: false, text: `Discarded.${kept}` });
+    onChanged(data.repository);
+    return true;
+  }
+
+  return { diff, busy, notice, suggestMessage, commit, sync, discard, setNotice };
 }

@@ -1909,6 +1909,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/environments/{environment_id}/git/repositories/{repository_id}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Discard
+         * @description Discard uncommitted changes of a project: every change, or one changed file's. Tracked files return to HEAD
+         *     (work tree and index), untracked files are removed, ignored files stay. A checkpoint is taken first, and the
+         *     discard is refused while a reply runs in the project.
+         */
+        post: operations["discard_api_v1_environments__environment_id__git_repositories__repository_id__discard_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/environments/{environment_id}/git/repositories/{repository_id}/fetch": {
         parameters: {
             query?: never;
@@ -5253,6 +5275,17 @@ export interface components {
         DiffOut: {
             /** Diff */
             diff: string;
+        };
+        /** DiscardIn */
+        DiscardIn: {
+            /** Path */
+            path?: string | null;
+        };
+        /** DiscardOut */
+        DiscardOut: {
+            /** Checkpoint Id */
+            checkpoint_id: number | null;
+            repository: components["schemas"]["RepositoryOut"];
         };
         /** DocumentDecisionIn */
         DocumentDecisionIn: {
@@ -12137,6 +12170,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DiffOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    discard_api_v1_environments__environment_id__git_repositories__repository_id__discard_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repository_id: string;
+                environment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DiscardIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscardOut"];
                 };
             };
             /** @description Validation Error */

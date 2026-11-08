@@ -21,6 +21,8 @@ export interface ChangesActions {
   commit: boolean;
   /** *Review these changes*: a review of the uncommitted changes. */
   review: boolean;
+  /** *Discard all* and the discard button of each changed file. */
+  discard: boolean;
   sync: SyncEmphasis;
   /** The items of Sync's menu. */
   fetch: boolean;
@@ -43,6 +45,7 @@ export function changesActions(repository: RepositoryFacts): ChangesActions {
   return {
     commit: changed,
     review: changed,
+    discard: changed,
     sync: !hasRemote ? "hidden" : !changed && outOfStep ? "primary" : "secondary",
     fetch: hasRemote,
     pull: hasRemote && Boolean(repository.upstream),
@@ -85,4 +88,27 @@ export function stateLetter(state: string): string {
 /** `Commit 1 file`, `Commit 5 files`. */
 export function commitLabel(count: number): string {
   return `Commit ${count} file${count === 1 ? "" : "s"}`;
+}
+
+/** The change of one file the discard question names; `GitRepository["changes"][number]` fits it. */
+export interface ChangeFacts {
+  path: string;
+  state: string;
+}
+
+/**
+ * The confirmation question before a discard: what is lost, for one file or for all of them. A checkpoint is taken
+ * first, and rolling back to it is the only way to get the changes back.
+ */
+export function discardQuestion(target: ChangeFacts | { all: number }): string {
+  let question: string;
+  if ("all" in target) {
+    const files = `${target.all} changed file${target.all === 1 ? "" : "s"}`;
+    question = `Discard the changes to all ${files}? Edits are lost and new files are deleted.`;
+  } else if (target.state === "untracked" || target.state === "added") {
+    question = `Delete the new file ${target.path}?`;
+  } else {
+    question = `Discard the changes to ${target.path}? It goes back to the last commit.`;
+  }
+  return `${question} This cannot be undone, except by rolling back to the checkpoint taken first (Checkpoints tab).`;
 }

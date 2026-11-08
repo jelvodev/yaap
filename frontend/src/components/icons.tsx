@@ -199,3 +199,10 @@ export const MoreIcon = (props: IconProps) => (
     <circle cx="12" cy="19" r="1" />
   </Svg>
 );
+
+export const UndoIcon = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="M9 14 4 9l5-5" />
+    <path d="M4 9h11a5 5 0 0 1 0 10h-4" />
+  </Svg>
+);
