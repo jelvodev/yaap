@@ -5,7 +5,7 @@ Where YAAP is going. Each version has a theme. The order is what is intended, no
 - **Numbers.** Every item has a number to refer to, and a number is never reused.
 - **Finished items** leave this list. The release notes say what came in each release.
 
-The current version is **0.5.4**.
+The current version is **0.5.5**.
 
 ## 0.5.x: fixes and hardening
 
@@ -14,13 +14,6 @@ Patch releases: no new features or settings, so you can update without reading t
 1. **Background work stops cleanly.** Summaries, learning after a reply, project consolidation, the OpenTelemetry
    export, replays, eval runs and the stop button finish or stop their work, instead of leaving a worker thread
    running.
-
-<!-- A gap in the numbers: finished items left the list. -->
-
-3. **Forbidden models marked.** The chat's model lists mark the models that the environment's model policy does not
-   allow.
-4. **Skipped utility tasks shown.** When the model policy skips a utility task (a title, a commit message), the app
-   says so, not only the log.
 
 ## 0.6.0: ready for others
 
