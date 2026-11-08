@@ -1,6 +1,7 @@
 # Build context: the repository root (see docker-compose.yml).
+# Base images are pinned by digest, with the tag kept for reading; CONTRIBUTING.md says how to update one.
 
-FROM node:24-slim AS frontend
+FROM node:24-slim@sha256:01d566e8d94d8c619591d78652babfccd3c6992a3dffa9ed5ab39e11cf6c70e9 AS frontend
 WORKDIR /build
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-fund --no-audit
@@ -10,7 +11,7 @@ RUN npm run build
 # The embedding model for semantic search: BAAI/bge-m3 as ONNX, at a pinned revision, chosen
 # by measuring on YAAP's own data. The files are checked against their SHA-256, so YAAP never downloads or runs a
 # model it did not pin.
-FROM python:3.14-slim AS embedding-model
+FROM python:3.14-slim@sha256:9aaa474097d094040649f2162a627c0049b408f52138d980916788d80f04802f AS embedding-model
 ARG BGE_M3_REVISION=5617a9f61b028005a4858fdac845db406aefb181
 WORKDIR /model
 RUN python -c "import urllib.request as r; [r.urlretrieve(f'https://huggingface.co/BAAI/bge-m3/resolve/${BGE_M3_REVISION}/onnx/{name}', name) for name in ('model.onnx', 'model.onnx_data', 'Constant_7_attr__value', 'tokenizer.json')]" \
@@ -20,7 +21,7 @@ RUN python -c "import urllib.request as r; [r.urlretrieve(f'https://huggingface.
     && echo "6710678b12670bc442b99edc952c4d996ae309a7020c1fa0096dd245c2faf790  tokenizer.json" >> SHA256SUMS \
     && sha256sum -c SHA256SUMS
 
-FROM python:3.14-slim
+FROM python:3.14-slim@sha256:9aaa474097d094040649f2162a627c0049b408f52138d980916788d80f04802f
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     YAAP_DATA_DIR=/data \
@@ -73,8 +74,9 @@ RUN useradd --create-home --uid 1000 yaap \
     && mkdir -p /data \
     && chown yaap:yaap /data
 WORKDIR /app
-COPY backend/requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+# Every package, also the indirect ones, at the version and with the hashes of the lock file (CONTRIBUTING.md).
+COPY backend/requirements.lock ./
+RUN pip install --no-cache-dir --require-hashes --no-deps -r requirements.lock
 COPY backend/app ./app
 COPY --from=frontend /build/dist ./static
 USER yaap

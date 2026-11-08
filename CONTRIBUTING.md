@@ -55,6 +55,33 @@ cd backend && .venv/Scripts/python -m app.scripts.export_openapi ../frontend/ope
 cd frontend && npm run gen:api
 ```
 
+## Packages and base images
+
+The images install only what is pinned, so a build today gets the same packages as a build last month.
+
+### Python packages
+
+`backend/requirements.txt` lists YAAP's direct packages; `docker/sandbox-helper/requirements.txt` those of the sandbox helper. Next to each is a `requirements.lock` with every package, also the indirect ones, and the hashes of its files for Linux, macOS and Windows. The images install the lock with `pip install --require-hashes --no-deps`, so a package that is not in the lock, or a file whose hash differs, stops the build. Local development keeps `requirements-dev.txt`, without hashes.
+
+To add, remove or update a package, change its line in `requirements.txt` and remake the lock in the same folder with [uv](https://docs.astral.sh/uv/):
+
+```bash
+cd backend   # or docker/sandbox-helper
+uv pip compile --universal --python-version 3.14 --generate-hashes requirements.txt -o requirements.lock
+```
+
+Commit both files. The helper's packages stay at the versions YAAP itself uses. Running the same command without a change in `requirements.txt` keeps the versions in the lock; add `--upgrade-package <name>` to move an indirect package to its newest version.
+
+### Base images
+
+Every `FROM` in `docker/` and the `docker-proxy` image in `docker-compose.yml` name a tag and a digest (`python:3.14-slim@sha256:…`). Docker uses the digest; the tag is there for reading, so a new image under the same tag changes nothing until you update the digest on purpose:
+
+```bash
+docker buildx imagetools inspect python:3.14-slim
+```
+
+Take the `Digest:` at the top of the output (the index for all platforms, not one of the platform manifests below it), replace the old digest everywhere the image is named, build the images and commit with what changed in the new image.
+
 ## Pull requests
 
 - One subject per pull request, with tests for new behaviour.

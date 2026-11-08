@@ -3,7 +3,7 @@
 # agent's browser; the agent signs in as the user yaap (uid 1000, like YAAP itself, so files in the project folder keep
 # one owner) and may use sudo inside the container.
 # Build context: this folder (see docker-compose.yml).
-FROM debian:trixie-slim
+FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2
 
 # The helper creates sandboxes only from an image with this label.
 LABEL org.yaap.sandbox.image="1"
