@@ -320,6 +320,37 @@ def store_assistant_reply(
         return message, conversation
 
 
+def store_unfinished_usage(
+    session_factory: sessionmaker[Session],
+    conversation: Conversation,
+    message_id: int,
+    run: AgentRun | None,
+    record_id: int | None,
+    model: str,
+    billing: Billing,
+) -> None:
+    """Store the usage of a reply that got no final message from the provider: stopped, failed on a provider error,
+    or ended without one. Its usage is what its recorded model calls add up to, linked to the stored message.
+
+    The calls are recorded under the agent run's record, or under record_id for a reply without an agent run;
+    without either there are no recorded calls and nothing is stored.
+    """
+    steps_run_id = run.state.record_id if run is not None else record_id
+    if steps_run_id is None:
+        return
+    stopped_run = StoppedRun(
+        steps_run_id,
+        conversation.environment_id,
+        conversation.id,
+        message_id,
+        conversation.provider,
+        model,
+        "main",
+        billing,
+    )
+    store_stopped_usage(session_factory, stopped_run)
+
+
 def conversation_summary(conversation: Conversation) -> dict[str, Any]:
     return ConversationSummaryOut(
         id=conversation.id,
@@ -374,8 +405,9 @@ async def stream_reply(
     """Stream the reply as server-sent events. The reply is stored even when the client disconnects.
 
     record_id is the run record of a reply without an agent run; it is finished with the reply. route is how the
-    preset routed the reply, stored with it. A stopped reply gets no final message with its usage: its usage is what
-    its recorded model calls add up to, billed as billing says.
+    preset routed the reply, stored with it. A reply that is stopped, fails on a provider error or ends without a final
+    message gets no usage from the provider: its usage is what its recorded model calls add up to, billed as billing
+    says.
 
     After the first reply of a conversation, title_task proposes a better title; it arrives as a "title" event
     after "done", so the user is not kept waiting for it.
@@ -435,6 +467,11 @@ async def stream_reply(
         )
         stored = True
         final_status, reply_id = outcome.status, message.id
+        if completed is None:
+            # A provider error or a missing final message: the calls that returned before it still cost.
+            store_unfinished_usage(
+                session_factory, conversation, message.id, run, record_id, request.model or conversation.model, billing
+            )
         yield server_sent_event(
             "done",
             {
@@ -461,19 +498,9 @@ async def stream_reply(
                 route,
             )
             reply_id = stopped.id
-            steps_run_id = run.state.record_id if run is not None else record_id
-            if steps_run_id is not None:
-                stopped_run = StoppedRun(
-                    steps_run_id,
-                    conversation.environment_id,
-                    conversation_id,
-                    stopped.id,
-                    conversation.provider,
-                    request.model or conversation.model,
-                    "main",
-                    billing,
-                )
-                store_stopped_usage(session_factory, stopped_run)
+            store_unfinished_usage(
+                session_factory, conversation, stopped.id, run, record_id, request.model or conversation.model, billing
+            )
         if run is not None and runs is not None:
             runs.finish(run)
             tool_calls = sum(1 for block in reply.blocks if block["type"] == "tool_call")

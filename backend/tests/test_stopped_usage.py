@@ -1,4 +1,4 @@
-"""A reply the user stops: the usage of the model calls it made is stored, and its sub-runs end."""
+"""A reply the user stops or that fails: the usage of the model calls it made is stored, and its sub-runs end."""
 
 import time
 
@@ -8,7 +8,7 @@ from sqlalchemy import select
 from app.providers.base import TokenUsage
 from app.providers.fake_provider import ScriptedResponse
 from app.storage.models import AgentRunRecord, Message, RunStep, UsageRecord
-from tests.test_budget_stop import call_cost, wait_until_idle
+from tests.test_budget_stop import call_cost, set_budget, wait_until_idle
 from tests.test_delegation import project_conversation
 from tests.test_plugins import restart
 
@@ -69,6 +69,54 @@ def test_a_reply_stopped_before_any_model_call_returned_stores_no_usage(client, 
     with client.app.state.session_factory() as session:
         assert session.scalars(select(UsageRecord)).all() == []
         assert session.scalars(select(AgentRunRecord)).one().status == "incomplete"
+
+
+FAILURE = "The provider broke off the reply."
+
+
+def failing_after_two_calls() -> ScriptedResponse:
+    return ScriptedResponse(
+        text="Partly done.", tool_calls=(("list_files", {}),), call_usages=(CALL, CALL), error=FAILURE
+    )
+
+
+@pytest.mark.parametrize(
+    ("response", "calls"),
+    [
+        (failing_after_two_calls(), 2),
+        (ScriptedResponse(error=FAILURE), 0),
+    ],
+)
+def test_a_reply_that_fails_on_a_provider_error_stores_the_usage_of_the_calls_that_returned(
+    client, fake, response, calls
+):
+    _, conversation_id = project_conversation(client)
+    fake.responses.append(response)
+    client.post(f"/api/v1/conversations/{conversation_id}/messages", json={"text": "A long job"})
+    wait_until_idle(client, conversation_id)
+
+    with client.app.state.session_factory() as session:
+        reply = session.scalars(select(Message).where(Message.role == "assistant")).one()
+        usages = session.scalars(select(UsageRecord)).all()
+    assert reply.status == "error" and reply.error == FAILURE
+    # One record for the reply when any call returned, none otherwise.
+    assert len(usages) == (1 if calls else 0)
+    assert all(usage.message_id == reply.id and usage.purpose == "main" for usage in usages)
+    assert sum(usage.input_tokens for usage in usages) == calls * CALL.input_tokens
+    assert sum(usage.output_tokens for usage in usages) == calls * CALL.output_tokens
+    assert sum(usage.cost or 0.0 for usage in usages) == pytest.approx(calls * call_cost(client, usage=CALL))
+
+
+def test_the_usage_of_a_failed_reply_counts_towards_the_budget(client, fake):
+    _, conversation_id = project_conversation(client)
+    fake.responses.append(failing_after_two_calls())
+    client.post(f"/api/v1/conversations/{conversation_id}/messages", json={"text": "A long job"})
+    wait_until_idle(client, conversation_id)
+    # The two calls of the failed reply are more than this budget allows.
+    set_budget(client, call_cost(client, usage=CALL) * 1.5)
+
+    refused = client.post(f"/api/v1/conversations/{conversation_id}/messages", json={"text": "Try again"})
+    assert refused.status_code == 409 and "budget" in refused.json()["detail"]
 
 
 def test_a_sub_run_of_a_stopped_reply_ends_and_stores_its_usage(client, fake):

@@ -1,9 +1,11 @@
-"""The usage of a run that ended without the provider's final message: a stopped reply or a sub-run cut short.
+"""The usage of a run that ended without the provider's final message: a reply that was stopped, failed on a
+provider error or ended without one, or a sub-run cut short.
 
 A reply or sub-run that finishes stores the usage its `Completed` reports. One that is stopped (the stop button, a
-budget, a sub-run whose reply ended) never gets that message, so its usage is what its recorded model steps add up
-to: every model call that returned before the stop, with the tokens and cost the provider reported for it. A call
-that was still open reported nothing and counts for nothing.
+budget, a sub-run whose reply ended) or fails (a provider error, a stream without a final message) never gets that
+message, so its usage is what its recorded model steps add up to: every model call that returned before the end,
+with the tokens and cost the provider reported for it. A call that was still open reported nothing and counts for
+nothing. A provider that reports usage only with its final message therefore leaves nothing to store.
 """
 
 from dataclasses import dataclass
@@ -17,13 +19,13 @@ from app.storage.models import RunStep, UsageRecord
 
 @dataclass(frozen=True)
 class StoppedRun:
-    """Whose usage a stopped run's steps are, and how it is billed."""
+    """Whose usage the steps of a run without a final message are, and how it is billed."""
 
     # The run record the model steps were recorded under; only its own steps count, as a sub-run stores its own.
     run_id: int
     environment_id: int
     conversation_id: int
-    # The stored (incomplete) reply; empty for a sub-run.
+    # The stored (incomplete or failed) reply; empty for a sub-run.
     message_id: int | None
     provider: str
     # The model when no step names one.
