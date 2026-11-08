@@ -89,6 +89,7 @@ from app.evals.runs import EvalService, recover_runs as recover_eval_runs
 from app.replays.service import ReplayService, recover_replays
 from app.core.reply_services import ReplyServices
 from app.core.search_index import SearchIndexer
+from app.core.shutdown import stop_replies_and_their_work
 from app.credentials.crypto import CredentialCipher
 from app.backups.runs import recover_backup_runs
 from app.vault.rotation import rotate_all
@@ -198,7 +199,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await app.state.mcp.shutdown()
     await app.state.processes.shutdown()
     await LANGUAGE_SERVERS.stop_all()
-    await app.state.replies.shutdown()
+    # Before the engine goes: work still running would keep a connection, and the database file, open.
+    await stop_replies_and_their_work(app.state.replies)
     app.state.plugins.unload_all()
     engine.dispose()
 
