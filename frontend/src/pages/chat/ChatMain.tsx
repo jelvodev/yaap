@@ -10,6 +10,7 @@ import QueueStrip from "../../components/QueueStrip";
 import TraceDialog from "../../components/trace/TraceDialog";
 import type { ToolCallRef } from "../../components/trace/traceOrder";
 import type { TraceTarget } from "../../components/trace/useTrace";
+import { UtilitySkipNotice } from "../../components/UtilitySkipNotice";
 import ChatHeading from "./ChatHeading";
 import { ContextNotice, ModelNotice } from "./ChatNotices";
 import { AccessSelect, TargetSelect } from "./ComposerControls";
@@ -93,6 +94,7 @@ export default function ChatMain(props: ChatMainProps) {
         onContinue={() => conversation && void session.stream.sendText(conversation.id, "Continue", [])}
         onOutsideDecided={() => conversation && void active.load(conversation.id)}
       />
+      {conversation && <UtilitySkipNotice skips={session.skips.shown} onDismiss={session.skips.dismiss} />}
       {conversation && goal && (
         <GoalStrip
           goal={goal}

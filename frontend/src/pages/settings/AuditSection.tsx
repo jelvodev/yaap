@@ -10,6 +10,7 @@ import { type SettingsLevel, SectionHeader, formatDate } from "./shared";
 type AuditLog = components["schemas"]["AuditLogOut"];
 type AuditEntry = components["schemas"]["AuditEntryOut"];
 type Purpose = AuditEntry["purpose"];
+type Outcome = AuditEntry["outcome"];
 type DataClass = AuditEntry["data_classes"][number];
 
 const PAGE_SIZE = 200;
@@ -22,6 +23,12 @@ const PURPOSE_LABELS: Record<Purpose, string> = {
   a2a: "A2A agent",
   embedding: "Embedding",
   telemetry: "OpenTelemetry export",
+};
+
+// refused: a check stopped the request before it left, such as a utility task the model policy skipped.
+const OUTCOME_LABELS: Record<Outcome, string> = {
+  sent: "Sent",
+  refused: "Skipped by the policy",
 };
 
 const DATA_LABELS: Record<DataClass, string> = {
@@ -39,9 +46,10 @@ interface AuditFilter {
   projectId: string;
   model: string;
   purpose: Purpose | "";
+  outcome: Outcome | "";
 }
 
-const NO_FILTER: AuditFilter = { start: "", end: "", projectId: "", model: "", purpose: "" };
+const NO_FILTER: AuditFilter = { start: "", end: "", projectId: "", model: "", purpose: "", outcome: "" };
 
 /** The filter as query values: empty fields are left out. */
 function queryOf(filter: AuditFilter) {
@@ -51,6 +59,7 @@ function queryOf(filter: AuditFilter) {
     project_id: filter.projectId ? Number(filter.projectId) : undefined,
     model: filter.model || undefined,
     purpose: filter.purpose || undefined,
+    outcome: filter.outcome || undefined,
   };
 }
 
@@ -176,6 +185,17 @@ function Filters({
           {(Object.keys(PURPOSE_LABELS) as Purpose[]).map((purpose) => (
             <option key={purpose} value={purpose}>
               {PURPOSE_LABELS[purpose]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        <span className="small muted">Outcome</span>
+        <select value={filter.outcome} onChange={(event) => set({ outcome: event.target.value as Outcome | "" })}>
+          <option value="">All</option>
+          {(Object.keys(OUTCOME_LABELS) as Outcome[]).map((outcome) => (
+            <option key={outcome} value={outcome}>
+              {OUTCOME_LABELS[outcome]}
             </option>
           ))}
         </select>

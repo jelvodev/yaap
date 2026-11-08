@@ -32,6 +32,8 @@ export default function RulePanel({
   const [level, setLevel] = useState<Level>(target.projectId ? "project" : "environment");
   const [path, setPath] = useState<string | null>(null);
   const [drafting, setDrafting] = useState(true);
+  // Why no model drafted the rule, when the model policy skipped the task.
+  const [skipped, setSkipped] = useState<string | null>(null);
   const [preview, setPreview] = useState<components["schemas"]["RuleOut"] | null>(null);
   const [saved, setSaved] = useState<components["schemas"]["RuleOut"] | null>(null);
   const [working, setWorking] = useState(false);
@@ -53,6 +55,7 @@ export default function RulePanel({
         setRule(data.rule);
         setLevel(data.level);
         setPath(data.path);
+        setSkipped(data.skipped ?? null);
       });
     return () => {
       current = false;
@@ -113,6 +116,7 @@ export default function RulePanel({
         <p className="faint small">Drafting a rule from your message…</p>
       ) : (
         <>
+          {skipped && <p className="faint small">{skipped}</p>}
           <textarea
             id={`rule-${messageId}`}
             value={rule}

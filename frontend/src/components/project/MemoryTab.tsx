@@ -2,6 +2,7 @@ import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react
 
 import { api, errorMessage } from "../../api/client";
 import type { components } from "../../api/schema";
+import { ProjectSkipNotice } from "../UtilitySkipNotice";
 
 type Entries = components["schemas"]["MemoryEntriesOut"];
 type Entry = components["schemas"]["MemoryEntryOut"];
@@ -389,6 +390,7 @@ export default function MemoryTab({ projectId }: { projectId: number }) {
         update_memory; each change is a commit of only <span className="mono">.blueprint/memory.md</span>. A large memory
         goes into the prompt in part: the newest entries and those closest to the message.
       </p>
+      <ProjectSkipNotice projectId={projectId} tasks={["memory_tidy"]} />
       <div className="pp-row">
         <input
           type="search"

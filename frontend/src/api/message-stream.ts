@@ -1,4 +1,5 @@
 import { type ConversationSummary, type Message, errorMessage } from "./client";
+import type { UtilitySkip } from "./utility-skips";
 
 export interface ToolCallStart {
   id: string;
@@ -61,6 +62,8 @@ export interface MessageStreamHandlers {
   onDocument?: (event: DocumentEvent) => void;
   // /eval started an eval run instead of a reply: which run, and what to show.
   onEvalStarted?: (runId: number, projectId: number, detail: string) => void;
+  // The model policy skipped a utility task of this exchange (the title, routing, a check of outside content).
+  onUtilitySkipped?: (skip: UtilitySkip) => void;
 }
 
 function dispatchEvent(chunk: string, handlers: MessageStreamHandlers): void {
@@ -117,6 +120,9 @@ function dispatchEvent(chunk: string, handlers: MessageStreamHandlers): void {
       break;
     case "eval_started":
       handlers.onEvalStarted?.(Number(payload.run_id), Number(payload.project_id), String(payload.detail ?? ""));
+      break;
+    case "utility_skipped":
+      handlers.onUtilitySkipped?.(payload as UtilitySkip);
       break;
     case "compact_failed":
       handlers.onCompactFailed?.(String(payload.detail ?? "The conversation could not be compacted."));

@@ -2412,6 +2412,17 @@
             },
             "title": "Contradictions",
             "type": "array"
+          },
+          "skipped": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skipped"
           }
         },
         "required": [
@@ -9783,6 +9794,17 @@
           "rule": {
             "title": "Rule",
             "type": "string"
+          },
+          "skipped": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skipped"
           }
         },
         "required": [
@@ -12449,6 +12471,48 @@
           "created_at"
         ],
         "title": "UtilityEventOut",
+        "type": "object"
+      },
+      "UtilitySkipOut": {
+        "description": "A utility task that was not sent, and why; the same shape in the API and in the reply stream.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task"
+          },
+          "time": {
+            "format": "date-time",
+            "title": "Time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "time",
+          "task",
+          "label",
+          "reason"
+        ],
+        "title": "UtilitySkipOut",
         "type": "object"
       },
       "ValidationError": {
@@ -17419,6 +17483,53 @@
         ]
       }
     },
+    "/api/v1/conversations/{conversation_id}/utility-skips": {
+      "get": {
+        "description": "The utility tasks of the conversation's last exchange (title, memory suggestions, routing, checks of outside\ncontent) that a check skipped, from their audit rows.",
+        "operationId": "conversation_utility_skips_api_v1_conversations__conversation_id__utility_skips_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UtilitySkipOut"
+                  },
+                  "title": "Response Conversation Utility Skips Api V1 Conversations  Conversation Id  Utility Skips Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Conversation Utility Skips",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
     "/api/v1/environments": {
       "get": {
         "operationId": "get_environments_api_v1_environments_get",
@@ -17877,6 +17988,26 @@
               ],
               "title": "Purpose"
             }
+          },
+          {
+            "in": "query",
+            "name": "outcome",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "sent",
+                    "refused"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Outcome"
+            }
           }
         ],
         "responses": {
@@ -18025,6 +18156,26 @@
                 }
               ],
               "title": "Purpose"
+            }
+          },
+          {
+            "in": "query",
+            "name": "outcome",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "sent",
+                    "refused"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Outcome"
             }
           }
         ],
@@ -25564,6 +25715,53 @@
         "summary": "List Runs",
         "tags": [
           "tasks"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/utility-skips": {
+      "get": {
+        "description": "The project's background tasks (memory tidying, learning) whose latest attempt a check skipped.",
+        "operationId": "project_utility_skips_api_v1_projects__project_id__utility_skips_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UtilitySkipOut"
+                  },
+                  "title": "Response Project Utility Skips Api V1 Projects  Project Id  Utility Skips Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Project Utility Skips",
+        "tags": [
+          "audit"
         ]
       }
     },

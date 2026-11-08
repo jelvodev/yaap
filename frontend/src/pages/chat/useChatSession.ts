@@ -9,6 +9,7 @@ import { type MessageQueue, useMessageQueue } from "./useMessageQueue";
 import { type PendingAttachments, usePendingAttachments } from "./usePendingAttachments";
 import { type ReplyBlocks, useReplyBlocks } from "./useReplyBlocks";
 import type { RunningReplies } from "./useRunningReplies";
+import { type UtilitySkips, useUtilitySkips } from "./useUtilitySkips";
 
 export interface ChatSessionOptions {
   environmentId: number;
@@ -36,6 +37,8 @@ export interface ChatSession {
   attachments: PendingAttachments;
   stream: ConversationStream;
   composer: ComposerActions;
+  /** Utility tasks of the last exchange that the model policy skipped. */
+  skips: UtilitySkips;
 }
 
 /** Working in the open conversation: its reply, shared document, goal, queue, attachments and the composer. */
@@ -49,6 +52,7 @@ export function useChatSession(options: ChatSessionOptions): ChatSession {
   const goal = useConversationGoal(conversationId, active.setError);
   const queue = useMessageQueue(conversationId, active.setError);
   const attachments = usePendingAttachments(conversationId);
+  const skips = useUtilitySkips(conversationId, `${active.conversation?.messages.length ?? 0}-${busy}`);
   const stream = useConversationStream({
     environmentId,
     selectedId,
@@ -62,6 +66,7 @@ export function useChatSession(options: ChatSessionOptions): ChatSession {
     onReplyStored: options.onReplyStored,
     onFileChanged: options.onFileChanged,
     onEvalStarted: options.onEvalStarted,
+    onUtilitySkipped: skips.add,
   });
   const composer = composerActions({
     active,
@@ -70,5 +75,5 @@ export function useChatSession(options: ChatSessionOptions): ChatSession {
     queue,
     stream,
   });
-  return { reply, busy, shared, goal, queue, attachments, stream, composer };
+  return { reply, busy, shared, goal, queue, attachments, stream, composer, skips };
 }

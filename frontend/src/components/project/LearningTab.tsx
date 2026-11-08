@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import DiffView from "../DiffView";
+import { ProjectSkipNotice } from "../UtilitySkipNotice";
 import { ComparisonTable } from "./EvalComparison";
 import { useEvalComparison } from "./useEvals";
 import { type Learning, type LearningProposal, type LearningProposals, type LearningRule, useLearning } from "./useLearning";
@@ -147,7 +148,9 @@ function RuleChecks({ learning }: { learning: Learning }) {
         </button>
       </div>
       {learning.report && !learning.report.available && (
-        <p className="muted small">No utility model is available to check the rules.</p>
+        <p className="muted small">
+          {learning.report.skipped ?? "No utility model is available to check the rules."}
+        </p>
       )}
       {learning.report?.available && learning.report.contradictions.length === 0 && (
         <p className="faint small">No contradictions found.</p>
@@ -180,6 +183,7 @@ export default function LearningTab({ projectId, proposals }: { projectId: numbe
         Blueprint already says. A Blueprint proposal waits on a branch of its layer and can be measured with the project's
         eval cases before you accept it.
       </p>
+      <ProjectSkipNotice projectId={projectId} tasks={["learning"]} />
       {learning.error && <p className="form-error small">{learning.error}</p>}
       {learning.notice && <p className="muted small">{learning.notice}</p>}
       {learning.proposals.length === 0 && <p className="faint small">No proposals waiting.</p>}

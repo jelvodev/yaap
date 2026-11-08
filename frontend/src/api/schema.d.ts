@@ -1454,6 +1454,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/conversations/{conversation_id}/utility-skips": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Conversation Utility Skips
+         * @description The utility tasks of the conversation's last exchange (title, memory suggestions, routing, checks of outside
+         *     content) that a check skipped, from their audit rows.
+         */
+        get: operations["conversation_utility_skips_api_v1_conversations__conversation_id__utility_skips_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/environments": {
         parameters: {
             query?: never;
@@ -3881,6 +3902,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/utility-skips": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Project Utility Skips
+         * @description The project's background tasks (memory tidying, learning) whose latest attempt a check skipped.
+         */
+        get: operations["project_utility_skips_api_v1_projects__project_id__utility_skips_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/providers": {
         parameters: {
             query?: never;
@@ -5030,6 +5071,8 @@ export interface components {
             available: boolean;
             /** Contradictions */
             contradictions: components["schemas"]["ContradictionOut"][];
+            /** Skipped */
+            skipped?: string | null;
         };
         /** ConversationCreate */
         ConversationCreate: {
@@ -7440,6 +7483,8 @@ export interface components {
             path: string | null;
             /** Rule */
             rule: string;
+            /** Skipped */
+            skipped?: string | null;
         };
         /** RunApprovalOut */
         RunApprovalOut: {
@@ -8352,6 +8397,25 @@ export interface components {
             summary: string | null;
             /** Task */
             task: string;
+        };
+        /**
+         * UtilitySkipOut
+         * @description A utility task that was not sent, and why; the same shape in the API and in the reply stream.
+         */
+        UtilitySkipOut: {
+            /** Id */
+            id: number;
+            /** Label */
+            label: string;
+            /** Reason */
+            reason: string;
+            /** Task */
+            task: string | null;
+            /**
+             * Time
+             * Format: date-time
+             */
+            time: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -11254,6 +11318,37 @@ export interface operations {
             };
         };
     };
+    conversation_utility_skips_api_v1_conversations__conversation_id__utility_skips_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilitySkipOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_environments_api_v1_environments_get: {
         parameters: {
             query?: never;
@@ -11483,6 +11578,7 @@ export interface operations {
                 project_id?: number | null;
                 model?: string | null;
                 purpose?: ("reply" | "sub_run" | "cli_worker" | "utility" | "a2a" | "embedding" | "telemetry") | null;
+                outcome?: ("sent" | "refused") | null;
             };
             header?: never;
             path: {
@@ -11521,6 +11617,7 @@ export interface operations {
                 project_id?: number | null;
                 model?: string | null;
                 purpose?: ("reply" | "sub_run" | "cli_worker" | "utility" | "a2a" | "embedding" | "telemetry") | null;
+                outcome?: ("sent" | "refused") | null;
             };
             header?: never;
             path: {
@@ -16171,6 +16268,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TaskRunOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    project_utility_skips_api_v1_projects__project_id__utility_skips_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilitySkipOut"][];
                 };
             };
             /** @description Validation Error */

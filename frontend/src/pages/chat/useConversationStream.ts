@@ -37,6 +37,8 @@ export interface ConversationStreamOptions {
   onFileChanged?: () => void;
   /** /eval started an eval run: the project panel shows its Evals tab. */
   onEvalStarted?: () => void;
+  /** The model policy skipped a utility task of the reply. */
+  onUtilitySkipped?: MessageStreamHandlers["onUtilitySkipped"];
 }
 
 export interface ConversationStream {
@@ -69,7 +71,8 @@ function detach({ refs, reply }: StreamContext) {
   reply.clear();
 }
 
-function streamHandlers({ reply, active, onDocument, onSummary, onFileChanged, onEvalStarted }: StreamContext): MessageStreamHandlers {
+function streamHandlers(context: StreamContext): MessageStreamHandlers {
+  const { reply, active, onDocument, onSummary, onFileChanged, onEvalStarted, onUtilitySkipped } = context;
   const files = watchFileChanges(() => onFileChanged?.());
   return {
     ...reply.handlers,
@@ -91,6 +94,7 @@ function streamHandlers({ reply, active, onDocument, onSummary, onFileChanged, o
       onEvalStarted?.();
     },
     onDocument,
+    onUtilitySkipped,
     onTitle: (summary) => {
       active.applyTitle(summary);
       onSummary(summary);
