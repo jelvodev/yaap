@@ -8,7 +8,7 @@ import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.agent.runs import AgentRun
@@ -117,3 +117,15 @@ def finish_record(
             session.commit()
     except Exception:  # noqa: BLE001 - the reply is stored; a missing run record must not break the stream
         logger.warning("Storing the agent run record failed.", exc_info=True)
+
+
+def close_stale_runs(session: Session) -> int:
+    """Runs and sub-runs still running when YAAP starts were cut off by the restart: every run lives in YAAP's own
+    process, which no longer has them. They end as incomplete, as a stopped reply's run does."""
+    result = session.execute(
+        update(AgentRunRecord)
+        .where(AgentRunRecord.status == "running")
+        .values(status="incomplete", finished_at=datetime.now(UTC))
+    )
+    session.commit()
+    return result.rowcount

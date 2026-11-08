@@ -31,6 +31,7 @@ from app.core.context_control import output_tokens
 from app.core.model_choice import ForSubRun, ModelChoice, ModelChoiceError, PolicyForbids, read_key, resolve_provider
 from app.core.outgoing_checks import checked_provider, outgoing_rules, request_refusal
 from app.core.prompts import Languages
+from app.core.stopped_usage import StoppedRun, stopped_usage
 from app.credentials.crypto import CredentialCipher
 from app.credentials.types import CredentialType
 from app.blueprint.context import build_system_parts
@@ -47,7 +48,7 @@ from app.providers.base import (
     ToolServer,
 )
 from app.providers.catalog import calculate_cost
-from app.providers.registry import ProviderRegistry
+from app.providers.registry import ProviderRegistry, ProviderSpec
 from app.storage.models import AgentRunRecord, UsageRecord
 from app.tracing.provider import ModelTrace, catalog_pricing, traced_provider
 
@@ -69,6 +70,10 @@ WORKER_INSTRUCTIONS = (
 
 class DelegationError(Exception):
     """Delegation is not possible; the message goes back to the model."""
+
+
+class ParentEnded(DelegationError):
+    """The run that started the sub-run ended (its reply was stopped) while the sub-run still worked."""
 
 
 @dataclass
@@ -209,7 +214,7 @@ class Delegator:
             calls: dict[str, dict[str, Any]] = {}
             async for event in provider.stream(request):
                 if self.runs.find(parent.token) is None:
-                    raise DelegationError("The run that started this task has ended.")
+                    raise ParentEnded("The run that started this task has ended.")
                 if isinstance(event, TextDelta):
                     texts.append(event.text)
                 elif isinstance(event, ToolCallStarted):
@@ -224,12 +229,19 @@ class Delegator:
                     completed = event
 
         await progress("started")
+        stopped: asyncio.CancelledError | None = None
         try:
             await asyncio.wait_for(consume(), timeout=SUB_RUN_TIMEOUT_SECONDS)
         except TimeoutError:
             status, texts = "incomplete", [f"The task was stopped after {SUB_RUN_TIMEOUT_SECONDS // 60} minutes."]
+        except ParentEnded as error:
+            status, texts = "incomplete", [str(error)]
         except (ProviderError, DelegationError) as error:
             status, texts = "error", [getattr(error, "message", None) or str(error)]
+        except asyncio.CancelledError as error:
+            # The reply that delegated was stopped: the sub-run ends with it, its record and usage stored below
+            # before the stop goes on.
+            status, texts, stopped = "incomplete", ["The task was stopped with the reply that started it."], error
         finally:
             self.runs.finish(child)
             try:
@@ -239,7 +251,9 @@ class Delegator:
         report = "".join(texts).strip() or "(The sub-run ended without a report.)"
         transcript.append({"type": "text", "text": report})
         changed = sorted(child.state.changed_files)
-        self.store(parent, record_id, spec.name, completed, status, transcript, child)
+        self.store(parent, record_id, spec, completed, status, transcript, child)
+        if stopped is not None:
+            raise stopped
         # The record keeps the whole report; an exploring sub-run's goes back to its parent capped.
         shown = capped_report(report) if mode == "explore" else report
         return SubRunResult(status, choice.model, label, shown, changed, record_id, mode)
@@ -270,7 +284,7 @@ class Delegator:
         self,
         parent: AgentRun,
         record_id: int,
-        provider: str,
+        spec: ProviderSpec,
         completed: Completed | None,
         status: str,
         transcript: list[dict[str, Any]],
@@ -285,13 +299,28 @@ class Delegator:
                     record.approvals = list(child.state.approval_log)
                     record.transcript = transcript
                     record.finished_at = datetime.now(UTC)
-                if completed is not None:
+                if completed is None:
+                    # Cut short: the usage of the model calls that returned before it ended.
+                    run = StoppedRun(
+                        record_id,
+                        parent.environment_id,
+                        parent.conversation_id,
+                        None,
+                        spec.name,
+                        record.model if record is not None else "",
+                        "worker",
+                        "metered" if spec.metered else "subscription",
+                    )
+                    usage = stopped_usage(session, run)
+                    if usage is not None:
+                        session.add(usage)
+                else:
                     served = self.providers.find_model(completed.served_by_model)
                     session.add(
                         UsageRecord(
                             environment_id=parent.environment_id,
                             conversation_id=parent.conversation_id,
-                            provider=provider,
+                            provider=spec.name,
                             model=completed.served_by_model,
                             purpose="worker",
                             input_tokens=completed.usage.input_tokens,

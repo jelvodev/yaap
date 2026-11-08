@@ -91,6 +91,7 @@ from app.core.reply_services import ReplyServices
 from app.core.search_index import SearchIndexer
 from app.credentials.crypto import CredentialCipher
 from app.backups.runs import recover_backup_runs
+from app.agents.records import close_stale_runs
 from app.vault.rotation import rotate_all
 from app.credentials.types import CredentialType, default_credential_types
 from app.environments.service import seed_default_environments
@@ -161,6 +162,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     recover_runs(app)
     # Eval runs cut off by a restart end as stopped.
     with app.state.session_factory() as session:
+        # Agent runs and sub-runs cut off by a restart end as incomplete.
+        close_stale_runs(session)
         recover_eval_runs(session)
         # Replays (45.5) too; their workspaces and pins go.
         recover_replays(session, settings.workspace_dir, settings.data_dir)
