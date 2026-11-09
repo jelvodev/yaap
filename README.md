@@ -101,7 +101,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1
 ./scripts/setup.sh
 ```
 
-Then open <http://127.0.0.1:8080>, sign in, and connect a model. For example, sign in to Claude Code with your Claude subscription:
+Then open <http://127.0.0.1:8080> and sign in. The first start guides you through a model connection, a first project, backups and YAAP's starter Blueprint. To use a subscription, sign in to its CLI first; for example, Claude Code with your Claude subscription:
 
 ```bash
 docker compose exec -it yaap claude auth login
@@ -114,7 +114,7 @@ The first build downloads a few GB (toolchains, a headless browser, a local embe
 
 ## Your data stays yours
 
-Everything personal lives in two places that git ignores: `.env` with the master key, and the data folder `./data` with the database, the Blueprint, your projects, attachments, sign-ins and backups. Nothing personal is part of this repository, and a new installation starts with an empty Blueprint. Nothing leaves your computer except the model calls, web searches, pages and GitHub requests you cause. See [what is personal and where it lives](docs/configuration.md#what-is-personal-and-where-it-lives).
+Everything personal lives in two places that git ignores: `.env` with the master key, and the data folder `./data` with the database, the Blueprint, your projects, attachments, sign-ins and backups. Nothing personal is part of this repository, and a new installation starts with an empty Blueprint until you install [YAAP's starter](blueprint/starter). Nothing leaves your computer except the model calls, web searches, pages and GitHub requests you cause. See [what is personal and where it lives](docs/configuration.md#what-is-personal-and-where-it-lives).
 
 ## Security
 
@@ -131,6 +131,7 @@ YAAP is built for one person on one computer. It has one password, listens on `1
 | [Plugins](docs/plugins.md) | Writing a plugin of your own |
 | [Blueprint packages](docs/blueprint-packages.md) | Sharing standards, skills and agents as a package |
 | [Roadmap](docs/roadmap.md) | What comes in the next versions, and the wish list |
+| [Credits](docs/credits.md) | Where the ideas in YAAP's starter come from |
 | [Contributing](CONTRIBUTING.md) | Development setup, tests and conventions |
 
 ## Status

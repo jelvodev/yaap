@@ -360,7 +360,8 @@ flowchart LR
 | Workers for delegated tasks | Settings › Models › Utility and workers | `agent/delegation` |
 | Runner, sandboxes, computers over SSH | Settings › Targets, Project panel › Project | `runner/`, `sandbox/`, `targets/` |
 | Pull requests, templates | Project panel › Branches, Settings › Git and GitHub | `github/` |
-| Blueprint packages | Blueprint | `blueprint/packages` |
+| Blueprint packages | Blueprint | `blueprint/packages`, `blueprint/package_updates` |
+| First start, YAAP's starter | `/welcome`, Blueprint › Add from a package | `core/first_run`, `blueprint/starter` |
 | Sign-in and API tokens | Settings › Account › Access | `auth/` |
 | A2A agents, YAAP for outside clients | Settings › Connections › A2A agents, Settings › Account › Access | `a2a/`, `agent/mcp_server` |
 | Plugins | Settings › System › Plugins | `plugins/` |

@@ -57,6 +57,16 @@ front matter is not valid YAML is refused too; for a skill it is only a warning 
 The review also warns when an item's text tells the agent to download or install things (such as `curl … | sh`,
 `pip install`, `npm install` or `sudo`). The item can still be chosen; read it first.
 
+## YAAP's starter
+
+YAAP's own starter is a set of six packages in this repository, under [`blueprint/starter/`](../blueprint/starter): `yaap-core`, `yaap-web`, `yaap-python`, `yaap-data`, `yaap-devops` and `yaap-writing`. The **YAAP starter** button under *Add from a package* (and the first start) lists them without a link to paste:
+
+- **Pinned to the version.** YAAP reads them at the tag of its own version (`v0.5.7` for 0.5.7). A build without such a tag reads `main`, and the panel says so.
+- **After an update of YAAP** an installed pack whose tag is older shows *Update*: its diff against the new tag, item by item, as *Check for updates* shows it for any package. Accepting records the new tag.
+- **Installed** means the level has the package's record with at least one of its items.
+
+Read as packages, they follow every rule on this page: text only, a review per item, nothing written until you install.
+
 ## Links
 
 - the repository: `https://github.com/<owner>/<repo>` (the manifest is in the root, the default branch is used);

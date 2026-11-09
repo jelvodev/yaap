@@ -55,7 +55,7 @@ The script:
    docker compose up -d --build
    ```
 
-4. Open <http://127.0.0.1:8080> and set a password on the first-run screen.
+4. Open <http://127.0.0.1:8080>, set a password on the first-run screen, and follow [the first start](#the-first-start).
 
 ## Signing in
 
@@ -65,6 +65,17 @@ YAAP asks for a password before it shows anything. There is one account; every b
 - **Forgotten password.** From the YAAP folder: `docker compose exec -it yaap python -m app.scripts.set_password --reset`. It asks twice and signs every browser out.
 - **Signing out.** *Sign out* at the top right; Settings › Account › Access also signs out every other browser and changes the password.
 - **Still only this computer.** YAAP listens on `127.0.0.1` only. The password is a second lock, not an invitation to open the port to a network.
+
+## The first start
+
+After the password, a new installation opens the first start: a short guide through what YAAP needs before the first conversation. Each step can be skipped, and *Finish later* leaves it until the next visit.
+
+1. **A model connection**: an API key or a subscription sign-in (below), tested before it is stored.
+2. **The environment and a first project**: keep or rename *Private* and *Work*, choose where to start, and create a project, empty or cloned from a git link.
+3. **Backups**: where they go and how often.
+4. **YAAP's starter**: standards, skills, commands and agents for a careful, test-first way of working, in packs you choose ([more](blueprint-packages.md#yaaps-starter)).
+
+An installation that already has a connection or a project does not see it; Settings has *Run the first start again*.
 
 ## Connect a model
 
