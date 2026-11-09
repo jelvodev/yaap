@@ -4,7 +4,7 @@ description: Write and fix end-to-end browser tests with Playwright that find el
   what the user sees instead of fixed sleeps, and run against the app in the preview. Use this whenever you add or
   change a user journey (sign in, checkout, a form, a wizard), write a browser test, see a flaky or timing-dependent
   test, or need to prove a UI change works in a real browser rather than only in unit tests.
-license: MIT
+license: Apache-2.0
 metadata:
   sources: wshobson/plugins/developer-essentials/skills/e2e-testing-patterns, agency-agents/testing/testing-test-automation-engineer.md, anthropic-skills/skills/webapp-testing, own
 ---
@@ -123,3 +123,6 @@ Command: <what you ran>
 Result: <passed, failed, flaky; with the failing test and its error>
 Not covered: <journeys or browsers left out>
 ```
+
+Partly adapted from the `webapp-testing` skill of anthropics/skills under Apache-2.0: its approach of looking at the
+running page before writing a test and collecting console errors, rewritten as guidance without its scripts.
