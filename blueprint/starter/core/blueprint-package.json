@@ -1,0 +1,162 @@
+{
+  "name": "yaap-core",
+  "description": "YAAP's starter, the core for everyone: how to work, test, debug, review and finish, with commands and agents for each step.",
+  "items": [
+    {
+      "kind": "standard",
+      "path": "standards/working-method.md"
+    },
+    {
+      "kind": "standard",
+      "path": "standards/security.md"
+    },
+    {
+      "kind": "standard",
+      "path": "standards/testing.md"
+    },
+    {
+      "kind": "standard",
+      "path": "standards/git.md"
+    },
+    {
+      "kind": "standard",
+      "path": "standards/documentation.md"
+    },
+    {
+      "kind": "engineering",
+      "path": "engineering/error-handling.md"
+    },
+    {
+      "kind": "engineering",
+      "path": "engineering/code-review.md"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/brainstorm-design"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/write-plan"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/execute-plan"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/test-driven-development"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/systematic-debugging"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/verify-before-done"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/review-code"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/receive-review"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/finish-branch"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/onboard-codebase"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/architecture-decision"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/threat-model"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/leaked-secret"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/refactor-safely"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/write-docs"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/release-notes"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/write-skill"
+    },
+    {
+      "kind": "command",
+      "path": "commands/write-plan.md"
+    },
+    {
+      "kind": "command",
+      "path": "commands/review.md"
+    },
+    {
+      "kind": "command",
+      "path": "commands/debug.md"
+    },
+    {
+      "kind": "command",
+      "path": "commands/tdd.md"
+    },
+    {
+      "kind": "command",
+      "path": "commands/onboard.md"
+    },
+    {
+      "kind": "command",
+      "path": "commands/adr.md"
+    },
+    {
+      "kind": "command",
+      "path": "commands/finish.md"
+    },
+    {
+      "kind": "command",
+      "path": "commands/release-notes.md"
+    },
+    {
+      "kind": "agent",
+      "path": "agents/planner.md"
+    },
+    {
+      "kind": "agent",
+      "path": "agents/reviewer.md"
+    },
+    {
+      "kind": "agent",
+      "path": "agents/security-reviewer.md"
+    },
+    {
+      "kind": "agent",
+      "path": "agents/debugger.md"
+    },
+    {
+      "kind": "agent",
+      "path": "agents/explorer.md"
+    },
+    {
+      "kind": "agent",
+      "path": "agents/tester.md"
+    },
+    {
+      "kind": "agent",
+      "path": "agents/docs-writer.md"
+    }
+  ]
+}
