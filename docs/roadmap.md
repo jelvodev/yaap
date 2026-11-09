@@ -7,6 +7,12 @@ Where YAAP is going. Each version has a theme. The order is what is intended, no
 
 The current version is **0.5.6**.
 
+## 0.5.7: a good first start
+
+14. **First run in the app.** A guided start in the browser: a model connection, the first environment and project,
+    where backups go, and YAAP's starter Blueprint. The starter can also be installed or updated later from the
+    Blueprint.
+
 ## 0.6.0: ready for others
 
 For people who install YAAP from this repository.
@@ -20,8 +26,9 @@ For people who install YAAP from this repository.
     - go back to the previous version when it does not.
 13. **Update notice.** YAAP looks for a newer release when it starts and on a schedule (daily by default; you can
     switch it off). Settings then shows the release notes and the command to update.
-14. **First run in the app.** A guided start in the browser: a model connection, the first environment and project,
-    and where backups go.
+
+<!-- A gap in the numbers: an item moved to another version. -->
+
 15. **Any OpenAI-compatible endpoint.** A connection with a base URL and an API key, for OpenRouter, LM Studio, vLLM
     and similar servers.
 16. **Hidden characters.** Skills, Blueprint packages and imports are checked for invisible, direction-reversing and
