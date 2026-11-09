@@ -76,7 +76,7 @@ checks that do not depend on exact wording.
 
 ## 5. Keep it maintainable
 
-- Keep the prompt in a file under version control, not as a string buried in code. Commit each version with a
+- Keep the prompt in a file under version control, not as a string buried in code. Each version goes in with a
   message that says what changed and why.
 - Record the model and settings it was tested with; a model update is a reason to rerun the cases.
 - Write down known limits: inputs it still handles badly.

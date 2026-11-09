@@ -1,7 +1,7 @@
 ---
 name: refactor-safely
 description: Restructure code without changing what it does - rename, extract, move, split a large module, remove
-  duplication or dead code - in small steps under passing tests, with a checkpoint before each step. Use this
+  duplication or dead code - in small steps under passing tests, each one proven before the next. Use this
   whenever the task is a refactor, a cleanup, a reorganisation or "make this easier to read", and whenever a feature
   or fix first needs the code reshaped, so the reshaping and the behaviour change stay apart.
 license: MIT
@@ -41,12 +41,14 @@ For a refactor over more than a few files, agree on the steps with the user firs
 
 For each step:
 
-1. **Checkpoint.** YAAP snapshots the project before each edit, so *Restore to before this* on the step's first
-   edit undoes the whole step. In a git project, a commit after each green step is a checkpoint that lasts.
+1. **Know the way back.** Start from a clean working tree (`git_status`), so git can take back exactly your step:
+   `git restore <file>` or `git checkout -- <file>` through `run_command`. YAAP also checkpoints each edit by itself,
+   and the user can roll the step back with *Restore to before this*. Commit a green step when the user asks, or per
+   step when the user approved a plan that says so.
 2. **Make the one change.** Use `rename_symbol` for renames, so every reference changes at once; use
    `find_references` before moving or deleting anything.
 3. **Run the tests and the type check.** Read the output.
-4. **Green: go on. Red: undo.** Restore the checkpoint and take a smaller step. Fixing forward mixes a refactor with
+4. **Green: go on. Red: undo.** Revert the step with git, or ask the user to restore it, and take a smaller step. Fixing forward mixes a refactor with
    a repair, and the step loses its proof.
 
 ## Keep behaviour out

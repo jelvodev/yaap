@@ -71,7 +71,7 @@ changes, a migration fails or must be undone, or before deploying a schema chang
   try, answered. An output in the wrong shape needs a positive template, not a list of don'ts. Behaviour that
   depends on a condition needs the condition stated ("if the project has a CHANGELOG, follow its format").
 - **One good example** beats several, and it must be correct.
-- **YAAP's tools by name** where they help: `delegate` for wide searches, checkpoints, `start_process` and the
+- **YAAP's tools by name** where they help: `delegate` for wide searches, `start_process` and the
   preview, `update_memory`, `open_document`.
 - **One file.** `load_skill` returns `SKILL.md` only, so everything the skill needs goes in it. When real variants
   (per cloud, per framework) make it too long, write a skill per variant instead, each with its own trigger.

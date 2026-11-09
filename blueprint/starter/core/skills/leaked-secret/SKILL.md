@@ -53,7 +53,7 @@ Do not move on until the user confirms the old value is revoked.
 
 - **Code.** Replace the value with a reference to the secret store or an environment variable, add the file to
   `.gitignore` if it is a local config such as `.env`, and document the variable in `.env.example` without a value.
-  Commit that as its own change.
+  Make that its own change, and commit it when the user asks.
 - **Git history.** Once the secret is revoked, rewriting history is optional hygiene, not the fix. If the user wants
   it, rewrite with a history tool such as `git filter-repo` on a fresh clone, then force-push, which needs everyone
   with a clone to re-clone. On a public host the old commits can live on in forks and cached pull requests; the

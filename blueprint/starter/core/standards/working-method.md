@@ -37,7 +37,9 @@ built on the wrong plan is not.
 Do what the task asks and no more. A refactor you notice along the way, a rename, reformatting a file: note it and
 leave it for its own change. A small diff is easier to review, easier to undo and less likely to hide a mistake.
 
-When the project has checkpoints, a larger step starts from one, so it can be rolled back as a whole.
+YAAP takes a checkpoint by itself before every change, and only the user can roll back to one, with *Restore to
+before this*. To take back a step of your own, revert it with git (`git restore <file>` or `git checkout -- <file>`
+through `run_command`), on files that held no other uncommitted work, or ask the user to restore it.
 
 ## Evidence before "done"
 

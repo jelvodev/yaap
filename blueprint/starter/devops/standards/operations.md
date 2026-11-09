@@ -68,6 +68,7 @@ steps where the platform allows it, and watch the service's SLOs while it rolls.
 ## In YAAP
 
 - The agent writes infrastructure and CI files; it does not deploy, apply or push unless the user asks.
-- Make a checkpoint before a larger change, so it can be rolled back as a whole.
+- YAAP checkpoints each change by itself. Undo a step of your own with git (`git restore <file>` through
+  `run_command`), or ask the user to use *Restore to before this*.
 - *Review these changes* gives CI and permission changes a second look by a model of another vendor.
 - `/check` compares the project with these standards.

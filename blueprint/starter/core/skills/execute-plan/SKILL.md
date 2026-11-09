@@ -1,6 +1,6 @@
 ---
 name: execute-plan
-description: Carry out an approved implementation plan step by step, with tests first, a checkpoint and a progress
+description: Carry out an approved implementation plan step by step, with tests first, a check and a progress
   note after every step, and a review of the whole change at the end. Works in goal mode (/goal) and can hand steps
   to workers with a stronger model reviewing them. Use this whenever there is a written plan to build from, or when
   the user says to go ahead with one, so steps are not skipped, merged or forgotten after a compaction.
@@ -22,6 +22,8 @@ survives your own forgetting.
 - Load the `test-driven-development` skill with `load_skill`; it governs every step.
 - Look for progress notes in the plan (ticked steps). Steps already ticked are done: their commits exist even when
   you do not remember them. Check `git_status` and the last commits, and resume at the first open step.
+- Check whether the plan says to commit per step. Commit when the user asks, or per step when the user approved a
+  plan that says so; otherwise the steps stay uncommitted until the user asks.
 
 ## Each step
 
@@ -34,11 +36,11 @@ survives your own forgetting.
    - The code is wrong: debug it with the `systematic-debugging` skill. Never bend the check to fit.
    - The plan is wrong (a step contradicts the design, an interface does not fit, a command cannot work): choose the
      smallest change that still meets the design, and write it down as a ruling (below).
-5. **Checkpoint:** run the tests around the change, then commit the step on the branch with `git_commit`, one step
-   per commit. YAAP also snapshots the files before every change, so *Restore to before this* on a step's first
-   change rolls the whole step back.
-6. **Progress note:** tick the step in the plan and add one line under it: the commit, the check and its result, and
-   any ruling. Do this in the same turn as the commit. After a compaction this line is how you know where you are.
+5. **Close the step:** run the tests around the change. When the approved plan says to commit per step, commit it
+   on the branch with `git_commit`, one step per commit. YAAP checkpoints every change by itself, so the user can
+   roll a step back with *Restore to before this*; you take back your own step with git through `run_command`.
+6. **Progress note:** tick the step in the plan and add one line under it: the commit (or "not committed"), the
+   check and its result, and any ruling. Do this in the same turn as the step. After a compaction this line is how you know where you are.
 
 Do not ask "shall I continue?" between steps; the user approved the plan. Stop and ask only for:
 
@@ -55,7 +57,7 @@ costs>`. A deviation without a ruling is a decision the user never sees.
 `/goal Carry out docs/plans/<topic>.md` runs this skill turn after turn without waiting for the user. The progress
 notes in the plan are what keep a long goal on track. End the goal with `finish_goal`:
 
-- `done` after the final review is clean and its fixes are committed, with a summary of what was built, the rulings
+- `done` after the final review is clean and its fixes are in (committed when commits were agreed), with a summary of what was built, the rulings
   and what is not verified;
 - `blocked` when one of the stop reasons above comes up, saying exactly what you need.
 
@@ -94,7 +96,7 @@ When every step is ticked:
 
 ```
 Plan: <path>
-Steps: <n of n done>, commits <first>..<last>
+Steps: <n of n done>, commits <first>..<last> | not committed
 Tests: <command> -> <result> (before: <result>)
 Criteria: <n of n proven>; <any not proven, and why>
 Rulings:

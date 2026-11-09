@@ -22,7 +22,8 @@ can stop or roll back without losing data.
   database can take minutes on production.
 - **Know the backup.** Is there a recent backup, and has a restore from it been tested? A backup that was never
   restored is a hope, not a plan. For a risky change, take a fresh one and say where it is.
-- **Make a checkpoint** in YAAP before editing, so a failed attempt on the code side rolls back as a whole.
+- **Know the way back on the code side.** YAAP checkpoints each change by itself. Undo a failed attempt with git
+  (`git restore <file>` through `run_command`), or ask the user to use *Restore to before this*.
 
 ## 2. Expand and contract
 

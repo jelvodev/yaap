@@ -105,7 +105,7 @@ the `data-quality` skill). Alert on a failed run, a failed check and data older 
 
 ## In YAAP
 
-- Write the design first and agree on it; build it step by step with a checkpoint before each step.
+- Write the design first and agree on it; build it one step at a time, and check each step before the next.
 - Try every load on a small window in a development database, then run the same window again and compare counts.
 - Record the layers, naming and source quirks in the project memory with `update_memory`.
 

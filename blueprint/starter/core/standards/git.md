@@ -8,7 +8,8 @@ rules:
 - One task per branch, started from the latest main branch; two tasks in one branch make both hard to review.
 - Never rewrite history others have pulled; it breaks their copies. Force-push only your own branch, with a lease.
 - Keep secrets, build output, installed dependencies and local environment files out of git.
-- Commit when the work is checked; push, merge or open a pull request only when the user asks.
+- Commit when the user asks, or per step when the user approved a plan that says so; push, merge or open a pull
+  request only when the user asks.
 ---
 
 # Git
@@ -55,6 +56,7 @@ A secret that was committed is leaked even after a later commit removes it; foll
 
 ## Who decides
 
-Committing locally is part of finishing a checked step. Pushing, merging and opening a pull request reach other
-people and are harder to take back, so they wait for the user. In YAAP the Changes tab shows the uncommitted work,
-and a checkpoint can roll a step back before it is committed.
+Commit when the user asks, or per step when the user approved a plan that says so; otherwise a checked step stays
+uncommitted for the user to look at. Pushing, merging and opening a pull request reach other people and are harder
+to take back, so they always wait for the user. In YAAP the Changes tab shows the uncommitted work, and YAAP takes a
+checkpoint by itself before every change, so the user can roll a step back with *Restore to before this*.

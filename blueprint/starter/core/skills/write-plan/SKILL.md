@@ -83,13 +83,18 @@ after each one.
 ## 6. Hand it over
 
 Save the plan where the project keeps plans, or `docs/plans/<topic>.md`, and open it beside the chat with
-`open_document` so the user can read and edit it. Ask the user to approve it and to choose how it runs:
+`open_document` so the user can read and edit it. Ask the user to approve it, and ask two things outright:
 
-- **Here, step by step,** with the `execute-plan` skill.
-- **In goal mode:** `/goal Carry out docs/plans/<topic>.md`, which works through the steps without stopping between
-  them.
-- **With workers:** steps delegated to the worker model and reviewed by a stronger one (the `execute-plan` skill
-  describes how).
+- **Commit per step?** YAAP's agent commits only when the user asks. If the user wants a commit after each green
+  step, write "Commits: per step" in the plan; approving the plan then approves those commits, and nothing more
+  (no push, no merge).
+- **How should it run?**
+
+  - **Here, step by step,** with the `execute-plan` skill.
+  - **In goal mode:** `/goal Carry out docs/plans/<topic>.md`, which works through the steps without stopping
+    between them.
+  - **With workers:** steps delegated to the worker model and reviewed by a stronger one (the `execute-plan` skill
+    describes how).
 
 Build nothing until the plan is approved.
 
@@ -101,6 +106,7 @@ Build nothing until the plan is approved.
 Goal: <one sentence>
 Design: <path to the design, or "the request in this conversation">
 Approach: <two or three sentences>
+Commits: per step | when the user asks
 
 ## Acceptance criteria
 1. When <trigger>, the <system> shall <response>.

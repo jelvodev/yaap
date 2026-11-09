@@ -18,8 +18,8 @@ malicious pull request can do as little as possible, and so it is fast enough th
 ## You write it, the runner proves it
 
 The agent cannot run a workflow. Write it, check it with `actionlint` when the project has it, run the same commands
-locally with `run_command` (the tests, the build), and tell the user what to look for in the first run. Commit or
-push only when the user asks.
+locally with `run_command` (the tests, the build), and tell the user what to look for in the first run. Commit when
+the user asks, or per step when the user approved a plan that says so; push only when the user asks.
 
 ## 1. Triggers
 

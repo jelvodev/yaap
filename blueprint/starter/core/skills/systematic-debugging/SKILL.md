@@ -52,7 +52,8 @@ list what you assumed, and check each assumption. Tell the user what you tried a
 
 ## In YAAP
 
-- Make a checkpoint before experimenting, so failed attempts roll back cleanly.
+- YAAP checkpoints every change by itself. Take back a failed experiment with git (`git restore <file>` through
+  `run_command`), or ask the user to use *Restore to before this*.
 - Hand a wide search ("where is this value set?") to an exploring worker with `delegate`, so the conversation stays
   small.
 - For a web app, run it with `start_process` and look at it in the preview or with `open_browser`.

@@ -24,7 +24,7 @@ user whether to. The options below come after a green run.
 
 ## 2. Look at the state
 
-- `git_status`: are there uncommitted changes? Propose a commit for them with `git_commit`, or ask what to do with
+- `git_status`: are there uncommitted changes? Ask whether to commit them with `git_commit`, or what else to do with
   them. Never finish with work left only in the working tree.
 - Which branch is this, and what is its base? Take the base from the plan, the conversation or the branch's
   upstream. If it is not clear, ask: "This branch started from `main`, is that right?" Merging into the wrong base is
