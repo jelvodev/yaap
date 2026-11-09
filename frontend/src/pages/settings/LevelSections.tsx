@@ -7,6 +7,7 @@ import type { components } from "../../api/schema";
 import { Badge, EmptyState, FieldRow, Panel } from "../../components/workbench/Workbench";
 import { useEnvironment } from "../../environment/EnvironmentProvider";
 import { DestinationsPanel, RunsPanel, SchedulePanel } from "./BackupPanels";
+import EnvironmentNameField from "./EnvironmentNameField";
 import RestorePanel from "./RestorePanel";
 import { type LevelSettings, type SettingsLevel, SectionHeader, TextSetting } from "./shared";
 
@@ -306,28 +307,6 @@ export function BackupSection({ level }: { level: SettingsLevel }) {
 
 /** Environment only: its name and colour. */
 export function AppearanceSection({ level, environment }: { level: SettingsLevel; environment: Environment }) {
-  const { reloadEnvironments } = useEnvironment();
-  const [name, setName] = useState(environment.name);
-  const [colour, setColour] = useState(environment.colour);
-  const [message, setMessage] = useState<{ error: boolean; text: string } | null>(null);
-
-  useEffect(() => {
-    setName(environment.name);
-    setColour(environment.colour);
-  }, [environment.name, environment.colour]);
-
-  async function save(event: FormEvent) {
-    event.preventDefault();
-    const { error } = await api.PATCH("/api/v1/environments/{environment_id}", {
-      params: { path: { environment_id: environment.id } },
-      body: { name: name.trim(), colour },
-    });
-    setMessage(error ? { error: true, text: errorMessage(error) } : { error: false, text: "Saved." });
-    if (!error) await reloadEnvironments();
-  }
-
-  const changed = name.trim() !== environment.name || colour.toUpperCase() !== environment.colour.toUpperCase();
-
   return (
     <>
       <SectionHeader
@@ -338,28 +317,7 @@ export function AppearanceSection({ level, environment }: { level: SettingsLevel
       />
       <div className="wb-body wb-body-narrow wb-stack">
         <Panel title="Name and colour" flush>
-          <FieldRow label="Environment" hint="Only for this environment">
-            <form className="settings-inline-form" onSubmit={(event) => void save(event)}>
-              <label className="visually-hidden" htmlFor="environment-colour">
-                Colour
-              </label>
-              <input
-                id="environment-colour"
-                type="color"
-                className="settings-colour"
-                value={colour}
-                onChange={(event) => setColour(event.target.value)}
-              />
-              <label className="visually-hidden" htmlFor="environment-name">
-                Name
-              </label>
-              <input id="environment-name" value={name} onChange={(event) => setName(event.target.value)} maxLength={80} />
-              <button type="submit" className="button button-primary" disabled={!changed || !name.trim()}>
-                Save
-              </button>
-            </form>
-            {message && <p className={`settings-help ${message.error ? "form-error" : "form-ok"}`}>{message.text}</p>}
-          </FieldRow>
+          <EnvironmentNameField environment={environment} />
         </Panel>
       </div>
     </>

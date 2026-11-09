@@ -3,13 +3,19 @@ import { useEffect, useState } from "react";
 import { api, errorMessage } from "../api/client";
 import type { components } from "../api/schema";
 import DiffView from "./DiffView";
+import {
+  type ItemChoice,
+  type LevelQuery,
+  type PackageItem,
+  type PackageReview,
+  choiceKey,
+  targetFor,
+  usePackageReviews,
+} from "./usePackageReviews";
 
-type PackageItem = components["schemas"]["PackageItemOut"];
-type Preview = components["schemas"]["PackagePreviewOut"];
 type Installed = components["schemas"]["InstalledPackageOut"];
 type PackageOrigin = components["schemas"]["PackageOriginOut"];
 type UpdateCheck = components["schemas"]["PackageUpdateOut"];
-type LevelQuery = { environment_id?: number; project_id?: number };
 
 /** A level the user can install into: global, the environment, or the project. */
 export interface PackageLevel {
@@ -18,7 +24,6 @@ export interface PackageLevel {
   query: LevelQuery;
 }
 
-const NAME = /^[a-z0-9][a-z0-9-]{0,59}$/;
 const KIND_LABELS: Record<PackageItem["kind"], string> = {
   standard: "Standard",
   engineering: "Engineering",
@@ -31,15 +36,6 @@ function formatSize(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${bytes} B`;
-}
-
-function choiceKey(item: PackageItem): string {
-  return `${item.kind}:${item.path}`;
-}
-
-function targetFor(kind: PackageItem["kind"], name: string): string {
-  const folder = { standard: "standards", engineering: "engineering", command: "commands", agent: "agents" } as const;
-  return kind === "skill" ? `skills/${name}/SKILL.md` : `${folder[kind]}/${name}.md`;
 }
 
 /** One package item to review: kind, name, description, warnings or why it is refused, its text and files. */
@@ -181,6 +177,45 @@ function InstalledPackages({ level }: { level: PackageLevel }) {
   );
 }
 
+/** A package read for review: what it is, where it was read, and every item with its choice. */
+export function PackageReviewList({
+  review,
+  onChoose,
+}: {
+  review: PackageReview;
+  onChoose: (url: string, key: string, change: Partial<ItemChoice>) => void;
+}) {
+  const { preview } = review;
+  return (
+    <>
+      <p className="small">
+        <strong>{preview.package.name}</strong> {preview.package.description}
+      </p>
+      <p className="faint small">
+        {preview.source.repository} · {preview.source.ref} ·{" "}
+        <a href={preview.source.url} target="_blank" rel="noreferrer" className="mono">
+          {preview.source.commit.slice(0, 7)}
+        </a>
+      </p>
+      <ul className="import-list">
+        {preview.items.map((item) => {
+          const key = choiceKey(item);
+          return (
+            <PackageItemReview
+              key={key}
+              item={item}
+              chosen={!item.error && (review.choices[key]?.chosen ?? false)}
+              name={review.choices[key]?.name ?? item.name}
+              onChoose={(value) => onChoose(review.url, key, { chosen: value })}
+              onRename={(value) => onChoose(review.url, key, { name: value })}
+            />
+          );
+        })}
+      </ul>
+    </>
+  );
+}
+
 /** Add items from a Blueprint package on GitHub into a level the user picks, after reviewing them. */
 export function PackageInstallPanel({
   levels,
@@ -195,60 +230,13 @@ export function PackageInstallPanel({
 }) {
   const [levelKey, setLevelKey] = useState(initialLevel);
   const [url, setUrl] = useState("");
-  const [preview, setPreview] = useState<Preview | null>(null);
-  const [choices, setChoices] = useState<Record<string, { chosen: boolean; name: string }>>({});
-  const [busy, setBusy] = useState<"reading" | "installing" | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const review = usePackageReviews();
   const level = levels.find((entry) => entry.key === levelKey) ?? levels[levels.length - 1];
-
-  async function read(query: LevelQuery) {
-    setBusy("reading");
-    setError(null);
-    const { data, error: failure } = await api.POST("/api/v1/blueprint/packages/preview", {
-      params: { query },
-      body: { url: url.trim() },
-    });
-    setBusy(null);
-    if (!data) {
-      setPreview(null);
-      setError(errorMessage(failure, "The link could not be read."));
-      return;
-    }
-    setPreview(data);
-    setChoices((current) =>
-      Object.fromEntries(
-        data.items.map((item) => [
-          choiceKey(item),
-          current[choiceKey(item)] ?? { chosen: !item.error && !item.exists, name: item.name },
-        ]),
-      ),
-    );
-  }
-
-  const chosen = preview ? preview.items.filter((item) => !item.error && choices[choiceKey(item)]?.chosen) : [];
-  const targets = chosen.map((item) => targetFor(item.kind, choices[choiceKey(item)].name));
-  const invalid = chosen.map((item) => choices[choiceKey(item)].name).find((name) => !NAME.test(name));
-  const duplicate = targets.find((target, index) => targets.indexOf(target) !== index);
+  const current = review.reviews[0];
 
   async function install() {
-    if (!preview) return;
-    setBusy("installing");
-    setError(null);
-    const { data, error: failure } = await api.POST("/api/v1/blueprint/packages/install", {
-      params: { query: level.query },
-      body: {
-        url: url.trim(),
-        ref: preview.source.ref,
-        commit: preview.source.commit,
-        items: chosen.map((item) => ({ kind: item.kind, path: item.path, name: choices[choiceKey(item)].name })),
-      },
-    });
-    setBusy(null);
-    if (!data) {
-      setError(errorMessage(failure, "The items could not be installed."));
-      return;
-    }
-    onInstalled(data, level.name);
+    const { paths, complete } = await review.install(level.query);
+    if (complete) onInstalled(paths, level.name);
   }
 
   return (
@@ -260,9 +248,9 @@ export function PackageInstallPanel({
         </button>
       </div>
       <p className="muted small">
-        Paste a link to a GitHub repository or folder with a <span className="mono">blueprint-package.json</span>. YAAP reads it at
-        one fixed commit and shows every item for review; nothing is written before you confirm. Packages hold text only:
-        items with scripts or binary files are refused.
+        Paste a link to a GitHub repository or folder with a <span className="mono">blueprint-package.json</span>.
+        YAAP reads it at one fixed commit and shows every item for review; nothing is written before you confirm.
+        Packages hold text only: items with scripts or binary files are refused.
       </p>
       <div className="form-row">
         <label htmlFor="package-level" className="small">
@@ -274,7 +262,7 @@ export function PackageInstallPanel({
           onChange={(event) => {
             setLevelKey(event.target.value);
             const next = levels.find((entry) => entry.key === event.target.value);
-            if (preview && next) void read(next.query);
+            if (current && next) void review.read([current.url], next.query, false);
           }}
         >
           {levels.map((entry) => (
@@ -288,10 +276,7 @@ export function PackageInstallPanel({
         className="form-row"
         onSubmit={(event) => {
           event.preventDefault();
-          if (url.trim()) {
-            setChoices({});
-            void read(level.query);
-          }
+          if (url.trim()) void review.read([url.trim()], level.query, true);
         }}
       >
         <label className="visually-hidden" htmlFor="package-url">
@@ -304,49 +289,25 @@ export function PackageInstallPanel({
           placeholder="https://github.com/owner/repository"
           onChange={(event) => setUrl(event.target.value)}
         />
-        <button type="submit" className="button" disabled={busy !== null || !url.trim()}>
-          {busy === "reading" ? "Reading…" : "Read"}
+        <button type="submit" className="button" disabled={review.busy !== null || !url.trim()}>
+          {review.busy === "reading" ? "Reading…" : "Read"}
         </button>
       </form>
-      {error && <p className="form-error">{error}</p>}
-      {preview && (
+      {review.error && <p className="form-error">{review.error}</p>}
+      {current && (
         <>
-          <p className="small">
-            <strong>{preview.package.name}</strong> {preview.package.description}
-          </p>
-          <p className="faint small">
-            {preview.source.repository} · {preview.source.ref} ·{" "}
-            <a href={preview.source.url} target="_blank" rel="noreferrer" className="mono">
-              {preview.source.commit.slice(0, 7)}
-            </a>
-          </p>
-          <ul className="import-list">
-            {preview.items.map((item) => {
-              const key = choiceKey(item);
-              return (
-                <PackageItemReview
-                  key={key}
-                  item={item}
-                  chosen={!item.error && (choices[key]?.chosen ?? false)}
-                  name={choices[key]?.name ?? item.name}
-                  onChoose={(value) => setChoices((current) => ({ ...current, [key]: { ...current[key], chosen: value } }))}
-                  onRename={(value) => setChoices((current) => ({ ...current, [key]: { ...current[key], name: value } }))}
-                />
-              );
-            })}
-          </ul>
-          {invalid !== undefined && <p className="form-error">{invalid || "An empty name"}: use lowercase letters, digits and hyphens.</p>}
-          {duplicate && <p className="form-error">Two items would be written to {duplicate}; rename one.</p>}
+          <PackageReviewList review={current} onChoose={review.choose} />
+          {review.problem && <p className="form-error">{review.problem}</p>}
           <div className="form-row">
             <button
               type="button"
               className="button button-primary"
-              disabled={busy !== null || chosen.length === 0 || invalid !== undefined || Boolean(duplicate)}
+              disabled={review.busy !== null || review.chosenCount === 0 || review.problem !== null}
               onClick={() => void install()}
             >
-              {busy === "installing"
+              {review.busy === "installing"
                 ? "Installing…"
-                : `Install ${chosen.length} item${chosen.length === 1 ? "" : "s"} in ${level.name}`}
+                : `Install ${review.chosenCount} item${review.chosenCount === 1 ? "" : "s"} in ${level.name}`}
             </button>
           </div>
         </>
@@ -363,12 +324,15 @@ export function PackageInstallPanel({
 export function PackageUpdateReview({
   name,
   query,
+  updateRef,
   focus,
   onUpdated,
   onClose,
 }: {
   name: string;
   query: LevelQuery;
+  // Another ref than the recorded one to move to, such as the starter's tag of a newer YAAP version.
+  updateRef?: string;
   // The item the check was started from; it is listed first.
   focus?: string;
   onUpdated: (paths: string[]) => void | Promise<void>;
@@ -382,7 +346,9 @@ export function PackageUpdateReview({
   useEffect(() => {
     let current = true;
     void api
-      .GET("/api/v1/blueprint/packages/{name}/update", { params: { path: { name }, query } })
+      .GET("/api/v1/blueprint/packages/{name}/update", {
+        params: { path: { name }, query: { ...query, ref: updateRef } },
+      })
       .then(({ data, error: failure }) => {
         if (!current) return;
         setBusy(null);
@@ -409,7 +375,7 @@ export function PackageUpdateReview({
     setError(null);
     const { data, error: failure } = await api.POST("/api/v1/blueprint/packages/{name}/update", {
       params: { path: { name }, query },
-      body: { commit: check.latest_commit, paths: chosen },
+      body: { commit: check.latest_commit, paths: chosen, ref: updateRef },
     });
     setBusy(null);
     if (!data) {

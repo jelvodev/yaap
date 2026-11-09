@@ -3,20 +3,9 @@ import { Link } from "react-router-dom";
 
 import { type CredentialStatus, api } from "../../api/client";
 import { EmptyState, FieldRow, Panel } from "../../components/workbench/Workbench";
-import CredentialField from "./CredentialField";
-import { ClaudeCodeStatusField, CodexStatusField, SearchIndexStatus } from "./StatusFields";
-import {
-  type LevelSettings,
-  type SettingsLevel,
-  SectionHeader,
-  SelectSetting,
-  TAB_OVERRIDE_KEYS,
-  TextSetting,
-  levelSearch,
-} from "./shared";
-
-const CONNECTION_KEY = "anthropic_connection";
-const OPENAI_CONNECTION_KEY = "openai_connection";
+import ProviderPanels from "./ProviderPanels";
+import { SearchIndexStatus } from "./StatusFields";
+import { type LevelSettings, type SettingsLevel, SectionHeader, TAB_OVERRIDE_KEYS, levelSearch } from "./shared";
 
 /** The credentials of an environment, reloaded on demand. */
 export function useCredentials(environmentId: number | null): [CredentialStatus[], () => Promise<void>] {
@@ -45,19 +34,7 @@ export default function ConnectionsSection({ level, store }: { level: SettingsLe
   const environmentId = level.kind === "environment" ? level.environment.id : null;
   const [credentials, reloadCredentials] = useCredentials(environmentId);
 
-  const connection = store.find(CONNECTION_KEY);
-  const openaiConnection = store.find(OPENAI_CONNECTION_KEY);
   const embedding = store.findGlobal("embedding_model");
-  const ollamaUrl = store.find("ollama_url");
-  const usesClaudeCode = connection?.value === "claude_code";
-  const usesCodex = openaiConnection?.value === "codex";
-
-  const anthropicKeys = credentials.filter((credential) => credential.kind === "anthropic_api_key");
-  // With Claude Code or Codex, a stored key is still shown so it can be removed.
-  const visibleAnthropic = usesClaudeCode ? anthropicKeys.filter((credential) => credential.configured) : anthropicKeys;
-  const visibleOpenai = credentials.filter(
-    (credential) => credential.kind === "openai_api_key" && (!usesCodex || credential.configured),
-  );
 
   return (
     <>
@@ -82,63 +59,11 @@ export default function ConnectionsSection({ level, store }: { level: SettingsLe
         }
       />
       <div className="wb-body wb-body-narrow wb-stack">
-        <Panel title="Anthropic" flush>
-          {connection && (
-            <SelectSetting
-              level={level}
-              setting={connection}
-              choices={connection.options}
-              onSave={(value) => store.save(CONNECTION_KEY, value)}
-              onReset={() => store.reset(CONNECTION_KEY)}
-            />
-          )}
-          {(level.kind === "global" || usesClaudeCode) && <ClaudeCodeStatusField />}
-          {visibleAnthropic.map((credential) => (
-            <CredentialField
-              key={`${environmentId}-${credential.kind}`}
-              environmentId={environmentId!}
-              credential={credential}
-              onChanged={reloadCredentials}
-              note={usesClaudeCode ? "Not used while this environment connects through Claude Code." : undefined}
-            />
-          ))}
-        </Panel>
-
-        <Panel title="OpenAI" flush aside="GPT models run as agents with YAAP's tools, like Claude">
-          {openaiConnection && (
-            <SelectSetting
-              level={level}
-              setting={openaiConnection}
-              choices={openaiConnection.options}
-              onSave={(value) => store.save(OPENAI_CONNECTION_KEY, value)}
-              onReset={() => store.reset(OPENAI_CONNECTION_KEY)}
-            />
-          )}
-          {usesCodex && <CodexStatusField />}
-          {visibleOpenai.map((credential) => (
-            <CredentialField
-              key={`${environmentId}-${credential.kind}`}
-              environmentId={environmentId!}
-              credential={credential}
-              onChanged={reloadCredentials}
-              note={usesCodex ? "Not used while this environment connects through Codex." : undefined}
-            />
-          ))}
-        </Panel>
-
-        {level.kind === "global" && ollamaUrl && (
-          <Panel title="Ollama" flush aside="Local models, without cost; they run as agents with YAAP's tools">
-            <TextSetting
-              level={level}
-              setting={ollamaUrl}
-              placeholder="http://host.docker.internal:11434"
-              maxLength={200}
-              ownOnly
-              onSave={(value) => store.save("ollama_url", value.trim())}
-              onReset={() => store.reset("ollama_url")}
-            />
-          </Panel>
-        )}
+        <ProviderPanels
+          level={level}
+          store={store}
+          keys={environmentId === null ? null : { environmentId, credentials, reload: reloadCredentials }}
+        />
 
         {level.kind === "global" && (
           <Panel title="API keys" flush>
