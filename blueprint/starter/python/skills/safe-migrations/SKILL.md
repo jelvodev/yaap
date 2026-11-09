@@ -1,0 +1,121 @@
+---
+name: safe-migrations
+description: Change a database schema that already holds data without downtime or data loss, with expand and
+  contract steps, short lock budgets, batched backfills, a rollback plan and a backup that has been restored at least
+  once. Use this whenever you write a migration that renames, removes or retypes a column, adds a NOT NULL or a
+  constraint, builds an index on a large table, moves data, or will run against production, even when it looks like
+  a one-line change, because a lock on a busy table stops every request behind it.
+license: MIT
+metadata:
+  sources: agency-agents/engineering/engineering-database-reliability-engineer.md, wshobson/plugins/database-migrations/commands/sql-migrations.md
+---
+
+# Safe migrations
+
+A migration on a table with data is a change to a running system. Old and new code run side by side during a
+deploy, a lock can block every request, and some changes cannot be undone. Plan each migration so any single step
+can stop or roll back without losing data.
+
+## 1. Before you write it
+
+- **Know the size.** How many rows, how busy is the table, which queries use it? A change that is instant on a test
+  database can take minutes on production.
+- **Know the backup.** Is there a recent backup, and has a restore from it been tested? A backup that was never
+  restored is a hope, not a plan. For a risky change, take a fresh one and say where it is.
+- **Make a checkpoint** in YAAP before editing, so a failed attempt on the code side rolls back as a whole.
+
+## 2. Expand and contract
+
+Never change a column in place in one step while code depends on it. Split the change across releases:
+
+1. **Expand.** Add the new column, table or index next to the old one. Nothing reads it yet.
+2. **Write both.** Deploy code that writes old and new.
+3. **Backfill.** Copy existing data to the new form, in batches.
+4. **Read new.** Deploy code that reads the new form; keep writing both for one release.
+5. **Contract.** Once no running code uses the old form, stop writing it and drop it, in a later release.
+
+A rename is an expand and contract: add `email_address`, write both, backfill, read the new one, drop `email`. Each
+step is deployable and reversible on its own.
+
+## 3. Keep locks short
+
+Most schema changes take a lock that blocks reads or writes while it waits. Set a budget, so a migration that cannot
+get its lock fails fast instead of queueing every request behind it:
+
+```sql
+SET lock_timeout = '5s';
+SET statement_timeout = '15min';
+```
+
+Retry a migration that hit the lock timeout at a quieter moment; do not raise the timeout until it passes.
+
+## 4. Patterns for PostgreSQL
+
+**Add a column.** Nullable, or with a constant default (PostgreSQL 11 and later), is instant. A volatile default
+(`random()`, `clock_timestamp()`) rewrites the table.
+
+**Make a column NOT NULL** without a long scan under lock:
+
+```sql
+ALTER TABLE orders ADD CONSTRAINT orders_currency_not_null CHECK (currency IS NOT NULL) NOT VALID;
+ALTER TABLE orders VALIDATE CONSTRAINT orders_currency_not_null;
+ALTER TABLE orders ALTER COLUMN currency SET NOT NULL;
+ALTER TABLE orders DROP CONSTRAINT orders_currency_not_null;
+```
+
+`VALIDATE` scans without blocking writes, and from PostgreSQL 12 `SET NOT NULL` uses the validated check instead of
+scanning again.
+
+**Add a foreign key** the same way: `ADD CONSTRAINT … NOT VALID`, then `VALIDATE CONSTRAINT` in a separate step.
+
+**Build an index** with `CREATE INDEX CONCURRENTLY`. It cannot run inside a transaction, so the migration tool must
+run that step outside one (in Alembic, inside `with op.get_context().autocommit_block():`). If it fails, it leaves an
+invalid index; drop it and try again.
+
+**Change a column's type** with expand and contract (a new column, a backfill, a switch), unless the change is known
+to need no rewrite, such as making a `varchar` longer.
+
+## 5. Backfill in batches
+
+One `UPDATE` over millions of rows holds locks for its whole run and bloats the table. Update a bounded batch, commit,
+repeat until no rows are left:
+
+```sql
+UPDATE orders
+SET currency = 'EUR'
+WHERE id IN (
+    SELECT id FROM orders
+    WHERE currency IS NULL
+    ORDER BY id
+    LIMIT 5000
+);
+```
+
+Run it from a script or job that loops, logs progress, and can stop and resume. Keep the backfill out of the schema
+migration, so a deploy does not wait for it.
+
+## 6. Plan the way back
+
+Write the rollback with the migration: a down migration, or the forward fix you would ship instead. Say which steps
+cannot be undone (dropping a column, deleting rows, a lossy type change) and do those last, only after the release
+that stopped using the data has run without trouble. Before a destructive step, check that the data is no longer read
+and that the backup has it.
+
+## 7. Test it
+
+- Run the migration up, down and up again on a fresh database in the tests; check that the migrated schema matches the
+  models.
+- Run it once on a copy with realistic data volume and time it, when the table is large.
+- With Alembic, review every autogenerated migration by hand; it misses renames and some type changes, and can drop
+  what it does not recognise. Apply it with `uv run alembic upgrade head`.
+
+## Report
+
+```
+Change: <what changes in the schema and why>
+Steps: <expand, backfill, switch, contract, with the release each belongs to>
+Locks: <what each step locks and for how long, with the timeouts>
+Rollback: <per step; and which steps are irreversible>
+Backup: <where, and when a restore was last tested>
+Tested: <commands and results; data volume used>
+```

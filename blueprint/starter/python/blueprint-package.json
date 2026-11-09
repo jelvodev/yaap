@@ -1,0 +1,34 @@
+{
+  "name": "yaap-python",
+  "description": "YAAP's starter for Python back ends and APIs: typed code locked with uv, pytest, FastAPI services, PostgreSQL schemas, safe migrations and MCP servers.",
+  "items": [
+    {
+      "kind": "standard",
+      "path": "standards/python.md"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/python-testing"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/api-design"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/fastapi-service"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/postgres-schema"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/safe-migrations"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/build-mcp-server"
+    }
+  ]
+}

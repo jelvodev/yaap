@@ -1,0 +1,38 @@
+{
+  "name": "yaap-web",
+  "description": "YAAP's starter for web front ends in TypeScript and React: accessible, strictly typed, distinctive UI with end-to-end tests and a review in the running app.",
+  "items": [
+    {
+      "kind": "standard",
+      "path": "standards/web.md"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/frontend-design"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/react-state"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/typescript-types"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/e2e-testing"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/accessibility-audit"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/ui-finish-gate"
+    },
+    {
+      "kind": "agent",
+      "path": "agents/frontend-reviewer.md"
+    }
+  ]
+}
