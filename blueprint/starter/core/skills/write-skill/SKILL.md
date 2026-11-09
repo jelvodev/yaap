@@ -73,9 +73,8 @@ changes, a migration fails or must be undone, or before deploying a schema chang
 - **One good example** beats several, and it must be correct.
 - **YAAP's tools by name** where they help: `delegate` for wide searches, checkpoints, `start_process` and the
   preview, `update_memory`, `open_document`.
-- **Variants in references.** When a skill has real variants (per cloud, per framework) and each is long, keep the
-  common method in `SKILL.md` and put each variant in `references/<variant>.md`, with a line in the body saying
-  which file to read when. Otherwise keep everything in one file.
+- **One file.** `load_skill` returns `SKILL.md` only, so everything the skill needs goes in it. When real variants
+  (per cloud, per framework) make it too long, write a skill per variant instead, each with its own trigger.
 
 Front matter: `name` (equals the folder: lowercase letters, digits and hyphens), `description`, `license`, and
 `metadata.sources` when the method comes from somewhere. Markdown only; a skill with scripts or binaries is refused
