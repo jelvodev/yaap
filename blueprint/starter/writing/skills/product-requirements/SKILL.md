@@ -90,8 +90,9 @@ or decline it, and record the choice in the document.
 ## 6. Review and after launch
 
 - Ask the user who must agree (engineering, design, support, legal) and what each needs to see.
-- Use `delegate` with an exploring worker as a fresh reader: give it the file and ask what it would build from it
-  and what is missing. Its gaps are the document's gaps.
+- When `delegate` is available (in a project conversation), use an exploring worker as a fresh reader: give it the
+  file and ask what it would build from it and what is missing; its gaps are the document's gaps. Otherwise ask the
+  user to have someone from engineering read it with the same two questions.
 - After launch, read the measures at the agreed moment and add the result to the document: met, missed, and what
   was learned. A PRD without that last step cannot tell anyone whether the work paid off.
 

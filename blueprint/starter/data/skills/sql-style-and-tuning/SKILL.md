@@ -112,8 +112,8 @@ This needs an index on `(created_at, order_id)`.
 ## In YAAP
 
 - Run queries with `run_command` against a development database. Ask before touching a shared or production one.
-- Hand a wide search for a query's callers ("where is this repository method used?") to an exploring worker with
-  `delegate`.
+- When `delegate` is available, hand a wide search for a query's callers ("where is this repository method used?")
+  to an exploring worker; otherwise use `find_references`.
 - Put an index change in a migration, not in a manual statement, so every environment gets it.
 
 ## Report

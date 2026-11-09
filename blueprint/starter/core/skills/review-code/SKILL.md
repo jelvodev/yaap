@@ -81,8 +81,10 @@ is wrong.
 
 The author's own review shares the author's blind spots. In YAAP:
 
-- delegate the review to the `reviewer` agent (`delegate` with `agent: reviewer`), so another context reads it;
-- and suggest *Review these changes* under Changes in the rail: a model of another vendor reviews the uncommitted
+- when you reviewed your own work and `delegate` is available (in a project conversation), hand the review to the
+  `reviewer` agent (`delegate` with `agent: reviewer`), so another context reads it. When you are the `reviewer`
+  agent, or a worker without `delegate`, review it yourself and say in the report that it is one view;
+- suggest *Review these changes* under Changes in the rail: a model of another vendor reviews the uncommitted
   changes and its findings show beside the diff. A goal that changed files gets this review by itself.
 
 Treat findings from either like any review: check them with the `receive-review` skill before acting.

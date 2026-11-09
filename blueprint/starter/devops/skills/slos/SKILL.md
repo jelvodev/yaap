@@ -87,6 +87,8 @@ Write recording rules for each window and alert on them; follow the monitoring s
 
 - Write the SLO document and the alert rules as files in the repository, next to the service.
 - Record the service's SLOs in the project memory with `update_memory`, so changes and reviews can refer to them.
+- For a larger task, when `delegate` is available (in a project conversation), delegate to the `devops` agent
+  (`agent: devops`) and review its diff.
 
 ## SLO document
 

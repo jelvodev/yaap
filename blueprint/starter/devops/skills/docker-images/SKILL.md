@@ -21,6 +21,9 @@ check what can be checked without Docker (a Dockerfile linter when the project h
 with `run_command`), and end with the exact commands for the user to build and run the image. Never claim an image
 builds or starts when you could not run it.
 
+For a larger task, when `delegate` is available (in a project conversation), delegate to the `devops` agent
+(`agent: devops`) and review its diff.
+
 ## 1. Choose and pin the base
 
 - Use the smallest base that runs the application: a `-slim` image of the language, or a distroless one when nothing

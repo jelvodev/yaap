@@ -44,8 +44,9 @@ commands, workers and scheduled jobs, or a library's public exports. Then trace 
 for example one request from the route to the database and back. Name each file on the way. A traced path teaches
 more than a list of folders.
 
-For a large repository, hand each area to an exploring worker with `delegate` (it only reads) and ask for files,
-lines and a conclusion. Your own context stays small, and the workers' reports are evidence you can cite.
+For a large repository, when `delegate` is available (in a project conversation), hand each area to an exploring
+worker (it only reads) and ask for files, lines and a conclusion. Your own context stays small, and the workers'
+reports are evidence you can cite. Without `delegate`, map the areas one at a time yourself.
 
 ## 3. Run and test
 

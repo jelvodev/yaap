@@ -160,7 +160,7 @@ The Blueprint is what every conversation follows: Markdown files in git, at the 
 
 A new installation starts with an empty Blueprint; it is yours and stays on your computer.
 
-**YAAP's starter.** *Add from a package* › **YAAP starter** (also on the first start, and from Settings) installs a ready set written for YAAP, in six packs: *Core* for everyone (how to work, test, debug, review and finish a change, with commands such as `/write-plan`, `/review`, `/debug`, `/tdd` and `/onboard`, and agents such as `planner`, `reviewer` and `explorer`), and *Web*, *Python*, *Data*, *DevOps* and *Writing*. Choose the level (Global by default, or one environment) and the packs, then review the items as for any package. The starter is pinned to your YAAP version; after an update the panel offers *Update* for the packs that changed, with the diff. A good first step in a project is `/onboard`. Where its ideas come from is on the [credits page](credits.md).
+**YAAP's starter.** *Add from a package* › **YAAP starter** (also on the first start, and from Settings) installs a ready set written for YAAP, in six packs: *Core* for everyone (how to work, test, debug, review and finish a change, with commands such as `/write-plan`, `/review`, `/debug`, `/tdd` and `/onboard`, and agents such as `planner`, `reviewer` and `debugger`), and *Web*, *Python*, *Data*, *DevOps* and *Writing*. Choose the level (Global by default, or one environment) and the packs, then review the items as for any package. The starter is pinned to your YAAP version; after an update the panel offers *Update* for the packs that changed, with the diff. A good first step in a project is `/onboard`. Where its ideas come from is on the [credits page](credits.md).
 
 ### Eval cases
 

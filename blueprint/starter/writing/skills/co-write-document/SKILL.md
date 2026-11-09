@@ -33,8 +33,10 @@ Propose the headings, each with one line on what it holds and why the reader nee
 document in the first section. Keep the outline short enough to change easily; changing an outline costs little,
 rewriting finished sections does not.
 
-Write it to a Markdown file in the project (or a new one) and open it with `open_document`, so the user can read and
-edit it beside the chat. Their saved edits reach you; build on them rather than on your own earlier text.
+Write it to a Markdown file in the project. When `open_document` is available (in a project conversation), open the
+file with it, so the user can read and edit it beside the chat; their saved edits reach you, so build on them rather
+than on your own earlier text. Otherwise keep the draft in the reply and show each changed section again after a
+round of edits.
 
 ## 3. Write section by section
 
@@ -43,7 +45,7 @@ section:
 
 1. Ask what must go in, if the material does not settle it. Offer a short list of candidate points and let the user
    keep, drop or add.
-2. Draft the section in the shared document.
+2. Draft the section in the document (or in the reply).
 3. Ask for changes. Apply them precisely; when the user rewrites a passage, keep their wording and learn their style
    from it for the next sections.
 4. Move on when the user is satisfied. Do not polish one section while the others are empty.
@@ -53,9 +55,10 @@ say so.
 
 ## 4. Test on a fresh reader
 
-You and the user know too much to read it as a newcomer. Use `delegate` with an exploring worker: it does not see
-this conversation, so it reads the document as the intended reader would. Give it the file path, a one-line
-description of the reader, and ask:
+You and the user know too much to read it as a newcomer. When `delegate` is available (in a project conversation),
+use an exploring worker: it does not see this conversation, so it reads the document as the intended reader would.
+Otherwise suggest that the user gives it to a colleague who has not seen it. Give the reader the file, a one-line
+description of who they stand in for, and ask:
 
 - What is this document asking of you, in one sentence?
 - Which part was unclear, and where did you have to guess?

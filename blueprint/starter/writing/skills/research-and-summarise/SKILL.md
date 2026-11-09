@@ -29,8 +29,9 @@ Split a broad question into a few sub-questions and answer each.
 - **Then the web:** `web_search`, with several phrasings. Prefer primary sources: official documentation, the
   standard or law itself, the original study, the vendor's changelog, the repository. A page that summarises another
   page is a pointer to the original, not a source.
-- For a wide search, hand parts to an exploring worker with `delegate`, each with one sub-question, so the
-  conversation stays small.
+- For a wide search, when `delegate` is available (in a project conversation), hand parts to exploring workers,
+  each with one sub-question, so the conversation stays small; otherwise work through the sub-questions in turn.
+  A long research task can go to the `researcher` agent (`agent: researcher`), which follows this skill itself.
 
 ## 3. Read, do not skim
 
@@ -78,3 +79,5 @@ Sources
 - Give dates for anything that changes: prices, versions, laws, statistics.
 
 When the result is worth keeping for the project, offer to save the key findings with `update_memory` or as a file.
+A read-only agent such as the `researcher` cannot save anything: it returns the findings in its reply, and the
+conversation that asked saves them.

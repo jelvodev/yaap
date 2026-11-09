@@ -67,7 +67,9 @@ A goal that changed files gets a review by a model of another vendor by itself w
 
 ## With workers (optional)
 
-For a plan with many well-specified steps, hand steps to workers and keep the planning and judgement yourself.
+For a plan with many well-specified steps, hand steps to workers and keep the planning and judgement yourself. This
+needs `delegate`, which exists only in project conversations; a delegated run cannot delegate further, so a worker
+carries out its steps itself.
 
 - **Delegate one step at a time** with `delegate`: the worker model by default, which is cheaper. It does not see
   this conversation, so give it the step's text, the files, the interfaces from earlier steps, the project's
@@ -88,8 +90,9 @@ When every step is ticked:
 
 1. Run the whole test suite, lint and build, and compare with the result from before step 1.
 2. Check each acceptance criterion against the code and a test that proves it (the `verify-before-done` skill).
-3. Review the whole diff of the branch with the `review-code` skill, best by the `reviewer` agent so another context
-   reads it. Suggest *Review these changes* to the user for a second view by a model of another vendor.
+3. Review the whole diff of the branch with the `review-code` skill, by the `reviewer` agent when `delegate` is
+   available, so another context reads it. Suggest *Review these changes* to the user for a second view by a model
+   of another vendor.
 4. Fix the blocking findings in one pass, each with a test that failed first. Note "should" and "nit" findings
    instead of fixing them unasked.
 5. Finish with the `finish-branch` skill.

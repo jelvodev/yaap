@@ -8,4 +8,6 @@ Use the `systematic-debugging` skill (load it with `load_skill`) on this problem
 $ARGUMENTS
 
 Reproduce it first and show the command and its output. Do not change code until you can state the cause in one
-sentence with the evidence for it. End with the skill's report.
+sentence with the evidence for it. For a long or stubborn hunt, when `delegate` is available (in a project
+conversation), you may suggest handing it to the `debugger` agent (`delegate` with `agent: debugger`); check its fix
+and its test run yourself. End with the skill's report.

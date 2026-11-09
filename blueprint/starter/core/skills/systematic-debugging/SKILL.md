@@ -54,8 +54,9 @@ list what you assumed, and check each assumption. Tell the user what you tried a
 
 - YAAP checkpoints every change by itself. Take back a failed experiment with git (`git restore <file>` through
   `run_command`), or ask the user to use *Restore to before this*.
-- Hand a wide search ("where is this value set?") to an exploring worker with `delegate`, so the conversation stays
-  small.
+- When `delegate` is available (in a project conversation), hand a wide search ("where is this value set?") to an
+  exploring worker, so the conversation stays small. Without it, as in a worker such as the `debugger` agent, search
+  with `search` and `find_references` yourself.
 - For a web app, run it with `start_process` and look at it in the preview or with `open_browser`.
 
 ## Report

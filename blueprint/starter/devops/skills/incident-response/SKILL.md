@@ -98,3 +98,5 @@ Track the actions like other work. A postmortem whose actions are never done wil
 - Read logs and command output with the tools you have; quote what you saw with its time.
 - After the postmortem, record the failure mode and its runbook in the project memory with `update_memory`, so the
   next incident of the same kind starts from it.
+- For a larger task, when `delegate` is available (in a project conversation), delegate to the `devops` agent
+  (`agent: devops`) and review its diff.

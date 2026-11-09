@@ -62,7 +62,8 @@ changed and a link. That keeps the history of why things changed.
 - Add one line to the project memory with `update_memory` under *Decisions*, pointing to the ADR, so every later
   conversation sees the decision without reading the folder: "Sessions live in the database (docs/adr/0007)."
 - For a decision that needs a design first, use the `brainstorm-design` skill, then record the outcome here.
-- Write a draft with the user in the document panel (`open_document`) when they want to edit it together.
+- When the user wants to edit the draft together, open it in the document panel with `open_document` (in a project
+  conversation); elsewhere, show the draft in the reply.
 
 ## Template
 

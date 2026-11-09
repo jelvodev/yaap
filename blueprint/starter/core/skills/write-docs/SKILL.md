@@ -57,19 +57,24 @@ that the order follows what the reader does.
 - Say what can go wrong at the step where it happens, with the message the reader will see and what to do.
 - Link instead of repeating. Two copies of a fact drift apart.
 
-For a document the user wants to shape with you, open it beside the chat with `open_document`: they see each change
-and their edits reach you.
+For a document the user wants to shape with you, open it beside the chat with `open_document` when it is available
+(in a project conversation): they see each change and their edits reach you. Elsewhere, write the file and show the
+changed sections in the reply.
 
 ## 5. Read it as a newcomer
 
-Re-read the whole document as a reader who has only this page and the project. Better: hand it to an exploring
-worker with `delegate`, give it only the document and the task it describes, and ask where it got stuck, what it had
-to guess and which terms it did not know. Fix those, then check:
+Re-read the whole document as a reader who has only this page and the project. Better, when `delegate` is
+available (in a project conversation): hand it to an exploring worker, give it only the document and the task it
+describes, and ask where it got stuck, what it had to guess and which terms it did not know. Without `delegate`,
+follow the document's steps yourself, literally and in order. Fix what you find, then check:
 
 - Every command and example was run or checked against the code.
 - No step depends on something only the author knows (a local path, a setting, an earlier conversation).
 - The first screen of a README answers what it is, why it matters and how to start.
 - Links work; names match the code exactly.
+
+For a larger piece, when `delegate` is available, hand the writing to the `docs-writer` agent (`delegate` with
+`agent: docs-writer`) and review its diff. That agent follows this skill itself and writes directly.
 
 ## 6. Keep it true
 

@@ -165,3 +165,5 @@ token from GitHub. The cloud trusts only tokens for this repository and this env
 - *Review these changes* gives a workflow change a second look by a model of another vendor; permission and trigger
   changes deserve it.
 - Record the project's CI layout and required checks in the project memory with `update_memory`.
+- For a larger task, when `delegate` is available (in a project conversation), delegate to the `devops` agent
+  (`agent: devops`) and review its diff.

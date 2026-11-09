@@ -9,8 +9,8 @@ $ARGUMENTS
 
 1. Look at `git_status` and `git_diff`. If nothing is uncommitted, say so and stop.
 2. Hand the review to the `reviewer` agent with `delegate`, passing the focus above and the task the changes were
-   for. If there is no `reviewer` agent, load the `review-code` skill with `load_skill` and review the changes
-   yourself.
+   for. If there is no `reviewer` agent or no `delegate` (outside a project conversation), load the `review-code` skill
+   with `load_skill` and review the changes yourself.
 3. Report the findings in the skill's format, blocking first, each with file and line. Change no files; fixing is a
    next step the user chooses.
 

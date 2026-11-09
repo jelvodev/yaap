@@ -193,3 +193,5 @@ spec:
 - YAAP checkpoints each change by itself. When reshaping a set of manifests goes wrong, undo it with git
   (`git checkout -- <files>` through `run_command`), or ask the user to use *Restore to before this*.
 - Record the cluster layout (namespaces, how deploys happen) in the project memory with `update_memory`.
+- For a larger task, when `delegate` is available (in a project conversation), delegate to the `devops` agent
+  (`agent: devops`) and review its diff.

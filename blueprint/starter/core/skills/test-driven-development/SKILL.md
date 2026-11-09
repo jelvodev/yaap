@@ -106,8 +106,8 @@ test anyway.
 - `/tdd <behaviour>` runs one cycle of this skill.
 - Run tests with `run_command`; a test watcher runs as a background process with `start_process`, read with
   `read_process_output`.
-- Hand a batch of well-specified tests to the `tester` agent with `delegate`, and check its diff and test run
-  yourself afterwards.
+- When `delegate` is available (in a project conversation), a batch of well-specified tests can go to the `tester`
+  agent (`agent: tester`); check its diff and test run yourself afterwards. The `tester` itself writes them directly.
 
 ## Report
 

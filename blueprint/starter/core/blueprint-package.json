@@ -148,10 +148,6 @@
     },
     {
       "kind": "agent",
-      "path": "agents/explorer.md"
-    },
-    {
-      "kind": "agent",
       "path": "agents/tester.md"
     },
     {

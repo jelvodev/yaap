@@ -83,8 +83,10 @@ after each one.
 
 ## 6. Hand it over
 
-Save the plan where the project keeps plans, or `docs/plans/<topic>.md`, and open it beside the chat with
-`open_document` so the user can read and edit it. Ask the user to approve it, and ask two things outright:
+Save the plan where the project keeps plans, or `docs/plans/<topic>.md`. In a project conversation, open it beside
+the chat with `open_document` so the user can read and edit it; elsewhere, show it in the reply. A read-only agent
+such as the `planner` cannot write files: it returns the plan in its reply, and the conversation that asked for it
+saves and opens it. Ask the user to approve it, and ask two things outright:
 
 - **Commit per step?** YAAP's agent commits only when the user asks. If the user wants a commit after each green
   step, write "Commits: per step" in the plan; approving the plan then approves those commits, and nothing more

@@ -17,8 +17,9 @@ crossings first, then ask the same six questions at each one. That is cheaper be
 ## 1. Scope
 
 Say what is modelled: one change (a new endpoint, a new integration) or a whole system. For a change, model only
-what it adds or alters, plus the boundaries it touches. Read the code or the design; for a large system, ask an
-exploring worker (`delegate`) to list the entry points, data stores and outside calls with their files.
+what it adds or alters, plus the boundaries it touches. Read the code or the design. For a large system, when
+`delegate` is available, ask an exploring worker to list the entry points, data stores and outside calls with their
+files; otherwise find them yourself with `search`.
 
 ## 2. Draw the data flow
 
