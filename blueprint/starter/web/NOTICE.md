@@ -19,4 +19,4 @@ no text, examples or code were copied. Each item names its sources in its front 
 its `webapp-testing` skill (as text only, without its scripts). Both are published by Anthropic, PBC under the Apache
 License, Version 2.0 (https://www.apache.org/licenses/LICENSE-2.0). They were changed: rewritten in new words,
 shortened and fitted to YAAP; the last line of each says what changed. These items are distributed under the Apache
-License 2.0.
+License 2.0, whose full text is in each item's folder as `LICENSE.txt`.

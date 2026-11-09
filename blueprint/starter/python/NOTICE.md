@@ -18,4 +18,4 @@ text, examples or code were copied. Each item names its sources in its front mat
 `build-mcp-server` is adapted from the `mcp-builder` skill of anthropics/skills, Copyright 2026 Anthropic, PBC,
 licensed under the Apache License, Version 2.0 (https://www.apache.org/licenses/LICENSE-2.0). It was changed:
 rewritten in new words, Markdown only (without the original's scripts) and fitted to YAAP; its last line says what
-changed. That item is distributed under the Apache License 2.0.
+changed. That item is distributed under the Apache License 2.0, whose full text is in its folder as `LICENSE.txt`.

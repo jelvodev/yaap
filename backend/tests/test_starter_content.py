@@ -19,8 +19,11 @@ PACKS = sorted(manifest.parent for manifest in STARTER.glob(f"*/{MANIFEST}"))
 # Files in a pack's own folder that are about the pack, not items of it.
 PACK_FILES = {MANIFEST, "README.md", "NOTICE.md"}
 # The keys of the source repositories (docs/credits.md); `own` is YAAP's own work.
-SOURCE_PREFIXES = ("superpowers/", "superpowers-skills/", "agency-agents/", "wshobson/", "anthropic-skills/")
+SOURCE_PREFIXES = ("superpowers/", "agency-agents/", "wshobson/", "anthropic-skills/")
 LICENSES = {"MIT", "Apache-2.0"}
+# The full license text that a skill under the Apache License 2.0 carries in its folder.
+LICENSE_FILE = "LICENSE.txt"
+APACHE_TITLE = "Apache License Version 2.0, January 2004"
 PRESET_NAMES = {name for name, *_ in DEFAULT_PRESETS}
 MAX_DESCRIPTION = 1024
 MAX_SKILL_LINES = 500
@@ -181,12 +184,18 @@ def test_skill_front_matter_is_complete_and_its_body_is_short(item: StarterItem)
 
 
 @pytest.mark.parametrize("item", items_of("skill"))
-def test_skill_folder_holds_only_its_skill_file(item: StarterItem) -> None:
-    written(item)
-    # `load_skill` returns only SKILL.md, so other files would be out of the agent's reach.
-    extra = [path.relative_to(item.pack).as_posix() for path in pack_files(item.file.parent) if path != item.file]
+def test_skill_folder_holds_its_skill_file_and_only_the_license_it_needs(item: StarterItem) -> None:
+    apache = written(item).front_matter.get("license") == "Apache-2.0"
+    license_file = item.file.parent / LICENSE_FILE
+    # `load_skill` returns only SKILL.md, so other files would be out of the agent's reach; the one exception is the
+    # copy of the Apache License that an adapted skill must carry with it.
+    allowed = {item.file, license_file} if apache else {item.file}
+    extra = [path.relative_to(item.pack).as_posix() for path in pack_files(item.file.parent) if path not in allowed]
 
-    assert not extra, f"{item.label} holds files besides SKILL.md: {extra}"
+    assert not extra, f"{item.label} holds files besides SKILL.md and the license it needs: {extra}"
+    if apache:
+        assert license_file.is_file(), f"{item.label} is Apache-2.0 but has no {LICENSE_FILE}"
+        assert " ".join(license_file.read_text(encoding="utf-8").split()).startswith(APACHE_TITLE)
 
 
 @pytest.mark.parametrize("item", items_of("agent"))

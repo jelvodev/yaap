@@ -9,8 +9,7 @@ example was written new and checked. Each pack also has a `NOTICE.md` with the s
 
 ### obra/superpowers
 
-- **Repository:** [github.com/obra/superpowers](https://github.com/obra/superpowers), and the archived
-  [github.com/obra/superpowers-skills](https://github.com/obra/superpowers-skills).
+- **Repository:** [github.com/obra/superpowers](https://github.com/obra/superpowers).
 - **License:** MIT, Copyright (c) 2025 Jesse Vincent.
 - **What we took:** the working method for a coding agent: agreeing on a design before building, writing and
   working through a plan, test-driven development, systematic debugging, evidence before calling work done,
@@ -51,8 +50,8 @@ example was written new and checked. Each pack also has a `NOTICE.md` with the s
 The starter items adapted from a skill in anthropics/skills are derivative works under the
 [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0). They keep that license (`license:
 Apache-2.0` in their front matter), and the last line of each says that it was adapted, from which skill, and what was
-changed. The `NOTICE.md` of their pack repeats the notice. All other starter items are published under YAAP's MIT
-License.
+changed. Each carries the full license text as `LICENSE.txt` in its folder, and the `NOTICE.md` of their pack
+repeats the notice. All other starter items are published under YAAP's MIT License.
 
 ## Per item
 

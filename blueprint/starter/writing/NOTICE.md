@@ -18,7 +18,7 @@ here; no text, examples or code were copied. Each item names its sources in its 
 anthropics/skills, Copyright 2026 Anthropic, PBC, licensed under the Apache License, Version 2.0
 (https://www.apache.org/licenses/LICENSE-2.0). They were changed: rewritten in new words, shortened, and without the
 original's company-specific formats; the last line of each says what changed. These two items are distributed under
-the Apache License 2.0.
+the Apache License 2.0, whose full text is in each item's folder as `LICENSE.txt`.
 
 `co-write-document` is YAAP's own work. It shares only the general idea of the `doc-coauthoring` skill of
 anthropics/skills, which has no license, and takes nothing from it.
