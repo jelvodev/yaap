@@ -59,5 +59,109 @@ License.
 Every item names its sources in its front matter: `sources` for standards, engineering standards, commands and
 agents, `metadata.sources` for skills, as `<repository>/<path>` or `own` for YAAP's own work.
 
-<!-- The table of every item and its sources is generated from that front matter. -->
-*The table per item follows here; it is generated from the items' `sources` front matter.*
+### Core (`yaap-core`)
+
+| Kind | Item | Sources |
+|---|---|---|
+| Standard | `working-method` | [agency-agents: engineering-minimal-change-engineer.md](https://github.com/msitarzewski/agency-agents/blob/main/engineering/engineering-minimal-change-engineer.md), [superpowers: verification-before-completion](https://github.com/obra/superpowers/tree/main/skills/verification-before-completion), own |
+| Standard | `security` | [agency-agents: security-secrets-credential-engineer.md](https://github.com/msitarzewski/agency-agents/blob/main/security/security-secrets-credential-engineer.md), [agency-agents: security-architect.md](https://github.com/msitarzewski/agency-agents/blob/main/security/security-architect.md), own |
+| Standard | `testing` | [superpowers: test-driven-development](https://github.com/obra/superpowers/tree/main/skills/test-driven-development), [agency-agents: testing-test-automation-engineer.md](https://github.com/msitarzewski/agency-agents/blob/main/testing/testing-test-automation-engineer.md), own |
+| Standard | `git` | [agency-agents: engineering-git-workflow-master.md](https://github.com/msitarzewski/agency-agents/blob/main/engineering/engineering-git-workflow-master.md), [wshobson: git-workflow.md](https://github.com/wshobson/agents/blob/main/plugins/git-pr-workflows/commands/git-workflow.md), own |
+| Standard | `documentation` | [agency-agents: engineering-technical-writer.md](https://github.com/msitarzewski/agency-agents/blob/main/engineering/engineering-technical-writer.md), own |
+| Engineering | `error-handling` | [wshobson: error-handling-patterns](https://github.com/wshobson/agents/tree/main/plugins/developer-essentials/skills/error-handling-patterns), own |
+| Engineering | `code-review` | [wshobson: code-review-excellence](https://github.com/wshobson/agents/tree/main/plugins/developer-essentials/skills/code-review-excellence), [agency-agents: engineering-code-reviewer.md](https://github.com/msitarzewski/agency-agents/blob/main/engineering/engineering-code-reviewer.md) |
+| Skill | `brainstorm-design` | [superpowers: brainstorming](https://github.com/obra/superpowers/tree/main/skills/brainstorming), own |
+| Skill | `write-plan` | [superpowers: writing-plans](https://github.com/obra/superpowers/tree/main/skills/writing-plans), [agency-agents: project-manager-senior.md](https://github.com/msitarzewski/agency-agents/blob/main/project-management/project-manager-senior.md), own |
+| Skill | `execute-plan` | [superpowers: executing-plans](https://github.com/obra/superpowers/tree/main/skills/executing-plans), [superpowers: subagent-driven-development](https://github.com/obra/superpowers/tree/main/skills/subagent-driven-development), own |
+| Skill | `test-driven-development` | [superpowers: test-driven-development](https://github.com/obra/superpowers/tree/main/skills/test-driven-development), [wshobson: tdd-cycle.md](https://github.com/wshobson/agents/blob/main/plugins/tdd-workflows/commands/tdd-cycle.md) |
+| Skill | `systematic-debugging` | [superpowers: systematic-debugging](https://github.com/obra/superpowers/tree/main/skills/systematic-debugging), [wshobson: debugging-strategies](https://github.com/wshobson/agents/tree/main/plugins/developer-essentials/skills/debugging-strategies) |
+| Skill | `verify-before-done` | [superpowers: verification-before-completion](https://github.com/obra/superpowers/tree/main/skills/verification-before-completion), [agency-agents: testing-reality-checker.md](https://github.com/msitarzewski/agency-agents/blob/main/testing/testing-reality-checker.md), own |
+| Skill | `review-code` | [wshobson: code-review-excellence](https://github.com/wshobson/agents/tree/main/plugins/developer-essentials/skills/code-review-excellence), [superpowers: requesting-code-review](https://github.com/obra/superpowers/tree/main/skills/requesting-code-review), [agency-agents: engineering-code-reviewer.md](https://github.com/msitarzewski/agency-agents/blob/main/engineering/engineering-code-reviewer.md), own |
+| Skill | `receive-review` | [superpowers: receiving-code-review](https://github.com/obra/superpowers/tree/main/skills/receiving-code-review) |
+| Skill | `finish-branch` | [superpowers: finishing-a-development-branch](https://github.com/obra/superpowers/tree/main/skills/finishing-a-development-branch), [wshobson: git-workflow.md](https://github.com/wshobson/agents/blob/main/plugins/git-pr-workflows/commands/git-workflow.md) |
+| Skill | `onboard-codebase` | [agency-agents: engineering-codebase-onboarding-engineer.md](https://github.com/msitarzewski/agency-agents/blob/main/engineering/engineering-codebase-onboarding-engineer.md), own |
+| Skill | `architecture-decision` | [wshobson: architecture-decision-records](https://github.com/wshobson/agents/tree/main/plugins/documentation-generation/skills/architecture-decision-records), [agency-agents: engineering-software-architect.md](https://github.com/msitarzewski/agency-agents/blob/main/engineering/engineering-software-architect.md) |
+| Skill | `threat-model` | [agency-agents: security-architect.md](https://github.com/msitarzewski/agency-agents/blob/main/security/security-architect.md), [wshobson: stride-analysis-patterns](https://github.com/wshobson/agents/tree/main/plugins/security-scanning/skills/stride-analysis-patterns) |
+| Skill | `leaked-secret` | [agency-agents: security-secrets-credential-engineer.md](https://github.com/msitarzewski/agency-agents/blob/main/security/security-secrets-credential-engineer.md) |
+| Skill | `refactor-safely` | [wshobson: refactor-clean.md](https://github.com/wshobson/agents/blob/main/plugins/codebase-cleanup/commands/refactor-clean.md), own |
+| Skill | `write-docs` | [agency-agents: engineering-technical-writer.md](https://github.com/msitarzewski/agency-agents/blob/main/engineering/engineering-technical-writer.md), own |
+| Skill | `release-notes` | [wshobson: changelog-automation](https://github.com/wshobson/agents/tree/main/plugins/documentation-generation/skills/changelog-automation), own |
+| Skill | `write-skill` | [anthropic-skills: skill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator), [superpowers: writing-skills](https://github.com/obra/superpowers/tree/main/skills/writing-skills), own |
+| Command | `/write-plan` | [superpowers: writing-plans](https://github.com/obra/superpowers/tree/main/skills/writing-plans), own |
+| Command | `/review` | [wshobson: full-review.md](https://github.com/wshobson/agents/blob/main/plugins/comprehensive-review/commands/full-review.md), own |
+| Command | `/debug` | [wshobson: smart-debug.md](https://github.com/wshobson/agents/blob/main/plugins/debugging-toolkit/commands/smart-debug.md), [superpowers: systematic-debugging](https://github.com/obra/superpowers/tree/main/skills/systematic-debugging) |
+| Command | `/tdd` | [wshobson: tdd-cycle.md](https://github.com/wshobson/agents/blob/main/plugins/tdd-workflows/commands/tdd-cycle.md), [superpowers: test-driven-development](https://github.com/obra/superpowers/tree/main/skills/test-driven-development) |
+| Command | `/onboard` | [agency-agents: engineering-codebase-onboarding-engineer.md](https://github.com/msitarzewski/agency-agents/blob/main/engineering/engineering-codebase-onboarding-engineer.md), [wshobson: onboard.md](https://github.com/wshobson/agents/blob/main/plugins/git-pr-workflows/commands/onboard.md), own |
+| Command | `/adr` | [wshobson: architecture-decision-records](https://github.com/wshobson/agents/tree/main/plugins/documentation-generation/skills/architecture-decision-records) |
+| Command | `/finish` | [superpowers: finishing-a-development-branch](https://github.com/obra/superpowers/tree/main/skills/finishing-a-development-branch) |
+| Command | `/release-notes` | [wshobson: changelog-automation](https://github.com/wshobson/agents/tree/main/plugins/documentation-generation/skills/changelog-automation), own |
+| Agent | `planner` | [agency-agents: project-manager-senior.md](https://github.com/msitarzewski/agency-agents/blob/main/project-management/project-manager-senior.md), [superpowers: writing-plans](https://github.com/obra/superpowers/tree/main/skills/writing-plans) |
+| Agent | `reviewer` | [agency-agents: engineering-code-reviewer.md](https://github.com/msitarzewski/agency-agents/blob/main/engineering/engineering-code-reviewer.md), [wshobson: code-reviewer.md](https://github.com/wshobson/agents/blob/main/plugins/comprehensive-review/agents/code-reviewer.md), own |
+| Agent | `security-reviewer` | [agency-agents: security-architect.md](https://github.com/msitarzewski/agency-agents/blob/main/security/security-architect.md), [wshobson: security-auditor.md](https://github.com/wshobson/agents/blob/main/plugins/comprehensive-review/agents/security-auditor.md) |
+| Agent | `debugger` | [wshobson: debugger.md](https://github.com/wshobson/agents/blob/main/plugins/debugging-toolkit/agents/debugger.md), [superpowers: systematic-debugging](https://github.com/obra/superpowers/tree/main/skills/systematic-debugging) |
+| Agent | `explorer` | [agency-agents: engineering-codebase-onboarding-engineer.md](https://github.com/msitarzewski/agency-agents/blob/main/engineering/engineering-codebase-onboarding-engineer.md), own |
+| Agent | `tester` | [agency-agents: testing-test-automation-engineer.md](https://github.com/msitarzewski/agency-agents/blob/main/testing/testing-test-automation-engineer.md), [superpowers: test-driven-development](https://github.com/obra/superpowers/tree/main/skills/test-driven-development) |
+| Agent | `docs-writer` | [agency-agents: engineering-technical-writer.md](https://github.com/msitarzewski/agency-agents/blob/main/engineering/engineering-technical-writer.md) |
+
+### Web (`yaap-web`)
+
+| Kind | Item | Sources |
+|---|---|---|
+| Standard | `web` | [agency-agents: testing-accessibility-auditor.md](https://github.com/msitarzewski/agency-agents/blob/main/testing/testing-accessibility-auditor.md), [wshobson: typescript-advanced-types](https://github.com/wshobson/agents/tree/main/plugins/javascript-typescript/skills/typescript-advanced-types), own |
+| Skill | `frontend-design` | [anthropic-skills: frontend-design](https://github.com/anthropics/skills/tree/main/skills/frontend-design) |
+| Skill | `react-state` | [wshobson: react-state-management](https://github.com/wshobson/agents/tree/main/plugins/frontend-mobile-development/skills/react-state-management) |
+| Skill | `typescript-types` | [wshobson: typescript-advanced-types](https://github.com/wshobson/agents/tree/main/plugins/javascript-typescript/skills/typescript-advanced-types) |
+| Skill | `e2e-testing` | [wshobson: e2e-testing-patterns](https://github.com/wshobson/agents/tree/main/plugins/developer-essentials/skills/e2e-testing-patterns), [agency-agents: testing-test-automation-engineer.md](https://github.com/msitarzewski/agency-agents/blob/main/testing/testing-test-automation-engineer.md), [anthropic-skills: webapp-testing](https://github.com/anthropics/skills/tree/main/skills/webapp-testing), own |
+| Skill | `accessibility-audit` | [agency-agents: testing-accessibility-auditor.md](https://github.com/msitarzewski/agency-agents/blob/main/testing/testing-accessibility-auditor.md) |
+| Skill | `ui-finish-gate` | [agency-agents: design-ui-finish-gate-reviewer.md](https://github.com/msitarzewski/agency-agents/blob/main/design/design-ui-finish-gate-reviewer.md) |
+| Agent | `frontend-reviewer` | [agency-agents: design-ui-finish-gate-reviewer.md](https://github.com/msitarzewski/agency-agents/blob/main/design/design-ui-finish-gate-reviewer.md), own |
+
+### Python (`yaap-python`)
+
+| Kind | Item | Sources |
+|---|---|---|
+| Standard | `python` | [wshobson: python-type-safety](https://github.com/wshobson/agents/tree/main/plugins/python-development/skills/python-type-safety), [wshobson: uv-package-manager](https://github.com/wshobson/agents/tree/main/plugins/python-development/skills/uv-package-manager), own |
+| Skill | `python-testing` | [wshobson: python-testing-patterns](https://github.com/wshobson/agents/tree/main/plugins/python-development/skills/python-testing-patterns) |
+| Skill | `api-design` | [wshobson: api-design-principles](https://github.com/wshobson/agents/tree/main/plugins/backend-development/skills/api-design-principles), [agency-agents: engineering-api-platform-engineer.md](https://github.com/msitarzewski/agency-agents/blob/main/engineering/engineering-api-platform-engineer.md), [agency-agents: engineering-backend-architect.md](https://github.com/msitarzewski/agency-agents/blob/main/engineering/engineering-backend-architect.md) |
+| Skill | `fastapi-service` | [wshobson: fastapi-templates](https://github.com/wshobson/agents/tree/main/plugins/api-scaffolding/skills/fastapi-templates), own |
+| Skill | `postgres-schema` | [wshobson: postgresql-table-design](https://github.com/wshobson/agents/tree/main/plugins/database-design/skills/postgresql-table-design) |
+| Skill | `safe-migrations` | [agency-agents: engineering-database-reliability-engineer.md](https://github.com/msitarzewski/agency-agents/blob/main/engineering/engineering-database-reliability-engineer.md), [wshobson: sql-migrations.md](https://github.com/wshobson/agents/blob/main/plugins/database-migrations/commands/sql-migrations.md) |
+| Skill | `build-mcp-server` | [anthropic-skills: mcp-builder](https://github.com/anthropics/skills/tree/main/skills/mcp-builder), [agency-agents: specialized-mcp-builder.md](https://github.com/msitarzewski/agency-agents/blob/main/specialized/specialized-mcp-builder.md) |
+
+### Data (`yaap-data`)
+
+| Kind | Item | Sources |
+|---|---|---|
+| Standard | `data` | [agency-agents: engineering-data-engineer.md](https://github.com/msitarzewski/agency-agents/blob/main/engineering/engineering-data-engineer.md), [wshobson: data-quality-frameworks](https://github.com/wshobson/agents/tree/main/plugins/data-engineering/skills/data-quality-frameworks), own |
+| Skill | `sql-style-and-tuning` | [wshobson: sql-optimization-patterns](https://github.com/wshobson/agents/tree/main/plugins/developer-essentials/skills/sql-optimization-patterns), [agency-agents: engineering-database-optimizer.md](https://github.com/msitarzewski/agency-agents/blob/main/engineering/engineering-database-optimizer.md) |
+| Skill | `pipeline-design` | [agency-agents: engineering-data-engineer.md](https://github.com/msitarzewski/agency-agents/blob/main/engineering/engineering-data-engineer.md) |
+| Skill | `dbt-models` | [wshobson: dbt-transformation-patterns](https://github.com/wshobson/agents/tree/main/plugins/data-engineering/skills/dbt-transformation-patterns) |
+| Skill | `airflow-dags` | [wshobson: airflow-dag-patterns](https://github.com/wshobson/agents/tree/main/plugins/data-engineering/skills/airflow-dag-patterns) |
+| Skill | `data-quality` | [wshobson: data-quality-frameworks](https://github.com/wshobson/agents/tree/main/plugins/data-engineering/skills/data-quality-frameworks) |
+| Agent | `data-engineer` | [agency-agents: engineering-data-engineer.md](https://github.com/msitarzewski/agency-agents/blob/main/engineering/engineering-data-engineer.md) |
+
+### DevOps (`yaap-devops`)
+
+| Kind | Item | Sources |
+|---|---|---|
+| Standard | `operations` | [wshobson: github-actions-templates](https://github.com/wshobson/agents/tree/main/plugins/cicd-automation/skills/github-actions-templates), [wshobson: secrets-management](https://github.com/wshobson/agents/tree/main/plugins/cicd-automation/skills/secrets-management), own |
+| Skill | `docker-images` | own |
+| Skill | `github-actions` | [wshobson: github-actions-templates](https://github.com/wshobson/agents/tree/main/plugins/cicd-automation/skills/github-actions-templates), own |
+| Skill | `incident-response` | [agency-agents: engineering-incident-response-commander.md](https://github.com/msitarzewski/agency-agents/blob/main/engineering/engineering-incident-response-commander.md) |
+| Skill | `slos` | [agency-agents: engineering-sre.md](https://github.com/msitarzewski/agency-agents/blob/main/engineering/engineering-sre.md) |
+| Skill | `kubernetes-manifests` | [wshobson: k8s-manifest-generator](https://github.com/wshobson/agents/tree/main/plugins/kubernetes-operations/skills/k8s-manifest-generator), [wshobson: k8s-security-policies](https://github.com/wshobson/agents/tree/main/plugins/kubernetes-operations/skills/k8s-security-policies) |
+| Agent | `devops` | [agency-agents: engineering-devops-automator.md](https://github.com/msitarzewski/agency-agents/blob/main/engineering/engineering-devops-automator.md), [wshobson: deployment-engineer.md](https://github.com/wshobson/agents/blob/main/plugins/cicd-automation/agents/deployment-engineer.md) |
+
+### Writing (`yaap-writing`)
+
+| Kind | Item | Sources |
+|---|---|---|
+| Standard | `writing` | own |
+| Skill | `co-write-document` | own |
+| Skill | `status-update` | [anthropic-skills: internal-comms](https://github.com/anthropics/skills/tree/main/skills/internal-comms) |
+| Skill | `check-before-acting` | [anthropic-skills: discernment-nudge](https://github.com/anthropics/skills/tree/main/skills/discernment-nudge) |
+| Skill | `product-requirements` | [agency-agents: product-manager.md](https://github.com/msitarzewski/agency-agents/blob/main/product/product-manager.md) |
+| Skill | `prioritise` | [agency-agents: product-sprint-prioritizer.md](https://github.com/msitarzewski/agency-agents/blob/main/product/product-sprint-prioritizer.md) |
+| Skill | `prompt-design` | [agency-agents: engineering-prompt-engineer.md](https://github.com/msitarzewski/agency-agents/blob/main/engineering/engineering-prompt-engineer.md) |
+| Skill | `research-and-summarise` | own |
+| Agent | `researcher` | own |
