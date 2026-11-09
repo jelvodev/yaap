@@ -1,10 +1,8 @@
 ---
 name: brainstorm-design
-description: Agree on a short design with the user before building a feature, a new component, a change in behaviour
-  or anything with more than one sensible approach. Asks one question at a time, proposes approaches with a pick,
-  shows UI ideas in the preview beside the chat, and writes the agreed design down. Use this whenever the request
-  leaves open what to build or how, even when it sounds simple, because building the wrong thing well is the most
-  expensive mistake there is.
+description: Settle with the user what to build and how before building a feature, a component or a change in
+  behaviour that has more than one sensible approach. Asks short questions, compares routes, sketches screens in the
+  preview and writes a short design. Use it whenever the request leaves the what or the how open.
 license: MIT
 metadata:
   sources: superpowers/skills/brainstorming, own
@@ -12,99 +10,100 @@ metadata:
 
 # Brainstorm a design
 
-Find out what the user actually wants, and why, before anything gets built. When you know the why, the hundred small
-decisions nobody mentions come out the way the user would have made them.
+A request names a result. A design says which result, for whom, and by which route. Settle those with the user while
+changing them costs nothing, and write them down, so the plan and the build follow what the user meant and not what
+you assumed.
 
-## 0. Is a design needed?
+## When to skip it
 
-- **Everything that matters is in the request** ("rename the button to Save"): do it and say what you did. No
-  design.
-- **Something that changes what gets built is open**: start here.
-- **The user says "just build it"**: state the one or two main choices you are making (language, library, where it
-  lives) in a line each, then go.
+- Nothing in the request is open that would change the result ("rename the button to Save"): build it and say what
+  you did.
+- The user wants no discussion: name the main choices you will make (language, library, where the code goes), one
+  line each, and start.
+- Anything else: go through the steps below. A small change gets a short pass, not a long one.
 
-## 1. Look before you ask
+## Step 1: Do your homework
 
-Read what the request touches: the files, their tests, the project memory, similar features. Keep reading until you
-can say how the relevant part works today and what the change would touch. Never ask what the code or the
-conversation already answers, and never reopen what the user already decided.
+Before your first question, learn how things work today: the files the request touches and their tests, the project
+memory, a similar feature elsewhere in the project. A question the project can answer is yours to answer, and a
+point the user already settled stays settled. In a project conversation, send a wide search to an exploring worker
+(`delegate`, mode `explore`) so the conversation stays small.
 
-For a wide search, send an exploring worker with `delegate` (mode `explore`), so the conversation stays small.
+## Step 2: Settle the purpose
 
-## 2. One question at a time
+The part users most often leave out is the reason. Ask for it plainly, and let the user answer in their own words
+before you offer any choices; a list of options puts words in their mouth. Worth learning:
 
-Ask only what changes what gets built and what neither the request nor the project answers. Everything else is your
-call: make it, say it as a proposal with a reason, and move on.
+- the problem it solves, and for whom;
+- how the user will tell that it works;
+- what must stay as it is;
+- what it must not turn into.
 
-- **Start with the why.** Until you know what the user wants to achieve, ask open questions without options to pick
-  from; options steer, and their own words carry intent.
-- **Then the choices.** Once the why is clear, a choice with named options gets each option in a line, with what it
-  costs, and which one you would pick.
-- **One question per message**, specific to this project, built on the last answer or on something you found. Say
-  what the answer would change.
-- **Fill gaps out loud.** A default the user never heard is one they could not reject.
+Ask about one thing per message, tie the question to something concrete you found, and say what depends on the
+answer. Whatever you can decide yourself, decide, and say it out loud as a proposal with its reason, so the user can
+overrule it.
 
-Cover, as territory and not as a script: the goal and what success looks like, what is out of scope, what would make
-it a failure even if it works, what exists today, and the details the user cares about.
+## Step 3: Compare routes
 
-## 3. Lay out the approaches
+When the purpose is clear, send a message that does nothing but compare ways to build it. Two or three routes, each
+grounded in how this project works, in a small table: how it works, what it costs, what it risks. Leave out routes
+that conflict with the purpose or the existing code. End with the route you recommend and why. If only one route makes
+sense, say so and say what rules out the others.
 
-Before writing anything up, give the ways to build it a message of their own: two or three real approaches, grounded
-in how the project already works, each with its trade-off. Drop the ones that fight the goal or the existing code.
-Recommend one and say why. When there is truly only one sensible way, say so and why the others do not fit.
+## Step 4: Let the user see it
 
-## 4. Show, do not describe
+When the choice is about something visible (a screen, a layout, a flow, variants that look different):
 
-When seeing beats reading (a screen, a layout, a flow, options that look different), show it:
-
-- **A quick sketch:** a few lines of text, or a complete `html` page in a code block, which the chat shows as a live
+- **Small:** a text sketch, or a self-contained `html` page in a code block, which the chat renders as a live
   preview.
-- **In the real app:** write a throwaway mockup page or route, start the dev server with `start_process` and its
-  port, and point the user to the preview beside the chat. Put two options side by side on one page when the choice
-  is between them. Check what the user will see yourself with the preview's screenshot or `open_browser`.
-- Keep mockups out of the real code: a scratch folder or a route you remove afterwards, never committed. They answer
-  a question; they are not the first version.
+- **In the real app:** a throwaway page or route, the dev server started with `start_process` and its port, the
+  result in the preview beside the chat. Two variants on one page make the choice quick. Look at it yourself with
+  `open_browser`; the preview's *Screenshot* button is for the user.
+- Throwaway work lives in a scratch folder or a temporary route, is never committed, and goes once the question is
+  answered. It is not the first version of the feature.
 
-Requirements, scope and trade-offs stay in text; a question about a UI is not always a visual question.
+Questions about scope, rules or trade-offs stay in text, even when the feature has a screen.
 
-## 5. Write the short design
+## Step 5: Write the design
 
-Play back what you understood in a few short parts as you go, and end each with "what is wrong or missing?". Mark
-what the user said as theirs and what you filled in as your proposal.
+Summarise as you go: each time a part is clear, describe it back in a short paragraph and ask the user to correct
+it. Keep the user's words and your proposals apart ("you said", "I propose").
 
-When the approach is chosen, write the design with the template below. A small change needs a few lines per heading;
-a larger one more, but still short enough to read in two minutes. Save it where the project keeps such documents, or
-`docs/designs/<topic>.md`, and open it beside the chat with `open_document` so the user can edit it directly. A
-decision that holds beyond this change (a convention, a library choice) goes into the project memory with
-`update_memory`.
+When the route is chosen, fill in the template below; it should take two minutes to read. Save it where the project
+keeps design notes, or in `docs/designs/<topic>.md`. In a project conversation, open it beside the chat with
+`open_document` so the user can edit it; elsewhere, give the design in the reply. A decision that outlasts this
+change (a convention, a library) goes into the project memory with `update_memory`.
 
-If the work turns out to be several independent pieces, say so, agree on an order and design them one at a time.
+If the request turns out to be several separate pieces, agree on an order and design them one at a time.
 
-## The gate
+## Hold the build
 
-Build nothing until the user approves the design: no product code, no scaffolding, no new dependencies. Reading,
-exploring and throwaway mockups are fine. "Sounds good" to an idea is not approval of a document you have not
-written yet.
+Until the user approves the written design, write no product code, add no dependencies and create no scaffolding.
+Reading, exploring and throwaway sketches are fine. Only the written design can be approved; agreeing with an idea
+earlier in the conversation does not count.
 
-After approval, the next step is a plan: load the `write-plan` skill with `load_skill`. A design small enough to
-need no plan goes straight to building, with the design's checks as the definition of done.
+Next comes the plan: load the `write-plan` skill with `load_skill`. A change too small to need a plan is built
+straight away, with the design's "Done when" as its check.
 
-## Output template
+## Template
 
 ```
 # Design: <topic>
 
-Goal: <what it does for whom, and why now>
-Success: <how we will know it works>
-Out of scope: <what this change will not do>
+Purpose: <the problem, for whom, and why now>
+Done when: <how the user will tell it works>
+Keeps: <what must not change>
+Not included: <what is left out on purpose>
 
-## Approaches
-- <A, chosen>: <how, trade-off>
-- <B>: <how, why not>
+## Routes
+| Route | Cost | Risk | |
+|---|---|---|---|
+| <A> | <...> | <...> | chosen |
+| <B> | <...> | <...> | not chosen: <why> |
 
-## Design
-- <the decisions, one line each; mark your own calls as "proposed">
+## Decisions
+- <decision> (user | proposed)
 
-## Open
-- <what is left to the builder, or "nothing">
+## Left to the builder
+- <..., or "nothing">
 ```

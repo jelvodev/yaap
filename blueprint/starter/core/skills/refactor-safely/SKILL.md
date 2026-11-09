@@ -48,8 +48,8 @@ For each step:
 2. **Make the one change.** Use `rename_symbol` for renames, so every reference changes at once; use
    `find_references` before moving or deleting anything.
 3. **Run the tests and the type check.** Read the output.
-4. **Green: go on. Red: undo.** Revert the step with git, or ask the user to restore it, and take a smaller step. Fixing forward mixes a refactor with
-   a repair, and the step loses its proof.
+4. **Green: go on. Red: undo.** Revert the step with git, or ask the user to restore it, and take a smaller step.
+   Fixing forward mixes a refactor with a repair, and the step loses its proof.
 
 ## Keep behaviour out
 

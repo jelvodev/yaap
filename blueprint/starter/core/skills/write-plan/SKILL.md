@@ -12,9 +12,10 @@ metadata:
 
 # Write a plan
 
-A plan holds the decisions an implementer cannot make alone: which files, which names, which values, and how each
-step is proven. Write it for someone who knows the language well but has never seen this project or this
-conversation, such as a worker started with `delegate` or yourself after the context was compacted.
+Picture the reader as a capable developer who arrives tomorrow with no memory of this conversation: a worker started
+with `delegate`, or you after a compaction. They can write good code on their own. What they cannot guess is what was
+agreed: where the change goes, what things are called, the exact values, and how each step will be shown to work.
+The plan gives them exactly that.
 
 ## 1. Gather what the plan argues from
 
@@ -53,9 +54,10 @@ duplicate, a timeout, no permission.
 
 ## 3. Map the files
 
-Before the steps, list the files to create or change and what each one is responsible for. This is where structure
-is decided: one responsibility per file, new code in its own module rather than added to a large one, and the
-project's existing patterns over new ones.
+List every file the change creates or edits, with one line on its job. Writing this list is where the shape of the
+change gets fixed, so check it against the project: a file with one job is easier to test than one with three, new
+code is easier to review in a module of its own than inside a large one, and the patterns the project already uses
+beat new ones.
 
 ## 4. Cut the work into steps
 
@@ -63,8 +65,9 @@ A step is the smallest piece that has its own test cycle and could be reviewed, 
 Each step names:
 
 - **Files:** created or changed, with the function or section when it helps.
-- **Change:** what to build, with the exact signatures and values where they matter. No code bodies the signature and
-  the test already decide; a plan longer than the code it describes has written the code instead.
+- **Change:** what to build, with the exact signatures and values where they matter. Leave function bodies to the
+  implementer when the signature and the test leave only one sensible way to write them; write out only what they
+  could not work out alone, such as a tricky algorithm.
 - **Test:** the test to write first, by name and what it asserts, and which criterion it proves.
 - **Check:** the command to run and the result that means it passed.
 
@@ -76,8 +79,8 @@ after each one.
 - **Coverage:** every criterion has a step whose test proves it.
 - **No empty lines:** remove phrases that decide nothing ("handle edge cases", "add validation", "TBD", "write
   tests"). Replace each with the concrete case or drop it.
-- **Consistent names:** a function called one thing in step 2 is not called something else in step 5.
-- **Proportion:** if the plan is mostly code, replace bodies with signatures and test names.
+- **One name per thing:** search the plan for each new function, field and file, and make every mention match.
+- **Plan, not program:** when code blocks fill most of the page, cut them back to signatures and test names.
 - **Risk:** name the steps that are hard to undo (a migration, a public API, deleting data) and what protects them.
 
 ## 6. Hand it over

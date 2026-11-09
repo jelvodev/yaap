@@ -1,9 +1,8 @@
 ---
 name: ui-finish-gate
-description: Decide PASS or HOLD before a screen or UI change ships, by checking the running interface against the
-  product's user and main task, its states and its narrow-screen layout, with evidence for every finding. Use this
-  when a UI change is about to be merged or released, when asked to review a screen or say whether it is ready, or
-  when an interface feels generic or interchangeable but nobody can say why.
+description: Decide whether a screen or UI change is ready to ship by walking its main task in the running app, at
+  desktop and phone width and in every state, and naming what must change first. Use it before a UI change is merged
+  or released, when asked if a screen is ready, or when it feels generic.
 license: MIT
 metadata:
   sources: agency-agents/design/design-ui-finish-gate-reviewer.md
@@ -11,80 +10,88 @@ metadata:
 
 # UI finish gate
 
-The last check before a UI ships. It is not a taste review: it asks whether this screen does its job for its users,
-in every state, at every width, and it ends with a decision the team can act on. Review the running app, not the
-code alone and not a mockup.
+A screen is ready when its users can do what they came for, in every state it can be in, at every width they use.
+Check that in the running app, since the code and a mockup both hide what a user meets, and end with a verdict:
+ready, or not ready with a short list of what must change.
 
-## 1. Write the product lens
+## 1. Name the job
 
-Before judging anything, write one short paragraph:
+Write two or three sentences: who opens this screen, the task they come to complete, and what they need to see
+before they act. Take it from the request, the design notes and the project memory, and mark what you had to guess.
+Note the fixed constraints too (the design system, the brand, the components the project already has): a change
+that breaks them is not a fix.
 
-- who uses this screen and what they come to finish;
-- the object or decision they must see first (the first read);
-- the one primary action;
-- what they do daily, and what is rare but risky;
-- the constraints that stay: the design system, the brand, the framework.
+## 2. Walk the task
 
-If you have to guess part of it, mark the guess as an assumption. Read the project memory for earlier decisions.
+Start the app with `start_process` and its port, so it shows in the preview beside the chat, or use `open_browser`
+when a server already runs. Do the main task the way a user would, from arriving on the screen to the result, and
+note every moment you hesitate: where to look, what to press, whether it worked. Then do it again with the keyboard
+only. Each hesitation is a candidate finding.
 
-## 2. Open it
+## 3. Fill the grid
 
-Run the app with `start_process` and its port so it shows in the preview beside the chat, or use `open_browser`
-when a server already runs. Take screenshots at desktop width (about 1440 pixels) and phone width (about 390). Bring
-up each state: loading, empty, an error, a long or missing value, a selected row, a disabled control, keyboard focus.
+Check every state at two widths, about 1440 and about 390 pixels, and keep a screenshot of each (`open_browser`):
 
-## 3. Review in this order
+| State | Desktop | Phone |
+|---|---|---|
+| Typical data | | |
+| Loading | | |
+| Empty, as on first use | | |
+| Error | | |
+| Long text, missing values, many rows | | |
+| Focus, selected and disabled controls | | |
 
-1. **The first read.** Can a new user tell, in the first screen without scrolling, what this is and what to do?
-2. **Hierarchy.** Does visual weight follow the user's decisions, or the component library's defaults? Four equal
-   cards for unequal numbers is a finding.
-3. **Fit.** Does each layout choice earn its place for this task? A card grid where a table is needed, a hero where
-   people come to work, decoration (gradients, glass, large radii, animation) that serves nothing.
-4. **States.** Are loading, empty, error, focus and disabled states designed and useful? An empty state says what to
-   do first; an error says how to fix it.
-5. **Narrow screens.** Does the phone layout keep what users scan for, or does it only stack the desktop pieces?
-6. **Consistency.** Are the project's tokens, components and words used as elsewhere in the product?
+Write "ok" or the problem in each cell. An empty state tells the user how to begin; an error tells them how to
+recover; the phone layout keeps what users scan for instead of piling the desktop blocks on top of each other.
 
-Accessibility is part of finished, not a later clean-up: a keyboard trap or missing labels are findings here. For a
-full check, load the `accessibility-audit` skill.
+## 4. Look for sameness
 
-## 4. Evidence, not adjectives
+A screen that could belong to any product usually hides the user's work behind stock parts. Signs:
 
-Every finding names what you saw and where (a screenshot, a state, a width) and why it breaks the lens. "Looks
-cluttered" is not a finding; "the cancel action and the delete action look the same at 390 pixels" is. A simple
-screen is not a problem; an interchangeable one is.
+- everything has the same weight, so nothing comes first;
+- a layout pattern picked by habit (tiles, a banner, a gallery) where the task needs a table, a form or a list;
+- decoration that carries no information;
+- components and words that differ from the rest of the product.
 
-Separate a real problem from your preference. If the product's constraints explain a choice, keep it.
+A sign is a finding only when you can say what the user loses and what would fit this task better. Plain is fine;
+interchangeable is the problem.
 
-## 5. Decide
+Accessibility is part of ready: a keyboard trap, a control without a name or text below contrast keeps the screen
+from shipping. For a full audit, load the `accessibility-audit` skill.
 
-- **PASS** when the first read and the primary action are clear, the named states and both widths have been checked,
-  and no generic default remains without a reason.
-- **HOLD** when a required change remains. Do not soften a hold into a list of suggestions; say what must change and
-  how it will be checked.
+## 5. Write findings that can be checked
 
-Name what already works, so nobody rewrites it by accident.
+Each finding gives the place (state, width, screenshot), what the user runs into, and the change, with how to confirm
+it. Taste stays out: "feels busy" is not a finding; "at 390 pixels Save and Delete sit side by side in the same
+style" is. When the constraints explain a choice, leave it alone.
+
+## 6. Give the verdict
+
+- **Ready:** the walk had no blocking hesitation, no cell in the grid blocks, and every stock part has a reason.
+- **Not ready:** at least one must-change remains. List each one as a requirement, not as a suggestion.
+
+Name what works well too, so nobody removes it by accident.
+
+When you have `delegate` (in a project conversation), a larger review can go to the `frontend-reviewer` agent
+(`delegate` with `agent: frontend-reviewer`), which reads with a stronger model. That agent runs this gate itself.
 
 ## Report
 
 ```
-UI finish gate: <screen or change>
-Decision: PASS | HOLD
+Verdict: ready | not ready - <screen or change>
+Job: <who, the task, what they need to see first>
 
-Lens: <user, task, first read, primary action>
+Walk: <the task walked>; hesitations: <n>
+Grid: <states and widths checked>; open cells: <list, or "none">
 
-Evidence
-- <what you saw, where> -> <why it matters for this user>
+Must change
+- [<state, width>] <what the user runs into> -> <change>; confirm by <check>
 
-Required before PASS
-1. <concrete change> - check with <state and width>
+Could change
+- <...>
 
-Optional
-- <refinements that do not hold the release>
+Works
+- <...>
 
-Keep
-- <decisions that already serve the product>
-
-Checked: <widths, states, screenshots>
-Not checked: <what is left>
+Not checked: <...>
 ```

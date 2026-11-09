@@ -16,8 +16,8 @@ Prove the work is green, then let the user decide how it lands. The decision is 
 
 ## 1. Run the tests
 
-Run the project's whole test suite, and its lint and build when it has them, on the tree as it is now. A run from
-earlier in the conversation proves the tree it ran on, not this one.
+Run the project's whole test suite, and its lint and build when it has them, on the tree as it is now. Every edit
+since the last run could have broken something, so an older green result does not count.
 
 If anything fails, stop here. Report the failures (the command and the failing tests) and fix them first, or ask the
 user whether to. The options below come after a green run.
@@ -26,9 +26,9 @@ user whether to. The options below come after a green run.
 
 - `git_status`: are there uncommitted changes? Ask whether to commit them with `git_commit`, or what else to do with
   them. Never finish with work left only in the working tree.
-- Which branch is this, and what is its base? Take the base from the plan, the conversation or the branch's
-  upstream. If it is not clear, ask: "This branch started from `main`, is that right?" Merging into the wrong base is
-  expensive to undo.
+- Which branch is this, and which branch should it land on? Look in the plan, the conversation and the branch's
+  upstream. When none of them settles it, ask a yes-or-no question ("This branch started from `main`, is that
+  right?"), because a merge into the wrong branch drags unrelated commits along and is slow to untangle.
 - Check that nothing secret or generated is in the commits (`.env` files, keys, build output).
 
 ## 3. Offer the options
@@ -73,9 +73,9 @@ Report the branch name and its last commit, and what is still open. Nothing else
 
 ## Never discard work unasked
 
-Throwing work away happens only when the user asks for it in so many words. Then, before doing it, list exactly what
-will be lost (the branch, its commits with their subjects, uncommitted files) and ask for a clear yes. This covers
-`git branch -D`, `git reset --hard`, `git clean`, *Discard all…* under Changes, and deleting a worktree.
+Delete work only on an explicit request from the user, never as a tidy-up you thought of yourself. Even then, first
+show what would be gone (the branch, the subjects of its commits, the uncommitted files) and wait for a clear yes.
+This covers `git branch -D`, `git reset --hard`, `git clean`, *Discard all…* under Changes, and deleting a worktree.
 
 - A push that is rejected means the remote moved. Fetch and look at what changed; never force-push unless the user
   asks for exactly that.

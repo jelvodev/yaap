@@ -82,18 +82,25 @@ that the assertions are any good, so read the tests too.
 A throwaway spike to learn something, generated code, and pure configuration. Say so to the user when you skip the
 test. A spike that turns out to be kept starts again, test first: keep what you learned, not the code.
 
-## Answers to the usual excuses
+## When skipping the test feels reasonable
 
-| Excuse | Answer |
-|---|---|
-| "It is too simple to test." | Simple code breaks too, and its test takes a minute to write. |
-| "I will add the tests later." | Tests written later pass at once and check what the code does, not what it should. |
-| "I already tried it by hand." | A manual try leaves no record and is not repeated after the next change. |
-| "This code has no tests yet." | Then the first test you add is the most valuable one. Start where you change it. |
-| "Writing the test is hard." | Code that is hard to test is hard to use. Simplify the interface first. |
-| "I need to explore first." | Fine: explore, throw the experiment away, then build it test first. |
-| "Deleting my code is a waste." | The time is spent either way. Code without a test you saw fail is the real cost. |
-| "It slows me down." | It is slower than skipping the test today and faster than debugging it next month. |
+The reasons to skip a test sound different each time, but most are one of these. Notice the thought, then write the
+test anyway.
+
+- **"The type checker covers it."** Types check shapes, not results: a total that is off by the shipping cost still
+  has the right type.
+- **"It is only a refactor."** Then the existing tests must stay green. If there are none, write tests that pin the
+  current behaviour first (the `refactor-safely` skill).
+- **"I will test it once the design settles."** Writing the test is how the design settles: it makes you use the
+  interface from the caller's side before it exists.
+- **"The user is waiting."** An untested fix tends to come back as a second request. The test is usually quicker
+  than that second round.
+- **"It needs a database, a browser or the network."** Split the logic from the outside world and test the logic
+  alone; one integration test covers the seam.
+- **"I watched it work in the preview."** One look is not a check that runs again after the next change. Turn the
+  steps you clicked into a test.
+- **"The test would only repeat the code."** Then it is aimed at the implementation. Test what a caller or a user
+  gets back instead.
 
 ## In YAAP
 

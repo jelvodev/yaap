@@ -79,7 +79,7 @@ that meets WCAG AA, reduced motion respected, no layout shift as fonts and image
 
 Copy can look generated as easily as a layout can.
 
-- Name things by what users know, not by how the system is built: "Notifications", not "Webhook settings".
+- Name things by what users know, not by how the system is built: "Backups", not "Snapshot jobs".
 - A button says what happens: "Save changes", not "Submit". Keep that word through the flow: a "Publish" button
   leads to a "Published" message.
 - An error says what went wrong and how to fix it, plainly and without apology. An empty state says what to do first.
