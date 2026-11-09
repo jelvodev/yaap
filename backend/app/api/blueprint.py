@@ -734,6 +734,9 @@ class PackageAcceptIn(BaseModel):
     # The commit that was reviewed; accepting writes exactly this commit.
     commit: str = Field(pattern=r"^[0-9a-f]{40}$")
     paths: list[str] = Field(min_length=1, max_length=packages.MAX_ITEMS)
+    # The ref the reviewed commit was read from, when the check named one (the starter moving to a newer tag); it is
+    # recorded instead of the old one. Without it the recorded ref stays.
+    ref: str | None = Field(default=None, min_length=1, max_length=200)
 
 
 def installed_package(own: Layer, name: str) -> None:
@@ -748,13 +751,17 @@ async def check_package_update(
     session: SessionDependency,
     cipher: CipherDependency,
     environment_id: Annotated[int | None, Query()] = None,
+    ref: Annotated[str | None, Query(min_length=1, max_length=200)] = None,
 ) -> PackageUpdateOut:
-    """Compare the package's items at this level with the newest commit of its ref, per item; nothing is written."""
+    """Compare the package's items at this level with the newest commit of its ref, per item; nothing is written.
+
+    `ref` reads another ref than the recorded one, such as the starter's tag of a newer YAAP version.
+    """
     own = layers[-1]
     installed_package(own, name)
     github = GitHubSkills(github_token_for(session, cipher, environment_id))
     try:
-        check = await anyio.to_thread.run_sync(package_updates.check_update, github, own, name)
+        check = await anyio.to_thread.run_sync(package_updates.check_update, github, own, name, ref)
     except BlueprintError as error:
         raise unprocessable(error) from error
     installed = packages.installed_items(own)
@@ -798,7 +805,9 @@ async def accept_package_update(
     installed_package(own, name)
     github = GitHubSkills(github_token_for(session, cipher, environment_id))
     try:
-        return await anyio.to_thread.run_sync(package_updates.accept_update, github, own, name, payload.commit, payload.paths)
+        return await anyio.to_thread.run_sync(
+            package_updates.accept_update, github, own, name, payload.commit, payload.paths, payload.ref
+        )
     except BlueprintError as error:
         raise unprocessable(error) from error
 

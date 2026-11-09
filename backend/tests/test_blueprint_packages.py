@@ -43,9 +43,10 @@ FILES_A = {
 
 
 class FakeGitHub:
-    """Serves acme/blueprints from in-memory files per commit."""
+    """Serves acme/blueprints (or another repository) from in-memory files per commit."""
 
-    def __init__(self) -> None:
+    def __init__(self, repository: str = REPOSITORY) -> None:
+        self.repository = repository
         self.refs = {"main": COMMIT_A, "feature/x": COMMIT_A}
         self.files: dict[str, dict[str, bytes]] = {COMMIT_A: dict(FILES_A)}
         self.modes: dict[str, str] = {}
@@ -80,21 +81,21 @@ class FakeGitHub:
 
     def __call__(self, url: str, token: str | None) -> bytes:
         self.calls.append(url)
-        if url == f"{API}/repos/{REPOSITORY}":
+        if url == f"{API}/repos/{self.repository}":
             return json.dumps({"default_branch": "main"}).encode()
-        commits = f"{API}/repos/{REPOSITORY}/commits/"
+        commits = f"{API}/repos/{self.repository}/commits/"
         if url.startswith(commits):
             ref = url[len(commits) :].replace("%2F", "/")
             sha = self.refs.get(ref) or (ref if ref in self.files else None)
             if sha is None:
                 raise SkillInstallError("GitHub has nothing at this link.", 404)
             return json.dumps({"sha": sha, "commit": {"tree": {"sha": f"{sha}:"}}}).encode()
-        trees = f"{API}/repos/{REPOSITORY}/git/trees/"
+        trees = f"{API}/repos/{self.repository}/git/trees/"
         if url.startswith(trees):
             sha, _, query = url[len(trees) :].partition("?")
             commit, _, folder = sha.partition(":")
             return json.dumps(self.tree(commit, folder, query == "recursive=1")).encode()
-        raw = f"{RAW}/{REPOSITORY}/"
+        raw = f"{RAW}/{self.repository}/"
         if url.startswith(raw):
             commit, _, path = url[len(raw) :].partition("/")
             if path in self.files.get(commit, {}):

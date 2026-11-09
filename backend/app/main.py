@@ -77,6 +77,9 @@ from app.api import telemetry as telemetry_api
 from app.api import evals as evals_api
 from app.api import replays as replays_api
 from app.api import learning as learning_api
+from app.api import blueprint_starter as blueprint_starter_api
+from app.api import first_run as first_run_api
+from app.core.first_run import FirstRunService
 from app.plugins.host import PLUGINS_FOLDER, PluginHost
 from app.preview.proxy import start_listener as start_preview_listener
 from app.preview.service import PreviewService, config_from_environment as preview_config
@@ -264,6 +267,7 @@ def create_app(
     app.state.password_hasher = default_hasher()
     app.state.credential_types = credential_types or default_credential_types()
     app.state.providers = providers or default_provider_registry()
+    app.state.first_run = FirstRunService(app.state.providers)
     app.state.runs = RunRegistry()
     # Outside MCP clients with an API token; A2A calls go through this transport in tests.
     app.state.outside_clients = outside_mcp.OutsideClients()
@@ -347,6 +351,8 @@ def create_app(
     api.include_router(evals_api.router)
     api.include_router(replays_api.router)
     api.include_router(learning_api.router)
+    api.include_router(blueprint_starter_api.router)
+    api.include_router(first_run_api.router)
     app.include_router(api)
     app.include_router(plugins_api.sdk_router)
     app.include_router(mcp_server.router)

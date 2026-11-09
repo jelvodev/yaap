@@ -1,6 +1,6 @@
 """Registry of model providers, the ways YAAP connects to them, and the models they offer."""
 
-from collections.abc import Callable, Iterable
+from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass
 from typing import Any
 
@@ -27,6 +27,9 @@ class ProviderSpec:
     # Whether the connection can keep the cacheable system parts for an hour (AgentRequest.cache_ttl): the Anthropic
     # API key can; Claude Code and Codex manage their own cache, OpenAI caches by itself.
     long_cache: bool = False
+    # For a connection that signs in by itself (a subscription CLI): whether it reports a sign-in now. It starts the
+    # CLI, so callers do not run it on every request.
+    signed_in: Callable[[], Awaitable[bool]] | None = None
 
 
 class ProviderRegistry:
@@ -70,8 +73,8 @@ class ProviderRegistry:
 def default_provider_registry() -> ProviderRegistry:
     from app.providers.anthropic_provider import AnthropicProvider
     from app.providers.catalog import ANTHROPIC_MODELS, OPENAI_MODELS
-    from app.providers.claude_code_provider import ClaudeCodeProvider
-    from app.providers.codex_provider import CodexProvider
+    from app.providers.claude_code_provider import ClaudeCodeProvider, claude_code_signed_in
+    from app.providers.codex_provider import CodexProvider, codex_signed_in
     from app.providers.openai_provider import OpenAIProvider
 
     fallback_models = frozenset(model.id for model in ANTHROPIC_MODELS if model.server_side_fallback)
@@ -97,6 +100,7 @@ def default_provider_registry() -> ProviderRegistry:
         connection="claude_code",
         runs_agents=True,
         metered=False,
+        signed_in=claude_code_signed_in,
     )
     def create_openai_provider(api_key: str | None) -> ModelProvider:
         assert api_key is not None
@@ -118,6 +122,7 @@ def default_provider_registry() -> ProviderRegistry:
         connection="codex",
         runs_agents=True,
         metered=False,
+        signed_in=codex_signed_in,
     )
     from app.providers.ollama_provider import OllamaProvider, OllamaState
 

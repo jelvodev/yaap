@@ -386,3 +386,8 @@ async def read_codex_status(command: Sequence[str] = DEFAULT_COMMAND) -> CodexSt
         return CodexStatus(False, None, False, None)
     lines = [line.strip() for line in status.splitlines() if line.strip() and not line.startswith("WARNING")]
     return CodexStatus(True, version.strip() or None, code == 0, lines[-1] if lines else None)
+
+
+async def codex_signed_in() -> bool:
+    """Whether Codex is installed and reports a sign-in: the provider spec's sign-in check."""
+    return (await read_codex_status()).logged_in

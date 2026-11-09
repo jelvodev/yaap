@@ -437,3 +437,8 @@ async def read_claude_code_status(command: Sequence[str] = DEFAULT_COMMAND) -> C
         subscription_type=text("subscriptionType"),
         email=text("email"),
     )
+
+
+async def claude_code_signed_in() -> bool:
+    """Whether Claude Code is installed and reports a sign-in: the provider spec's sign-in check."""
+    return (await read_claude_code_status()).logged_in
