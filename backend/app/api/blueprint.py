@@ -14,7 +14,7 @@ from sqlalchemy import select
 from app.api.dependencies import CipherDependency, BlueprintDirDependency, SessionDependency, WorkspaceDirDependency
 from app.credentials.crypto import CredentialDecryptionError
 from app.credentials.store import read_credential_value
-from app.blueprint import packages, skill_install
+from app.blueprint import package_updates, packages, skill_install
 from app.blueprint.layers import BlueprintError, Item, Layer, delete_file, merge_layers, validate_path, write_file
 from app.blueprint.skill_install import GitHubSkills, read_origin
 from app.core.utility import UtilityContext
@@ -754,7 +754,7 @@ async def check_package_update(
     installed_package(own, name)
     github = GitHubSkills(github_token_for(session, cipher, environment_id))
     try:
-        check = await anyio.to_thread.run_sync(packages.check_update, github, own, name)
+        check = await anyio.to_thread.run_sync(package_updates.check_update, github, own, name)
     except BlueprintError as error:
         raise unprocessable(error) from error
     installed = packages.installed_items(own)
@@ -798,7 +798,7 @@ async def accept_package_update(
     installed_package(own, name)
     github = GitHubSkills(github_token_for(session, cipher, environment_id))
     try:
-        return await anyio.to_thread.run_sync(packages.accept_update, github, own, name, payload.commit, payload.paths)
+        return await anyio.to_thread.run_sync(package_updates.accept_update, github, own, name, payload.commit, payload.paths)
     except BlueprintError as error:
         raise unprocessable(error) from error
 
