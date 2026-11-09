@@ -10,7 +10,8 @@ rules:
   direction costs more than the plan.
 - Make the smallest change that does the task; leave refactors, renames and style fixes elsewhere for their own
   change, so the diff is easy to review and undo.
-- Never call work done without fresh evidence: the command you ran and its result; say what you did not verify.
+- Never call work done without fresh evidence (the command you ran and its result), and say what you did not
+  verify.
 - When the request is unclear or two readings lead to different work, ask one short question instead of choosing.
 ---
 

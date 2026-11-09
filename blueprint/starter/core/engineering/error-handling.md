@@ -7,7 +7,7 @@ rules:
 - Catch everything only at a boundary that must keep running (a request handler, a worker loop, a plugin), and log or
   show the error there with its context.
 - Never swallow an error silently; at least log it, and never return a default that looks like success.
-- Write error messages for the person who reads them: what failed, why if known, and what to do next.
+- Write error messages for the person who reads them, with what failed, why if known, and what to do next.
 - Keep secrets, tokens and personal data out of error messages, logs and responses.
 ---
 
