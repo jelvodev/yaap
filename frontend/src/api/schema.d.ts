@@ -586,6 +586,8 @@ export interface paths {
         /**
          * Check Package Update
          * @description Compare the package's items at this level with the newest commit of its ref, per item; nothing is written.
+         *
+         *     `ref` reads another ref than the recorded one, such as the starter's tag of a newer YAAP version.
          */
         get: operations["check_package_update_api_v1_blueprint_packages__name__update_get"];
         put?: never;
@@ -672,6 +674,26 @@ export interface paths {
          * @description Compare an installed skill of this level with the newest commit of the ref it was installed from.
          */
         get: operations["check_skill_update_api_v1_blueprint_skills__name__update_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/blueprint/starter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Starter
+         * @description The starter's packs at the ref of the running version, and which of them this level has; nothing is written.
+         */
+        get: operations["read_starter_api_v1_blueprint_starter_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2610,6 +2632,106 @@ export interface paths {
         get: operations["read_workers_api_v1_environments__environment_id__workers_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/first-run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read First Run
+         * @description Per step whether it is done, skipped or still to do, and whether to show the wizard.
+         */
+        get: operations["read_first_run_api_v1_first_run_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/first-run/finish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Finish First Run
+         * @description Close the wizard for good; Settings can open it again.
+         */
+        post: operations["finish_first_run_api_v1_first_run_finish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/first-run/restart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restart First Run
+         * @description Open the wizard again, with nothing finished or skipped.
+         */
+        post: operations["restart_first_run_api_v1_first_run_restart_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/first-run/skip/{step}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Skip First Run Step
+         * @description Leave a step for later; it shows as skipped until what it sets up exists.
+         */
+        post: operations["skip_first_run_step_api_v1_first_run_skip__step__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/first-run/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start First Run
+         * @description The wizard opened: it comes back until it is finished, also when left halfway.
+         */
+        post: operations["start_first_run_api_v1_first_run_start_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5812,6 +5934,39 @@ export interface components {
              */
             severity: "high" | "medium" | "low";
         };
+        /** FirstRunOut */
+        FirstRunOut: {
+            /** Finished */
+            finished: boolean;
+            /** Show */
+            show: boolean;
+            /** Started */
+            started: boolean;
+            steps: components["schemas"]["FirstRunStepsOut"];
+        };
+        /** FirstRunStepsOut */
+        FirstRunStepsOut: {
+            /**
+             * Backups
+             * @enum {string}
+             */
+            backups: "done" | "todo" | "skipped";
+            /**
+             * Connection
+             * @enum {string}
+             */
+            connection: "done" | "todo" | "skipped";
+            /**
+             * Project
+             * @enum {string}
+             */
+            project: "done" | "todo" | "skipped";
+            /**
+             * Starter
+             * @enum {string}
+             */
+            starter: "done" | "todo" | "skipped";
+        };
         /** FolderOut */
         FolderOut: {
             /** Entries */
@@ -6430,6 +6585,8 @@ export interface components {
             commit: string;
             /** Paths */
             paths: string[];
+            /** Ref */
+            ref?: string | null;
         };
         /** PackageChoiceIn */
         PackageChoiceIn: {
@@ -7842,6 +7999,42 @@ export interface components {
             checkpoint?: number | null;
             /** Commit */
             commit?: string | null;
+        };
+        /** StarterOut */
+        StarterOut: {
+            /** Credits Url */
+            credits_url: string;
+            /** Packs */
+            packs: components["schemas"]["StarterPackOut"][];
+            /** Pinned To Version */
+            pinned_to_version: boolean;
+            /** Ref */
+            ref: string;
+            /** Repository */
+            repository: string;
+            /** Version */
+            version: string;
+        };
+        /** StarterPackOut */
+        StarterPackOut: {
+            /** Chosen */
+            chosen: boolean;
+            /** Description */
+            description: string;
+            /** Installed */
+            installed: boolean;
+            /** Installed Ref */
+            installed_ref: string | null;
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+            /** Outdated */
+            outdated: boolean;
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
         };
         /** SteerIn */
         SteerIn: {
@@ -9686,6 +9879,7 @@ export interface operations {
         parameters: {
             query?: {
                 environment_id?: number | null;
+                ref?: string | null;
                 project_id?: number | null;
             };
             header?: never;
@@ -9883,6 +10077,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SkillUpdateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_starter_api_v1_blueprint_starter_get: {
+        parameters: {
+            query?: {
+                environment_id?: number | null;
+                project_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StarterOut"];
                 };
             };
             /** @description Validation Error */
@@ -13727,6 +13953,117 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_first_run_api_v1_first_run_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirstRunOut"];
+                };
+            };
+        };
+    };
+    finish_first_run_api_v1_first_run_finish_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirstRunOut"];
+                };
+            };
+        };
+    };
+    restart_first_run_api_v1_first_run_restart_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirstRunOut"];
+                };
+            };
+        };
+    };
+    skip_first_run_step_api_v1_first_run_skip__step__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                step: "connection" | "project" | "backups" | "starter";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirstRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_first_run_api_v1_first_run_start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirstRunOut"];
                 };
             };
         };

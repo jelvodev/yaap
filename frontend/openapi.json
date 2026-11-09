@@ -4787,6 +4787,81 @@
         "title": "FindingOut",
         "type": "object"
       },
+      "FirstRunOut": {
+        "properties": {
+          "finished": {
+            "title": "Finished",
+            "type": "boolean"
+          },
+          "show": {
+            "title": "Show",
+            "type": "boolean"
+          },
+          "started": {
+            "title": "Started",
+            "type": "boolean"
+          },
+          "steps": {
+            "$ref": "#/components/schemas/FirstRunStepsOut"
+          }
+        },
+        "required": [
+          "show",
+          "started",
+          "finished",
+          "steps"
+        ],
+        "title": "FirstRunOut",
+        "type": "object"
+      },
+      "FirstRunStepsOut": {
+        "properties": {
+          "backups": {
+            "enum": [
+              "done",
+              "todo",
+              "skipped"
+            ],
+            "title": "Backups",
+            "type": "string"
+          },
+          "connection": {
+            "enum": [
+              "done",
+              "todo",
+              "skipped"
+            ],
+            "title": "Connection",
+            "type": "string"
+          },
+          "project": {
+            "enum": [
+              "done",
+              "todo",
+              "skipped"
+            ],
+            "title": "Project",
+            "type": "string"
+          },
+          "starter": {
+            "enum": [
+              "done",
+              "todo",
+              "skipped"
+            ],
+            "title": "Starter",
+            "type": "string"
+          }
+        },
+        "required": [
+          "connection",
+          "project",
+          "backups",
+          "starter"
+        ],
+        "title": "FirstRunStepsOut",
+        "type": "object"
+      },
       "FolderOut": {
         "properties": {
           "entries": {
@@ -6510,6 +6585,19 @@
             "minItems": 1,
             "title": "Paths",
             "type": "array"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref"
           }
         },
         "required": [
@@ -10883,6 +10971,107 @@
         "title": "StartIO",
         "type": "object"
       },
+      "StarterOut": {
+        "properties": {
+          "credits_url": {
+            "title": "Credits Url",
+            "type": "string"
+          },
+          "packs": {
+            "items": {
+              "$ref": "#/components/schemas/StarterPackOut"
+            },
+            "title": "Packs",
+            "type": "array"
+          },
+          "pinned_to_version": {
+            "title": "Pinned To Version",
+            "type": "boolean"
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          },
+          "repository": {
+            "title": "Repository",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository",
+          "version",
+          "ref",
+          "pinned_to_version",
+          "packs",
+          "credits_url"
+        ],
+        "title": "StarterOut",
+        "type": "object"
+      },
+      "StarterPackOut": {
+        "properties": {
+          "chosen": {
+            "title": "Chosen",
+            "type": "boolean"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "installed": {
+            "title": "Installed",
+            "type": "boolean"
+          },
+          "installed_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installed Ref"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "outdated": {
+            "title": "Outdated",
+            "type": "boolean"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "title",
+          "description",
+          "chosen",
+          "url",
+          "installed",
+          "installed_ref",
+          "outdated"
+        ],
+        "title": "StarterPackOut",
+        "type": "object"
+      },
       "SteerIn": {
         "properties": {
           "item_id": {
@@ -14859,7 +15048,7 @@
     },
     "/api/v1/blueprint/packages/{name}/update": {
       "get": {
-        "description": "Compare the package's items at this level with the newest commit of its ref, per item; nothing is written.",
+        "description": "Compare the package's items at this level with the newest commit of its ref, per item; nothing is written.\n\n`ref` reads another ref than the recorded one, such as the starter's tag of a newer YAAP version.",
         "operationId": "check_package_update_api_v1_blueprint_packages__name__update_get",
         "parameters": [
           {
@@ -14885,6 +15074,24 @@
                 }
               ],
               "title": "Environment Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ref",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ref"
             }
           },
           {
@@ -15321,6 +15528,72 @@
           }
         },
         "summary": "Check Skill Update",
+        "tags": [
+          "blueprint"
+        ]
+      }
+    },
+    "/api/v1/blueprint/starter": {
+      "get": {
+        "description": "The starter's packs at the ref of the running version, and which of them this level has; nothing is written.",
+        "operationId": "read_starter_api_v1_blueprint_starter_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "environment_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Environment Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StarterOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Starter",
         "tags": [
           "blueprint"
         ]
@@ -21788,6 +22061,143 @@
         "summary": "Read Workers",
         "tags": [
           "presets"
+        ]
+      }
+    },
+    "/api/v1/first-run": {
+      "get": {
+        "description": "Per step whether it is done, skipped or still to do, and whether to show the wizard.",
+        "operationId": "read_first_run_api_v1_first_run_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirstRunOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read First Run",
+        "tags": [
+          "first-run"
+        ]
+      }
+    },
+    "/api/v1/first-run/finish": {
+      "post": {
+        "description": "Close the wizard for good; Settings can open it again.",
+        "operationId": "finish_first_run_api_v1_first_run_finish_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirstRunOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Finish First Run",
+        "tags": [
+          "first-run"
+        ]
+      }
+    },
+    "/api/v1/first-run/restart": {
+      "post": {
+        "description": "Open the wizard again, with nothing finished or skipped.",
+        "operationId": "restart_first_run_api_v1_first_run_restart_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirstRunOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Restart First Run",
+        "tags": [
+          "first-run"
+        ]
+      }
+    },
+    "/api/v1/first-run/skip/{step}": {
+      "post": {
+        "description": "Leave a step for later; it shows as skipped until what it sets up exists.",
+        "operationId": "skip_first_run_step_api_v1_first_run_skip__step__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "step",
+            "required": true,
+            "schema": {
+              "enum": [
+                "connection",
+                "project",
+                "backups",
+                "starter"
+              ],
+              "title": "Step",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirstRunOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Skip First Run Step",
+        "tags": [
+          "first-run"
+        ]
+      }
+    },
+    "/api/v1/first-run/start": {
+      "post": {
+        "description": "The wizard opened: it comes back until it is finished, also when left halfway.",
+        "operationId": "start_first_run_api_v1_first_run_start_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirstRunOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Start First Run",
+        "tags": [
+          "first-run"
         ]
       }
     },
