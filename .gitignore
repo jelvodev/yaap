@@ -5,6 +5,8 @@
 data/
 # The baseline eval fixture's sample data is part of the repository.
 !evals/baseline/project/stockroom/data/
+# The starter Blueprint's data engineering pack.
+!blueprint/starter/data/
 *.db
 
 # Local settings for this checkout
