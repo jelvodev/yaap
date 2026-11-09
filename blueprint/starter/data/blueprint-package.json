@@ -1,0 +1,34 @@
+{
+  "name": "yaap-data",
+  "description": "YAAP's starter for data engineering: idempotent pipelines, readable and fast SQL, dbt models, Airflow DAGs and data quality checks, with an agent that builds and checks them.",
+  "items": [
+    {
+      "kind": "standard",
+      "path": "standards/data.md"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/sql-style-and-tuning"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/pipeline-design"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/dbt-models"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/airflow-dags"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/data-quality"
+    },
+    {
+      "kind": "agent",
+      "path": "agents/data-engineer.md"
+    }
+  ]
+}

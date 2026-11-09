@@ -1,0 +1,34 @@
+{
+  "name": "yaap-devops",
+  "description": "YAAP's starter for DevOps: infrastructure as code, small pinned container images, least-privilege CI, Kubernetes manifests, SLOs and incident response, with an agent that builds and checks them.",
+  "items": [
+    {
+      "kind": "standard",
+      "path": "standards/operations.md"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/docker-images"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/github-actions"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/incident-response"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/slos"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/kubernetes-manifests"
+    },
+    {
+      "kind": "agent",
+      "path": "agents/devops.md"
+    }
+  ]
+}
