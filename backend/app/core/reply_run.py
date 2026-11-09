@@ -254,9 +254,10 @@ def outside_tools(
         tools.update(
             agent_tools(factory, services.cipher, transport, session, environment_id, conversation.id, project_id)
         )
-    # The browser: in project conversations, in the environment's runner. Without it, open_browser is not offered.
+    # The browser: in project conversations, in the environment's runner, also for an agent that lists open_browser.
+    # Without it, open_browser is not offered.
     browser: dict[str, Tool] = {}
-    if allowed_tools is None and project is not None and services.browser_command:
+    if (allowed_tools is None or "open_browser" in allowed_tools) and project is not None and services.browser_command:
         browser = anyio.from_thread.run(
             browser_tools,
             services.mcp,

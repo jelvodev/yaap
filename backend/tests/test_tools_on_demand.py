@@ -4,6 +4,8 @@ import asyncio
 from dataclasses import replace
 from typing import Any
 
+import pytest
+
 from app.agent.gate import call_tool
 from app.agent.runs import AgentRun, RunConfig, RunRegistry, RunServices
 from app.agent.tool_catalog import ToolCatalog
@@ -108,3 +110,28 @@ def test_without_the_browser_a_reply_offers_no_open_browser(client, fake):
     send(client, conversation_id, "Hello")
     names = {definition.name for definition in fake.requests[0].tool_box.definitions}
     assert "open_browser" not in names
+
+
+@pytest.mark.parametrize(("tools", "offers_browser"), [("[read_file, open_browser]", True), ("[read_file]", False)])
+def test_an_agent_with_its_own_tools_gets_the_browser_only_when_it_lists_open_browser(
+    client, fake, tools: str, offers_browser: bool
+):
+    from tests.test_browser import with_browser
+    from tests.test_delegation import add_key
+
+    with_browser(client)
+    add_key(client)
+    content = f"---\ndescription: Looks at pages\ntools: {tools}\n---\n\nLook.\n"
+    client.put(
+        "/api/v1/blueprint/file", params={"path": "agents/looker.md", "environment_id": 1}, json={"content": content}
+    )
+    project = client.post("/api/v1/environments/1/projects", json={"name": "Shop"}).json()
+    conversation_id = client.post(
+        "/api/v1/environments/1/conversations",
+        json={"model": "claude-opus-5-5", "effort": "medium", "project_id": project["id"], "agent": "looker"},
+    ).json()["id"]
+    fake.responses.append(ScriptedResponse(text="Looked."))
+    send(client, conversation_id, "Look at the page")
+    names = {definition.name for definition in fake.requests[0].tool_box.definitions}
+    assert ("open_browser" in names) is offers_browser
+    assert not any(name.startswith("browser__") for name in names)
