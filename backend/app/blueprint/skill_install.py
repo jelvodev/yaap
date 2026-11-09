@@ -51,6 +51,9 @@ class SkillInstallError(BlueprintError):
         self.status = status
 
 
+# Added to "not found" when no token was sent: GitHub answers 404 for a private repository it may not show.
+PRIVATE_HINT = " A private repository needs this environment's GitHub token."
+
 # (url, token) -> response body. Replaced in tests.
 HttpGet = Callable[[str, str | None], bytes]
 
@@ -65,7 +68,7 @@ def http_get(url: str, token: str | None) -> bytes:
             return response.read(MAX_SKILL_BYTES + 1)
     except urllib.error.HTTPError as error:
         if error.code == 404:
-            hint = "" if token else " A private repository needs this environment's GitHub token."
+            hint = "" if token else PRIVATE_HINT
             raise SkillInstallError(f"GitHub has nothing at this link.{hint}", 404) from error
         if error.code in (401, 403, 429):
             raise SkillInstallError(
@@ -153,6 +156,10 @@ class GitHubSkills:
         except ValueError as error:
             raise SkillInstallError("GitHub sent an answer YAAP cannot read.") from error
 
+    @property
+    def private_hint(self) -> str:
+        return "" if self.token else PRIVATE_HINT
+
     def commit_of(self, repository: str, ref: str) -> tuple[str, str] | None:
         """(commit sha, root tree sha) of a ref, or None when the ref does not exist."""
         try:
@@ -168,7 +175,7 @@ class GitHubSkills:
         if ref is not None:
             found = self.commit_of(link.repository, ref)
             if found is None:
-                raise SkillInstallError(f"{link.repository} has no branch, tag or commit '{ref}'.")
+                raise SkillInstallError(f"{link.repository} has no branch, tag or commit '{ref}'.{self.private_hint}")
             return Source(link.repository, ref, found[0], path or ""), found[1]
         if link.rest is None:
             branch = self.json(f"/repos/{link.repository}")["default_branch"]
@@ -185,7 +192,9 @@ class GitHubSkills:
                 rest = "/".join(parts[count:])
                 folder = str(PurePosixPath(rest).parent) if link.is_file else rest
                 return Source(link.repository, candidate_ref, found[0], "" if folder == "." else folder), found[1]
-        raise SkillInstallError(f"The branch, tag or commit in this link was not found in {link.repository}.")
+        raise SkillInstallError(
+            f"The branch, tag or commit in this link was not found in {link.repository}.{self.private_hint}"
+        )
 
     def folder_tree(self, source: Source, root_tree: str) -> list[dict[str, Any]]:
         """Every entry below the linked folder, with paths relative to that folder."""

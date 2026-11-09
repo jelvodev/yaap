@@ -235,3 +235,19 @@ def test_install_skill_tool_always_asks(tmp_path, github):
     assert not is_error, output
     assert (layer.root / "skills" / "pdf" / "SKILL.md").exists()
     assert set(github.tokens) == {"secret-token"}
+
+
+def nothing_found(_url: str, _token: str | None) -> bytes:
+    raise SkillInstallError("GitHub has nothing at this link.", 404)
+
+
+@pytest.mark.parametrize(("token", "hinted"), [(None, True), ("ghp_test", False)])
+def test_a_ref_not_found_without_a_token_says_a_private_repository_needs_one(token: str | None, hinted: bool):
+    github = skill_install.GitHubSkills(token, get=nothing_found)
+    for resolve in (
+        lambda: github.resolve(parse_link("https://github.com/acme/private/tree/main/skills")),
+        lambda: github.resolve(parse_link("https://github.com/acme/private"), ref="v1.0.0"),
+    ):
+        with pytest.raises(SkillInstallError) as raised:
+            resolve()
+        assert ("needs this environment's GitHub token" in str(raised.value)) is hinted
