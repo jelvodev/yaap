@@ -54,10 +54,15 @@ Guidelines:
 Run every case against the model and settings that will be used for real, and read every output. Note each surprise:
 those are the bugs.
 
-In YAAP, keep the cases as eval cases in the project (`.blueprint/evals/`): a prompt, a start state and checks, for
-example a `file` check on the output's shape and a `rubric` check for what a person would judge. Run them with
-`/eval`, and compare runs in the Evals tab. For a Blueprint skill or standard, the eval cases measure whether the
-change helps the agent.
+Where the cases live depends on whose prompt it is:
+
+- **A prompt inside an application** is tested like the rest of its code: keep the cases as tests in the project
+  (each sends one input and checks the output's shape or a required fact) and run them with the project's own test
+  command.
+- **A Blueprint prompt** (a skill, a command, an agent's role prompt, a standard) is tested with YAAP's eval cases in
+  `.blueprint/evals/`: a prompt, a start state and checks, such as a `file` check on the output's shape and a
+  `rubric` check for what a person would judge. Run them with `/eval` and compare runs in the Evals tab. They measure
+  YAAP's agent working on the project, so they say nothing about an application's own prompts.
 
 Aim for at least one case per typical input and one per hard input. Add a case for every bug found later, before
 fixing it.

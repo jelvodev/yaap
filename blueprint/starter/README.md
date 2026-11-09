@@ -26,7 +26,8 @@ any pack from its folder link like other [Blueprint packages](../../docs/bluepri
 - **Commands** start a skill or an agent: `/write-plan`, `/review`, `/debug`, `/tdd`, `/onboard`, `/adr`, `/finish`
   and `/release-notes` in the core.
 - **Agents** pick their model by preset (`Deep`, `Cheap`) or as the worker model. YAAP creates these presets in every
-  environment; when you rename or remove one, an agent that names it uses the conversation's model. Agents that only
+  environment; when you rename or remove one, a delegated agent that names it uses the worker model of the
+  conversation's preset. Agents that only
   read list only reading tools, so they cannot change files.
 
 A good first step in a project: type `/onboard`. The agent maps the project and proposes what belongs in its memory.

@@ -116,8 +116,9 @@ spec:
 ## 5. Security context
 
 The example meets the *restricted* Pod Security Standard: non-root with a numeric user, no privilege escalation, all
-capabilities dropped, the default seccomp profile, a read-only root filesystem with `/tmp` as a writable volume.
-Enforce it per namespace:
+capabilities dropped, the default seccomp profile. It also mounts the root filesystem read-only, with `/tmp` as a
+writable volume; that is good practice but not part of the restricted standard, so enforcing the standard does not
+check it. Enforce the standard per namespace:
 
 ```yaml
 apiVersion: v1

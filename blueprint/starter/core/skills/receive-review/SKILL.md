@@ -47,7 +47,8 @@ Who it comes from changes how much you check, not whether:
 - **The user:** trusted on what they want. Still check that the fix is right for the code, and ask when the scope is
   unclear.
 - **Another reviewer** (the `reviewer` agent, a pull request comment, *Review these changes* by a model of another
-  vendor): check carefully. A model of another vendor sees only the diff and the standards, not the conversation.
+  vendor): check carefully. A model of another vendor sees the diff, the goal or the first message, and the
+  project's standards, but not the rest of the conversation.
 - **When a point conflicts with what the user decided earlier,** do not choose yourself. Put both to the user.
 
 ## 4. Fix one point at a time

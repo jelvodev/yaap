@@ -20,11 +20,12 @@ Group by feature, not by kind of file, once there is more than one feature:
 
 ```
 app/
-  main.py            creates the app, includes routers, registers error handlers
+  main.py            creates the app, opens resources in the lifespan, includes routers, registers error handlers
   settings.py        the one Settings class
-  db.py              the engine and session factory
+  services.py        the typed object that holds the shared services
   orders/
     router.py        HTTP only
+    dependencies.py  the Depends functions that hand a router its service
     schemas.py       request and response models
     service.py       the logic and its domain errors
     store.py         database access

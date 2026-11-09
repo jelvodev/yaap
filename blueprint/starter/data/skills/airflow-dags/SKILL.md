@@ -56,14 +56,21 @@ from pipelines import orders
     },
     tags=["orders"],
 )
-def orders_daily():
+def orders_daily() -> None:
     @task
-    def extract(data_interval_start=None, data_interval_end=None) -> str:
+    def extract(
+        data_interval_start: pendulum.DateTime | None = None,
+        data_interval_end: pendulum.DateTime | None = None,
+    ) -> str:
         # Writes one file per interval; a rerun overwrites the same path.
         return orders.extract(data_interval_start, data_interval_end)
 
     @task
-    def load(path: str, data_interval_start=None, data_interval_end=None) -> None:
+    def load(
+        path: str,
+        data_interval_start: pendulum.DateTime | None = None,
+        data_interval_end: pendulum.DateTime | None = None,
+    ) -> None:
         orders.replace_window(path, data_interval_start, data_interval_end)
 
     load(extract())

@@ -24,8 +24,9 @@ read, say which ones those were, and keep what lasts in the project memory so th
 
 ## 1. Inventory
 
-Start from the repository map YAAP gives at the top of a project conversation; it shows folders, modules and public
-names, but check it against the files before relying on it. Then read, in this order:
+Start from the repository map YAAP gives at the top of a project conversation (unless *Repository map* is switched
+off in the Context settings); it shows folders, modules and public names, but check it against the files before
+relying on it. Then read, in this order:
 
 1. `README`, `CONTRIBUTING`, `AGENTS.md` or similar instructions, and `docs/` indexes.
 2. Manifests and lockfiles (`package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `pom.xml`): language, framework,

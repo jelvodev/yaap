@@ -85,7 +85,8 @@ CREATE INDEX orders_open_created_at_idx ON orders (created_at) WHERE status = 'o
 - `now()` is the start of the transaction, the same for every row in it; `clock_timestamp()` is the wall clock.
 - A value too long for its type fails instead of being cut off; that is a feature.
 - Updates leave dead rows that vacuum cleans up; a table where wide rows change constantly needs attention.
-- Names over 63 characters are silently truncated; keep index and constraint names short and explicit.
+- Names over 63 characters are truncated with only a NOTICE, which is easy to miss in a migration log, so two long
+  names can end up the same; keep index and constraint names short and explicit.
 
 ## 7. Keep the schema in migrations
 

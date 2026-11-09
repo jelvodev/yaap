@@ -46,7 +46,9 @@ A tag such as `v7` can be moved to other code at any time; a full commit SHA can
 version in a comment for readers, and let Dependabot or Renovate propose updates. Actions from your own repository
 (`./.github/actions/...`) need no pin.
 
-Look up the SHA of a release on the action's releases page, or with `git ls-remote --tags <action repository url>`.
+Look up the SHA of a release on the action's releases page, or with `git ls-remote --tags <action repository url>
+<tag>`. An annotated tag shows two lines: take the one ending in `^{}`, which is the commit; the other is the tag
+object itself.
 
 ## 4. A CI workflow
 

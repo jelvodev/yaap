@@ -72,9 +72,10 @@ The test passes; run the whole suite. The next behaviour ("drops punctuation") g
 
 ## Coverage
 
-Follow the project's coverage target. Without one: about 80% of the lines you changed, and every branch of the
-critical paths (money, permissions, deleting or losing data). Coverage shows what was never run; it does not show
-that the assertions are any good, so read the tests too.
+Use coverage of the lines you changed as a guide, not as a target to chase: look at what your change left unrun
+and decide whether it needs a test. Every branch of the critical paths (money, permissions, deleting or losing data)
+does. Keep to the project's own threshold when it has one. Coverage shows what was never run; it does not show that
+the assertions are any good, so read the tests too.
 
 ## When test first does not fit
 

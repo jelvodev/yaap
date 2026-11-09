@@ -120,6 +120,31 @@ where updated_at > (select max(updated_at) from {{ this }}) - interval '3 days'
 - `on_schema_change="fail"` stops a silent column change; add the column on purpose and run once with
   `--full-refresh`.
 
+## Snapshots
+
+A snapshot keeps the history of a source that overwrites its rows in place, such as a customer whose tier changes:
+every run compares the current rows with the last recorded version and closes the old version (`dbt_valid_to`) when
+a row changed. Use one when a later question needs the value as it was at the time ("which tier did the customer
+have when they ordered?"). Snapshot the source or a light staging model, not a mart, and run it on a schedule: it
+only records the changes it sees between two runs.
+
+```yaml
+# snapshots/customers.yml (dbt 1.9 or later; older versions use a {% snapshot %} block)
+snapshots:
+  - name: customers_snapshot
+    relation: source("shop", "customers")
+    config:
+      unique_key: customer_id
+      strategy: timestamp
+      updated_at: updated_at
+```
+
+- **`timestamp`** when the source has an `updated_at` that changes on every change: cheap and exact.
+- **`check`** when it has none: dbt compares the columns in `check_cols` on every run. List the columns that matter;
+  `all` compares every column and is slow on wide tables.
+- Rows deleted at the source stay current unless you set `hard_deletes` (`invalidate_hard_deletes` before 1.9).
+- Never rebuild a snapshot from scratch: the history it holds cannot be recovered from the source.
+
 ## Documentation
 
 Every model and every key column has a description. Mark columns that hold personal data in their description or

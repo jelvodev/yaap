@@ -138,8 +138,9 @@ def test_unknown_order_is_refused(store: Store) -> None:
 ## 8. Speed and markers
 
 Unit tests run in milliseconds. Mark slower tests (`@pytest.mark.integration`) and register the markers in the
-pytest configuration, so the fast set can run on every change. Coverage shows untested code; it does not show that the
-tests check anything, so do not chase a number.
+pytest configuration, so the fast set can run on every change. Use coverage of the changed lines as a guide, not as
+a target to chase: it shows what never ran, not whether the tests check anything (the `test-driven-development` skill
+says which paths always need a test).
 
 ## Run and report
 

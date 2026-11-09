@@ -29,8 +29,8 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "e2e",
-  use: { baseURL: "http://localhost:5173", trace: "on-first-retry" },
-  retries: process.env.CI ? 2 : 0,
+  use: { baseURL: "http://localhost:5173", trace: "retain-on-failure" },
+  retries: 0,
   webServer: { command: "pnpm dev", url: "http://localhost:5173", reuseExistingServer: true },
 });
 ```
@@ -108,8 +108,8 @@ The tests then import `test` from this file instead of from `@playwright/test`. 
 ## 7. When a test fails or flakes
 
 A flaky test is a bug in the test or the app, never something to retry until green. Run it alone and repeated
-(`--repeat-each=10`) to see it. Open the trace (`trace: "on-first-retry"` records one) to see each step, the DOM and
-the network at that moment. Typical causes: a fixed sleep, a selector that matches two elements, data left by another
+(`--repeat-each=10`) to see it. Open the trace (`trace: "retain-on-failure"` keeps one for every failed test) to
+see each step, the DOM and the network at that moment. Typical causes: a fixed sleep, a selector that matches two elements, data left by another
 test, an animation still running. The `systematic-debugging` skill has the method.
 
 ## 8. Run and report
