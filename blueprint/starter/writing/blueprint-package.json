@@ -1,0 +1,42 @@
+{
+  "name": "yaap-writing",
+  "description": "YAAP's starter for writing and product work: documents written with you, status updates, requirements, prioritising, prompts and cited research.",
+  "items": [
+    {
+      "kind": "standard",
+      "path": "standards/writing.md"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/co-write-document"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/status-update"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/check-before-acting"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/product-requirements"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/prioritise"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/prompt-design"
+    },
+    {
+      "kind": "skill",
+      "path": "skills/research-and-summarise"
+    },
+    {
+      "kind": "agent",
+      "path": "agents/researcher.md"
+    }
+  ]
+}
