@@ -15,7 +15,7 @@ export default function FirstStartSection({ level }: { level: SettingsLevel }) {
     setBusy(true);
     const status = await restart();
     setBusy(false);
-    if (status) navigate(WELCOME_PATH);
+    if (status) navigate(`${WELCOME_PATH}?again`);
   }
 
   return (

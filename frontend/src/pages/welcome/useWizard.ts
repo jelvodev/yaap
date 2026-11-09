@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import type { FirstRunControl } from "../../firstRun/useFirstRun";
 import { type WizardStep, isSetupStep, neighbour, resumeStep } from "./steps";
@@ -10,6 +10,9 @@ import { type WizardStep, isSetupStep, neighbour, resumeStep } from "./steps";
  */
 export function useWizard(firstRun: FirstRunControl) {
   const navigate = useNavigate();
+  // Run again from Settings (`?again`): open on the welcome, not where an earlier run was left.
+  const [params] = useSearchParams();
+  const again = params.has("again");
   const [step, setStep] = useState<WizardStep | null>(null);
   const opened = useRef(false);
   const { status, start, reload, skip: skipStep, finish: finishRun } = firstRun;
@@ -17,9 +20,9 @@ export function useWizard(firstRun: FirstRunControl) {
   useEffect(() => {
     if (!status || opened.current) return;
     opened.current = true;
-    setStep(resumeStep(status));
+    setStep(again ? "welcome" : resumeStep(status));
     void start();
-  }, [status, start]);
+  }, [status, start, again]);
 
   const go = useCallback(
     (next: WizardStep) => {
