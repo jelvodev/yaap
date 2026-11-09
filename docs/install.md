@@ -75,7 +75,7 @@ After the password, a new installation opens the first start: a short guide thro
 3. **Backups**: where they go and how often.
 4. **YAAP's starter**: standards, skills, commands and agents for a careful, test-first way of working, in packs you choose ([more](blueprint-packages.md#yaaps-starter)).
 
-An installation that already has a connection or a project does not see it; Settings has *Run the first start again*.
+An installation that already has a connection or a project does not see it; Settings › System › First start has *Run the first start again*.
 
 ## Connect a model
 
