@@ -103,7 +103,11 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   {
     slug: "system",
     title: "System",
-    tabs: [tab("backup", "Backup", GLOBAL), tab("plugins", "Plugins", GLOBAL)],
+    tabs: [
+      tab("backup", "Backup", GLOBAL),
+      tab("plugins", "Plugins", GLOBAL),
+      tab("first-start", "First start", GLOBAL),
+    ],
   },
 ];
 

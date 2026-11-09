@@ -4,10 +4,12 @@ import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import CommandPalette from "./components/CommandPalette";
 import Header from "./components/Header";
 import { EnvironmentProvider, useEnvironment } from "./environment/EnvironmentProvider";
+import { WELCOME_PATH, useFirstRunRedirect } from "./firstRun/useFirstRun";
 import ChatPage from "./pages/ChatPage";
 import BlueprintPage from "./pages/BlueprintPage";
 import SearchPage from "./pages/SearchPage";
 import SettingsPage from "./pages/SettingsPage";
+import WelcomePage from "./pages/WelcomePage";
 import { PreferencesProvider } from "./preferences/PreferencesProvider";
 import { api } from "./api/client";
 import AuthGate from "./auth/AuthGate";
@@ -44,6 +46,7 @@ function Pages() {
       <Route path="/settings/:section" element={<SettingsPage />} />
       <Route path="/settings/:section/:tab" element={<SettingsPage />} />
       <Route path="/search" element={<SearchPage key={active.id} />} />
+      <Route path={WELCOME_PATH} element={<WelcomePage />} />
       {/* Older addresses: the Agents, Git and Usage tabs and the project page moved into the Blueprint, Settings and
           the chat's project panel. */}
       <Route path="/agents" element={<Navigate to="/blueprint?kind=agent" replace />} />
@@ -59,6 +62,7 @@ function Shell() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const closePalette = useCallback(() => setPaletteOpen(false), []);
   useBrowserTimezone();
+  useFirstRunRedirect();
 
   useEffect(() => {
     function handleShortcut(event: KeyboardEvent) {

@@ -2,7 +2,6 @@ import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } fro
 import { useSearchParams } from "react-router-dom";
 
 import { type BlueprintItem, type GitRepository, api, errorMessage } from "../api/client";
-import { PackageInstallPanel } from "../components/BlueprintPackages";
 import { GitHubInstallPanel } from "../components/GitHubSkills";
 import { PlusIcon } from "../components/icons";
 import {
@@ -32,12 +31,13 @@ import { type Agent, type AgentTemplate } from "./blueprint/AgentPanels";
 import type { HistoryTarget } from "./blueprint/HistoryTab";
 import ImportPanel from "./blueprint/ImportPanel";
 import ItemDetail, { type ChainEntry, StateBadge } from "./blueprint/ItemDetail";
+import PackagesDetail from "./blueprint/PackagesDetail";
 import MatrixView, { type MatrixColumn } from "./blueprint/MatrixView";
 import { type ItemKind, KINDS, NAME_PATTERN, kindInfo, pathFor } from "./blueprint/model";
 import "./blueprint/blueprint.css";
 
 type Filter = "all" | "here" | "inherited" | "overridden" | "off";
-type Main = "item" | "new" | "import" | "github" | "package" | "template";
+type Main = "item" | "new" | "import" | "github" | "package" | "starter" | "template";
 
 const FILTERS: { value: Filter; label: string }[] = [
   { value: "all", label: "All" },
@@ -114,7 +114,8 @@ export default function BlueprintPage() {
   const view = params.get("view") === "matrix" ? "matrix" : "list";
   const filter = (params.get("filter") as Filter | null) ?? "all";
 
-  const [main, setMain] = useState<Main>("item");
+  // Settings links to the starter with ?add=starter.
+  const [main, setMain] = useState<Main>(() => (params.get("add") === "starter" ? "starter" : "item"));
   const [newKind, setNewKind] = useState<ItemKind | null>(null);
   const [newName, setNewName] = useState("");
   const [newError, setNewError] = useState<string | null>(null);
@@ -130,6 +131,11 @@ export default function BlueprintPage() {
   const [syncBusy, setSyncBusy] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // The starter link has done its work once the panel is open; a reload shows the list again.
+    if (params.has("add")) update({ add: null }, true);
+  }, []);
 
   // The environment whose layers, projects and agents surround the level; Global is seen from the active one.
   const environmentId = level.kind === "global" ? (active?.id ?? null) : level.environmentId;
@@ -647,28 +653,27 @@ export default function BlueprintPage() {
         </div>
       </>
     );
-  } else if (main === "package") {
+  } else if (main === "package" || main === "starter") {
     detail = (
-      <>
-        <PageHeader crumb={`${currentName} › Packages`} title="Add from a package" />
-        <div className="wb-body wb-body-narrow">
-          <PackageInstallPanel
-            key={levelKey(level)}
-            levels={levelChain(level).map((entry) => ({
-              key: levelKey(entry),
-              name: nameOfLevel(entry, environments, projects),
-              query: levelQuery(entry),
-            }))}
-            initialLevel={levelKey(level)}
-            onClose={() => setMain("item")}
-            onInstalled={(paths, target) => {
-              setMain("item");
-              setNotice(`Installed ${paths.length} item${paths.length === 1 ? "" : "s"} in ${target}: ${paths.join(", ")}.`);
-              void reloadAll();
-            }}
-          />
-        </div>
-      </>
+      <PackagesDetail
+        key={levelKey(level)}
+        source={main === "starter" ? "starter" : "link"}
+        levelName={currentName}
+        levels={levelChain(level).map((entry) => ({
+          key: levelKey(entry),
+          name: nameOfLevel(entry, environments, projects),
+          query: levelQuery(entry),
+        }))}
+        initialLevel={levelKey(level)}
+        onSource={(source) => setMain(source === "starter" ? "starter" : "package")}
+        onClose={() => setMain("item")}
+        onInstalled={(paths, target) => {
+          setMain("item");
+          const count = `${paths.length} item${paths.length === 1 ? "" : "s"}`;
+          setNotice(`Installed ${count} in ${target}: ${paths.join(", ")}.`);
+          void reloadAll();
+        }}
+      />
     );
   } else if (main === "template" && template) {
     detail = (

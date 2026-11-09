@@ -1,0 +1,89 @@
+/* The first start: a header, a body that scrolls inside the pane, and the buttons always in view below it. */
+
+.welcome-step {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.welcome-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.welcome-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.welcome-footer-gap {
+  flex: 1;
+}
+
+.welcome-steps {
+  margin: 0 0 8px;
+  padding-left: 20px;
+}
+
+.welcome-panel-text {
+  margin: 0;
+  padding: 12px 16px 4px;
+}
+
+.welcome-project-form {
+  max-width: 520px;
+}
+
+.welcome-summary,
+.welcome-next {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.welcome-summary li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.welcome-summary li:last-child {
+  border-bottom: 0;
+}
+
+.welcome-next li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.welcome-next li p {
+  margin: 2px 0 0;
+}
+
+@media (max-width: 960px) {
+  .welcome-step {
+    height: auto;
+  }
+
+  .welcome-footer {
+    position: sticky;
+    bottom: 0;
+    padding: 12px 16px;
+  }
+}
