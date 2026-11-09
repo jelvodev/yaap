@@ -3,10 +3,9 @@ sources: [agency-agents/engineering/engineering-technical-writer.md, own]
 category: documentation
 summary: Docs change with the code, comments say why, and a README tells a newcomer how to run and test the project.
 rules:
-- Update the docs in the same change as the code they describe; docs that are wrong cost more than missing ones.
-- Comments say why, not what; the code already says what, and a comment that repeats it goes stale.
-- A README says what the project is, how to run it and how to test it, with commands that work as written.
-- Run every command and example you put in a doc, or mark it as not checked.
+- Update the docs in the same change as the code; a wrong doc costs more than a missing one.
+- Comments say why, not what; a comment that repeats the code goes stale.
+- A README says what the project is and how to run and test it, with commands you ran, because readers paste them.
 ---
 
 # Documentation

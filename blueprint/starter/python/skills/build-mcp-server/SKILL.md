@@ -1,10 +1,8 @@
 ---
 name: build-mcp-server
-description: Plan, build, test and evaluate an MCP server that gives agents tools for a service or API, with tool
-  names and descriptions an agent picks correctly, typed inputs, paginated and concise results, errors that say what
-  to do next, and a set of evaluation questions. Use this whenever you build or extend an MCP server, wrap an API or
-  database as tools for an agent, design tool names or schemas, or an agent keeps calling the wrong tool or misreads
-  a tool's result.
+description: Plan, build, test and evaluate an MCP server whose tools an agent picks and uses correctly, with clear
+  names and descriptions, typed inputs, concise paginated results and helpful errors. Use it when you build an MCP
+  server, wrap an API as agent tools, or an agent misuses a tool.
 license: Apache-2.0
 metadata:
   sources: anthropic-skills/skills/mcp-builder, agency-agents/specialized/specialized-mcp-builder.md

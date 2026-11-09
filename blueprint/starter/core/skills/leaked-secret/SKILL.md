@@ -1,10 +1,8 @@
 ---
 name: leaked-secret
-description: Respond to a leaked secret - an API key, token, password, private key or connection string that ended
-  up in a git commit, a pushed branch, a log, a screenshot, an issue or a chat. Rotate it at the provider first, then
-  remove it, then check whether it was used, and close the gap that let it out. Use this the moment a secret is found
-  where it should not be, when a secret scanner or the hosting service reports one, or when the user says they pasted
-  or committed a key by mistake, even if the commit was never pushed or was already deleted.
+description: Respond to a leaked API key, token, password or private key in a commit, log, screenshot, issue or chat
+  by rotating it first, then removing it, checking for use and closing the gap. Use it the moment a secret turns up
+  where it should not, even in a commit that was never pushed.
 license: MIT
 metadata:
   sources: agency-agents/security/security-secrets-credential-engineer.md

@@ -1,9 +1,8 @@
 ---
 name: frontend-design
 description: Give a new page, screen or component a deliberate visual identity instead of the look every generated
-  interface shares. Use this whenever you build new UI, restyle an existing one, or are asked to make something look
-  better, more distinctive or less generic, also for a small landing page or a single component, because the default
-  choices are made in the first minutes and are hard to undo later.
+  interface shares. Use it whenever you build new UI, restyle one, or are asked to make something look better or less
+  generic, even a small landing page or a single component.
 license: Apache-2.0
 metadata:
   sources: anthropic-skills/skills/frontend-design

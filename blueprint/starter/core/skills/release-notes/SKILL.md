@@ -1,9 +1,8 @@
 ---
 name: release-notes
 description: Write release notes and a changelog entry from the commits since the last tag, grouped by what changed
-  for the user, with an "Action needed" part for breaking changes and manual steps. Use this when preparing a
-  release, a version bump or a tag, when the user asks what changed since the last version, or when a changelog,
-  release notes or an upgrade guide must be written or brought up to date.
+  for users, with an Action needed part for breaking changes. Use it when preparing a release or a tag, or when asked
+  what changed since the last version.
 license: MIT
 metadata:
   sources: wshobson/plugins/documentation-generation/skills/changelog-automation, own

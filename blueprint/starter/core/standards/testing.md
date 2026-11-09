@@ -3,11 +3,10 @@ sources: [superpowers/skills/test-driven-development, agency-agents/testing/test
 category: testing
 summary: Write the test first and watch it fail, name it after the behaviour, and keep tests fast and deterministic.
 rules:
-- A bug fix starts with a test that fails because of the bug; it proves the cause and keeps the bug from returning.
-- For new behaviour, write the test first and see it fail; a test you never saw fail may test nothing.
+- Write the test first and watch it fail, for a bug because of the bug; a test never seen failing may test nothing.
 - Name each test after the behaviour it checks, so a failure says what broke.
-- Wait for a condition, never a fixed sleep, and let each test make its own data; these cause most flaky tests.
-- A flaky test is a bug; find its cause instead of retrying, skipping or deleting it.
+- Wait for conditions instead of sleeping and give each test its own data; fix a flaky test's cause, since a retry hides
+  it.
 ---
 
 # Testing

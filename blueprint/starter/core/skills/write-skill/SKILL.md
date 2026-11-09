@@ -1,10 +1,8 @@
 ---
 name: write-skill
-description: Write, improve or test a Blueprint skill for YAAP - a SKILL.md with a description that makes the agent
-  load it at the right moments, a lean body that explains why, and a check with and without the skill on realistic
-  prompts. Use this whenever the user wants to turn a way of working into a skill, create or edit a skill, asks why a
-  skill is not used or is used at the wrong time, or wants to measure whether a skill helps, even if they call it a
-  prompt, a playbook or a checklist.
+description: Write, improve or test a Blueprint skill (a SKILL.md whose description makes the agent load it at the
+  right moment and whose body says why), and check it with and without the skill. Use it to turn a way of working into
+  a skill, or when a skill is not used or used at the wrong time.
 license: Apache-2.0
 metadata:
   sources: anthropic-skills/skills/skill-creator, superpowers/skills/writing-skills, own

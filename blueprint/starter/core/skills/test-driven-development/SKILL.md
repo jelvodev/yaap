@@ -1,9 +1,8 @@
 ---
 name: test-driven-development
 description: Build features and fix bugs test first, in short red, green, refactor cycles, and answer the usual
-  excuses for skipping the test. Use this whenever you are about to write or change production code, for a new
-  feature, a bug fix, a refactor or a change in behaviour, even a small one, because a test you never saw fail
-  proves nothing.
+  reasons to skip the test. Use it whenever you are about to write or change production code, even for a small change,
+  because a test you never saw fail proves nothing.
 license: MIT
 metadata:
   sources: superpowers/skills/test-driven-development, wshobson/plugins/tdd-workflows/commands/tdd-cycle.md

@@ -1,10 +1,8 @@
 ---
 name: status-update
-description: Write a status update, project report, incident summary or set of FAQ answers that a team, a manager or
-  stakeholders read quickly. Use this whenever the user asks for a weekly update, a progress report, a summary of an
-  outage or incident, an announcement of a change, or answers to questions people keep asking, even when they just
-  paste notes and say "turn this into an update", because these texts have a known shape and readers scan them for
-  the same few things.
+description: Write a status update, project report, incident summary or FAQ that a team or stakeholders read quickly.
+  Use it whenever the user asks for a weekly update, a progress report, an outage summary, a change announcement or
+  answers to recurring questions, even when they just paste notes.
 license: Apache-2.0
 metadata:
   sources: anthropic-skills/skills/internal-comms

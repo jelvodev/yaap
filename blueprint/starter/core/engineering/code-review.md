@@ -4,11 +4,10 @@ category: code-review
 summary: Review for what can break, label each finding by how much it matters, and keep changes small enough to
   review well.
 rules:
-- Label each finding blocking, should or nit, so the author knows what must change before merging and what is taste.
-- Look at correctness and security first, then tests, then readability and performance; leave formatting to a linter.
-- Make each finding specific, with file and line, what goes wrong, why it matters and a fix.
-- Report only what you checked in the code; put what you could not confirm as a question, not as a finding.
-- Keep a change to about 200 to 400 lines; past that, reviewers miss things, so split it.
+- Label each finding blocking, should or nit, so the author knows what must change.
+- Check correctness and security first, then tests, then readability; that is the order of harm.
+- Give each finding a file and line, the failure, why it matters and a fix, so the author can act on it.
+- Report only what you checked and ask about the rest; false alarms bury the real findings.
 ---
 
 # Code review
@@ -50,7 +49,7 @@ Say what is good when it is worth keeping, and say plainly when nothing needs to
 
 ## Size
 
-A reviewer catches most in a change of a few hundred lines. A larger change gets a skim, so split it: the refactor
+A reviewer catches most in a change of about 200 to 400 lines. A larger change gets a skim, so split it: the refactor
 first, then the feature on top. Generated files and lock files do not count, but say that they are there.
 
 ## Receiving a review

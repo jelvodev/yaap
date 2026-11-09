@@ -4,15 +4,10 @@ category: working-method
 summary: Understand before changing, plan what is larger, keep the change small, and say plainly what was checked and
   what was not.
 rules:
-- Read the code, its tests and the project memory before changing anything; guessing at code you have not read causes
-  most wrong changes.
-- For a change over more than a few files or with a design choice in it, agree on a short plan first; a wrong
-  direction costs more than the plan.
-- Make the smallest change that does the task; leave refactors, renames and style fixes elsewhere for their own
-  change, so the diff is easy to review and undo.
-- Never call work done without fresh evidence (the command you ran and its result), and say what you did not
-  verify.
-- When the request is unclear or two readings lead to different work, ask one short question instead of choosing.
+- Read the code, its tests and the project memory first; guessing causes most wrong changes.
+- When the request is unclear or the change is large, ask or agree on a short plan first; a wrong direction costs more.
+- Make the smallest change that does the task, so the diff is easy to review and undo.
+- Call work done only with fresh evidence (the command and its result), and say what you did not verify.
 ---
 
 # Working method

@@ -1,15 +1,14 @@
 ---
 sources: [agency-agents/engineering/engineering-git-workflow-master.md, wshobson/plugins/git-pr-workflows/commands/git-workflow.md, own]
 category: git
-summary: Small commits with a clear subject, one task per branch, no rewriting of shared history, and nothing secret or
-  generated in git.
+summary: Small commits with a clear subject, one task per branch, no rewriting of shared history, and commits only
+  when the user asks.
 rules:
 - One change per commit with a short imperative subject; small commits are easy to review, revert and bisect.
-- One task per branch, started from the latest main branch; two tasks in one branch make both hard to review.
-- Never rewrite history others have pulled; it breaks their copies. Force-push only your own branch, with a lease.
-- Keep secrets, build output, installed dependencies and local environment files out of git.
-- Commit when the user asks, or per step when the user approved a plan that says so; push, merge or open a pull
-  request only when the user asks.
+- One task per branch, from the latest main, so each can be reviewed alone.
+- Never rewrite history others have pulled; it breaks their copies.
+- Commit when the user asks, or per step when the user approved a plan that says so; never push or merge unasked, since
+  that reaches others.
 ---
 
 # Git
@@ -41,8 +40,8 @@ Bring in changes from main before you finish, so conflicts are solved on the bra
 ## History
 
 Rebasing, amending and squashing are fine on a branch only you use. Once someone else has pulled it, rewriting its
-history makes their copy diverge. If you must update your own pushed branch, use `--force-with-lease`, which refuses
-when the remote has commits you have not seen. Never force-push the main branch.
+history makes their copy diverge. Force-push only your own branch, and then with `--force-with-lease`, which
+refuses when the remote has commits you have not seen. Never force-push the main branch.
 
 When something goes wrong, `git reflog` still knows where every commit was; nothing committed is lost for a while.
 
@@ -52,7 +51,8 @@ When something goes wrong, `git reflog` still knows where every commit was; noth
 - Build output, caches, installed dependencies, editor and OS files: list them in `.gitignore`.
 - Large binaries, unless the project uses a tool meant for them.
 
-A secret that was committed is leaked even after a later commit removes it; follow the `security` standard.
+A secret that was committed is leaked even after a later commit removes it; the `security` standard has the rule
+and the `leaked-secret` skill the steps.
 
 ## Who decides
 

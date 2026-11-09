@@ -1,9 +1,8 @@
 ---
 name: dbt-models
-description: Lay out, write, test and document dbt models, with staging, intermediate and mart layers, incremental
-  models that survive reruns, and tests on every key. Use this whenever you work in a dbt project, add or change a
-  model, source, test, macro or snapshot, make a model incremental, or set up dbt in CI, even for a one-line model,
-  because naming and tests are cheapest when the model is new.
+description: Lay out, write, test and document dbt models in staging, intermediate and mart layers, with incremental
+  models that survive reruns, snapshots for history and tests on every key. Use it whenever you add or change a dbt
+  model, source, test, macro or snapshot, or set up dbt in CI.
 license: MIT
 metadata:
   sources: wshobson/plugins/data-engineering/skills/dbt-transformation-patterns

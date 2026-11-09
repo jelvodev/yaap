@@ -1,9 +1,8 @@
 ---
 name: slos
 description: Define service level indicators and objectives, compute the error budget and set burn-rate alerts that
-  page only when users are really affected. Use this whenever the user asks how reliable a service should be, wants
-  SLOs, SLIs, error budgets, availability or latency targets, alerting that is less noisy, or a way to decide between
-  feature work and reliability work, and when setting up monitoring for a new service.
+  page only when users are affected. Use it when the user asks how reliable a service should be, wants SLOs, error
+  budgets or quieter alerts, or sets up monitoring for a new service.
 license: MIT
 metadata:
   sources: agency-agents/engineering/engineering-sre.md

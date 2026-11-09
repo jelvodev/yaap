@@ -1,10 +1,8 @@
 ---
 name: github-actions
-description: Write GitHub Actions workflows that run with least privilege, use OIDC instead of stored cloud keys, pin
-  every action to a full commit SHA and cache dependencies. Use this whenever you create or change a workflow in
-  .github/workflows, add a CI test, build, release or deploy job, a matrix or a reusable workflow, connect CI to a
-  cloud account, or review a workflow for security, even for a small change, because a workflow runs with access to
-  the repository and its secrets.
+description: Write GitHub Actions workflows with least privilege, OIDC instead of stored cloud keys, every action
+  pinned to a full commit SHA, and cached dependencies. Use it whenever you create or change a workflow or a CI,
+  release or deploy job, connect CI to a cloud, or review a workflow's security.
 license: MIT
 metadata:
   sources: wshobson/plugins/cicd-automation/skills/github-actions-templates, own

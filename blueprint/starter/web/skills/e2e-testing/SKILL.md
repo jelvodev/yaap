@@ -1,9 +1,8 @@
 ---
 name: e2e-testing
-description: Write and fix end-to-end browser tests with Playwright that find elements by role and label, wait on
-  what the user sees instead of fixed sleeps, and run against the app in the preview. Use this whenever you add or
-  change a user journey (sign in, checkout, a form, a wizard), write a browser test, see a flaky or timing-dependent
-  test, or need to prove a UI change works in a real browser rather than only in unit tests.
+description: Write and fix Playwright end-to-end tests that find elements by role and label, wait on what the user
+  sees instead of sleeping, and run against the app in the preview. Use it whenever you add or change a user journey,
+  write a browser test, chase a flaky one, or must prove a UI change in a browser.
 license: Apache-2.0
 metadata:
   sources: wshobson/plugins/developer-essentials/skills/e2e-testing-patterns, agency-agents/testing/testing-test-automation-engineer.md, anthropic-skills/skills/webapp-testing, own

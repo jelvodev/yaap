@@ -1,9 +1,8 @@
 ---
 name: sql-style-and-tuning
-description: Write SQL that is easy to read and review, and make slow queries fast by measuring first. Use this
-  whenever you write or review a SQL query, a view or a model, when a query or page is slow, when the database load
-  is high, when you see the same query run many times in a row (N+1), or before adding an index, even if the query
-  looks simple, because a plan read once beats any guess about it.
+description: Write SQL that is easy to read and review, and make slow queries fast by reading the plan first. Use it
+  whenever you write or review a query, view or model, when a query or page is slow, when the same query runs many
+  times in a row (N+1), or before adding an index.
 license: MIT
 metadata:
   sources: wshobson/plugins/developer-essentials/skills/sql-optimization-patterns, agency-agents/engineering/engineering-database-optimizer.md

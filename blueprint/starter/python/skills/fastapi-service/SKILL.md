@@ -1,9 +1,8 @@
 ---
 name: fastapi-service
 description: Structure a FastAPI service with thin routers, typed services that hold the logic, one settings object,
-  dependencies passed in with Depends, resources opened in the lifespan, and domain errors mapped to HTTP in one
-  place. Use this whenever you start a FastAPI project, add an endpoint or a service, read configuration or secrets,
-  share a database or HTTP client, or find logic, SQL or os.environ reads inside a route function.
+  Depends for dependencies, resources opened in the lifespan and errors mapped in one place. Use it when you start a
+  FastAPI project, add an endpoint or service, or find logic in a route.
 license: MIT
 metadata:
   sources: wshobson/plugins/api-scaffolding/skills/fastapi-templates, own

@@ -1,9 +1,8 @@
 ---
 name: typescript-types
-description: Use TypeScript's advanced types where they prevent real bugs (unknown and narrowing, discriminated
-  unions, exhaustive checks, satisfies, branded ids, generics with constraints) and stop before types become a puzzle.
-  Use this whenever you type API data, model a value with several states, are tempted to write any, a type assertion
-  or a non-null assertion, write a generic helper, or fight a confusing type error.
+description: Use TypeScript's stronger types where they prevent real bugs (unknown with narrowing, discriminated
+  unions, exhaustive checks, satisfies, branded ids, constrained generics) and stop before they become a puzzle. Use
+  it when typing API data or states, when tempted by any, or on a confusing type error.
 license: MIT
 metadata:
   sources: wshobson/plugins/javascript-typescript/skills/typescript-advanced-types

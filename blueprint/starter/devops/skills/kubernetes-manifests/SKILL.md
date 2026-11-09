@@ -1,10 +1,8 @@
 ---
 name: kubernetes-manifests
-description: Write Kubernetes manifests that set resource requests and limits, health probes, a restricted security
-  context, network policies and disruption budgets. Use this whenever you create or change a Deployment,
-  StatefulSet, Job, Service, Ingress, ConfigMap, Secret, NetworkPolicy, Helm chart or Kustomize overlay, deploy an
-  application to Kubernetes, or review manifests for reliability or security, even for one small service, because
-  the defaults run as root without limits.
+description: Write Kubernetes manifests with resource requests and limits, health probes, a restricted security
+  context, network policies and disruption budgets. Use it whenever you create or change workloads, Services,
+  Ingresses, Secrets, Helm charts or Kustomize overlays, or review manifests.
 license: MIT
 metadata:
   sources: wshobson/plugins/kubernetes-operations/skills/k8s-manifest-generator, wshobson/plugins/kubernetes-operations/skills/k8s-security-policies

@@ -1,9 +1,8 @@
 ---
 name: react-state
 description: Decide where state lives in a React app, keeping server data, URL state, form state and UI state apart.
-  Use this whenever you add state to a component, reach for a global store or context, copy fetched data into state,
-  write a useEffect that sets state, or fix a bug where the screen shows stale or out-of-sync data, because most React
-  state bugs come from keeping the same value in two places.
+  Use it whenever you add state, reach for a global store or context, copy fetched data into state, write an effect
+  that sets state, or fix a screen that shows stale data.
 license: MIT
 metadata:
   sources: wshobson/plugins/frontend-mobile-development/skills/react-state-management

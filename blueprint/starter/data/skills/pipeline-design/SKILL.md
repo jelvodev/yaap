@@ -1,9 +1,8 @@
 ---
 name: pipeline-design
-description: Design or change a data pipeline so it can be rerun, backfilled and trusted, with raw, clean and served
-  layers, a load strategy per table and a plan for late and changed data. Use this whenever you build a new
-  pipeline, ETL or ELT job, ingestion from an API, file drop or database, add a table to an existing pipeline,
-  plan a backfill, or when a pipeline produced duplicates, gaps or numbers nobody trusts.
+description: Design or change a data pipeline that can be rerun, backfilled and trusted, with raw, clean and served
+  layers, a load strategy per table and a plan for late data. Use it for a new pipeline or ingestion, a new table, a
+  backfill, or when a pipeline gave duplicates, gaps or doubtful numbers.
 license: MIT
 metadata:
   sources: agency-agents/engineering/engineering-data-engineer.md

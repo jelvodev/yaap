@@ -7,11 +7,11 @@ rules:
 - Keep infrastructure, CI and deploy configuration as code in the repository; manual changes drift and cannot be
   repeated.
 - Give CI jobs least privilege, with an explicit `permissions:` block and OIDC instead of long-lived cloud keys.
-- Pin what you run (base images by digest, actions by full commit SHA, tools by version); a moving tag can change
-  under you.
+- Pin what you run (base images by digest, actions by full commit SHA, tools by version); a moving tag can change under
+  you.
 - Take secrets from a secret store or the CI's secret settings at run time, never from the repository, an image or a
   log.
-- Make every deploy reversible and know the rollback before you ship.
+- Know the rollback before you deploy, so a bad release costs minutes instead of an outage.
 ---
 
 # Operations

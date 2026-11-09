@@ -1,10 +1,8 @@
 ---
 name: threat-model
-description: Threat-model a change or a system with STRIDE over its trust boundaries, rate each threat on a fixed
-  severity scale and pair it with a mitigation. Use this before building or reviewing anything that handles
-  authentication, permissions, secrets, payments, personal data, file uploads, webhooks, outside input or a new
-  external integration, when a design crosses a network or privilege boundary, and whenever the user asks what could
-  go wrong security-wise or how something could be attacked, even for a change that looks small.
+description: Threat-model a change or a system with STRIDE over its trust boundaries, rating each threat and pairing
+  it with a mitigation. Use it before building or reviewing anything with authentication, permissions, secrets,
+  payments, personal data, uploads, webhooks or outside input.
 license: MIT
 metadata:
   sources: agency-agents/security/security-architect.md,

@@ -1,10 +1,8 @@
 ---
 name: research-and-summarise
-description: Research a question across web pages, documents, attachments and the project's knowledge, compare what
-  the sources say, and write a summary in which every claim cites the source it came from. Use this whenever the user
-  asks to look something up, find out, compare options, check what is current, summarise documents or pages, or
-  gather background before a decision, even for a question that seems quick, because answers from memory are often
-  out of date and uncited answers cannot be checked.
+description: Research a question across web pages, documents, attachments and the project's knowledge, compare the
+  sources and write a summary in which every claim is cited. Use it whenever the user asks to look something up,
+  compare options, check what is current, summarise sources or gather background.
 license: MIT
 metadata:
   sources: own

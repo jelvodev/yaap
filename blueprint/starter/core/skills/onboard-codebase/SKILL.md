@@ -1,10 +1,8 @@
 ---
 name: onboard-codebase
-description: Map an unfamiliar repository from the files actually read - what it is, its entry points and structure,
-  how to run and test it, its conventions and its risks - and propose lines for the project memory. Use this when
-  starting work in a project that is new to you or to the user, when asked to explain, onboard, tour or map a
-  codebase, or before a first larger change in a project whose memory is still empty, even when the request is just
-  "what is this project?".
+description: Map an unfamiliar repository from the files actually read (what it is, entry points, how to run and test
+  it, conventions, risks) and propose lines for the project memory. Use it when starting in a project new to you, when
+  asked to explain or map a codebase, or while its memory is empty.
 license: MIT
 metadata:
   sources: agency-agents/engineering/engineering-codebase-onboarding-engineer.md, own

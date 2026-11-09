@@ -1,10 +1,8 @@
 ---
 name: write-plan
-description: Write an implementation plan before building a change that touches more than a few files, adds a
-  dependency, changes a data model or follows an agreed design. The plan has small steps, each with its files and the
-  command that checks it, and acceptance criteria in EARS form ("When <trigger>, the <system> shall <response>"). Use
-  this whenever work is larger than a quick fix or will be handed to goal mode or a worker, because a wrong
-  direction costs more than the plan.
+description: Write an implementation plan with small steps, each with its files and its check, and acceptance criteria
+  in EARS form. Use it before a change that touches more than a few files, adds a dependency, changes a data model,
+  follows an agreed design or goes to goal mode or a worker.
 license: MIT
 metadata:
   sources: superpowers/skills/writing-plans, agency-agents/project-management/project-manager-senior.md, own

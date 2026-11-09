@@ -1,9 +1,8 @@
 ---
 name: data-quality
-description: Add data quality checks to each layer of a pipeline and decide what happens when one fails, so bad data
-  stops before anyone reads it. Use this whenever you build or change a pipeline or model, add tests to tables, set
-  up dbt tests or another checking tool, when numbers look wrong, a dashboard disagrees with the source, or a check
-  failed and you need to decide whether to stop, quarantine or let it pass.
+description: Add data quality checks to each layer of a pipeline and decide what a failure does (stop, quarantine or
+  pass), so bad data stops before anyone reads it. Use it when you build or change a pipeline or model, add tests to
+  tables, or numbers look wrong or disagree with the source.
 license: MIT
 metadata:
   sources: wshobson/plugins/data-engineering/skills/data-quality-frameworks

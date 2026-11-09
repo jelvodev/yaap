@@ -1,9 +1,8 @@
 ---
 name: receive-review
-description: Handle review feedback on your work by checking each point technically before acting on it, then
-  agreeing and fixing, pushing back with reasons, or asking. Use this whenever review comments arrive, from the user,
-  a pull request, the reviewer agent or Review these changes, and especially when a point seems unclear or wrong,
-  because a review is advice to weigh, not a list of orders, and a wrong fix applied quickly is still wrong.
+description: Handle review feedback by checking each point against the code before acting, then fixing it, pushing
+  back with evidence or asking. Use it whenever review comments arrive (from the user, a pull request, the reviewer
+  agent or Review these changes), above all when a point seems wrong.
 license: MIT
 metadata:
   sources: superpowers/skills/receiving-code-review

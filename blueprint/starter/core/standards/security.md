@@ -4,12 +4,12 @@ category: security
 summary: Keep secrets out of everything you write, distrust input, grant the least access that works, and pin what you
   depend on.
 rules:
-- Keep secrets out of code, logs, commits and tool output; read them from the environment, so the repository grants
-  no access.
-- Validate input where it enters and pass it to queries and commands as parameters; joined strings invite injection.
-- Give code, tokens and services the least access that works; what cannot act cannot be abused.
-- Pin dependencies with a lock file, and check a new one's name, upkeep and need before adding it.
-- A leaked secret is rotated at the provider first, then removed from the code; deleting it does not take it back.
+- Keep secrets out of code, logs, commits and output; read them from the environment, so the repository grants no
+  access.
+- Check input where it enters and pass it to queries and commands as parameters; joined strings invite injection.
+- Grant the least access that works; what cannot act cannot be abused.
+- Pin dependencies with a lock file and vet new ones; a lookalike name can be malware.
+- Rotate a leaked secret at the provider first; deleting it does not take it back.
 ---
 
 # Security

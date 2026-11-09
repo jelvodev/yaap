@@ -1,9 +1,8 @@
 ---
 name: refactor-safely
-description: Restructure code without changing what it does - rename, extract, move, split a large module, remove
-  duplication or dead code - in small steps under passing tests, each one proven before the next. Use this
-  whenever the task is a refactor, a cleanup, a reorganisation or "make this easier to read", and whenever a feature
-  or fix first needs the code reshaped, so the reshaping and the behaviour change stay apart.
+description: Restructure code without changing what it does (rename, extract, move, split, remove duplication or dead
+  code) in small steps, each proven by passing tests. Use it for a refactor, a cleanup or a reorganisation, and when a
+  feature or fix first needs the code reshaped.
 license: MIT
 metadata:
   sources: wshobson/plugins/codebase-cleanup/commands/refactor-clean.md, own

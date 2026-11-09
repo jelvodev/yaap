@@ -1,10 +1,8 @@
 ---
 name: product-requirements
-description: Write a product requirements document (PRD) for a feature or initiative, starting from the problem and
-  the evidence for it, with goals that can be measured, non-goals, user stories with acceptance criteria, risks and
-  open questions, and a plan for how the result will be measured after launch. Use this whenever the user wants to
-  specify a feature, turn a feature request or idea into requirements, scope a project, or decide what "done" and
-  "worked" mean for something they are about to build, even if they do not say PRD.
+description: Write a product requirements document (PRD) that starts from the problem and its evidence, with
+  measurable goals, non-goals, user stories with acceptance criteria, risks and how success is measured. Use it when
+  the user wants to specify a feature, turn an idea into requirements or scope a project.
 license: MIT
 metadata:
   sources: agency-agents/product/product-manager.md

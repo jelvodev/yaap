@@ -1,10 +1,8 @@
 ---
 name: review-code
-description: Review a change, a diff, a branch or a pull request through five lenses (correctness, security,
-  performance, tests, readability), with a severity (blocking, should, nit) and a confidence for every finding, and
-  each finding checked against the code before it is reported. Use this whenever you are asked to review code, before
-  a merge or a pull request, and at the end of a plan, because a review that reports guesses wastes the author's
-  time and one that misses a real bug costs more.
+description: Review a diff, branch or pull request for correctness, security, performance, tests and readability, with
+  each finding checked against the code and graded blocking, should or nit with a confidence. Use it when asked to
+  review code, before a merge or pull request, and at the end of a plan.
 license: MIT
 metadata:
   sources: wshobson/plugins/developer-essentials/skills/code-review-excellence,

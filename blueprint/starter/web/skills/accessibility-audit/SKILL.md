@@ -1,10 +1,8 @@
 ---
 name: accessibility-audit
-description: Audit a page, component or flow against WCAG 2.2 level AA with an automated axe scan and a manual check
-  by keyboard, zoom and screen-reader semantics, and report each issue with its success criterion, severity and fix.
-  Use this before a UI ships, after building a new component (dialog, menu, tabs, form, table), when asked whether
-  something is accessible, or when a Lighthouse or axe score looks fine, because automated tools find only a part of
-  the real problems.
+description: Audit a page, component or flow against WCAG 2.2 AA with an axe scan and a manual check by keyboard, zoom
+  and screen-reader semantics, each issue with its criterion, severity and fix. Use it before a UI ships, after
+  building a new component, or when asked whether something is accessible.
 license: MIT
 metadata:
   sources: agency-agents/testing/testing-accessibility-auditor.md

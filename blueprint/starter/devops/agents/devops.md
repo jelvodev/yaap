@@ -1,6 +1,6 @@
 ---
 sources: [agency-agents/engineering/engineering-devops-automator.md, wshobson/plugins/cicd-automation/agents/deployment-engineer.md]
-description: Builds and checks CI workflows, container images, deploy configuration and infrastructure code, and leaves applying them to the user.
+description: Builds and checks CI, container, deploy and infrastructure code, and leaves applying it to the user.
 role: worker
 tools: [list_files, read_file, search, find_definition, find_references, diagnostics, write_file, edit_file, run_command, read_process_output, list_processes, git_status, git_diff, web_fetch, web_search, load_standard, load_skill, update_memory]
 ---

@@ -1,8 +1,8 @@
 ---
 name: brainstorm-design
-description: Settle with the user what to build and how before building a feature, a component or a change in
-  behaviour that has more than one sensible approach. Asks short questions, compares routes, sketches screens in the
-  preview and writes a short design. Use it whenever the request leaves the what or the how open.
+description: Settle with the user what to build and how before building a feature, component or behaviour change with
+  more than one sensible approach. Asks short questions, compares routes, sketches screens in the preview and writes a
+  short design. Use it whenever the what or the how is open.
 license: MIT
 metadata:
   sources: superpowers/skills/brainstorming, own

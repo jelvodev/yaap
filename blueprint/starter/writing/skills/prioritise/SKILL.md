@@ -1,9 +1,8 @@
 ---
 name: prioritise
-description: Rank a backlog, a list of feature ideas, a set of requests or the scope of a release with RICE scores or
-  MoSCoW categories, and make the trade-offs visible. Use this whenever the user asks what to do first, what to cut,
-  what fits in a sprint or release, how to compare features, or how to say no to a request with reasons, even when
-  they only paste a list and ask "which of these?".
+description: Rank a backlog, feature ideas, requests or a release scope with RICE scores or MoSCoW, and make the
+  trade-offs visible. Use it whenever the user asks what to do first, what to cut, what fits in a sprint or release,
+  or how to say no with reasons, even when they only paste a list.
 license: MIT
 metadata:
   sources: agency-agents/product/product-sprint-prioritizer.md

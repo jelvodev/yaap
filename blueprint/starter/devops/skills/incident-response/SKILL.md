@@ -1,10 +1,8 @@
 ---
 name: incident-response
-description: Run an incident from the first alert to a blameless postmortem, with a severity level, clear roles,
-  regular updates and mitigation before root cause. Use this whenever a service is down, slow, losing or corrupting
-  data, an alert fires, users report an outage, a deploy went wrong in production, or the user asks for a
-  postmortem, incident report or on-call runbook, even when it looks small, because the first minutes decide how
-  long it lasts.
+description: Run an incident from the first alert to a blameless postmortem, with a severity, clear roles, regular
+  updates and mitigation before root cause. Use it whenever a service is down, slow or losing data, an alert fires, a
+  deploy broke production, or the user asks for a postmortem or runbook.
 license: MIT
 metadata:
   sources: agency-agents/engineering/engineering-incident-response-commander.md

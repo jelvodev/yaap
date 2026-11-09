@@ -1,10 +1,8 @@
 ---
 name: prompt-design
-description: Design, improve and regression-test a prompt for a language model, such as a system prompt, an agent's
-  role prompt, a Blueprint skill or command, an extraction or classification prompt, or a prompt inside an
-  application. Use this whenever the user writes or changes a prompt, asks why a model keeps doing the wrong thing,
-  wants more reliable or consistent output, or wants to know whether a prompt change made things better or worse,
-  because prompts change behaviour in ways that are only visible when tested on fixed cases.
+description: Design, improve and regression-test a prompt for a language model (a system or role prompt, a Blueprint
+  skill or command, an extraction prompt, a prompt inside an application). Use it whenever the user writes or changes
+  a prompt, or a model keeps doing the wrong thing or answers inconsistently.
 license: MIT
 metadata:
   sources: agency-agents/engineering/engineering-prompt-engineer.md

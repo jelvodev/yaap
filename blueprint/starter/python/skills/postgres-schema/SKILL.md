@@ -1,9 +1,8 @@
 ---
 name: postgres-schema
-description: Design or review PostgreSQL tables with the right column types, constraints that keep bad data out,
-  and the indexes the queries actually need. Use this whenever you create or change a table, choose a column type,
-  add a foreign key or an index, model money, time, status or JSON data, or review a schema or an ORM model, because
-  a constraint that is missing on day one lets bad rows in that are hard to clean up later.
+description: Design or review PostgreSQL tables with the right column types, constraints that keep bad data out and
+  the indexes the queries need. Use it whenever you create or change a table, choose a type, add a foreign key or
+  index, model money, time, status or JSON, or review an ORM model.
 license: MIT
 metadata:
   sources: wshobson/plugins/database-design/skills/postgresql-table-design

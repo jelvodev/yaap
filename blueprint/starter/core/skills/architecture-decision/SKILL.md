@@ -1,10 +1,8 @@
 ---
 name: architecture-decision
-description: Write an architecture decision record (ADR) that captures the context, the options considered, the
-  decision and its consequences, in the place the project keeps its ADRs. Use this whenever a choice is made that is
-  hard to undo or that later readers will ask "why?" about - a framework, a database, a data model, an API style, an
-  integration, a security design, splitting or merging services - and when the user asks to record, document or
-  justify a technical decision, even if they do not say ADR.
+description: Write an architecture decision record (context, options, decision, consequences) where the project keeps
+  them. Use it when a hard-to-undo choice is made (a framework, database, data model, API style, service split) or the
+  user asks to record or justify a technical decision.
 license: MIT
 metadata:
   sources: wshobson/plugins/documentation-generation/skills/architecture-decision-records,

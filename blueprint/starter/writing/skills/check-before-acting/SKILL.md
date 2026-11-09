@@ -1,11 +1,8 @@
 ---
 name: check-before-acting
-description: After a substantial answer the user is likely to act on, end it with two or three short, specific
-  questions that help them check a key fact, probe an assumption or notice missing context. Use this before finishing
-  a reply that holds advice or a recommendation, an estimate or projection, an analysis of data, factual claims they
-  may rely on or repeat, or a drafted plan, proposal or message they will send. Skip it for code they will run,
-  simple lookups, explanations, creative work, casual talk, and when the user already asked you to verify or review.
-  At most once per conversation.
+description: End a substantial answer the user will act on (advice, an estimate, a data analysis, claims they will
+  repeat, a plan or a message to send) with two or three short questions that help them check it. Skip it for code,
+  lookups, explanations, creative work and chat. At most once per conversation.
 license: Apache-2.0
 metadata:
   sources: anthropic-skills/skills/discernment-nudge

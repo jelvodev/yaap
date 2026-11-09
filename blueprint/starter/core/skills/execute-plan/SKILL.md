@@ -1,9 +1,8 @@
 ---
 name: execute-plan
-description: Carry out an approved implementation plan step by step, with tests first, a check and a progress
-  note after every step, and a review of the whole change at the end. Works in goal mode (/goal) and can hand steps
-  to workers with a stronger model reviewing them. Use this whenever there is a written plan to build from, or when
-  the user says to go ahead with one, so steps are not skipped, merged or forgotten after a compaction.
+description: Carry out an approved plan step by step, test first, with a check and a progress note per step and a
+  review of the whole change at the end, also in goal mode or with workers. Use it whenever there is a written plan to
+  build from or the user says to go ahead with one.
 license: MIT
 metadata:
   sources: superpowers/skills/executing-plans, superpowers/skills/subagent-driven-development, own

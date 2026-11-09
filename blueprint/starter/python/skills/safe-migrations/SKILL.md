@@ -1,10 +1,8 @@
 ---
 name: safe-migrations
-description: Change a database schema that already holds data without downtime or data loss, with expand and
-  contract steps, short lock budgets, batched backfills, a rollback plan and a backup that has been restored at least
-  once. Use this whenever you write a migration that renames, removes or retypes a column, adds a NOT NULL or a
-  constraint, builds an index on a large table, moves data, or will run against production, even when it looks like
-  a one-line change, because a lock on a busy table stops every request behind it.
+description: Change a schema that holds data without downtime or loss, with expand and contract steps, short locks,
+  batched backfills, a rollback plan and a tested backup. Use it for any migration that renames, removes or retypes a
+  column, adds a constraint, indexes a large table or runs on production.
 license: MIT
 metadata:
   sources: agency-agents/engineering/engineering-database-reliability-engineer.md, wshobson/plugins/database-migrations/commands/sql-migrations.md

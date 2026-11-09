@@ -1,9 +1,8 @@
 ---
 name: docker-images
 description: Write a Dockerfile and .dockerignore for a small, pinned, non-root image with a multi-stage build, a
-  health check and no secrets in its layers. Use this whenever you create or change a Dockerfile, Containerfile,
-  .dockerignore or compose file, containerise an application, make an image smaller or faster to build, or review an
-  image for security, even for a quick one, because an image built once is often run for years.
+  health check and no secrets in its layers. Use it whenever you create or change a Dockerfile, Containerfile or
+  compose file, containerise an app, or shrink or review an image.
 license: MIT
 metadata:
   sources: own

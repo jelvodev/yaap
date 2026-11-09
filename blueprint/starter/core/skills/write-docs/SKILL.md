@@ -1,10 +1,8 @@
 ---
 name: write-docs
-description: Write or revise developer documentation - a README, a getting-started guide, a how-to, a reference page
-  for an API, CLI or configuration, or an explanation of a design - by gathering context first, agreeing on an
-  outline, writing section by section and then reading it as a newcomer would. Use this whenever the user asks for
-  documentation, docs, a README, a guide, a tutorial or a reference, when a change adds or alters something users
-  must know, or when existing docs are wrong, stale or hard to follow.
+description: Write or revise developer docs (a README, guide, how-to, reference or design explanation) by gathering
+  context, agreeing on an outline, writing section by section and testing it on a newcomer. Use it when asked for
+  docs, when a change alters what users must know, or when docs are stale.
 license: MIT
 metadata:
   sources: agency-agents/engineering/engineering-technical-writer.md, own

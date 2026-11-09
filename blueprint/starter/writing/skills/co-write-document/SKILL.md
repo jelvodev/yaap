@@ -1,10 +1,8 @@
 ---
 name: co-write-document
-description: Write a substantial document together with the user, such as a proposal, design document, report,
-  guide, policy or long email. Gather the context first, agree on an outline, write and revise it section by section
-  in a shared document, and then test it on a fresh reader before it goes out. Use this whenever the user asks to
-  draft, write or rework a document that others will read and act on, even when they only say "help me write",
-  because a document written in one pass without its reader in mind usually misses what that reader needs.
+description: Write a substantial document with the user (a proposal, design, report, guide, policy or long email) by
+  gathering context, agreeing on an outline, drafting section by section and testing it on a fresh reader. Use it
+  whenever the user asks to draft or rework a document others will read and act on.
 license: MIT
 metadata:
   sources: own

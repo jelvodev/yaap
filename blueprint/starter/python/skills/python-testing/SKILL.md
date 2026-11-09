@@ -1,9 +1,8 @@
 ---
 name: python-testing
-description: Write Python tests with pytest that are named after behaviour, use fixtures for setup, cover decision
-  logic with parametrized tables, and mock only at the edge of the system (network, clock, randomness, outside
-  services). Use this whenever you write or fix Python tests, add a conftest or fixture, are about to mock something,
-  test async code, or see a slow, flaky or hard-to-read test suite.
+description: Write pytest tests named after behaviour, with fixtures for setup, parametrized tables for decision logic
+  and mocks only at the edge (network, clock, randomness). Use it whenever you write or fix Python tests, add a
+  fixture, are about to mock, test async code, or face a slow or flaky suite.
 license: MIT
 metadata:
   sources: wshobson/plugins/python-development/skills/python-testing-patterns

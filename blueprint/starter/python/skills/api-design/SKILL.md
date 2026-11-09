@@ -1,10 +1,8 @@
 ---
 name: api-design
-description: Design or review an HTTP API as a contract (resources, methods and status codes, one error shape,
-  pagination, idempotent writes, versioning and backward compatibility). Use this whenever you add or change an
-  endpoint, a request or response field, an error format or a public API, write an OpenAPI document, or need to know
-  whether a change will break existing clients, even for an internal API, because its callers depend on it the same
-  way.
+description: Design or review an HTTP API as a contract (resources, status codes, one error shape, pagination,
+  idempotent writes, versioning). Use it whenever you add or change an endpoint, a field or an error format, write an
+  OpenAPI document, or need to know whether a change breaks clients.
 license: MIT
 metadata:
   sources: wshobson/plugins/backend-development/skills/api-design-principles, agency-agents/engineering/engineering-api-platform-engineer.md, agency-agents/engineering/engineering-backend-architect.md

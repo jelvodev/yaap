@@ -1,9 +1,8 @@
 ---
 name: finish-branch
-description: Finish work on a branch by running the tests first and then, as the user chooses, merging it into its
-  base, opening a pull request, or keeping the branch as it is, without ever discarding work unasked. Use this
-  whenever a feature, fix or plan is complete and the work needs to land, or the user says to wrap up, merge, open a
-  pull request or finish, because integrating untested work or losing commits is hard to undo.
+description: Finish a branch by running the tests, then merging it, opening a pull request or keeping it, as the user
+  chooses, and never discarding work unasked. Use it when a feature, fix or plan is complete, or the user says to wrap
+  up, merge, open a pull request or finish.
 license: MIT
 metadata:
   sources: superpowers/skills/finishing-a-development-branch,

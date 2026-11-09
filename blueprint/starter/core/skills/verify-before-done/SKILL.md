@@ -1,9 +1,8 @@
 ---
 name: verify-before-done
-description: Prove a change works before calling it done, fixed or passing, with fresh output of the command that
-  shows it, and report each claim beside its evidence. Use this whenever you are about to say a task is finished, a
-  bug is fixed or tests pass, before a commit, a pull request or finish_goal, and when a worker reports success,
-  because "it should work" is a guess and the user acts on what you say.
+description: Prove a change works before calling it done, with fresh output of the command that shows it and each
+  claim beside its evidence. Use it before saying a task is finished, a bug fixed or tests pass, before a commit, pull
+  request or finish_goal, and when a worker reports success.
 license: MIT
 metadata:
   sources: superpowers/skills/verification-before-completion, agency-agents/testing/testing-reality-checker.md, own

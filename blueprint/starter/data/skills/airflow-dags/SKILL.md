@@ -1,9 +1,8 @@
 ---
 name: airflow-dags
-description: Write Airflow DAGs whose tasks are idempotent, retry safely, wait without blocking workers and can be
-  tested before they are deployed. Use this whenever you create or change an Airflow DAG, task, operator or sensor,
-  set a schedule, catchup or retries, debug a failed or stuck DAG run, or plan a backfill in Airflow, even for a small
-  change, because a scheduler reruns tasks in ways a script never is.
+description: Write Airflow DAGs whose tasks are idempotent, retry safely, wait without blocking workers and are tested
+  before they deploy. Use it whenever you create or change a DAG, task, operator, sensor, schedule or retries, debug a
+  failed or stuck run, or plan a backfill.
 license: MIT
 metadata:
   sources: wshobson/plugins/data-engineering/skills/airflow-dag-patterns
