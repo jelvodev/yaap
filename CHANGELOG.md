@@ -12,10 +12,15 @@ yourself when you update; it says "None." when there is nothing.
 - YAAP tells you when a newer version exists: Settings › System › Updates shows the newest release with its notes and
   the update commands, a dot shows on Settings, and a page that stays open across an update offers a reload. YAAP
   asks GitHub a few seconds after it starts and once a day; the schedule can be changed or switched off.
+- One command updates YAAP: `scripts/update.ps1` on Windows, `scripts/update.sh` on macOS and Linux. It shows
+  what changed with *Action needed* first, makes a backup, builds and starts the new version, checks that it
+  answers and offers to go back when it does not; `-Rollback` undoes an update that turned out bad. Claude
+  Code is now installed afresh once a month, in the first update of the month.
 
 ### Action needed
 
-None.
+The first update to 0.6.0 is by hand: `git pull` and `docker compose up -d --build`; after
+that, `scripts/update`.
 
 ## 0.5.7 (2026-11-09)
 

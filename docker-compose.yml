@@ -3,10 +3,15 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
+      # Marks YAAP's own images, so the update script removes only those when it cleans up.
+      labels:
+        dev.yaap: "true"
       # Shown by GET /api/v1/version; empty for a plain build.
       args:
         YAAP_COMMIT: ${YAAP_COMMIT:-}
         YAAP_CHANNEL: ${YAAP_CHANNEL:-}
+        # Installs Claude Code afresh when it changes; the update script sets the year and month.
+        CLI_REFRESH: ${CLI_REFRESH:-}
     image: yaap:local
     environment:
       # The master key: in .env, or in a file named by YAAP_MASTER_KEY_FILE (a Docker secret, set in the
@@ -49,6 +54,9 @@ services:
     build:
       context: .
       dockerfile: docker/searxng/Dockerfile
+      # Marks YAAP's own images, so the update script removes only those when it cleans up.
+      labels:
+        dev.yaap: "true"
     image: yaap-searxng:local
     # The image keeps its settings in volumes; tmpfs makes every start take docker/searxng/settings.yml afresh.
     tmpfs:
@@ -65,6 +73,9 @@ services:
     build:
       context: .
       dockerfile: docker/sandbox-helper/Dockerfile
+      # Marks YAAP's own images, so the update script removes only those when it cleans up.
+      labels:
+        dev.yaap: "true"
     image: yaap-sandbox-helper:local
     environment:
       DOCKER_HOST: tcp://docker-proxy:2375
@@ -106,6 +117,9 @@ services:
   sandbox-image:
     build:
       context: docker/sandbox
+      # Marks YAAP's own images, so the update script removes only those when it cleans up.
+      labels:
+        dev.yaap: "true"
     image: yaap-sandbox:local
     entrypoint: ["true"]
     network_mode: none

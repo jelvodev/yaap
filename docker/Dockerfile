@@ -31,12 +31,36 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     CODEX_HOME=/data/codex \
     DISABLE_AUTOUPDATER=1
 
+# git, curl and the certificates for HTTPS.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl git \
+    && rm -rf /var/lib/apt/lists/*
+
+# OCR for scanned PDFs and images added as knowledge or attachments: Tesseract, Dutch and English.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-nld tesseract-ocr-eng \
+    && rm -rf /var/lib/apt/lists/* \
+    && tesseract --version
+
+COPY --from=embedding-model /model/model.onnx /model/model.onnx_data /model/Constant_7_attr__value /model/tokenizer.json /opt/models/bge-m3/
+
+RUN useradd --create-home --uid 1000 yaap \
+    && mkdir -p /data \
+    && chown yaap:yaap /data
+WORKDIR /app
+# Every package, also the indirect ones, at the version and with the hashes of the lock file (CONTRIBUTING.md).
+COPY backend/requirements.lock ./
+RUN pip install --no-cache-dir --require-hashes --no-deps -r requirements.lock
+# The two CLIs come last before the app code, so a change to YAAP's code never reinstalls them, while a new CLI_REFRESH
+# (docker-compose.yml; the update script passes the year and month) installs both afresh once a month.
+ARG CLI_REFRESH=
 # Claude Code from Anthropic's signed apt repository (stable channel), unmodified. YAAP runs it for the
 # "Claude Code" connection; the sign-in is stored by Claude Code itself under CLAUDE_CONFIG_DIR.
 # The build stops when the signing key does not have Anthropic's published fingerprint.
 ARG CLAUDE_CODE_KEY_FINGERPRINT=31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl gnupg git \
+RUN echo "CLI refresh: ${CLI_REFRESH}" \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends gnupg \
     && install -d -m 0755 /etc/apt/keyrings \
     && curl -fsSL https://downloads.claude.ai/keys/claude-code.asc -o /etc/apt/keyrings/claude-code.asc \
     && gpg --show-keys --with-colons /etc/apt/keyrings/claude-code.asc | grep -q "^fpr:::::::::${CLAUDE_CODE_KEY_FINGERPRINT}:" \
@@ -59,24 +83,10 @@ RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
 # Codex, OpenAI's CLI, unmodified, for the "Codex" connection; the sign-in is stored by Codex itself under CODEX_HOME.
 # The version is pinned: YAAP switches off Codex's own tools by feature name, and Codex refuses names it does not know.
 ARG CODEX_VERSION=0.166.0
-RUN npm install --global --no-fund --no-audit "@openai/codex@${CODEX_VERSION}" \
+RUN echo "CLI refresh: ${CLI_REFRESH}" \
+    && npm install --global --no-fund --no-audit "@openai/codex@${CODEX_VERSION}" \
     && codex --version
 
-# OCR for scanned PDFs and images added as knowledge or attachments: Tesseract, Dutch and English.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-nld tesseract-ocr-eng \
-    && rm -rf /var/lib/apt/lists/* \
-    && tesseract --version
-
-COPY --from=embedding-model /model/model.onnx /model/model.onnx_data /model/Constant_7_attr__value /model/tokenizer.json /opt/models/bge-m3/
-
-RUN useradd --create-home --uid 1000 yaap \
-    && mkdir -p /data \
-    && chown yaap:yaap /data
-WORKDIR /app
-# Every package, also the indirect ones, at the version and with the hashes of the lock file (CONTRIBUTING.md).
-COPY backend/requirements.lock ./
-RUN pip install --no-cache-dir --require-hashes --no-deps -r requirements.lock
 COPY backend/app ./app
 COPY --from=frontend /build/dist ./static
 # Which commit and channel this build is, shown by GET /api/v1/version; last, so a new value rebuilds nothing before it.

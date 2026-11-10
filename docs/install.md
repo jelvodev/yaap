@@ -115,14 +115,35 @@ To add something to `docker-compose.yml` for your own computer only, such as a b
 
 ## Updating
 
-```bash
-git pull
-docker compose up -d --build
+From version 0.6.0 on, one command updates YAAP. Run it in the YAAP folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\update.ps1
 ```
 
-Before you update, read [CHANGELOG.md](../CHANGELOG.md): each release lists what changed and, under **Action needed**, what you must do yourself. `GET /api/v1/version` tells which version is running.
+```bash
+./scripts/update.sh
+```
 
-The database is migrated automatically on start. Your data folder and `.env` are not touched. The Codex version is pinned and changes with YAAP's updates. Claude Code comes from Anthropic's stable channel when the image is built; to get its newest version, rebuild without the cache: `docker compose build --no-cache yaap`, then `docker compose up -d`.
+**The first update to 0.6.0 is by hand**, because the script is not in your folder yet: read [CHANGELOG.md](../CHANGELOG.md), then run `git pull` and `docker compose up -d --build`. After that, use the script.
+
+The script:
+
+1. checks that Docker runs, that this is the YAAP folder and that you changed no tracked file. If you did, it names the files and stops: someone who changes YAAP itself updates with git;
+2. looks for the newest release (`git fetch --tags`). The *stable* channel is the default and takes the newest tag; `-Channel main` (`--channel main` for the shell script) takes the newest commit of `main`. When you already run it, it says so and stops;
+3. shows what changed between your version and the new one, **Action needed** first, and asks to go on (`-Yes` or `--yes` skips the question);
+4. asks YAAP what is working (replies, goals, eval runs, replays, scheduled tasks due in the next ten minutes). When something is, it names it and asks whether to update anyway; with `-Yes` it stops instead;
+5. makes a backup (it counts toward the seven that are kept) and keeps the current images as `:previous`;
+6. checks out the new version, builds and starts it with `docker compose up -d --build`, waits up to three minutes for YAAP to answer and checks that it reports the new version;
+7. writes a line to `data/update.log`.
+
+When the new version does not work, the script shows the last 40 lines of the log and offers to go back: the old code, the `:previous` images and, only when the new version already changed the database in a way the old one cannot read, the backup. If the script is interrupted, `data/update-state.json` remembers where it was and the next run offers to go back.
+
+An update that works but turns out bad can be undone later with `-Rollback` (`--rollback`). It goes back to the version before the last update. Work done since then is lost when the database was restored from the backup; the replaced data stays in `data/.restore-previous`. The `:previous` images stay until the next update.
+
+Your data folder, `.env` and `docker-compose.override.yml` are not touched, and the database is migrated by YAAP itself on start. Codex is pinned to the version in the `Dockerfile` and changes with YAAP's updates. Claude Code is installed from Anthropic's stable channel when the image is built; the script passes the year and month, so each month's first update installs Claude Code afresh, and an update in between reuses the one in the image. To get the newest Claude Code sooner, run `docker compose build --no-cache yaap`, then `docker compose up -d`.
+
+By hand, `git pull` and `docker compose up -d --build` still work.
 
 ## Backups
 
