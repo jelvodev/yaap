@@ -109,7 +109,7 @@ export default function UpdatesSection({ level, store }: { level: SettingsLevel;
           {status?.notes ? (
             <FieldRow label="What changed" hint="From the project's changelog; Action needed lists what you must do">
               <div className="update-notes">
-                <Markdown text={status.notes} />
+                <Markdown text={status.notes} plain />
               </div>
             </FieldRow>
           ) : null}

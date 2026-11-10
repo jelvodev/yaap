@@ -93,15 +93,19 @@ function CodeBlock({ children }: { children?: ReactNode }) {
   );
 }
 
-/** Markdown of a reply or document, with highlighted code blocks that preview pages and SVG images. */
-export function Markdown({ text }: { text: string }) {
+/**
+ * Markdown of a reply or document, with highlighted code blocks that preview pages and SVG images.
+ * `plain` is for text from outside: images show their description only and code stays text, never a live preview.
+ */
+export function Markdown({ text, plain = false }: { text: string; plain?: boolean }) {
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
       rehypePlugins={[highlightPlugin]}
       components={{
         a: (props) => <a {...props} target="_blank" rel="noreferrer" />,
-        pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
+        pre: ({ children }) => (plain ? <pre>{children}</pre> : <CodeBlock>{children}</CodeBlock>),
+        ...(plain ? { img: ({ alt }) => <span>{alt ?? ""}</span> } : {}),
       }}
     >
       {text}
