@@ -48,9 +48,10 @@ class ConversationSummaryOut(BaseModel):
 class ContentBlockOut(BaseModel):
     # command: what a /command expanded to (text); skill: a pinned skill's full text; skill_removed: unpinned.
     # summary: on the last message a summary covers; the model gets it instead of what it covers.
+    # note: a line YAAP added to the conversation, such as a move to another project.
     # trim: the model gets the long tool results up to this message shortened.
     type: Literal[
-        "text", "reasoning", "tool_call", "attachment", "command", "skill", "skill_removed", "goal", "summary", "trim", "steering"
+        "text", "reasoning", "tool_call", "attachment", "command", "skill", "skill_removed", "goal", "summary", "trim", "steering", "note"
     ]
     # Text and reasoning blocks.
     text: str = ""

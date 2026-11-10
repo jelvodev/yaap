@@ -37,6 +37,7 @@ export interface ConversationListActions {
   onRename: (id: number, title: string) => Promise<string | null>;
   onArchive: (id: number, archived: boolean) => Promise<string | null>;
   onDelete: (id: number) => Promise<string | null>;
+  onMove: (id: number, projectId: number | null) => Promise<string | null>;
 }
 
 /** Model, effort and preset an imported session is continued with. */
@@ -91,6 +92,7 @@ export default function ChatSidebar(props: ChatSidebarProps) {
         scope={scope.scope}
         running={props.running}
         actions={props.actions}
+        projects={catalog.projects}
       />
       <ImportSession
         environmentId={environmentId}
@@ -114,10 +116,11 @@ interface ConversationGroupsProps {
   scope: number | null;
   running: number[];
   actions: ConversationListActions;
+  projects: Project[];
 }
 
 /** The conversations of the chosen project by day, or its archived ones. */
-function ConversationGroups({ conversations, archived, scope, running, actions }: ConversationGroupsProps) {
+function ConversationGroups({ conversations, archived, scope, running, actions, projects }: ConversationGroupsProps) {
   // The sidebar shows the archived conversations of the current scope instead of the active ones.
   const [showArchived, setShowArchived] = useState(false);
   const archivedInScope = useMemo(
@@ -142,6 +145,8 @@ function ConversationGroups({ conversations, archived, scope, running, actions }
                 onRename={(title) => actions.onRename(item.id, title)}
                 onArchive={(isArchived) => actions.onArchive(item.id, isArchived)}
                 onDelete={() => actions.onDelete(item.id)}
+                projects={projects}
+                onMove={(projectId) => actions.onMove(item.id, projectId)}
               />
             ))}
             {showArchived && archivedInScope.length === 0 && (

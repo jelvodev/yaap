@@ -1,7 +1,9 @@
 import { useCallback, useRef, useState } from "react";
 import { NavLink } from "react-router-dom";
 
+import type { Project } from "../api/client";
 import type { components } from "../api/schema";
+import MoveConversationDialog from "./dialog/MoveConversationDialog";
 import ConversationDeleteConfirm from "./ConversationDeleteConfirm";
 import { MoreIcon } from "./icons";
 import { useDismiss } from "./useDismiss";
@@ -15,14 +17,19 @@ export default function ConversationRow({
   onRename,
   onArchive,
   onDelete,
+  projects,
+  onMove,
 }: {
   item: ConversationSummary;
   running: boolean;
   onRename: (title: string) => Promise<string | null>;
   onArchive: (archived: boolean) => Promise<string | null>;
   onDelete: () => Promise<string | null>;
+  /** The projects of the environment, and the move to one (null is no project). */
+  projects: Project[];
+  onMove: (projectId: number | null) => Promise<string | null>;
 }) {
-  const [mode, setMode] = useState<"closed" | "menu" | "rename" | "delete">("closed");
+  const [mode, setMode] = useState<"closed" | "menu" | "rename" | "delete" | "move">("closed");
   const [title, setTitle] = useState(item.title);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -115,6 +122,9 @@ export default function ConversationRow({
           <button type="button" role="menuitem" disabled={busy} onClick={() => void run(() => onArchive(!archived))}>
             {archived ? "Restore from archive" : "Archive"}
           </button>
+          <button type="button" role="menuitem" disabled={busy} onClick={() => setMode("move")}>
+            Move to project…
+          </button>
           <button type="button" role="menuitem" className="danger" onClick={() => setMode("delete")}>
             Delete
           </button>
@@ -128,6 +138,15 @@ export default function ConversationRow({
           message={message}
           onCancel={() => setMode("menu")}
           onDelete={() => void run(onDelete)}
+        />
+      )}
+      {mode === "move" && (
+        <MoveConversationDialog
+          title={item.title}
+          currentProjectId={item.project_id ?? null}
+          projects={projects}
+          onMove={onMove}
+          onClose={close}
         />
       )}
       {mode === "rename" && message && <p className="form-error">{message}</p>}

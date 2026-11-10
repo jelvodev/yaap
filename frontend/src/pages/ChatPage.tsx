@@ -100,6 +100,7 @@ export default function ChatPage({ environment }: { environment: Environment }) 
           onRename: (id, title) => active.update(id, { title }),
           onArchive: (id, archived) => active.update(id, { archived }),
           onDelete: active.remove,
+          onMove: active.move,
         }}
         onOpenProjectPanel={(project) => {
           scope.choose(project.id);

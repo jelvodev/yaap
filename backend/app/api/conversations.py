@@ -27,6 +27,7 @@ from app.api.schemas import (
     ConversationSummaryOut,
     ConversationTargetOut,
     BranchSwitch,
+    ConversationMove,
     ConversationUpdate,
     GoalOut,
     GoalUpdate,
@@ -41,6 +42,7 @@ from app.agent.outputs import OutputStore, remove_conversation_outputs
 from app.agent.shells import remove_conversation_shells
 from app.agent.runs import RunRegistry
 from app.agents.definitions import find_agent
+from app.core.conversation_move import MoveBusy, MoveError, move_conversation
 from app.core.conversations import delete_conversation
 from app.core.goals import ACTIVE, end_goal, goal_cost, latest_goal, open_goal
 from app.core.chat import DEFAULT_TITLE, load_branch
@@ -389,6 +391,27 @@ def update_conversation(
                 stored = session.get(Target, target.id) if target is not None else None
                 run.change_access(allowed_access(payload.access, stored, run.unattended))
     session.commit()
+    return summary_out(conversation)
+
+
+@router.post("/conversations/{conversation_id}/move", response_model=ConversationSummaryOut)
+async def move_to_project(
+    request: Request, payload: ConversationMove, conversation: ConversationDependency, session: SessionDependency
+) -> ConversationSummaryOut:
+    """Move the conversation to another project of its environment, or out of its project. Refused while it works;
+    its processes and shell sessions stop. Files and checkpoints stay with the old project."""
+    target = session.get(Project, payload.project_id) if payload.project_id is not None else None
+    if payload.project_id is not None and target is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found.")
+    state = request.app.state
+    try:
+        await move_conversation(
+            session, state.replies, state.runs, state.processes, state.shells, conversation, target
+        )
+    except MoveBusy as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
+    except MoveError as error:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
     return summary_out(conversation)
 
 

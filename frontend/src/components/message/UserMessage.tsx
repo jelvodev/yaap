@@ -78,6 +78,14 @@ export default function UserMessage({
       </div>
     );
   }
+  const note = message.content.find((block) => block.type === "note");
+  if (note && !text) {
+    return (
+      <div className="message-notes" {...anchor}>
+        <span className="note-chip">{note.text}</span>
+      </div>
+    );
+  }
   const skillNotes = message.content.filter((block) => block.type === "skill" || block.type === "skill_removed");
   return (
     <div className="message-user-group" {...anchor}>

@@ -2199,7 +2199,8 @@
               "goal",
               "summary",
               "trim",
-              "steering"
+              "steering",
+              "note"
             ],
             "title": "Type",
             "type": "string"
@@ -2522,6 +2523,26 @@
           "effort"
         ],
         "title": "ConversationCreate",
+        "type": "object"
+      },
+      "ConversationMove": {
+        "properties": {
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          }
+        },
+        "required": [
+          "project_id"
+        ],
+        "title": "ConversationMove",
         "type": "object"
       },
       "ConversationOut": {
@@ -16754,6 +16775,59 @@
         "summary": "Read Reply Trace",
         "tags": [
           "traces"
+        ]
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/move": {
+      "post": {
+        "description": "Move the conversation to another project of its environment, or out of its project. Refused while it works;\nits processes and shell sessions stop. Files and checkpoints stay with the old project.",
+        "operationId": "move_to_project_api_v1_conversations__conversation_id__move_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversationMove"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationSummaryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Move To Project",
+        "tags": [
+          "conversations"
         ]
       }
     },

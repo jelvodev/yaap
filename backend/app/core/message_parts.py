@@ -97,6 +97,8 @@ def model_content(content: list[dict[str, Any]]) -> list[dict[str, Any]]:
             converted.append(
                 {"type": "text", "text": f'<skill name="{block["name"]}">\n{block["text"]}\n</skill>'}
             )
+        elif kind == "note":
+            converted.append({"type": "text", "text": f"[{block['text']}]"})
         elif kind == "skill_removed":
             converted.append({"type": "text", "text": f"[The skill {block['name']} no longer applies from here on.]"})
         else:

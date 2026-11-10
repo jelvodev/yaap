@@ -28,6 +28,8 @@ interface ChatHeadingProps
   onRename: (title: string) => Promise<string | null>;
   onArchive: (archived: boolean) => Promise<string | null>;
   onDelete: () => Promise<string | null>;
+  projects: Project[];
+  onMove: (projectId: number | null) => Promise<string | null>;
 }
 
 /**
@@ -59,6 +61,8 @@ export default function ChatHeading(props: ChatHeadingProps) {
             onRename={() => setRenaming(true)}
             onArchive={props.onArchive}
             onDelete={props.onDelete}
+            projects={props.projects}
+            onMove={props.onMove}
             onOpenReview={props.onOpenReview}
           />
         )}

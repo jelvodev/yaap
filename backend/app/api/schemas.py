@@ -254,6 +254,11 @@ class PinnedSkillsIn(BaseModel):
     skills: list[str] = Field(max_length=20)
 
 
+class ConversationMove(BaseModel):
+    # The project to move to; null moves the conversation out of its project.
+    project_id: int | None
+
+
 class ConversationUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     # Send agent (null to clear) to change who the conversation works as from the next message on.

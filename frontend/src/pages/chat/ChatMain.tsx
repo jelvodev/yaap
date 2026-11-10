@@ -135,6 +135,8 @@ function MainHeading(props: ChatMainProps & { lastReplyId: number | null; onShow
       onRename={(title) => (conversation ? active.update(conversation.id, { title }) : done)}
       onArchive={(archived) => (conversation ? active.update(conversation.id, { archived }) : done)}
       onDelete={() => (conversation ? active.remove(conversation.id) : done)}
+      projects={props.catalog.projects}
+      onMove={(projectId) => (conversation ? active.move(conversation.id, projectId) : done)}
       onOpenReview={rail.focusReview}
     />
   );

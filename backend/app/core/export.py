@@ -71,6 +71,8 @@ def markdown_block(block: dict[str, Any]) -> str | None:
             parts.append(fence(clip(str(output))))
         parts.append("\n</details>")
         return "\n".join(parts)
+    if kind == "note":
+        return f"*{block.get('text') or ''}*"
     if kind == "steering":
         return "\n".join(f"> {line}" for line in f"**You, while YAAP worked:** {block.get('text') or ''}".splitlines())
     if kind == "summary":

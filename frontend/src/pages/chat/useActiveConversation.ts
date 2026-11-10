@@ -88,6 +88,18 @@ export function useActiveConversation(options: ActiveConversationOptions) {
     return null;
   }
 
+  /** Move a conversation to a project (null: none). The open one is read again, for the note it got. */
+  async function move(id: number, projectId: number | null): Promise<string | null> {
+    const { data, error: requestError } = await api.POST("/api/v1/conversations/{conversation_id}/move", {
+      params: { path: { conversation_id: id } },
+      body: { project_id: projectId },
+    });
+    if (requestError || !data) return errorMessage(requestError, "The conversation could not be moved.");
+    onSummary(data, false);
+    if (selectedId === id) await load(id);
+    return null;
+  }
+
   async function remove(id: number): Promise<string | null> {
     const { error: requestError } = await api.DELETE("/api/v1/conversations/{conversation_id}", {
       params: { path: { conversation_id: id } },
@@ -108,6 +120,7 @@ export function useActiveConversation(options: ActiveConversationOptions) {
     load,
     create,
     update,
+    move,
     remove,
     clear: () => setConversation(null),
     ...settingChanges({ conversation, setConversation, setError, onSummary }),

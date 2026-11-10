@@ -1099,6 +1099,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/conversations/{conversation_id}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Move To Project
+         * @description Move the conversation to another project of its environment, or out of its project. Refused while it works;
+         *     its processes and shell sessions stop. Files and checkpoints stay with the old project.
+         */
+        post: operations["move_to_project_api_v1_conversations__conversation_id__move_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/conversations/{conversation_id}/outputs/{number}": {
         parameters: {
             query?: never;
@@ -5128,7 +5149,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "text" | "reasoning" | "tool_call" | "attachment" | "command" | "skill" | "skill_removed" | "goal" | "summary" | "trim" | "steering";
+            type: "text" | "reasoning" | "tool_call" | "attachment" | "command" | "skill" | "skill_removed" | "goal" | "summary" | "trim" | "steering" | "note";
         };
         /** ContextBreakdownOut */
         ContextBreakdownOut: {
@@ -5240,6 +5261,11 @@ export interface components {
             project_id?: number | null;
             /** Target Id */
             target_id?: number | null;
+        };
+        /** ConversationMove */
+        ConversationMove: {
+            /** Project Id */
+            project_id: number | null;
         };
         /** ConversationOut */
         ConversationOut: {
@@ -10897,6 +10923,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TraceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    move_to_project_api_v1_conversations__conversation_id__move_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConversationMove"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationSummaryOut"];
                 };
             };
             /** @description Validation Error */

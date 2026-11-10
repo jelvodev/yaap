@@ -1,7 +1,8 @@
 import { useCallback, useRef, useState } from "react";
 
-import type { Conversation } from "../../api/client";
+import type { Conversation, Project } from "../../api/client";
 import ConversationDeleteConfirm from "../../components/ConversationDeleteConfirm";
+import MoveConversationDialog from "../../components/dialog/MoveConversationDialog";
 import { MoreIcon } from "../../components/icons";
 import { reviewOutcome, useReviews } from "../../components/project/useReviews";
 import { useDismiss } from "../../components/useDismiss";
@@ -21,6 +22,9 @@ export interface ConversationMenuProps {
   onArchive: (archived: boolean) => Promise<string | null>;
   /** Delete for good, after the confirmation; resolves to the error to show, or null. */
   onDelete: () => Promise<string | null>;
+  /** The projects of the environment, and the move to one (null is no project). */
+  projects: Project[];
+  onMove: (projectId: number | null) => Promise<string | null>;
   /** Show a review of this conversation's changes in Evals · Reviews. */
   onOpenReview: (reviewId: number) => void;
 }
@@ -39,6 +43,7 @@ export default function ConversationMenu(props: ConversationMenuProps) {
   const [working, setWorking] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [evalOpen, setEvalOpen] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
   const learning = useLearningRequest(conversation.id);
   const ref = useRef<HTMLDivElement | null>(null);
   const close = useCallback(() => {
@@ -144,6 +149,9 @@ export default function ConversationMenu(props: ConversationMenuProps) {
           >
             {archived ? "Restore from archive" : "Archive"}
           </button>
+          <button type="button" role="menuitem" disabled={busy} onClick={choose(() => setMoveOpen(true))}>
+            Move to project…
+          </button>
           <button type="button" role="menuitem" className="danger" onClick={() => setMode("delete")}>
             Delete
           </button>
@@ -157,6 +165,15 @@ export default function ConversationMenu(props: ConversationMenuProps) {
           message={message}
           onCancel={() => setMode("menu")}
           onDelete={() => void run(props.onDelete)}
+        />
+      )}
+      {moveOpen && (
+        <MoveConversationDialog
+          title={conversation.title}
+          currentProjectId={projectId}
+          projects={props.projects}
+          onMove={props.onMove}
+          onClose={() => setMoveOpen(false)}
         />
       )}
       {evalOpen && projectId !== null && (

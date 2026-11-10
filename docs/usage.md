@@ -141,6 +141,10 @@ port, and the panel lists every running process of the project that has one. Pic
 
 A project is a folder under the environment's workspace, empty, cloned from GitHub (with the environment's GitHub token), or a new repository made from a GitHub template repository. Mark a repository as a template in Settings › Git and GitHub; *New project* then offers it. Its `.blueprint/` folder holds the project's own Blueprint layer and `memory.md`.
 
+### Moving a conversation to another project
+
+A conversation started in the wrong place can move: choose *Move to project…* in its ⋯ menu (in the sidebar or beside the title), then another project of the same environment or *No project*. It cannot move while a reply, a goal or a queued message of it runs or waits. The conversation's running processes and shell sessions stop. Its agent runs, search entries and, for a project, its reviews, memory suggestions and learning proposals move with it, and a note ("Moved from Shop to Site.") tells the next reply that the folder changed. Files the conversation wrote stay in the old project's folder, and its checkpoints stay with the old project, so they can no longer be restored from this conversation. Usage records stay where they were, so budgets remain correct.
+
 ## Blueprint
 
 The Blueprint is what every conversation follows: Markdown files in git, at the levels global, environment and project. A later level overrides, extends or switches off what it inherits.
