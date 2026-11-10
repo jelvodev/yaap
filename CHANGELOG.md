@@ -19,7 +19,7 @@ None.
   and has *Download* and *Remove*, and a switch to turn the automatic download off (also on the last screen of the
   first start). The speech model and the search model share one downloader that checks every file by its SHA-256.
 - Claude Code and Codex are no longer in the image either: YAAP installs both into `data/tools` with `npm ci` the first
-  time you press a sign-in button (about 700 MB, a few minutes; the card shows *Installing Claude Code…*), then starts
+  time you press a sign-in button, or at start when you used them before (about 700 MB, a few minutes; the card shows *Installing Claude Code…*), then starts
   the sign-in. The versions and checksums are pinned per release in `tools/package-lock.json`, so a release that pins
   newer versions installs them again at its next start, and Claude Code is downloaded by your own YAAP, never shipped
   in an image of ours. Before the install, a reply or a worker that needs one of them says it is not installed yet
@@ -28,10 +28,9 @@ None.
 
 ### Action needed
 
-If you use Claude Code or Codex: after updating, open Settings › Connections › Providers and press its sign-in
-button once. That installs both programs from npm (about 700 MB); an existing sign-in is kept, so you are not asked to
-sign in again. Until then they show *not installed yet*. On a computer without access to `registry.npmjs.org` they
-cannot be installed.
+If you use Claude Code or Codex: nothing. At its first start after the update, YAAP sees your sign-in and installs
+both programs again from npm (about 700 MB, a few minutes); the sign-in is kept. Until that has finished they show
+*not installed yet*. On a computer without access to `registry.npmjs.org` they cannot be installed.
 
 Otherwise nothing. After updating, search finds words only until the model has downloaded (2.3 GB, from Hugging
 Face); on a computer without internet access, place the files by hand
