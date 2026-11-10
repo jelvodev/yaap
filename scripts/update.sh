@@ -88,6 +88,11 @@ OLD_BRANCH="$(git symbolic-ref --short -q HEAD || true)"
 
 # ---- Going back --------------------------------------------------------------------------------------------------
 # Old code, the previous images, the data when the database moved on, then start without building.
+# Going back needs the Docker daemon at every step; without it the script stops and keeps the state to resume from.
+need_docker() {
+  docker info >/dev/null 2>&1 || fail 'Docker does not answer; start Docker and run `scripts/update.sh --rollback` again'
+}
+
 go_back() {
   local commit="$1" branch="$2" backup="$3"
   # Check the backup before anything changes: without it a database that moved on cannot be restored.
@@ -102,13 +107,21 @@ go_back() {
   else
     git checkout --detach "$commit" || fail "git could not go back to the old commit."
   fi
+  need_docker
   for image in $IMAGES; do
     if docker image inspect "$image:previous" >/dev/null 2>&1; then docker tag "$image:previous" "$image:local"; fi
+    # A failed update put :previous on the running version; the one from before that update comes back.
+    if docker image inspect "$image:previous-before" >/dev/null 2>&1; then
+      docker tag "$image:previous-before" "$image:previous"
+      docker rmi "$image:previous-before" >/dev/null 2>&1 || true
+    fi
   done
   if [ -n "$backup" ]; then
+    need_docker
     docker compose run --rm --no-deps -T yaap python -m app.scripts.update rollback "$backup" \
       || fail "The old version could not judge the database. Your backup is $DATA/backups/$backup; restore it as described in docs/usage.md (Backup and restore)."
   fi
+  need_docker
   docker compose up -d
   if wait_for_health; then
     say "YAAP is running again on the previous version: $URL"
@@ -126,6 +139,12 @@ if [ "$ROLLBACK" = 1 ]; then
   else
     last="$(grep ' updated ' "$LOG" 2>/dev/null | tail -1 || true)"
     [ -n "$last" ] || fail "There is no update to go back from ($STATE and $LOG have none)."
+    if tail -1 "$LOG" | grep -q ' rolled back '; then
+      fail "The last entry in the update log is a rollback, so there is nothing newer to go back from. Nothing was changed."
+    fi
+    for image in $IMAGES; do
+      docker image inspect "$image:previous" >/dev/null 2>&1         || fail "The image $image:previous of the old version is missing, so going back would start the old code on newer images. Nothing was changed."
+    done
     back_commit="$(printf '%s' "$last" | sed -n 's/.* from commit \([0-9a-f]*\).*/\1/p')"
     back_branch="$(printf '%s' "$last" | sed -n 's/.* branch \([^ ]*\).*/\1/p')"
     [ "$back_branch" = "-" ] && back_branch=""
@@ -171,7 +190,7 @@ fi
 # ---- Show what comes ---------------------------------------------------------------------------------------------
 say ""
 say "Current version: $CURRENT"
-say "New version:     $NEW ($CHANNEL, $(git rev-parse --short "$TARGET"))"
+say "New version:     $NEW ($CHANNEL, $(git rev-parse --short "$TARGET^{commit}"))"
 say ""
 git show "$TARGET:CHANGELOG.md" | step changelog "$CURRENT" "$CHANGELOG_TO" \
   || { say "The changelog could not be formatted; this is the start of CHANGELOG.md of the new version:"; git show "$TARGET:CHANGELOG.md" | head -60; }
@@ -200,6 +219,9 @@ say "Backup: $BACKUP"
 
 # ---- Keep the old version ----------------------------------------------------------------------------------------
 for image in $IMAGES; do
+  # Keep the :previous of the last update, so a failed update that goes back does not lose it.
+  docker rmi "$image:previous-before" >/dev/null 2>&1 || true
+  if docker image inspect "$image:previous" >/dev/null 2>&1; then docker tag "$image:previous" "$image:previous-before"; fi
   if docker image inspect "$image:local" >/dev/null 2>&1; then docker tag "$image:local" "$image:previous"; fi
 done
 mkdir -p "$DATA" 2>/dev/null || true
@@ -234,6 +256,7 @@ fi
 if [ "$ok" = 1 ]; then
   log_line "updated $CURRENT -> $NEW from commit $OLD_COMMIT branch ${OLD_BRANCH:--} to $YAAP_COMMIT channel $CHANNEL backup $BACKUP"
   rm -f "$STATE"
+  for image in $IMAGES; do docker rmi "$image:previous-before" >/dev/null 2>&1 || true; done
   docker image prune -f --filter dangling=true --filter label=dev.yaap=true >/dev/null 2>&1 || true
   say ""
   say "YAAP is updated: $CURRENT -> $NEW ($URL)"

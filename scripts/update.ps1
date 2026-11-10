@@ -55,6 +55,13 @@ function Test-Native([scriptblock]$Command) {
     }
 }
 
+# Going back needs the Docker daemon at every step; without it the script stops and keeps the state to resume from.
+function Assert-Docker {
+    if (-not (Test-Native { docker info })) {
+        Fail 'Docker does not answer; start Docker and run `scripts/update -Rollback` again'
+    }
+}
+
 function Test-Running {
     try { Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 "$Url/api/v1/health" | Out-Null; return $true } catch { return $false }
 }
@@ -136,15 +143,23 @@ function Restore-Previous([string]$Commit, [string]$Branch, [string]$Backup) {
         git checkout --detach $Commit
     }
     if ($LASTEXITCODE -ne 0) { Fail 'git could not go back to the old commit.' }
+    Assert-Docker
     foreach ($image in $Images) {
         if (Test-Native { docker image inspect "${image}:previous" }) { docker tag "${image}:previous" "${image}:local" }
+        # A failed update put :previous on the running version; the one from before that update comes back.
+        if (Test-Native { docker image inspect "${image}:previous-before" }) {
+            docker tag "${image}:previous-before" "${image}:previous"
+            Test-Native { docker rmi "${image}:previous-before" } | Out-Null
+        }
     }
     if ($Backup) {
+        Assert-Docker
         docker compose run --rm --no-deps -T yaap python -m app.scripts.update rollback $Backup
         if ($LASTEXITCODE -ne 0) {
             Fail "The old version could not judge the database. Your backup is $Data/backups/$Backup; restore it as described in docs/usage.md (Backup and restore)."
         }
     }
+    Assert-Docker
     docker compose up -d
     if ($LASTEXITCODE -ne 0) { Fail 'docker compose up failed; see the messages above.' }
     if (Wait-ForHealth) {
@@ -162,6 +177,14 @@ if ($Rollback) {
     } else {
         $last = if (Test-Path $Log) { Get-Content $Log | Where-Object { $_ -match ' updated ' } | Select-Object -Last 1 } else { $null }
         if (-not $last) { Fail "There is no update to go back from ($State and $Log have none)." }
+        if ((Get-Content $Log | Select-Object -Last 1) -match ' rolled back ') {
+            Fail 'The last entry in the update log is a rollback, so there is nothing newer to go back from. Nothing was changed.'
+        }
+        foreach ($image in $Images) {
+            if (-not (Test-Native { docker image inspect "${image}:previous" })) {
+                Fail "The image ${image}:previous of the old version is missing, so going back would start the old code on newer images. Nothing was changed."
+            }
+        }
         $backCommit = if ($last -match ' from commit ([0-9a-f]+)') { $Matches[1] } else { '' }
         $backBranch = if ($last -match ' branch (\S+)' -and $Matches[1] -ne '-') { $Matches[1] } else { '' }
         $backBackup = if ($last -match ' backup (yaap-backup-[0-9-]+\.zip)') { $Matches[1] } else { '' }
@@ -207,7 +230,7 @@ if ($Channel -eq 'stable') {
 # ---- Show what comes -------------------------------------------------------------------------------------------
 Write-Host ''
 Write-Host "Current version: $Current"
-Write-Host "New version:     $New ($Channel, $(git rev-parse --short $Target))"
+Write-Host "New version:     $New ($Channel, $(git rev-parse --short "${Target}^{commit}"))"
 Write-Host ''
 $changelog = git show "${Target}:CHANGELOG.md"
 $formatted = $changelog | Invoke-Step changelog $Current $ChangelogTo
@@ -242,6 +265,9 @@ Write-Host "Backup: $Backup"
 
 # ---- Keep the old version --------------------------------------------------------------------------------------
 foreach ($image in $Images) {
+    # Keep the :previous of the last update, so a failed update that goes back does not lose it.
+    Test-Native { docker rmi "${image}:previous-before" } | Out-Null
+    if (Test-Native { docker image inspect "${image}:previous" }) { docker tag "${image}:previous" "${image}:previous-before" }
     if (Test-Native { docker image inspect "${image}:local" }) { docker tag "${image}:local" "${image}:previous" }
 }
 New-Item -ItemType Directory -Force $Data | Out-Null
@@ -283,6 +309,7 @@ if ($ok) {
     $branchField = if ($OldBranch) { $OldBranch } else { '-' }
     Write-Log "updated $Current -> $New from commit $OldCommit branch $branchField to $($env:YAAP_COMMIT) channel $Channel backup $Backup"
     Remove-Item $State -ErrorAction SilentlyContinue
+    foreach ($image in $Images) { Test-Native { docker rmi "${image}:previous-before" } | Out-Null }
     Test-Native { docker image prune -f --filter dangling=true --filter label=dev.yaap=true } | Out-Null
     Write-Host ''
     Write-Host "YAAP is updated: $Current -> $New ($Url)" -ForegroundColor Green
