@@ -26,7 +26,7 @@ Set by `docker-compose.yml`, the image or a built-in default; change them only w
 | `YAAP_DATA_DIR` | The data folder inside the container (`/data`). |
 | `YAAP_STATIC_DIR` | The built frontend inside the image. |
 | `YAAP_INTERNAL_URL` | How the agent's tools reach YAAP inside the container (default `http://127.0.0.1:8080`). |
-| `YAAP_EMBEDDING_MODEL_DIR` | Where the embedding model is, for development outside Docker. |
+| `YAAP_EMBEDDING_MODEL_DIR` | Where the embedding model is, instead of `data/models/bge-m3/<revision>/`; for development. |
 | `YAAP_SANDBOX_URL` | Where YAAP reaches the sandbox helper (`http://yaap-sandbox:8000`), which starts the runners and sandboxes. Without an answer from it, the agent's commands are refused. |
 | `YAAP_RUNNER` | `on` (the default): commands, MCP servers over stdio and the browser run in the environment's runner. `off`: they run in YAAP's own process, with access to everything YAAP can read. Only for development without Docker (and the test suite); never in the Docker installation. |
 | `YAAP_SANDBOX_TOKEN_FILE` | The helper's token, which the helper writes into a volume both mount (`/run/yaap-sandbox/token`). |
@@ -359,6 +359,7 @@ The client gets YAAP's tools of the token's project (or, without a project, thos
 | Settings › Usage and audit › Telemetry | Each reply as an OpenTelemetry trace to an OTLP/HTTP endpoint, with optional headers and, when switched on, the prompt content; at Global, overridable per environment. See [usage.md](usage.md#opentelemetry-export). |
 | Settings › Account › Profile (global) | Display name; time zone (taken from the browser until set) |
 | Settings › Models › Utility and workers (global) | Embedding model for semantic search: `bge-m3` (local, Dutch and English) or off |
+| Settings › System › Models (global) | The models YAAP downloads into the data folder (the search model and the speech models): state, download and remove. *Download the search model by itself after the first start* (`search_model_download`, on by default): the 2.3 GB search model downloads in the background when the first start is finished, and at start when the first start is over and the model is missing. Off: download it by hand. See [install.md](install.md#the-search-model). |
 | Settings › Environment (environment) | The environment's name and colour |
 | Settings › Environments (global) | Add and rename environments |
 | Settings › System › Backup (global) | The schedule, destinations, recent runs; make, download, upload and restore backups (see [Backups](#backups)) |

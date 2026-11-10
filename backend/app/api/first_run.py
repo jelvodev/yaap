@@ -6,7 +6,9 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 
 from app.api.dependencies import BlueprintDirDependency, SessionDependency
+from app.api.models import ModelsDependency
 from app.core.first_run import FirstRunService, FirstRunStatus, Step, StepState
+from app.core.search_model import start_automatic_download
 
 router = APIRouter(prefix="/first-run", tags=["first-run"])
 
@@ -76,10 +78,14 @@ async def skip_first_run_step(
 
 @router.post("/finish", response_model=FirstRunOut)
 async def finish_first_run(
-    service: FirstRunDependency, session: SessionDependency, blueprint_dir: BlueprintDirDependency
+    service: FirstRunDependency,
+    session: SessionDependency,
+    blueprint_dir: BlueprintDirDependency,
+    models: ModelsDependency,
 ) -> FirstRunOut:
-    """Close the wizard for good; Settings can open it again."""
+    """Close the wizard for good; Settings can open it again. The search model starts downloading, unless switched off."""
     service.finish(session)
+    start_automatic_download(session, models)
     return status_out(await service.status(session, blueprint_dir))
 
 

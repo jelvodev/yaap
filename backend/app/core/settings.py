@@ -371,6 +371,18 @@ SETTING_DEFINITIONS: dict[str, SettingDefinition] = {
             ),
         ),
         SettingDefinition(
+            key="search_model_download",
+            label="Download the search model by itself",
+            description=(
+                "Download the search model (about 2.3 GB) in the background once the first start is finished, so "
+                "search by meaning works. Until it is there, search finds words only. You can also download or remove "
+                "it by hand in Settings › System › Models."
+            ),
+            levels=frozenset({"global"}),
+            default="on",
+            options=(SettingOption("on", "On"), SettingOption("off", "Off")),
+        ),
+        SettingDefinition(
             key="git_author_name",
             label="Git author name",
             description="The name on commits you make in YAAP. Empty: commits are made as YAAP.",

@@ -3,6 +3,7 @@ import AuditSection from "./AuditSection";
 import ConnectionsSection from "./ConnectionsSection";
 import ContextSection from "./ContextSection";
 import FirstStartSection from "./FirstStartSection";
+import ModelsSection from "./ModelsSection";
 import GitSection from "./GitSection";
 import LanguageSection from "./LanguageSection";
 import { AppearanceSection, BackupSection, EnvironmentsSection, ProfileSection } from "./LevelSections";
@@ -69,6 +70,8 @@ export default function SectionPart({ tab, level, store }: { tab: string; level:
       return <PluginsSection level={level} />;
     case "updates":
       return <UpdatesSection level={level} store={store} />;
+    case "models":
+      return <ModelsSection level={level} />;
     case "first-start":
       return <FirstStartSection level={level} />;
     default:

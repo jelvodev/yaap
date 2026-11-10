@@ -13,7 +13,8 @@ import pytest
 from app.speech.languages import guess_language, language_code
 from app.speech.reading import reply_text, speakable_text
 from app.speech.service import SpeechService
-from app.speech.whisper import ModelFile, WhisperModelSpec, decode_audio
+from app.core.model_files import ModelFile, RemoteModel
+from app.speech.whisper import decode_audio
 from app.storage.models import Message
 from tests.test_chat import start_conversation
 
@@ -51,9 +52,9 @@ class StubTranscriber:
 FILES = {"config.json": b"{}", "model.bin": b"weights" * 100, "vocabulary.txt": b"a\nb\n"}
 
 
-def fake_models() -> dict[str, WhisperModelSpec]:
+def fake_models() -> dict[str, RemoteModel]:
     files = tuple(ModelFile(name, len(data), hashlib.sha256(data).hexdigest()) for name, data in FILES.items())
-    return {name: WhisperModelSpec(name, f"test/{name}", "0" * 40, files) for name in ("small", "small.en")}
+    return {name: RemoteModel(name, f"test/{name}", "0" * 40, files) for name in ("small", "small.en")}
 
 
 def fake_fetch(fetched: list[str], content: dict[str, bytes] = FILES):

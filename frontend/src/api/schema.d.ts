@@ -2786,7 +2786,7 @@ export interface paths {
         put?: never;
         /**
          * Finish First Run
-         * @description Close the wizard for good; Settings can open it again.
+         * @description Close the wizard for good; Settings can open it again. The search model starts downloading, unless switched off.
          */
         post: operations["finish_first_run_api_v1_first_run_finish_post"];
         delete?: never;
@@ -2869,6 +2869,66 @@ export interface paths {
         get: operations["health_api_v1_health_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/local-models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Models
+         * @description The state of every model YAAP can download.
+         */
+        get: operations["list_models_api_v1_local_models_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/local-models/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Model
+         * @description Remove the model's files from the data folder; it can be downloaded again.
+         */
+        delete: operations["remove_model_api_v1_local_models__name__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/local-models/{name}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Download Model
+         * @description Start downloading a model in the background; the list shows its progress.
+         */
+        post: operations["download_model_api_v1_local_models__name__download_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6542,6 +6602,26 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** LocalModelOut */
+        LocalModelOut: {
+            /** Downloaded */
+            downloaded: number;
+            /** Label */
+            label: string;
+            /** Message */
+            message: string;
+            /** Name */
+            name: string;
+            /** Purpose */
+            purpose: string;
+            /** Size */
+            size: number;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "not_downloaded" | "downloading" | "ready" | "failed";
+        };
         /** MasterKeyOut */
         MasterKeyOut: {
             /** Message */
@@ -8011,6 +8091,11 @@ export interface components {
         SearchIndexStatusOut: {
             /** Chunks */
             chunks: number;
+            /**
+             * Meaning
+             * @enum {string}
+             */
+            meaning: "ready" | "off" | "not_ready";
             /** Model */
             model: string | null;
             /** Waiting Messages */
@@ -14658,6 +14743,88 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthOut"];
+                };
+            };
+        };
+    };
+    list_models_api_v1_local_models_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocalModelOut"][];
+                };
+            };
+        };
+    };
+    remove_model_api_v1_local_models__name__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocalModelOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_model_api_v1_local_models__name__download_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocalModelOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -241,7 +241,7 @@ Developers also measure what YAAP sends without a model: `python -m app.scripts.
 
 ## Search
 
-**Ctrl K** searches conversations, project memory, knowledge and the Blueprint of the active environment while you type, in Dutch and English, by words and by meaning. The Search page shows all results with filters.
+**Ctrl K** searches conversations, project memory, knowledge and the Blueprint of the active environment while you type, in Dutch and English, by words and by meaning. The Search page shows all results with filters. Search by meaning needs the search model (2.3 GB), which YAAP downloads in the background after the first start (Settings › System › Models shows the progress). Until then search finds words only and says *Search by meaning is not ready yet*; conversations and documents are indexed by meaning once the model has arrived.
 
 ## Settings
 

@@ -6,6 +6,7 @@ import os
 import signal
 import threading
 from collections.abc import AsyncIterator
+from functools import partial
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -43,7 +44,11 @@ from app.api import (
     usage,
 )
 from app.config import environment_value, load_settings
-from app.core.embeddings import load_default_embedder
+from app.api import models as models_api
+from app.core.embeddings import load_default_embedder, model_folder
+from app.core.local_models import SEARCH_MODEL, ModelService
+from app.core.model_files import ModelDownloads, fetch_file
+from app.core.search_model import start_when_first_start_is_done
 from app.core.process_hardening import harden_process
 from app.core.replies import ReplyRegistry
 from app.core.restore import apply_pending_restore
@@ -191,12 +196,24 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     scheduler = asyncio.create_task(run_scheduler(app)) if app.state.scheduler else None
     app.state.updates = UpdateService(app.state.session_factory, app.state.cipher)
     start_check = asyncio.create_task(check_at_start(app.state.updates)) if app.state.update_check_at_start else None
+    models_dir = settings.data_dir / "models"
     app.state.indexer = SearchIndexer(
         app.state.session_factory,
         settings.blueprint_dir,
         settings.workspace_dir,
-        app.state.load_embedder,
+        app.state.load_embedder or partial(load_default_embedder, model_folder(models_dir)),
         data_dir=settings.data_dir,
+    )
+    # The search model and the speech models; the index picks the search model up when it arrives or goes.
+    app.state.models = ModelService(
+        models_dir,
+        ModelDownloads(app.state.model_fetch),
+        on_change=lambda name: app.state.indexer.reload_embedder() if name == SEARCH_MODEL else None,
+    )
+    search_model = asyncio.create_task(
+        start_when_first_start_is_done(
+            app.state.first_run, app.state.models, app.state.session_factory, settings.blueprint_dir
+        )
     )
     indexing = asyncio.create_task(app.state.indexer.run_periodically()) if app.state.background_indexing else None
     # The preview of a project's app on its own port, off when YAAP_PREVIEW_PORT is 0 or empty.
@@ -204,6 +221,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
     if preview_listener is not None:
         await preview_listener.stop()
+    search_model.cancel()
     if indexing is not None:
         indexing.cancel()
     periodic_fetch.cancel()
@@ -322,7 +340,10 @@ def create_app(
     app.state.update_check_at_start = True
     # The search index: the embedding model, loaded on first use, and passes in the background
     # (tests run passes themselves).
-    app.state.load_embedder = load_default_embedder
+    # None: the local model from the data folder. Tests and the footprint run set their own.
+    app.state.load_embedder = None
+    # How model files are fetched (tests do not touch the network).
+    app.state.model_fetch = fetch_file
     app.state.background_indexing = True
     # After a restore is prepared YAAP stops, and Docker starts it again (tests replace this).
     app.state.request_restart = restart_soon
@@ -363,6 +384,7 @@ def create_app(
     api.include_router(reviews_api.router)
     api.include_router(files_api.router)
     api.include_router(speech_api.router)
+    api.include_router(models_api.router)
     api.include_router(memory_merges_api.router)
     api.include_router(session_import_api.router)
     api.include_router(documents_api.router)

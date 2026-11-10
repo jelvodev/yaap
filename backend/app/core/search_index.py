@@ -123,6 +123,15 @@ class SearchIndexer:
         with self._load_lock:
             self._embedder, self._loaded = embedder, True
 
+    def reload_embedder(self) -> None:
+        """The model's files arrived or went: load them (or let go of them) at the next use, and index soon.
+
+        Everything that waited for the model is picked up by the next pass: memory, knowledge and Blueprint chunks
+        stored without vectors have another model than the one in use, and messages without chunks are not yet indexed."""
+        with self._load_lock:
+            self._embedder, self._loaded = None, False
+        self.nudge()
+
     def embedder(self, session: Session) -> Embedder | None:
         """The embedding model in use, or None when it is switched off or not available."""
         if resolve_text(session, "embedding_model", None) == OFF:

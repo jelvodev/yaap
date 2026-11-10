@@ -1,13 +1,11 @@
 """Speech input in YAAP: the model's state, its download on first use, and transcription.
 
-One service per application, kept on `app.state.speech`. The models live under `<data>/models/whisper/<name>/`; a
-download goes into `<name>.download/` first and is moved into place only when every file is complete and matches
-its pinned hash, so a half-downloaded model is never loaded. A loaded model is unloaded again after 15 minutes
+One service per application, kept on `app.state.speech`. The models live under `<data>/models/whisper/<name>/`; the
+download is `app/core/model_files`, shared with the other local models. A loaded model is unloaded again after 15 minutes
 without use, to give its memory (about 500 MB) back.
 """
 
 import logging
-import shutil
 import threading
 import time
 from collections.abc import Callable
@@ -17,16 +15,13 @@ from typing import Literal
 
 import numpy as np
 
+from app.core.model_files import Fetch, ModelDownloads, RemoteModel, fetch_file, is_complete
 from app.speech.whisper import (
     MODELS,
     SAMPLE_RATE,
     AudioError,
-    ModelFile,
-    Progress,
     Transcriber,
-    WhisperModelSpec,
     decode_audio,
-    fetch_file,
     load_whisper,
     package_available,
 )
@@ -64,23 +59,14 @@ class SpeechNotReady(RuntimeError):
         self.status = status
 
 
-@dataclass
-class Download:
-    downloaded: int = 0
-    error: str | None = None
-    thread: threading.Thread | None = None
-
-
-Fetch = Callable[[str, Path, ModelFile, Progress], None]
-
-
 class SpeechService:
     def __init__(
         self,
         folder: Path,
-        models: dict[str, WhisperModelSpec] = MODELS,
+        models: dict[str, RemoteModel] = MODELS,
         load_model: Callable[[Path], Transcriber] = load_whisper,
         fetch: Fetch = fetch_file,
+        downloads: ModelDownloads | None = None,
         decode: Callable[[bytes], np.ndarray] = decode_audio,
         available: Callable[[], bool] = package_available,
         idle_seconds: float = IDLE_SECONDS,
@@ -88,14 +74,14 @@ class SpeechService:
         self.folder = folder
         self.models = models
         self.load_model = load_model
-        self.fetch = fetch
+        # Shared with the model service, so a model is never fetched twice at once.
+        self.downloads = downloads or ModelDownloads(fetch)
         self.decode = decode
         self.available = available
         self.idle_seconds = idle_seconds
         self.lock = threading.RLock()
         # One transcription at a time: a model already uses several CPU threads.
         self.run_lock = threading.Lock()
-        self.downloads: dict[str, Download] = {}
         self.loaded: dict[str, Transcriber] = {}
         self.last_used: dict[str, float] = {}
         self.timers: dict[str, threading.Timer] = {}
@@ -103,9 +89,8 @@ class SpeechService:
     def model_dir(self, name: str) -> Path:
         return self.folder / name
 
-    def is_complete(self, spec: WhisperModelSpec) -> bool:
-        folder = self.model_dir(spec.name)
-        return all((folder / item.name).is_file() and (folder / item.name).stat().st_size == item.size for item in spec.files)
+    def is_complete(self, spec: RemoteModel) -> bool:
+        return is_complete(spec, self.model_dir(spec.name))
 
     def status(self, name: str) -> SpeechStatus:
         spec = self.models[name]
@@ -116,8 +101,8 @@ class SpeechService:
                 "Speech input is not available: the faster-whisper package is not installed in YAAP.",
             )
         with self.lock:
-            download = self.downloads.get(name)
-            if download is not None and download.thread is not None and download.thread.is_alive():
+            download = self.downloads.get(self.model_dir(name))
+            if download is not None and download.running:
                 done = round(download.downloaded / MB)
                 return SpeechStatus(
                     "downloading", name, spec.size, download.downloaded,
@@ -140,40 +125,12 @@ class SpeechService:
             current = self.status(name)
             if current.state in ("ready", "downloading", "unavailable"):
                 return current
-            download = Download()
-            download.thread = threading.Thread(target=self._download, args=(name, download), daemon=True)
-            self.downloads[name] = download
-            download.thread.start()
+            self.downloads.start(self.models[name], self.model_dir(name))
         return self.status(name)
-
-    def _download(self, name: str, download: Download) -> None:
-        spec = self.models[name]
-        staging = self.folder / f"{name}.download"
-        try:
-            shutil.rmtree(staging, ignore_errors=True)
-            staging.mkdir(parents=True)
-
-            def progress(count: int) -> None:
-                with self.lock:
-                    download.downloaded += count
-
-            for item in spec.files:
-                self.fetch(spec.url(item), staging / item.name, item, progress)
-            target = self.model_dir(name)
-            shutil.rmtree(target, ignore_errors=True)
-            staging.rename(target)
-            logger.info("Speech model %s downloaded to %s.", name, target)
-        except Exception as error:  # noqa: BLE001 - the state shows the reason; the user can try again
-            logger.warning("Speech model %s could not be downloaded: %s", name, error)
-            shutil.rmtree(staging, ignore_errors=True)
-            with self.lock:
-                download.error = str(error) or type(error).__name__
 
     def wait(self, timeout: float = 10.0) -> None:
         """Wait for downloads in progress (tests)."""
-        for download in list(self.downloads.values()):
-            if download.thread is not None:
-                download.thread.join(timeout)
+        self.downloads.wait(timeout)
 
     def transcribe(self, name: str, audio: bytes, language: str | None) -> Transcription:
         status = self.status(name)

@@ -1,7 +1,6 @@
 """Speech: the local transcription model, transcribing a recording, and a reply's text to read aloud."""
 
 import threading
-from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request, UploadFile, status
@@ -9,6 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import EnvironmentDependency, SessionDependency
+from app.core.local_models import ModelService, whisper_folder
 from app.core.settings import resolve_languages
 from app.speech.languages import guess_language, language_code
 from app.speech.reading import reply_text, speakable_text
@@ -50,11 +50,12 @@ class SpeechTextOut(BaseModel):
 
 
 def speech_service(request: Request) -> SpeechService:
-    """The application's speech service, made on first use with its models under <data>/models/whisper."""
+    """The application's speech service, made on first use with its models under <data>/models/whisper, sharing downloads with the model service."""
     with SERVICE_LOCK:
         service = getattr(request.app.state, "speech", None)
         if service is None:
-            service = SpeechService(Path(request.app.state.data_dir) / "models" / "whisper")
+            models: ModelService = request.app.state.models
+            service = SpeechService(whisper_folder(models.models_dir), downloads=models.downloads)
             request.app.state.speech = service
     return service
 

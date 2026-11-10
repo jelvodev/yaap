@@ -6,7 +6,7 @@ YAAP runs as a few containers on your own computer: YAAP itself, SearXNG (the we
 
 - **Docker.** Docker Desktop on Windows or macOS; Docker Engine with the Compose v2 plugin (`docker compose`) on Linux. On Windows, Docker Desktop with the WSL 2 backend.
 - **git**, to get YAAP and to update it.
-- **About 10 GB of disk** for the images, plus room for your projects and backups.
+- **About 10 GB of disk** for the images and the search model (2.3 GB, downloaded in the background after the first start), plus room for your projects and backups.
 - **At least one model connection** (see [Connect a model](#connect-a-model)): a Claude subscription, a ChatGPT plan, an Anthropic or OpenAI API key, an Ollama server, or an OpenAI-compatible endpoint.
 
 ## Install with the setup script
@@ -108,6 +108,23 @@ Speaking to YAAP (the microphone in the chat) uses Whisper, run by YAAP itself o
 | `small.en` (English only) | Reply language English | 486 MB |
 
 The files come from a pinned revision of `Systran/faster-whisper-small` (or `-small.en`) on Hugging Face and are checked against their SHA-256; a download that does not match is thrown away. A transcription needs about 500 MB of memory while the model is loaded; YAAP unloads it after 15 minutes without use. Backups leave the models out. On a computer without internet access, put the four files (`config.json`, `model.bin`, `tokenizer.json`, `vocabulary.txt`) of that revision in the folder yourself. To free the space, remove the folder; it is downloaded again on the next use.
+
+## The search model
+
+Search by meaning (the search box and the index of your conversations, project memory, knowledge and Blueprint) uses the embedding model `BAAI/bge-m3`, run by YAAP itself on the CPU, so no text leaves your computer. The model is not in the image. YAAP downloads it once, 2.3 GB, into the data folder at `data/models/bge-m3/<revision>/` as soon as the first start is finished, and also when you update an installation that does not have it yet. You can switch that off in the first start (*Search by meaning*) or in Settings › System › Models, where you can also download or remove the model by hand and see the progress.
+
+Until the model is there, search finds words only, and a note says *Search by meaning is not ready yet*. Nothing fails: what needs the model waits, and is indexed by meaning when the model has arrived.
+
+The files come from a pinned revision of `BAAI/bge-m3` on Hugging Face (the `onnx/` folder) and are checked against their SHA-256; a download that does not match is thrown away. On a computer without internet access, put the four files of that revision in the folder yourself, next to each other (the revision is the name of the folder):
+
+| File | Size |
+|---|---|
+| `model.onnx` | 725 KB |
+| `model.onnx_data` | 2.27 GB |
+| `Constant_7_attr__value` | 66 KB |
+| `tokenizer.json` | 17 MB |
+
+Backups leave the models out. To free the space, remove the model in Settings › System › Models, or remove the folder; the search then finds words only again.
 
 ## Personal Docker settings
 

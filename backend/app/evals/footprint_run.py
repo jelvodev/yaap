@@ -137,7 +137,13 @@ def recording_app(script: list[ToolCalls], recorded: list[Recorded], python: str
     for flag in ("utility_titles", "memory_suggestions", "memory_tidy", "scheduler", "background_indexing"):
         setattr(app.state, flag, False)
     app.state.load_embedder = lambda: None
+    app.state.model_fetch = no_download
     return app
+
+
+def no_download(*_args: object) -> None:
+    """The run measures YAAP without the network: no model is fetched."""
+    raise OSError("No network in the footprint run.")
 
 
 def sign_in(client: TestClient) -> None:

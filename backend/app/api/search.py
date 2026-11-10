@@ -9,7 +9,9 @@ from sqlalchemy import exists, func, select
 from app.api.conversations import ConversationDependency
 from app.api.dependencies import EnvironmentDependency, SessionDependency
 from app.api.schemas import SearchHitOut
+from app.core.embeddings import OFF
 from app.core.export import export_filename, to_json, to_markdown
+from app.core.settings import resolve_text
 from app.storage.models import Message, SearchChunk
 from app.core.search import KINDS, FoundItem, embed_query, search_everything
 
@@ -82,12 +84,16 @@ class SearchIndexStatusOut(BaseModel):
     chunks: int
     # Complete messages the background indexing has not reached yet (0 without a model).
     waiting_messages: int
+    # Search by meaning: ready, off (switched off in Settings), or not_ready (the model is not downloaded yet or cannot
+    # run; search finds words only and what needs the model waits).
+    meaning: Literal["ready", "off", "not_ready"]
 
 
 @router.get("/search-index/status", response_model=SearchIndexStatusOut)
 def search_index_status(request: Request, session: SessionDependency) -> SearchIndexStatusOut:
     indexer = getattr(request.app.state, "indexer", None)
     embedder = indexer.embedder(session) if indexer is not None else None
+    meaning = "ready" if embedder else "off" if resolve_text(session, "embedding_model", None) == OFF else "not_ready"
     chunks = session.scalar(select(func.count(SearchChunk.id))) or 0
     waiting = 0
     if embedder is not None:
@@ -100,4 +106,6 @@ def search_index_status(request: Request, session: SessionDependency) -> SearchI
             )
             or 0
         )
-    return SearchIndexStatusOut(model=embedder.name if embedder else None, chunks=chunks, waiting_messages=waiting)
+    return SearchIndexStatusOut(
+        model=embedder.name if embedder else None, chunks=chunks, waiting_messages=waiting, meaning=meaning
+    )

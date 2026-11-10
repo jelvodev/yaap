@@ -128,11 +128,11 @@ export function SearchIndexStatus({ setting }: { setting: string }) {
   if (!status.model) {
     return (
       <>
-        <Badge tone="off">semantic search off</Badge>
+        <Badge tone="off">{status.meaning === "not_ready" ? "not ready yet" : "semantic search off"}</Badge>
         <span className="settings-inherited">
           {setting === "off"
             ? "Search finds words only."
-            : "The model is not available in this installation; search finds words only."}
+            : "The search model is not downloaded yet (Settings › System › Models); search finds words only."}
         </span>
       </>
     );

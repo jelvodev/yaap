@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { type Environment, type Project, api } from "../../api/client";
 import { Badge, Panel } from "../../components/workbench/Workbench";
 import type { FirstRun, StepState } from "../../firstRun/useFirstRun";
+import AutomaticDownloadSwitch from "../../models/AutomaticDownloadSwitch";
 import { SETUP_STEPS, WIZARD_STEPS } from "./steps";
 
 const STATE_LABELS: Record<StepState, { tone: "ok" | "off" | "warn"; text: string }> = {
@@ -44,6 +45,12 @@ export default function DoneStep({
             </li>
           ))}
         </ul>
+      </Panel>
+      <Panel title="Search by meaning">
+        <AutomaticDownloadSwitch label="Search by meaning: the search model (2.3 GB) downloads in the background" />
+        <p className="muted small">
+          Until it is there, search finds words only. Settings › System › Models shows the progress.
+        </p>
       </Panel>
       <Panel title="Next steps">
         <ul className="welcome-next">

@@ -6,9 +6,17 @@ yourself when you update; it says "None." when there is nothing.
 
 ## Unreleased
 
+- The search model (2.3 GB) is no longer in the image: YAAP downloads it into the data folder in the background
+  after the first start, and an updated installation fetches it at its next start. The image and the build are that
+  much smaller. Until the model is there, search finds words only and says *Search by meaning is not ready yet*;
+  conversations and documents are indexed by meaning when it arrives. Settings › System › Models shows the progress
+  and has *Download* and *Remove*, and a switch to turn the automatic download off (also on the last screen of the
+  first start). The speech model and the search model share one downloader that checks every file by its SHA-256.
+
 ### Action needed
 
-None.
+None. After updating, search finds words only until the model has downloaded (2.3 GB, from Hugging Face); on a
+computer without internet access, place the files by hand ([install.md](docs/install.md#the-search-model)).
 
 ## 0.6.0 (2026-11-10)
 

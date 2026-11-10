@@ -5880,6 +5880,55 @@
         "title": "LearningProposalOut",
         "type": "object"
       },
+      "LocalModelOut": {
+        "properties": {
+          "downloaded": {
+            "title": "Downloaded",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "purpose": {
+            "title": "Purpose",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "not_downloaded",
+              "downloading",
+              "ready",
+              "failed"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "label",
+          "purpose",
+          "state",
+          "size",
+          "downloaded",
+          "message"
+        ],
+        "title": "LocalModelOut",
+        "type": "object"
+      },
       "MasterKeyOut": {
         "properties": {
           "message": {
@@ -10428,6 +10477,15 @@
             "title": "Chunks",
             "type": "integer"
           },
+          "meaning": {
+            "enum": [
+              "ready",
+              "off",
+              "not_ready"
+            ],
+            "title": "Meaning",
+            "type": "string"
+          },
           "model": {
             "anyOf": [
               {
@@ -10447,7 +10505,8 @@
         "required": [
           "model",
           "chunks",
-          "waiting_messages"
+          "waiting_messages",
+          "meaning"
         ],
         "title": "SearchIndexStatusOut",
         "type": "object"
@@ -22800,7 +22859,7 @@
     },
     "/api/v1/first-run/finish": {
       "post": {
-        "description": "Close the wizard for good; Settings can open it again.",
+        "description": "Close the wizard for good; Settings can open it again. The search model starts downloading, unless switched off.",
         "operationId": "finish_first_run_api_v1_first_run_finish_post",
         "responses": {
           "200": {
@@ -22932,6 +22991,118 @@
         "summary": "Health",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/v1/local-models": {
+      "get": {
+        "description": "The state of every model YAAP can download.",
+        "operationId": "list_models_api_v1_local_models_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LocalModelOut"
+                  },
+                  "title": "Response List Models Api V1 Local Models Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Models",
+        "tags": [
+          "local-models"
+        ]
+      }
+    },
+    "/api/v1/local-models/{name}": {
+      "delete": {
+        "description": "Remove the model's files from the data folder; it can be downloaded again.",
+        "operationId": "remove_model_api_v1_local_models__name__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalModelOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Model",
+        "tags": [
+          "local-models"
+        ]
+      }
+    },
+    "/api/v1/local-models/{name}/download": {
+      "post": {
+        "description": "Start downloading a model in the background; the list shows its progress.",
+        "operationId": "download_model_api_v1_local_models__name__download_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalModelOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Model",
+        "tags": [
+          "local-models"
         ]
       }
     },

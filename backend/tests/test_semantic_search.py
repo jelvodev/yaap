@@ -85,7 +85,7 @@ def test_messages_are_indexed_once_and_found_by_meaning(client, fake):
     assert client.get("/api/v1/search-index/status").json()["waiting_messages"] == 2
     assert index(client) == 2
     assert index(client) == 0  # Nothing changed: nothing embedded again.
-    assert client.get("/api/v1/search-index/status").json() == {"model": "test-words", "chunks": 2, "waiting_messages": 0}
+    assert client.get("/api/v1/search-index/status").json() == {"model": "test-words", "chunks": 2, "waiting_messages": 0, "meaning": "ready"}
     calls = embedder.calls
 
     # "opslag" shares no word with the reply, but means the same to the embedder.

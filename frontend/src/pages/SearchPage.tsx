@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { type Project, api, errorMessage } from "../api/client";
+import { type SearchMeaning, searchMeaning } from "../api/models";
 import type { components } from "../api/schema";
 import Snippet from "../components/Snippet";
 import { useEnvironment } from "../environment/EnvironmentProvider";
@@ -33,8 +34,18 @@ export default function SearchPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [hits, setHits] = useState<SearchHit[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [meaning, setMeaning] = useState<SearchMeaning | null>(null);
 
   useEffect(() => setDraft(query), [query]);
+
+  // Asked again with every search, so the notice goes away once the search model has arrived.
+  useEffect(() => {
+    let current = true;
+    void searchMeaning().then((value) => current && setMeaning(value));
+    return () => {
+      current = false;
+    };
+  }, [query]);
 
   useEffect(() => {
     if (!active) return;
@@ -159,6 +170,12 @@ export default function SearchPage() {
           </button>
         ))}
       </div>
+      {meaning === "not_ready" && (
+        <p className="muted small" role="status">
+          Search by meaning is not ready yet. Search finds words only until the search model is downloaded;{" "}
+          <Link to="/settings/system/models?level=global">see Settings › System › Models</Link>.
+        </p>
+      )}
       {error && <p className="form-error">{error}</p>}
       {hits !== null && (
         <p className="muted small">

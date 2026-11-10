@@ -2,51 +2,28 @@
 
 `faster-whisper` runs OpenAI's Whisper with CTranslate2 on the CPU, so audio never leaves the computer. The model is
 not in the image: it is downloaded once, on first use, into the data folder, from a pinned revision of Systran's
-CTranslate2 conversion on Hugging Face, and every file is checked against its size and SHA-256, as the embedding
-model is. faster-whisper, CTranslate2 and PyAV are imported only when speech is used, so YAAP starts
+CTranslate2 conversion on Hugging Face, and every file is checked against its size and SHA-256 (app/core/model_files,
+shared with the embedding model). faster-whisper, CTranslate2 and PyAV are imported only when speech is used, so YAAP starts
 and its tests run without them.
 """
 
-import hashlib
 import importlib.util
 import io
 import os
-from collections.abc import Callable
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
 import numpy as np
 
+from app.core.model_files import ModelFile, RemoteModel
+
 SAMPLE_RATE = 16_000
-
-
-@dataclass(frozen=True)
-class ModelFile:
-    name: str
-    size: int
-    sha256: str
-
-
-@dataclass(frozen=True)
-class WhisperModelSpec:
-    name: str
-    repository: str
-    revision: str
-    files: tuple[ModelFile, ...]
-
-    @property
-    def size(self) -> int:
-        return sum(item.size for item in self.files)
-
-    def url(self, item: ModelFile) -> str:
-        return f"https://huggingface.co/{self.repository}/resolve/{self.revision}/{item.name}"
 
 
 # The small model (244M parameters): multilingual, and an English-only one that is more accurate in English.
 # Revisions and hashes checked 2026-11-07.
-MODELS: dict[str, WhisperModelSpec] = {
-    "small": WhisperModelSpec(
+MODELS: dict[str, RemoteModel] = {
+    "small": RemoteModel(
         "small",
         "Systran/faster-whisper-small",
         "536b0662742c02347bc0e980a01041f333bce120",
@@ -57,7 +34,7 @@ MODELS: dict[str, WhisperModelSpec] = {
             ModelFile("vocabulary.txt", 459_861, "34ce3fe1c5041027b3f8d42912270993f986dbc4bb34cf27f951e34a1e453913"),
         ),
     ),
-    "small.en": WhisperModelSpec(
+    "small.en": RemoteModel(
         "small.en",
         "Systran/faster-whisper-small.en",
         "d1d751a5f8271d482d14ca55d9e2deeebbae577f",
@@ -135,27 +112,3 @@ def decode_audio(data: bytes) -> np.ndarray:
     if not chunks:
         return np.zeros(0, dtype=np.float32)
     return np.concatenate(chunks).astype(np.float32) / 32768.0
-
-
-Progress = Callable[[int], None]
-
-
-def fetch_file(url: str, destination: Path, expected: ModelFile, progress: Progress) -> None:
-    """Download one file, reporting the bytes written; it must have the pinned size and SHA-256."""
-    import httpx
-
-    digest = hashlib.sha256()
-    written = 0
-    timeout = httpx.Timeout(30.0, read=120.0)
-    with httpx.stream("GET", url, follow_redirects=True, timeout=timeout) as response:
-        response.raise_for_status()
-        with destination.open("wb") as handle:
-            for chunk in response.iter_bytes(1 << 20):
-                written += len(chunk)
-                if written > expected.size:
-                    raise ValueError(f"{expected.name} is larger than expected.")
-                digest.update(chunk)
-                handle.write(chunk)
-                progress(len(chunk))
-    if written != expected.size or digest.hexdigest() != expected.sha256:
-        raise ValueError(f"{expected.name} does not match its pinned SHA-256.")

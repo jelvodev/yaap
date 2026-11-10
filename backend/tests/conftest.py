@@ -1,6 +1,7 @@
 import json
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from pathlib import Path
 from types import ModuleType
 
 import pytest
@@ -10,6 +11,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.blueprint import layers as blueprint_layers
+from app.core.model_files import ModelFile, Progress
 from app.credentials.types import CredentialTestResult, CredentialType
 from app.main import create_app
 from app.providers.base import AgentRequest
@@ -78,6 +80,10 @@ def fake() -> FakeBackend:
     return FakeBackend()
 
 
+def offline_fetch(url: str, destination: Path, expected: ModelFile, progress: Progress) -> None:
+    raise OSError("No network in tests.")
+
+
 def make_test_app(fake: FakeBackend) -> FastAPI:
     """The app the client fixture runs, for tests that start YAAP more than once on one data folder (plugins)."""
 
@@ -124,6 +130,8 @@ def make_test_app(fake: FakeBackend) -> FastAPI:
     # No embedding model and no background indexing; search tests set an embedder and run passes themselves.
     app.state.load_embedder = lambda: None
     app.state.background_indexing = False
+    # Model files are never fetched from the network in tests.
+    app.state.model_fetch = offline_fetch
     return app
 
 

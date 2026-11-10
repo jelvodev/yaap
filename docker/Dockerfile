@@ -8,19 +8,6 @@ RUN npm ci --no-fund --no-audit
 COPY frontend/ ./
 RUN npm run build
 
-# The embedding model for semantic search: BAAI/bge-m3 as ONNX, at a pinned revision, chosen
-# by measuring on YAAP's own data. The files are checked against their SHA-256, so YAAP never downloads or runs a
-# model it did not pin.
-FROM python:3.14-slim@sha256:9aaa474097d094040649f2162a627c0049b408f52138d980916788d80f04802f AS embedding-model
-ARG BGE_M3_REVISION=5617a9f61b028005a4858fdac845db406aefb181
-WORKDIR /model
-RUN python -c "import urllib.request as r; [r.urlretrieve(f'https://huggingface.co/BAAI/bge-m3/resolve/${BGE_M3_REVISION}/onnx/{name}', name) for name in ('model.onnx', 'model.onnx_data', 'Constant_7_attr__value', 'tokenizer.json')]" \
-    && echo "f84251230831afb359ab26d9fd37d5936d4d9bb5d1d5410e66442f630f24435b  model.onnx" > SHA256SUMS \
-    && echo "1eebfb28493f67bba03ce0ef64bfdc7fc5a3bd9d7493f818bb1d78cd798416b4  model.onnx_data" >> SHA256SUMS \
-    && echo "cdf16f72c5d07b36484056e601ed9687f78477e5d85cee85a34f2406b7fb5906  Constant_7_attr__value" >> SHA256SUMS \
-    && echo "6710678b12670bc442b99edc952c4d996ae309a7020c1fa0096dd245c2faf790  tokenizer.json" >> SHA256SUMS \
-    && sha256sum -c SHA256SUMS
-
 FROM python:3.14-slim@sha256:9aaa474097d094040649f2162a627c0049b408f52138d980916788d80f04802f
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -41,8 +28,6 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-nld tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/* \
     && tesseract --version
-
-COPY --from=embedding-model /model/model.onnx /model/model.onnx_data /model/Constant_7_attr__value /model/tokenizer.json /opt/models/bge-m3/
 
 RUN useradd --create-home --uid 1000 yaap \
     && mkdir -p /data \
