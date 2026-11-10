@@ -22,6 +22,15 @@ For people who install YAAP from this repository.
     look-alike characters. Any such characters are shown before you accept the item.
 17. **Move a conversation to another project**, together with what belongs to it.
 
+## 0.6.x: easier to start
+
+Fewer steps and less waiting before the first answer.
+
+44. **Less in the first download.** Heavy parts arrive when they are first needed, as the speech model already does:
+    the runner's image at the first command, Claude Code and Codex at the first sign-in.
+45. **Ready-made images.** Each release publishes YAAP's images, so installing and updating download them instead of
+    building on your computer. Building locally stays possible.
+
 ## 0.7.0: the project board
 
 Plan, build and review the work of a project, steered from one board.
