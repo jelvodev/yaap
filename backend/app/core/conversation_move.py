@@ -128,6 +128,8 @@ async def move_conversation(
     check_idle(session, replies, runs, conversation)
     check_target(conversation, target)
     stopped, ended = await stop_work(session, processes, shells, conversation)
+    # Stopping awaits: a reply, a goal or a queued message may have started meanwhile.
+    check_idle(session, replies, runs, conversation)
     old_id, new_id = conversation.project_id, target.id if target is not None else None
     text = f"Moved from {project_label(session, old_id)} to {project_label(session, new_id)}."
     conversation_id = conversation.id

@@ -181,6 +181,23 @@ def test_move_is_refused_while_a_reply_runs(client):
     assert response.status_code == 409
 
 
+def test_move_is_refused_when_a_reply_starts_while_the_work_is_stopped(client, monkeypatch):
+    old, new = make_project(client, "Shop"), make_project(client, "Site")
+    conversation_id = project_conversation(client, old)
+
+    async def stop_and_reply(*args, **kwargs):
+        client.app.state.replies.jobs[conversation_id] = object()
+        return 0, 0
+
+    monkeypatch.setattr("app.core.conversation_move.stop_work", stop_and_reply)
+
+    response = client.post(f"/api/v1/conversations/{conversation_id}/move", json={"project_id": new})
+
+    client.app.state.replies.jobs.clear()
+    assert response.status_code == 409
+    assert project_of(client, Conversation, conversation_id) == old
+
+
 def test_move_to_a_project_of_another_environment_is_refused(client):
     other = client.post("/api/v1/environments", json={"name": "Other", "colour": "#123456"}).json()["id"]
     foreign = make_project(client, "Foreign", other)
