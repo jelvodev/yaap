@@ -5,7 +5,7 @@ Where YAAP is going. Each version has a theme. The order is what is intended, no
 - **Numbers.** Every item has a number to refer to, and a number is never reused.
 - **Finished items** leave this list. The release notes say what came in each release.
 
-The current version is **0.6.0**.
+The current version is **0.6.1**.
 
 ## To do before going public
 
