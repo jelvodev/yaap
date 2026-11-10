@@ -11,6 +11,13 @@ CYRILLIC_A = "а"
 GREEK_ALPHA = "α"
 
 
+def test_a_run_of_variation_selectors_after_an_emoji_is_found_beyond_the_first() -> None:
+    findings = find_hidden("😀" + "󠄀" * 50)
+    assert len(findings) == 50
+    findings = find_hidden("😀" + "️" * 3)
+    assert [f.column for f in findings] == [3, 4]
+
+
 @pytest.mark.parametrize(
     ("text", "kind", "line", "column", "code_point"),
     [
@@ -25,6 +32,18 @@ GREEK_ALPHA = "α"
         (f"a{ZWJ}b", "invisible", 1, 2, 0x200D),
         ("soft­hyphen", "invisible", 1, 5, 0x00AD),
         ("aㅤb", "invisible", 1, 2, 0x3164),
+        ("a͏b", "invisible", 1, 2, 0x034F),
+        ("a᠋b", "invisible", 1, 2, 0x180B),
+        ("a᠍b", "invisible", 1, 2, 0x180D),
+        ("a⠀b", "invisible", 1, 2, 0x2800),
+        ("a឴b", "invisible", 1, 2, 0x17B4),
+        ("a឵b", "invisible", 1, 2, 0x17B5),
+        ("aᅟb", "invisible", 1, 2, 0x115F),
+        ("aᅠb", "invisible", 1, 2, 0x1160),
+        ("aﾠb", "invisible", 1, 2, 0xFFA0),
+        ("😀󠄀", "variation", 1, 2, 0xE0100),
+        ("漢️", "variation", 1, 2, 0xFE0F),
+        ("1️", "variation", 1, 2, 0xFE0F),
         ("plain️", "variation", 1, 6, 0xFE0F),
         ("︀ first", "variation", 1, 1, 0xFE00),
         (f"p{CYRILLIC_A}ypal", "lookalike", 1, 2, 0x0430),

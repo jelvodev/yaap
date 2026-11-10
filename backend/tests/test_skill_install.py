@@ -10,7 +10,7 @@ from app.agent.gate import call_tool
 from app.agent.tools import tools_for
 from app.blueprint import skill_install
 from app.blueprint.levels import global_layer
-from app.blueprint.skill_install import API, RAW, SkillInstallError, parse_link
+from app.blueprint.skill_install import API, RAW, SkillInstallError, hidden_refusal, parse_link
 
 COMMIT_A = "a" * 40
 COMMIT_B = "b" * 40
@@ -138,6 +138,21 @@ def test_hidden_characters_warn_and_tag_characters_are_refused(client, github):
     skills = [{"path": "skills/pdf", "name": "pdf"}]
     refused = client.post("/api/v1/blueprint/skills/github/install", json={**chosen, "skills": skills})
     assert refused.status_code == 422, refused.text
+
+
+@pytest.mark.parametrize(
+    ("path", "content", "refused"),
+    [
+        ("SKILL.md", b"clean text", False),
+        ("SKILL.md", b"a\0" + "\U000e0069".encode(), True),
+        ("SKILL.md", b"\xff\xfe " + "\u202e".encode(), True),
+        ("scripts/run.py", b"print(1)\0", True),
+        ("lib/tool.so", b"\x7fELF\0\0" + "\U000e0069".encode(), False),
+        ("notes.txt", "Be brief\u200b.".encode(), False),
+    ],
+)
+def test_hidden_refusal_scans_text_with_any_bytes_and_refuses_nul_in_text(path, content, refused):
+    assert (hidden_refusal(path, content) is not None) == refused
 
 
 def test_folder_and_file_links_with_a_slash_in_the_branch(client, github):

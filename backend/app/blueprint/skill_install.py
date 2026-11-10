@@ -36,6 +36,9 @@ LINK = re.compile(
     r"(?:/(?P<kind>tree|blob)/(?P<rest>.+?))?/?$"
 )
 SCRIPT_SUFFIXES = {".sh", ".bash", ".zsh", ".ps1", ".bat", ".cmd", ".py", ".js", ".mjs", ".cjs", ".ts", ".rb", ".pl"}
+TEXT_SUFFIXES = SCRIPT_SUFFIXES | {
+    ".md", ".markdown", ".txt", ".json", ".yaml", ".yml", ".toml", ".csv", ".html", ".xml", ".ini", ".cfg",
+}
 BINARY_SUFFIXES = {".exe", ".dll", ".so", ".dylib", ".bin", ".jar", ".class", ".pyc", ".zip", ".tar", ".gz", ".whl"}
 RUN_TEXT = re.compile(
     r"(curl|wget|Invoke-WebRequest|iwr|irm)\b[^\n]*(\||;|&&)\s*(sh|bash|python|iex|powershell)\b"
@@ -285,7 +288,7 @@ class GitHubSkills:
             total += len(content)
             if total > MAX_SKILL_BYTES:
                 raise SkillInstallError("The skill is larger than 5 MB.")
-            if (reason := hidden_refusal(content)) is not None:
+            if (reason := hidden_refusal(file.path, content)) is not None:
                 raise SkillInstallError(f"{file.path}: {reason}")
             files[safe_relative(file.path)] = content
         return files
@@ -303,9 +306,15 @@ def safe_relative(path: str) -> str:
     return path
 
 
-def hidden_refusal(content: bytes) -> str | None:
-    """Why a text file is refused for the characters it hides; binary content is not text and is not looked at."""
+def hidden_refusal(path: str, content: bytes) -> str | None:
+    """Why a file is refused for the characters it hides.
+
+    Text is scanned whatever bytes it holds; a NUL byte in a text file would only skip the scan, so it is refused.
+    Other files that contain NUL bytes are binary and are not looked at.
+    """
     if b"\0" in content:
+        if PurePosixPath(path).suffix.lower() in TEXT_SUFFIXES:
+            return "A text file contains a NUL byte, which hides the rest of the text from review."
         return None
     return refusal_reason(find_hidden(content.decode("utf-8", errors="replace")))
 

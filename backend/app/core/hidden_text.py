@@ -18,8 +18,8 @@ REFUSED_KINDS: frozenset[str] = frozenset({"tag", "bidi"})
 BIDI_CONTROLS = frozenset(
     [*range(0x202A, 0x202F), *range(0x2066, 0x206A), 0x200E, 0x200F, 0x061C]
 )
-# Not format characters (category Cf), but blank when drawn.
-BLANK_LETTERS = frozenset({0x115F, 0x1160, 0x3164, 0xFFA0})
+# Not format characters (category Cf), but blank or without any visible effect when drawn.
+BLANK_LETTERS = frozenset({0x034F, 0x115F, 0x1160, 0x17B4, 0x17B5, 0x180B, 0x180C, 0x180D, 0x2800, 0x3164, 0xFFA0})
 ZERO_WIDTH_JOINER = 0x200D
 BYTE_ORDER_MARK = 0xFEFF
 KEYCAP = 0x20E3
@@ -81,16 +81,23 @@ def script_of(char: str) -> str:
 
 
 def allowed_variation(text: str, index: int) -> bool:
-    """A variation selector that follows an emoji (or a CJK character, or a keycap base before U+20E3)."""
+    """A single variation selector directly after a base it can modify.
+
+    U+FE0E and U+FE0F go after an emoji or after a keycap base before U+20E3; the other selectors after a CJK
+    character. A second selector in a row never passes: a run of them can carry hidden data.
+    """
     if index == 0:
         return False
     previous = text[index - 1]
     code = ord(previous)
-    if is_variation_selector(code):  # A sequence such as a selector after a selector: judge the character before it.
-        return index >= 2 and allowed_variation(text, index - 1)
-    if previous in KEYCAP_BASES:
-        return index + 1 < len(text) and ord(text[index + 1]) == KEYCAP
-    return is_emoji(code) or is_cjk(code)
+    selector = ord(text[index])
+    if is_variation_selector(code):
+        return False
+    if selector in (0xFE0E, 0xFE0F):
+        if previous in KEYCAP_BASES:
+            return index + 1 < len(text) and ord(text[index + 1]) == KEYCAP
+        return is_emoji(code) or (selector == 0xFE0E and is_cjk(code))
+    return is_cjk(code)
 
 
 def allowed_joiner(text: str, index: int) -> bool:

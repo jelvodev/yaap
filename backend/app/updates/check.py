@@ -197,9 +197,11 @@ class UpdateService:
                 if newest is None:
                     return CheckOutcome(self.fail(last, f"{source} has no release tag like v1.2.3."))
                 known = newest == last.newest_version and last.notes
-                notes = last.notes if known else self.read_notes(http, source, newest)
+                read = last.notes if known else self.read_notes(http, source, newest)
             except UpdateCheckError as error:
                 return CheckOutcome(self.fail(last, str(error)))
+        # Without the ETag the next check asks for the tags again and so reads the notes again.
+        notes, etag = ("", None) if read is None else (read, etag)
         announce = is_newer(newest, VERSION) and newest != last.announced_version
         state = UpdateState(
             checked_at=datetime.now(UTC),
@@ -237,14 +239,14 @@ class UpdateService:
         names = [str(item["name"]) for item in items if isinstance(item, dict) and isinstance(item.get("name"), str)]
         return names, response.headers.get("ETag")
 
-    def read_notes(self, http: httpx.Client, source: str, version: str) -> str:
-        """The changelog section of a version, or an empty text when it cannot be read: the version still counts."""
+    def read_notes(self, http: httpx.Client, source: str, version: str) -> str | None:
+        """The changelog section of a version (empty without one), or None when the file cannot be read."""
         try:
             response = http.get(f"{RAW}/{source}/v{version}/CHANGELOG.md")
         except httpx.HTTPError:
-            return ""
+            return None
         if response.status_code != httpx.codes.OK:
-            return ""
+            return None
         return (changelog_section(response.text, version) or "")[:MAX_NOTES_CHARS]
 
 

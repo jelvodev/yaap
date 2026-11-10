@@ -119,13 +119,14 @@ class FakeGitHub:
         self.status = 200
         self.etag = '"tags-1"'
         self.offline = False
+        self.notes_status = 200
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
         if self.offline:
             raise httpx.ConnectError("no network", request=request)
         if request.url.host == "raw.githubusercontent.com":
-            return httpx.Response(200, text=CHANGELOG)
+            return httpx.Response(self.notes_status, text=CHANGELOG)
         if self.status != 200:
             return httpx.Response(self.status)
         if request.headers.get("If-None-Match") == self.etag:
@@ -181,6 +182,16 @@ def test_not_modified_keeps_the_result_and_sends_the_etag(client, github):
     assert github.tag_calls()[1].headers["If-None-Match"] == github.etag
     assert outcome.state.newest_version == NEWER and outcome.state.error is None
     assert len([r for r in github.requests if r.url.host == "raw.githubusercontent.com"]) == 1
+
+
+def test_a_failed_notes_read_is_retried_on_the_next_check(client, github):
+    github.notes_status = 500
+    first = service_of(client).check()
+    assert first.state.newest_version == NEWER and first.state.notes == "" and first.state.etag is None
+    github.notes_status = 200
+    second = service_of(client).check()
+    assert "If-None-Match" not in github.tag_calls()[1].headers
+    assert "Run the script." in second.state.notes and second.state.etag == github.etag
 
 
 def test_offline_keeps_the_last_result_and_shows_the_error(client, github):
