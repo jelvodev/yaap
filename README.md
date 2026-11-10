@@ -19,6 +19,7 @@
 
 <p align="center">
   <a href="docs/install.md">Install</a> ·
+  <a href="docs/concepts.md">Concepts</a> ·
   <a href="docs/usage.md">Use</a> ·
   <a href="docs/configuration.md">Configure</a> ·
   <a href="docs/architecture.md">Architecture</a> ·
@@ -31,10 +32,46 @@
 
 Most AI coding tools tie you to one vendor, one editor or one way of working. YAAP is one place for all of it, on your own machine:
 
-- **Model-agnostic.** Claude, OpenAI and local models through Ollama, with the same tools, permissions and history. Use your Claude or ChatGPT subscription through Claude Code and Codex, or pay per use with an API key.
+- **Model-agnostic.** Claude, OpenAI, local models through Ollama and other OpenAI-compatible servers, with the same tools, permissions and history. Use your Claude or ChatGPT subscription, or pay per use with an API key.
 - **You stay in control.** The agent works in your projects, but every risky action waits for your approval, every change has a checkpoint you can roll back, and secrets are used by name without the agent ever seeing them.
-- **Your way of working, written down once.** Your instructions, standards, skills and agents live in the **Blueprint**: Markdown files in git, at a global, an environment and a project level, followed by every conversation.
+- **Your way of working, written down once.** Your instructions, standards, skills and agents live in the **Blueprint**: Markdown files in git, followed by every conversation.
 - **Separate worlds.** Environments such as *Work* and *Private* each have their own keys, projects, standards and budget, and never see each other's.
+
+## Who it is for
+
+Developers who want an AI agent in their own projects without handing those projects to a cloud service, who switch between models, and who like to decide how the agent works. You need Docker and are comfortable with a terminal for the install; after that, everything is in the browser.
+
+It is not a hosted service and not a team server: YAAP is built for one person on one computer.
+
+## Quick start
+
+You need [Docker Desktop](https://docs.docker.com/get-docker/) (Windows, macOS) or Docker Engine with Compose v2 (Linux), git, and about 10 GB of disk.
+
+```bash
+git clone https://github.com/jelvodev/yaap.git
+cd yaap
+```
+
+**Windows** (PowerShell):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\setup.ps1
+```
+
+**macOS or Linux**:
+
+```bash
+./scripts/setup.sh
+```
+
+The script creates `.env` with a new master key, builds and starts YAAP and asks for a password. The first build downloads a few GB and takes several minutes.
+
+Then open <http://127.0.0.1:8080>. The first start connects a model (an API key, or a button to sign in with your Claude or ChatGPT subscription), creates a first project and offers YAAP's starter Blueprint. New to YAAP? Read [YAAP in five concepts](docs/concepts.md) first; it takes two minutes.
+
+> [!IMPORTANT]
+> **Keep a copy of `YAAP_MASTER_KEY` from `.env`** in a password manager. It encrypts your keys and secrets; without it, a backup cannot be read.
+
+Updating is one command (`scripts/update.ps1` or `scripts/update.sh`) with a backup first and a way back. Other providers, updating and troubleshooting are in [docs/install.md](docs/install.md).
 
 ## What it does
 
@@ -78,40 +115,6 @@ flowchart LR
 
 More in [docs/architecture.md](docs/architecture.md).
 
-## Quick start
-
-You need [Docker Desktop](https://docs.docker.com/get-docker/) (Windows, macOS) or Docker Engine with Compose v2 (Linux), and git.
-
-```bash
-git clone https://github.com/jelvodev/yaap.git
-cd yaap
-```
-
-Run the setup script. It creates `.env` with a new master key, builds and starts YAAP, waits until it answers and asks for YAAP's password.
-
-**Windows** (PowerShell):
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\setup.ps1
-```
-
-**macOS or Linux**:
-
-```bash
-./scripts/setup.sh
-```
-
-Then open <http://127.0.0.1:8080> and sign in. The first start guides you through a model connection, a first project, backups and YAAP's starter Blueprint. To use a subscription, sign in to its CLI first; for example, Claude Code with your Claude subscription:
-
-```bash
-docker compose exec -it yaap claude auth login
-```
-
-> [!IMPORTANT]
-> **Keep a copy of `YAAP_MASTER_KEY` from `.env`** in a password manager. It encrypts your keys and secrets; without it, a backup cannot be read.
-
-The first build downloads a few GB (toolchains, a headless browser, a local embedding model) and takes several minutes. Other providers, updating and troubleshooting are in [docs/install.md](docs/install.md).
-
 ## Your data stays yours
 
 Everything personal lives in two places that git ignores: `.env` with the master key, and the data folder `./data` with the database, the Blueprint, your projects, attachments, sign-ins and backups. Nothing personal is part of this repository, and a new installation starts with an empty Blueprint until you install [YAAP's starter](blueprint/starter). Nothing leaves your computer except the model calls, web searches, pages and GitHub requests you cause. See [what is personal and where it lives](docs/configuration.md#what-is-personal-and-where-it-lives).
@@ -124,6 +127,7 @@ YAAP is built for one person on one computer. It has one password, listens on `1
 
 | | |
 |---|---|
+| [Five concepts](docs/concepts.md) | Environments, projects, the Blueprint, the runner and connections, in two minutes |
 | [Installing](docs/install.md) | Setup, signing in, connecting models, the runner, updating, moving, troubleshooting |
 | [Using](docs/usage.md) | A tour of the chat, projects, the Blueprint and Settings |
 | [Configuring](docs/configuration.md) | Environment variables, levels, connections, permissions, the vault, backups, MCP and A2A |
