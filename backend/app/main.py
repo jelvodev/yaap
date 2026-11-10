@@ -113,6 +113,7 @@ from app.vault.rotation import rotate_all
 from app.credentials.types import CredentialType, default_credential_types
 from app.environments.service import seed_default_environments
 from app.git.periodic import fetch_periodically
+from app.providers.cli_install import CliTools
 from app.providers.cli_sign_in import CliSignIns
 from app.providers.registry import ProviderRegistry, default_provider_registry
 from app.agent.processes import ProcessManager
@@ -196,6 +197,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     scheduler = asyncio.create_task(run_scheduler(app)) if app.state.scheduler else None
     app.state.updates = UpdateService(app.state.session_factory, app.state.cipher)
     start_check = asyncio.create_task(check_at_start(app.state.updates)) if app.state.update_check_at_start else None
+    # CLIs installed by an older release are installed again from this release's lock.
+    app.state.cli_sign_ins.refresh_tools()
     models_dir = settings.data_dir / "models"
     app.state.indexer = SearchIndexer(
         app.state.session_factory,
@@ -321,7 +324,7 @@ def create_app(
     app.state.preview = PreviewService(app.state.processes, preview, allowed_hosts(extra_hosts))
     app.state.shells = ShellSessions()
     app.state.cli_sign_ins = CliSignIns.of(
-        spec.sign_in for spec in app.state.providers.specs if spec.sign_in is not None
+        (spec.sign_in for spec in app.state.providers.specs if spec.sign_in is not None), CliTools()
     )
     app.state.replies = ReplyRegistry()
     # Eval runs of projects' cases, played through the reply service in the background.

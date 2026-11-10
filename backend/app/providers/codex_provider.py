@@ -39,12 +39,18 @@ from app.providers.base import (
     ToolCallStarted,
 )
 from app.providers.claude_code_provider import render_transcript
+from app.providers.cli_install import tool_command
 from app.providers.cli_sign_in import SignInSpec
 from app.providers.messages_content import to_messages_content
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_COMMAND = ("codex",)
+# Installed into the data folder at the first sign-in (providers/cli_install.py), at the version this release pins.
+TOOL = "codex"
+DEFAULT_COMMAND = tool_command(TOOL)
+NOT_INSTALLED_MESSAGE = (
+    "Codex is not installed yet. Sign in to it once under Settings › Connections › Providers; that installs it."
+)
 SESSION_BLOCK_TYPE = "codex_session"
 SIGN_IN_COMMAND = "docker compose exec -it yaap codex login --device-auth"
 # Where Codex's sign-in link may point, and the shape of the one-time code it shows for the user to enter there.
@@ -265,7 +271,7 @@ class CodexProvider:
                 limit=STREAM_LINE_LIMIT,
             )
         except FileNotFoundError as error:
-            raise ProviderError("Codex is not installed here. Rebuild the YAAP image with: docker compose up -d --build") from error
+            raise ProviderError(NOT_INSTALLED_MESSAGE) from error
 
         process = self.process
         assert process.stdin and process.stdout and process.stderr
@@ -406,6 +412,7 @@ def codex_sign_in_spec(command: Sequence[str] = DEFAULT_COMMAND) -> SignInSpec:
         paste_code=False,
         user_code_pattern=USER_CODE_PATTERN,
         signed_in=codex_signed_in,
+        tool=TOOL,
     )
 
 

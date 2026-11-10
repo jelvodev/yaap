@@ -45,8 +45,8 @@ function CliStatusField<T extends CliStatus>({
       {!status ? (
         <span className="settings-inherited">{checking ? `Checking ${name}…` : `${name} status unknown`}</span>
       ) : (
-        <Badge tone={!status.installed ? "danger" : status.logged_in ? "ok" : "warn"}>
-          {!status.installed ? "not installed" : status.logged_in ? "signed in" : "not signed in"}
+        <Badge tone={status.logged_in ? "ok" : "warn"}>
+          {!status.installed ? "not installed yet" : status.logged_in ? "signed in" : "not signed in"}
         </Badge>
       )}
       {status?.logged_in && (
@@ -57,14 +57,11 @@ function CliStatusField<T extends CliStatus>({
       <button type="button" className="button button-ghost" disabled={checking} onClick={() => void check()}>
         {checking ? "Checking…" : "Check again"}
       </button>
-      {status?.installed && !status.logged_in && (
+      {status && !status.logged_in && (
         <>
           <p className="settings-help">{signInHelp}</p>
           <CliSignIn cli={cli} command={status.sign_in_command} onSignedIn={() => void check()} />
         </>
-      )}
-      {status && !status.installed && (
-        <p className="settings-help">Rebuild the YAAP image to install {name}: docker compose up -d --build</p>
       )}
     </FieldRow>
   );

@@ -1,6 +1,6 @@
 # Check YAAP's pinned packages for known vulnerabilities: the frontend's npm packages, the Python lock files of YAAP
-# and the sandbox helper, and the npm packages installed globally in the images. Debian's own packages are not
-# checked. Needs npm and uv (uvx). Exits non-zero when a check finds something or cannot run. Run it in PowerShell
+# and the sandbox helper, the pinned Claude Code and Codex, and the npm packages installed globally in the images.
+# Debian's own packages are not checked. Needs npm and uv (uvx). Exits non-zero when a check finds something or cannot run. Run it in PowerShell
 # from the YAAP folder:
 #   powershell -ExecutionPolicy Bypass -File scripts\audit.ps1
 $ErrorActionPreference = 'Stop'
@@ -18,7 +18,6 @@ if (-not (Get-Command uvx -ErrorAction SilentlyContinue)) { Fail 'uv is not inst
 
 # The global npm packages of the images, by the Dockerfile ARG that pins their version.
 $GlobalPackages = @(
-    @{ Dockerfile = 'docker/Dockerfile'; Arg = 'CODEX_VERSION'; Package = '@openai/codex' },
     @{ Dockerfile = 'docker/sandbox/Dockerfile'; Arg = 'PLAYWRIGHT_MCP_VERSION'; Package = '@playwright/mcp' },
     @{ Dockerfile = 'docker/sandbox/Dockerfile'; Arg = 'PYRIGHT_VERSION'; Package = 'pyright' },
     @{
@@ -51,6 +50,13 @@ Write-Host '== Frontend (frontend/package-lock.json)'
 Push-Location frontend
 npm audit
 Record 'frontend npm packages' $LASTEXITCODE
+Pop-Location
+
+Write-Host ''
+Write-Host '== Claude Code and Codex (tools/package-lock.json)'
+Push-Location tools
+npm audit
+Record 'Claude Code and Codex npm packages' $LASTEXITCODE
 Pop-Location
 
 foreach ($lock in 'backend/requirements.lock', 'docker/sandbox-helper/requirements.lock') {

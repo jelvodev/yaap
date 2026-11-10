@@ -244,7 +244,7 @@ if [ "$checked_out" = 0 ]; then
   fi
   fail "YAAP stays as it is. Go back later with: ./scripts/update.sh --rollback"
 fi
-export YAAP_COMMIT="$(git rev-parse --short HEAD)" YAAP_CHANNEL="$CHANNEL" CLI_REFRESH="$(date +%Y-%m)"
+export YAAP_COMMIT="$(git rev-parse --short HEAD)" YAAP_CHANNEL="$CHANNEL"
 say "Building and starting YAAP $NEW. This takes a few minutes."
 
 ok=0

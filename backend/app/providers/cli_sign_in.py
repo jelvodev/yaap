@@ -22,10 +22,13 @@ from urllib.parse import urlsplit
 import anyio
 
 from app.core.background import BackgroundWork
+from app.providers.cli_install import CliTools, InstallFailed
 
 logger = logging.getLogger(__name__)
 
-SignInState = Literal["idle", "starting", "waiting_for_code", "waiting_for_browser", "signed_in", "failed", "cancelled"]
+SignInState = Literal[
+    "idle", "installing", "starting", "waiting_for_code", "waiting_for_browser", "signed_in", "failed", "cancelled"
+]
 FINISHED_STATES: frozenset[SignInState] = frozenset({"signed_in", "failed", "cancelled"})
 
 LINK_TIMEOUT_SECONDS = 30.0
@@ -59,6 +62,9 @@ class SignInSpec:
     signed_in: Callable[[], Awaitable[bool]]
     # Output that shows the CLI refused the pasted code and waits for another one.
     refused_code_pattern: re.Pattern[str] | None = None
+    # The installed program (its name in the tools folder) that is installed first when it is missing or outdated; None
+    # for a CLI that needs no install.
+    tool: str | None = None
 
 
 @dataclass(frozen=True)
@@ -139,8 +145,9 @@ def next_state(spec: SignInSpec, url: str | None, user_code: str | None) -> Sign
 class SignInRun:
     """One sign-in process of one CLI, from its start to its end."""
 
-    def __init__(self, spec: SignInSpec, link_timeout: float, total_timeout: float) -> None:
+    def __init__(self, spec: SignInSpec, link_timeout: float, total_timeout: float, tools: CliTools | None) -> None:
         self.spec = spec
+        self.tools = tools
         self.link_timeout = link_timeout
         self.total_timeout = total_timeout
         self.state: SignInState = "starting"
@@ -163,6 +170,10 @@ class SignInRun:
 
     async def run(self) -> None:
         try:
+            if await self.ensure_installed() and await self.spec.signed_in():
+                # Signed in with the CLI of an earlier image: its sign-in folder is still there.
+                self.finish("signed_in")
+                return
             async with asyncio.timeout(self.total_timeout):
                 await self.drive()
         except TimeoutError:
@@ -174,6 +185,21 @@ class SignInRun:
         finally:
             self.finish("cancelled")
             await self.end_process()
+
+    async def ensure_installed(self) -> bool:
+        """Install the CLI first when it is missing or outdated; the time it takes is not part of the sign-in's.
+        Whether an install was needed."""
+        tool = self.spec.tool
+        if self.tools is None or tool is None or self.tools.is_installed(tool):
+            return False
+        self.state = "installing"
+        try:
+            await self.tools.ensure(tool)
+        except InstallFailed as error:
+            raise SignInFailed(str(error)) from None
+        if self.state == "installing":
+            self.state = "starting"
+        return True
 
     async def drive(self) -> None:
         self.process = await asyncio.create_subprocess_exec(
@@ -259,6 +285,7 @@ class CliSignIns:
     """The sign-in runs of all CLIs, at most one per CLI."""
 
     specs: dict[str, SignInSpec]
+    tools: CliTools | None = None
     link_timeout: float = LINK_TIMEOUT_SECONDS
     total_timeout: float = TOTAL_TIMEOUT_SECONDS
     runs: dict[str, SignInRun] = field(default_factory=dict)
@@ -266,8 +293,8 @@ class CliSignIns:
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     @classmethod
-    def of(cls, specs: Iterable[SignInSpec]) -> "CliSignIns":
-        return cls({spec.key: spec for spec in specs})
+    def of(cls, specs: Iterable[SignInSpec], tools: CliTools | None = None) -> "CliSignIns":
+        return cls({spec.key: spec for spec in specs}, tools)
 
     def spec_of(self, key: str) -> SignInSpec:
         try:
@@ -280,12 +307,17 @@ class CliSignIns:
         run = self.runs.get(key)
         return run.status() if run is not None else SignInStatus("idle")
 
+    def refresh_tools(self) -> None:
+        """At start: install the CLIs again when an older release installed them."""
+        if self.tools is not None:
+            self.tools.refresh_if_outdated()
+
     async def start(self, key: str) -> SignInStatus:
         """Start signing in; a sign-in that is still running for this CLI is cancelled first."""
         spec = self.spec_of(key)
         async with self.lock:
             await self.cancel(key)
-            run = SignInRun(spec, self.link_timeout, self.total_timeout)
+            run = SignInRun(spec, self.link_timeout, self.total_timeout, self.tools)
             self.runs[key] = run
             run.task = self.work.start(run.run(), name=f"sign-in-{key}")
             logger.info("Sign-in to %s started", key)
@@ -311,5 +343,7 @@ class CliSignIns:
         return run.status()
 
     async def stop(self) -> None:
-        """At shutdown: end every sign-in process."""
+        """At shutdown: end every sign-in process and a running install."""
         await self.work.stop()
+        if self.tools is not None:
+            await self.tools.stop()

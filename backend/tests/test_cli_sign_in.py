@@ -17,6 +17,7 @@ from app.providers.claude_code_provider import (
     SIGN_IN_HOSTS as CLAUDE_HOSTS,
     claude_code_sign_in_spec,
 )
+from app.providers.cli_install import tool_command
 from app.providers.cli_sign_in import (
     CliSignIns,
     CodeRefused,
@@ -83,6 +84,7 @@ def fake_spec(
     paste_code: bool = True,
     signed_in: bool = True,
     delay: str = "0.3",
+    tool: str | None = None,
 ) -> SignInSpec:
     file = tmp_path / "fake_cli.py"
     file.write_text(script.replace("LINK", link), encoding="utf-8")
@@ -101,6 +103,7 @@ def fake_spec(
         user_code_pattern=None if paste_code else USER_CODE_PATTERN,
         signed_in=reports_signed_in,
         refused_code_pattern=REFUSED_CODE_PATTERN if paste_code else None,
+        tool=tool,
     )
 
 
@@ -204,8 +207,8 @@ def test_the_one_time_code_is_found_in_the_output(text, expected):
 
 
 def test_the_real_specs_run_the_cli_sign_in_commands():
-    assert claude_code_sign_in_spec().command == ("claude", "auth", "login")
-    assert codex_sign_in_spec().command == ("codex", "login", "--device-auth")
+    assert claude_code_sign_in_spec().command == (*tool_command("claude"), "auth", "login")
+    assert codex_sign_in_spec().command == (*tool_command("codex"), "login", "--device-auth")
     assert claude_code_sign_in_spec().paste_code and not codex_sign_in_spec().paste_code
     assert re.fullmatch(USER_CODE_PATTERN, "A4MS-02JL0")
 

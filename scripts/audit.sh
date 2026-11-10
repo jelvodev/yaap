@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Check YAAP's pinned packages for known vulnerabilities: the frontend's npm packages, the Python lock files of YAAP
-# and the sandbox helper, and the npm packages installed globally in the images. Debian's own packages are not
-# checked. Needs npm and uv (uvx). Exits non-zero when a check finds something or cannot run. Run it from anywhere:
+# and the sandbox helper, the pinned Claude Code and Codex, and the npm packages installed globally in the images.
+# Debian's own packages are not checked. Needs npm and uv (uvx). Exits non-zero when a check finds something or cannot run. Run it from anywhere:
 # ./scripts/audit.sh
 set -euo pipefail
 
@@ -16,7 +16,6 @@ command -v uvx >/dev/null 2>&1 || fail "uv (uvx) is not installed: https://docs.
 
 # The global npm packages of the images, by the Dockerfile ARG that pins their version.
 GLOBAL_PACKAGES=(
-  "docker/Dockerfile CODEX_VERSION @openai/codex"
   "docker/sandbox/Dockerfile PLAYWRIGHT_MCP_VERSION @playwright/mcp"
   "docker/sandbox/Dockerfile PYRIGHT_VERSION pyright"
   "docker/sandbox/Dockerfile TYPESCRIPT_LANGUAGE_SERVER_VERSION typescript-language-server"
@@ -44,6 +43,12 @@ say "== Frontend (frontend/package-lock.json)"
 status=0
 (cd frontend && npm audit) || status=$?
 record "frontend npm packages" "$status"
+
+say ""
+say "== Claude Code and Codex (tools/package-lock.json)"
+status=0
+(cd tools && npm audit) || status=$?
+record "Claude Code and Codex npm packages" "$status"
 
 for lock in backend/requirements.lock docker/sandbox-helper/requirements.lock; do
   say ""

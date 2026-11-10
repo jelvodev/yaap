@@ -83,14 +83,14 @@ Connections are set in **Settings › Connections › Providers**, at Global and
 
 | Connection | What you need | How |
 |---|---|---|
-| Claude through Claude Code (default for Claude) | A Claude Pro or Max subscription | Settings › Connections › Providers: *Sign in with your Claude subscription*, open the link, sign in and paste the code back. From a terminal instead: `docker compose exec -it yaap claude auth login` |
+| Claude through Claude Code (default for Claude) | A Claude Pro or Max subscription | Settings › Connections › Providers: *Sign in with your Claude subscription*. The first time, YAAP installs Claude Code and Codex into `data/tools` (about 700 MB, a few minutes); then open the link, sign in and paste the code back. From a terminal instead, once it is installed: `docker compose exec -it yaap claude auth login` |
 | Anthropic API key | A key from the Anthropic Console (billed per use) | Settings › Connections › Providers: set the Claude connection to *Anthropic API key*, then add the key in the environment |
 | OpenAI API key (default for OpenAI) | A key from the OpenAI platform | Settings › Connections › Providers: add the key in the environment |
-| OpenAI through Codex | A ChatGPT plan | Settings › Connections › Providers: *Sign in with your ChatGPT plan*, open the link and enter the code shown there, then set the OpenAI connection to *Codex*. From a terminal instead: `docker compose exec -it yaap codex login --device-auth` |
+| OpenAI through Codex | A ChatGPT plan | Settings › Connections › Providers: *Sign in with your ChatGPT plan*, open the link and enter the code shown there, then set the OpenAI connection to *Codex*. The first sign-in to either installs both, as above. From a terminal instead, once it is installed: `docker compose exec -it yaap codex login --device-auth` |
 | Ollama | An Ollama server, for example on this computer | Settings › Connections › Providers at the Global level: set the Ollama address, for example `http://host.docker.internal:11434` |
 | OpenAI-compatible endpoint | LM Studio, vLLM or another server with an OpenAI-style API | Settings › Connections › Providers at the Global level, *OpenAI-compatible endpoints*: add a name and the base URL including `/v1`, for example `http://host.docker.internal:1234/v1`. No key is sent yet, so use a server that needs none |
 
-YAAP never handles subscription credentials itself: Claude Code and Codex keep their own sign-in in the data folder (`data/claude-code`, `data/codex`), and one sign-in serves every environment. The sign-in buttons only start the CLI's own sign-in and show its link; the code you paste goes straight to the CLI and is not stored. Keys are tested before they are stored and are never shown again.
+YAAP never handles subscription credentials itself: Claude Code and Codex keep their own sign-in in the data folder (`data/claude-code`, `data/codex`), and one sign-in serves every environment. The two programs are not in the image: they are downloaded once by your own YAAP from the npm registry, at the versions and with the checksums of the release (`tools/package-lock.json`), into `data/tools`. The sign-in buttons only start the CLI's own sign-in and show its link; the code you paste goes straight to the CLI and is not stored. Keys are tested before they are stored and are never shown again.
 
 Set a spending limit at each provider's console as well; YAAP's budgets count only what it can see.
 
@@ -158,7 +158,7 @@ When the new version does not work, the script shows the last 40 lines of the lo
 
 An update that works but turns out bad can be undone later with `-Rollback` (`--rollback`). It goes back to the version before the last update. Work done since then is lost when the database was restored from the backup; the replaced data stays in `data/.restore-previous`. The `:previous` images stay until the next update.
 
-Your data folder, `.env` and `docker-compose.override.yml` are not touched, and the database is migrated by YAAP itself on start. Codex is pinned to the version in the `Dockerfile` and changes with YAAP's updates. Claude Code is installed from Anthropic's stable channel when the image is built; the script passes the year and month, so each month's first update installs Claude Code afresh, and an update in between reuses the one in the image. To get the newest Claude Code sooner, run `docker compose build --no-cache yaap`, then `docker compose up -d`.
+Your data folder, `.env` and `docker-compose.override.yml` are not touched, and the database is migrated by YAAP itself on start. Claude Code and Codex are pinned to the versions in `tools/package-lock.json` and change with YAAP's updates: when a release pins other versions, YAAP installs them again in the background at its next start, if you had installed them. They live in `data/tools`, outside the image and outside backups; you can remove that folder, and the next sign-in installs them again.
 
 By hand, `git pull` and `docker compose up -d --build` still work.
 
@@ -222,6 +222,7 @@ A project can also let its agent work in a container of its own instead of the e
 | "Too many wrong passwords" | After five wrong passwords within a minute YAAP waits; try again a minute later. |
 | A script gets 401 | The REST API needs a token: make one in Settings › Account › Access and send it as `Authorization: Bearer <token>`. `GET /api/v1/health` stays open. |
 | "YAAP_MASTER_KEY is missing or invalid" | `.env` lacks the key or it was changed. Put back the key you saved; a new key cannot read existing keys and secrets. |
+| Claude Code or Codex is "not installed yet" | Use the sign-in button for it in Settings › Connections › Providers: that installs both from npm (about 700 MB). When the installation fails, the reason is shown there (often no internet access to `registry.npmjs.org`); try again. After an update from a version before 0.6.1 the existing sign-in is kept, only the install is needed. |
 | Claude Code says it is not signed in | Use *Sign in with your Claude subscription* in Settings › Connections › Providers, which also shows the status. Without the browser: run `docker compose exec -it yaap claude auth login` again. |
 | A model is shown with "(no key)" | That connection has no key or sign-in in the active environment; add one in Settings › Connections › Providers. |
 | Web search finds nothing | `docker compose logs searxng`; the search engines SearXNG asks may limit requests for a while. |

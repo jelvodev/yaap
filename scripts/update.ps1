@@ -295,7 +295,6 @@ if ($LASTEXITCODE -ne 0) {
 }
 $env:YAAP_COMMIT = (git rev-parse --short HEAD).Trim()
 $env:YAAP_CHANNEL = $Channel
-$env:CLI_REFRESH = (Get-Date).ToString('yyyy-MM')
 Write-Host "Building and starting YAAP $New. This takes a few minutes."
 
 $ok = $false

@@ -7,7 +7,12 @@ export const POLL_MILLISECONDS = 2000;
 
 /** Whether a sign-in process is running and the page should keep asking for news. */
 export function isRunning(state: State): boolean {
-  return state === "starting" || state === "waiting_for_code" || state === "waiting_for_browser";
+  return (
+    state === "installing" ||
+    state === "starting" ||
+    state === "waiting_for_code" ||
+    state === "waiting_for_browser"
+  );
 }
 
 /**

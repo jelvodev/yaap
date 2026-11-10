@@ -12,11 +12,24 @@ yourself when you update; it says "None." when there is nothing.
   conversations and documents are indexed by meaning when it arrives. Settings › System › Models shows the progress
   and has *Download* and *Remove*, and a switch to turn the automatic download off (also on the last screen of the
   first start). The speech model and the search model share one downloader that checks every file by its SHA-256.
+- Claude Code and Codex are no longer in the image either: YAAP installs both into `data/tools` with `npm ci` the first
+  time you press a sign-in button (about 700 MB, a few minutes; the card shows *Installing Claude Code…*), then starts
+  the sign-in. The versions and checksums are pinned per release in `tools/package-lock.json`, so a release that pins
+  newer versions installs them again at its next start, and Claude Code is downloaded by your own YAAP, never shipped
+  in an image of ours. Before the install, a reply or a worker that needs one of them says it is not installed yet
+  and points to Settings › Connections › Providers. The monthly refresh is gone: the update script no longer sets
+  `CLI_REFRESH`. `data/tools` is not in backups.
 
 ### Action needed
 
-None. After updating, search finds words only until the model has downloaded (2.3 GB, from Hugging Face); on a
-computer without internet access, place the files by hand ([install.md](docs/install.md#the-search-model)).
+If you use Claude Code or Codex: after updating, open Settings › Connections › Providers and press its sign-in
+button once. That installs both programs from npm (about 700 MB); an existing sign-in is kept, so you are not asked to
+sign in again. Until then they show *not installed yet*. On a computer without access to `registry.npmjs.org` they
+cannot be installed.
+
+Otherwise nothing. After updating, search finds words only until the model has downloaded (2.3 GB, from Hugging
+Face); on a computer without internet access, place the files by hand
+([install.md](docs/install.md#the-search-model)).
 
 ## 0.6.0 (2026-11-10)
 

@@ -120,6 +120,7 @@ def create_backup(data_dir: Path, keep: int = DEFAULT_KEEP, now: datetime | None
                         "the master key (YAAP_MASTER_KEY)",
                         "the Claude Code sign-in (claude-code/)",
                         "the Codex sign-in (codex/)",
+                        "the installed Claude Code and Codex (tools/)",
                     ],
                 }
                 archive.writestr("manifest.json", json.dumps(manifest, indent=2))

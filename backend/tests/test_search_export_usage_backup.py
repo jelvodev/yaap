@@ -128,6 +128,8 @@ def test_a_backup_holds_the_database_and_folders_but_no_sign_in(client, fake, tm
     (tmp_path / "workspace" / "demo" / "node_modules" / "big.js").write_text("x")
     (tmp_path / "claude-code").mkdir(exist_ok=True)
     (tmp_path / "claude-code" / "credentials.json").write_text("{}")
+    (tmp_path / "tools" / "node_modules" / ".bin").mkdir(parents=True)
+    (tmp_path / "tools" / "node_modules" / ".bin" / "claude").write_text("binary")
 
     created = client.post("/api/v1/backups")
     assert created.status_code == 201, created.text
@@ -139,8 +141,9 @@ def test_a_backup_holds_the_database_and_folders_but_no_sign_in(client, fake, tm
     archive = zipfile.ZipFile(io.BytesIO(download.content))
     names = set(archive.namelist())
     assert {"yaap.db", "manifest.json", "workspace/demo/main.py"} <= names
-    assert not any(item.startswith("claude-code/") or "node_modules" in item for item in names)
+    assert not any(item.startswith(("claude-code/", "tools/")) or "node_modules" in item for item in names)
     manifest = json.loads(archive.read("manifest.json"))
+    assert "the installed Claude Code and Codex (tools/)" in manifest["not_included"]
     versions = Path(__file__).parents[1] / "app" / "storage" / "migrations" / "versions"
     assert manifest["database_revision"] == max(path.stem for path in versions.glob("0*.py"))
 

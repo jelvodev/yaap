@@ -8285,7 +8285,7 @@ export interface components {
              * State
              * @enum {string}
              */
-            state: "idle" | "starting" | "waiting_for_code" | "waiting_for_browser" | "signed_in" | "failed" | "cancelled";
+            state: "idle" | "installing" | "starting" | "waiting_for_code" | "waiting_for_browser" | "signed_in" | "failed" | "cancelled";
             /** Url */
             url: string | null;
             /** User Code */

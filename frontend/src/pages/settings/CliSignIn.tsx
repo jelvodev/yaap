@@ -3,9 +3,9 @@ import { useState } from "react";
 import type { CliName } from "../../api/signIn";
 import { useCliSignIn } from "./useCliSignIn";
 
-const LABELS: Record<CliName, { button: string; vendor: string }> = {
-  "claude-code": { button: "Sign in with your Claude subscription", vendor: "Claude" },
-  codex: { button: "Sign in with your ChatGPT plan", vendor: "ChatGPT" },
+const LABELS: Record<CliName, { button: string; vendor: string; name: string }> = {
+  "claude-code": { button: "Sign in with your Claude subscription", vendor: "Claude", name: "Claude Code" },
+  codex: { button: "Sign in with your ChatGPT plan", vendor: "ChatGPT", name: "Codex" },
 };
 
 /** The one-time code of a device sign-in, with a button that copies it. */
@@ -89,6 +89,11 @@ export default function CliSignIn({
       {state === "signed_in" && <p className="form-ok small">Signed in.</p>}
       {state === "failed" && <p className="form-error small">{signIn?.message ?? "The sign-in did not work."}</p>}
       {error && <p className="form-error small">{error}</p>}
+      {state === "installing" && (
+        <p className="settings-help">
+          Installing {labels.name}… (once, about 700 MB for Claude Code and Codex together, a few minutes)
+        </p>
+      )}
       {state === "starting" && <p className="settings-help">Starting the sign-in…</p>}
       {signIn?.url && running && (
         <ol className="cli-sign-in-steps">

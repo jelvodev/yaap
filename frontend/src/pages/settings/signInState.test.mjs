@@ -8,6 +8,7 @@ import { isRunning, justSignedIn, openingState } from "./signInState.ts";
 const RUNNING = [
   // state, running
   ["idle", false],
+  ["installing", true],
   ["starting", true],
   ["waiting_for_code", true],
   ["waiting_for_browser", true],

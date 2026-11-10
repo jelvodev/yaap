@@ -11,8 +11,6 @@ The current version is **0.6.0**.
 
 Fewer steps and less waiting before the first answer.
 
-44. **Less in the first download.** Heavy parts arrive when they are needed, as the speech model already does: the
-    search model in the background after the first start, Claude Code and Codex at the first sign-in.
 45. **Ready-made images.** Each release publishes YAAP's images, so installing and updating download them instead of
     building on your computer, and the runner's image arrives when it is first needed. Building locally stays
     possible.

@@ -16,6 +16,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     YAAP_PREVIEW_BIND=0.0.0.0 \
     CLAUDE_CONFIG_DIR=/data/claude-code \
     CODEX_HOME=/data/codex \
+    YAAP_TOOLS_DIR=/data/tools \
+    YAAP_TOOLS_SOURCE=/app/tools \
+    PATH="/data/tools/node_modules/.bin:${PATH}" \
     DISABLE_AUTOUPDATER=1
 
 # git, curl and the certificates for HTTPS.
@@ -36,41 +39,17 @@ WORKDIR /app
 # Every package, also the indirect ones, at the version and with the hashes of the lock file (CONTRIBUTING.md).
 COPY backend/requirements.lock ./
 RUN pip install --no-cache-dir --require-hashes --no-deps -r requirements.lock
-# The two CLIs come last before the app code, so a change to YAAP's code never reinstalls them, while a new CLI_REFRESH
-# (docker-compose.yml; the update script passes the year and month) installs both afresh once a month.
-ARG CLI_REFRESH=
-# Claude Code from Anthropic's signed apt repository (stable channel), unmodified. YAAP runs it for the
-# "Claude Code" connection; the sign-in is stored by Claude Code itself under CLAUDE_CONFIG_DIR.
-# The build stops when the signing key does not have Anthropic's published fingerprint.
-ARG CLAUDE_CODE_KEY_FINGERPRINT=31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE
-RUN echo "CLI refresh: ${CLI_REFRESH}" \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends gnupg \
-    && install -d -m 0755 /etc/apt/keyrings \
-    && curl -fsSL https://downloads.claude.ai/keys/claude-code.asc -o /etc/apt/keyrings/claude-code.asc \
-    && gpg --show-keys --with-colons /etc/apt/keyrings/claude-code.asc | grep -q "^fpr:::::::::${CLAUDE_CODE_KEY_FINGERPRINT}:" \
-    && echo "deb [signed-by=/etc/apt/keyrings/claude-code.asc] https://downloads.claude.ai/claude-code/apt/stable stable main" \
-        > /etc/apt/sources.list.d/claude-code.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends claude-code \
-    && apt-get purge -y gnupg && apt-get autoremove -y \
-    && rm -rf /var/lib/apt/lists/* \
-    && claude --version
-
-# Node.js and npm for Codex below, taken from the same image as the frontend build. The agent's commands, MCP servers
-# over stdio and its browser run in the runner of their environment (docker/sandbox), not in this image.
+# Node.js and npm for installing the CLIs, taken from the same image as the frontend build. The agent's commands, MCP
+# servers over stdio and its browser run in the runner of their environment (docker/sandbox), not in this image.
 COPY --from=frontend /usr/local/bin/node /usr/local/bin/node
 COPY --from=frontend /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
 RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
     && ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
     && node --version && npm --version
 
-# Codex, OpenAI's CLI, unmodified, for the "Codex" connection; the sign-in is stored by Codex itself under CODEX_HOME.
-# The version is pinned: YAAP switches off Codex's own tools by feature name, and Codex refuses names it does not know.
-ARG CODEX_VERSION=0.166.0
-RUN echo "CLI refresh: ${CLI_REFRESH}" \
-    && npm install --global --no-fund --no-audit "@openai/codex@${CODEX_VERSION}" \
-    && codex --version
+# The two files that pin Claude Code and Codex (versions and integrity hashes). YAAP installs both from them into
+# /data/tools at the first sign-in, so neither CLI is part of this image.
+COPY tools/package.json tools/package-lock.json ./tools/
 
 COPY backend/app ./app
 COPY --from=frontend /build/dist ./static

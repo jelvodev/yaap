@@ -37,12 +37,18 @@ from app.providers.base import (
     ToolCallStarted,
     ToolServer,
 )
+from app.providers.cli_install import tool_command
 from app.providers.cli_sign_in import SignInSpec
 from app.providers.messages_content import to_messages_content
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_COMMAND = ("claude",)
+# Installed into the data folder at the first sign-in (providers/cli_install.py), at the version this release pins.
+TOOL = "claude"
+DEFAULT_COMMAND = tool_command(TOOL)
+NOT_INSTALLED_MESSAGE = (
+    "Claude Code is not installed yet. Sign in to it once under Settings › Connections › Providers; that installs it."
+)
 SESSION_BLOCK_TYPE = "claude_code_session"
 # What `claude auth login` prints before it asks for the code again.
 REFUSED_CODE_PATTERN = re.compile(r"invalid code", re.IGNORECASE)
@@ -292,9 +298,7 @@ class ClaudeCodeProvider:
                 limit=STREAM_LINE_LIMIT,
             )
         except FileNotFoundError as error:
-            raise ProviderError(
-                "Claude Code is not installed here. Rebuild the YAAP image with: docker compose up -d --build"
-            ) from error
+            raise ProviderError(NOT_INSTALLED_MESSAGE) from error
 
         process = self.process
         assert process.stdin and process.stdout and process.stderr
@@ -459,6 +463,7 @@ def claude_code_sign_in_spec(command: Sequence[str] = DEFAULT_COMMAND) -> SignIn
         refused_code_pattern=REFUSED_CODE_PATTERN,
         user_code_pattern=None,
         signed_in=claude_code_signed_in,
+        tool=TOOL,
     )
 
 

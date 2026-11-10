@@ -10993,6 +10993,7 @@
           "state": {
             "enum": [
               "idle",
+              "installing",
               "starting",
               "waiting_for_code",
               "waiting_for_browser",

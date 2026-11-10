@@ -10,8 +10,6 @@ services:
       args:
         YAAP_COMMIT: ${YAAP_COMMIT:-}
         YAAP_CHANNEL: ${YAAP_CHANNEL:-}
-        # Installs Claude Code afresh when it changes; the update script sets the year and month.
-        CLI_REFRESH: ${CLI_REFRESH:-}
     image: yaap:local
     environment:
       # The master key: in .env, or in a file named by YAAP_MASTER_KEY_FILE (a Docker secret, set in the
