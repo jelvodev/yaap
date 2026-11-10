@@ -75,6 +75,15 @@ def test_reviewed_items_are_written_as_blueprint_files(client):
     assert agent["preset"] == "Deep" and agent["description"] == "Plans work"
 
 
+def test_hidden_characters_in_a_document_are_warned_about_and_shown(client):
+    data = zip_of({"standards/safe.md": "# Safe\n\nNever log secrets\u200b.\n", "standards/clean.md": "# Clean\n\nText.\n"})
+    proposals = {proposal["source"]: proposal for proposal in analyze(client, "docs.zip", data).json()}
+
+    assert any("invisible character" in warning for warning in proposals["standards/safe.md"]["warnings"])
+    assert "\u27e6U+200B ZERO WIDTH SPACE\u27e7" in proposals["standards/safe.md"]["body_marked"]
+    assert proposals["standards/clean.md"]["warnings"] == []
+
+
 def test_unsupported_uploads_are_refused(client):
     assert analyze(client, "photo.png", b"\x89PNG").status_code == 422
     duplicate = client.post(

@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { type BlueprintItem, api, errorMessage } from "../../api/client";
 import type { components } from "../../api/schema";
+import MarkedText, { ReviewWarnings } from "../../components/MarkedText";
 import { type Level, levelQuery } from "../../components/workbench/LevelPicker";
 import { type ItemKind, KINDS, pathFor } from "./model";
 
@@ -166,6 +167,7 @@ export default function ImportPanel({
                       }
                     />
                   )}
+                  <ReviewWarnings warnings={item.warnings} />
                   <p className="faint small">
                     {path}
                     {item.proposed_by_model ? " · proposed by the utility model" : ""}
@@ -175,7 +177,11 @@ export default function ImportPanel({
                       {preview === index ? "Hide text" : "Show text"}
                     </button>
                   </p>
-                  {preview === index && <pre className="import-preview">{item.body}</pre>}
+                  {preview === index && (
+                    <pre className="import-preview">
+                      <MarkedText text={item.body_marked} />
+                    </pre>
+                  )}
                 </li>
               );
             })}

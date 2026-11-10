@@ -49,6 +49,7 @@ from app.blueprint.skill_install import (
     safe_relative,
     skill_name,
 )
+from app.core.hidden_text import find_hidden, mark_hidden, refusal_reason, warning_lines
 from app.git.service import GitError, run_git
 
 MANIFEST = "blueprint-package.json"
@@ -181,10 +182,12 @@ class PackageItem:
     name: str
     description: str
     text: str = ""
+    # The text with hidden characters made visible, for review.
+    text_marked: str = ""
     files: list[RemoteFile] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
-    # Why it cannot be installed (scripts, binary files, too large, missing), if so.
+    # Why it cannot be installed (scripts, binary files, hidden characters, too large, missing), if so.
     error: str | None = None
 
     @property
@@ -278,6 +281,10 @@ def describe(github: GitHubSkills, source: Source, entries: list[dict[str, Any]]
         item.error = item.error or text_only_error([], [text_path])
         return item
     item.text = content.decode("utf-8", errors="replace").replace("\r\n", "\n")
+    findings = find_hidden(item.text)
+    item.warnings += warning_lines(findings)
+    item.text_marked = mark_hidden(item.text)
+    item.error = item.error or refusal_reason(findings)
     try:
         front = parse_document(item.text).front_matter
     except BlueprintError as error:
@@ -324,7 +331,8 @@ def download(github: GitHubSkills, source: Source, item: PackageItem) -> dict[st
 
 
 def check_text(item: PackageItem, path: str, content: bytes) -> None:
-    """What the listing could not show: binary content, a script without a script suffix, or text that is not UTF-8."""
+    """What the listing could not show: binary content, a script without a script suffix, text that is not UTF-8,
+    or tag characters and direction controls hidden in the text."""
     if b"\0" in content:
         raise PackageError(f"{item.name}: {text_only_error([], [path])}")
     if content.startswith(b"#!"):
@@ -333,6 +341,8 @@ def check_text(item: PackageItem, path: str, content: bytes) -> None:
         content.decode("utf-8")
     except UnicodeDecodeError as error:
         raise PackageError(f"{item.name}: {path} is not UTF-8 text.") from error
+    if (reason := refusal_reason(find_hidden(content.decode("utf-8")))) is not None:
+        raise PackageError(f"{item.name}: {path}: {reason}")
 
 
 def preview(github: GitHubSkills, url: str) -> Package:

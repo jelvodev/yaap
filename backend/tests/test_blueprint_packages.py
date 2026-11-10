@@ -297,6 +297,27 @@ def test_scripts_and_binaries_in_a_package_are_refused(client, github, tmp_path)
     assert not (root / "commands").exists() and not (root / "skills").exists()
 
 
+def test_hidden_characters_warn_and_tag_characters_are_refused(client, github, tmp_path):
+    github.add_commit(
+        COMMIT_B,
+        {
+            "standards/security.md": SECURITY + "Keep it\u200b safe.\n".encode(),
+            "commands/ship.md": "Ship it\U000e0069.\n".encode(),
+            "skills/review-code/checklist.md": "- Tests\u202e\n".encode(),
+        },
+    )
+    preview = client.post("/api/v1/blueprint/packages/preview", json={"url": f"{URL}/tree/{COMMIT_B}"}).json()
+    items = {item["name"]: item for item in preview["items"]}
+
+    assert any("invisible character" in warning for warning in items["security"]["warnings"])
+    assert "\u27e6U+200B ZERO WIDTH SPACE\u27e7" in items["security"]["text_marked"] and items["security"]["error"] is None
+    assert "tag character" in " ".join(items["ship"]["warnings"]) and "refuses" in items["ship"]["error"]
+    # A file of a skill that the review does not show is checked when the item is read for the install.
+    refused = install(client, items=CHOSEN[1:2], commit=COMMIT_B)
+    assert refused.status_code == 422 and "direction control" in refused.json()["detail"]
+    assert install(client, items=CHOSEN[:1], commit=COMMIT_B).status_code == 200
+
+
 def test_install_refuses_unknown_items_and_a_name_taken_by_another_repository(client, github, tmp_path):
     missing = install(client, items=[{"kind": "standard", "path": "standards/nope.md", "name": "nope"}])
     assert missing.status_code == 422

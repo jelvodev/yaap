@@ -14,6 +14,7 @@ from pathlib import PurePosixPath
 from sqlalchemy.orm import Session
 
 from app.core.chat import DEFAULT_TITLE, make_title
+from app.core.hidden_text import describe, find_hidden
 from app.credentials.crypto import CredentialCipher
 from app.imports.sessions import CLAUDE_CODE, CODEX, IMPORTED_BLOCK_TYPE, TOOL_NAMES, ImportedSession, SessionImportError
 from app.storage.models import Conversation, Message, Target
@@ -106,6 +107,25 @@ def create_conversation(
     return conversation
 
 
+def strings_of(value: object) -> list[str]:
+    """Every string inside a block of a session (text, reasoning, tool input and output)."""
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        return [text for item in value.values() for text in strings_of(item)]
+    if isinstance(value, list):
+        return [text for item in value for text in strings_of(item)]
+    return []
+
+
+def hidden_warnings(imported: ImportedSession) -> list[str]:
+    """What the session hides from a reader: tag characters, direction controls, invisible or lookalike characters.
+    The session is imported as it is; the warning tells the user to look at it before continuing it."""
+    texts = [text for turn in imported.turns for text in [turn.user_text, *strings_of(turn.blocks)]]
+    warning = describe(find_hidden("\n".join(texts)))
+    return [warning] if warning else []
+
+
 # --- Session files on a target -----------------------------------------------------------------------------------------
 
 
@@ -174,4 +194,4 @@ def home_files(session: Session, cipher: CredentialCipher, target: Target) -> Ta
     return runtime.files(".")
 
 
-__all__ = ["SessionImportError", "create_conversation", "home_files"]
+__all__ = ["SessionImportError", "create_conversation", "hidden_warnings", "home_files"]

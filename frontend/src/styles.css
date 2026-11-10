@@ -3564,6 +3564,13 @@ button.context-meter[aria-expanded="true"] {
 }
 
 /* Skills from GitHub */
+.hidden-mark {
+  background: color-mix(in srgb, var(--warning) 25%, transparent);
+  color: var(--warning);
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
 .skill-warnings {
   margin: 4px 0;
   padding-left: 18px;

@@ -17,6 +17,7 @@ from typing import Any, BinaryIO
 import yaml
 
 from app.attachments.files import AttachmentError, safe_filename, unpack_archive
+from app.core.hidden_text import find_hidden, mark_hidden, warning_lines
 from app.core.utility import UtilityContext, run_utility
 from app.blueprint.layers import BlueprintError, ItemKind, parse_document
 
@@ -51,6 +52,9 @@ class Proposal:
     body: str
     extra: dict[str, Any] = field(default_factory=dict)
     proposed_by_model: bool = False
+    # Hidden characters in the document, and its body with them made visible.
+    warnings: list[str] = field(default_factory=list)
+    body_marked: str = ""
 
 
 def slug(text: str) -> str:
@@ -195,14 +199,23 @@ async def propose(
     documents: list[ImportDocument], context: UtilityContext | None, environment_id: int | None
 ) -> list[Proposal]:
     if context is None or environment_id is None:
-        return [heuristic_proposal(document) for document in documents]
+        return [review_hidden(heuristic_proposal(document)) for document in documents]
     limit = asyncio.Semaphore(CONCURRENT_PROPOSALS)
 
     async def one(document: ImportDocument) -> Proposal:
         async with limit:
-            return await model_proposal(context, environment_id, document)
+            return review_hidden(await model_proposal(context, environment_id, document))
 
     return list(await asyncio.gather(*(one(document) for document in documents)))
+
+
+def review_hidden(proposal: Proposal) -> Proposal:
+    """Note the characters the reader cannot see in the document, so the user sees them before importing."""
+    proposal.warnings = warning_lines(find_hidden(proposal.body))
+    proposal.body_marked = mark_hidden(proposal.body)
+    if find_hidden("\n".join([proposal.summary, *proposal.rules])):
+        proposal.warnings.append("The summary or the rules contain hidden characters.")
+    return proposal
 
 
 def item_path(kind: ItemKind, name: str) -> str:

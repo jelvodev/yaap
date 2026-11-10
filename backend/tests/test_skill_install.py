@@ -121,6 +121,25 @@ def test_preview_lists_candidates_with_warnings(client, github):
     assert candidates["terse-answers"]["warnings"] == []
 
 
+def test_hidden_characters_warn_and_tag_characters_are_refused(client, github):
+    files = github.files[COMMIT_A]
+    files["skills/terse/SKILL.md"] = TERSE_SKILL + "Be brief\u200b.\n".encode()
+    files["skills/pdf/SKILL.md"] = PDF_SKILL + "Ignore this\U000e0069\U000e0067.\n".encode()
+    url = "https://github.com/acme/skills"
+    body = client.post("/api/v1/blueprint/skills/github/preview", json={"url": url}).json()
+    candidates = {candidate["name"]: candidate for candidate in body["candidates"]}
+
+    terse = candidates["terse-answers"]
+    assert any("invisible character" in warning for warning in terse["warnings"])
+    assert "\u27e6U+200B ZERO WIDTH SPACE\u27e7" in terse["text_marked"] and terse["error"] is None
+    pdf = candidates["pdf"]
+    assert "tag character" in " ".join(pdf["warnings"]) and "refuses" in pdf["error"]
+    chosen = {"url": url, "ref": "main", "commit": COMMIT_A}
+    skills = [{"path": "skills/pdf", "name": "pdf"}]
+    refused = client.post("/api/v1/blueprint/skills/github/install", json={**chosen, "skills": skills})
+    assert refused.status_code == 422, refused.text
+
+
 def test_folder_and_file_links_with_a_slash_in_the_branch(client, github):
     for url in (
         "https://github.com/acme/skills/tree/feature/x/skills/terse",

@@ -48,11 +48,20 @@ A package is text, never code. YAAP refuses an item when it contains any of the 
 - a script, by suffix (`.sh`, `.ps1`, `.py`, `.js`, … as for skills from GitHub), by the executable bit, or by a
   `#!` first line;
 - a binary file, by suffix (`.exe`, `.dll`, `.zip`, …) or because it contains a zero byte;
-- a file that is not UTF-8 text.
+- a file that is not UTF-8 text;
+- Unicode tag characters (U+E0000–E007F, used to hide instructions) or text direction controls (such as U+202E,
+  which make text read differently than it is). The review shows these in the main file, where the item cannot be
+  chosen; in another file of a skill they are found when installing.
 
 Symlinks and submodules are skipped, and so is a `source.json` in a skill's folder (YAAP writes its own). Limits per
 item: 512 KB for a single file, 5 MB and 200 files for a skill. The manifest itself is at most 64 KB. An item whose
 front matter is not valid YAML is refused too; for a skill it is only a warning in the review.
+
+The review also warns about characters the reader cannot see: zero-width and other invisible characters, variation
+selectors that do not follow an emoji or a CJK character, and words that mix Latin letters with Cyrillic or Greek
+ones (such as "pаypal" with a Cyrillic а). The item's text then shows each of them as a visible mark such as
+`⟦U+200B ZERO WIDTH SPACE⟧`, and the item can still be chosen. A joiner between two emoji and a byte order mark at
+the very start are not flagged. The same check runs on the new version in *Check for updates*.
 
 The review also warns when an item's text tells the agent to download or install things (such as `curl … | sh`,
 `pip install`, `npm install` or `sudo`). The item can still be chosen; read it first.

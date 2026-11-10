@@ -164,6 +164,17 @@ def test_a_claude_code_session_imports_into_the_right_blocks_and_nothing_runs(cl
     assert next(item for item in listed if item["id"] == summary["id"])["imported"]["tool"] == CLAUDE_CODE
 
 
+def test_a_session_with_hidden_characters_imports_with_a_warning(client, fake):
+    project, _ = project_conversation(client)
+    data = claude_code_sample().replace(b"Add a /health", "Add a\u200b /health".encode())
+    response = upload(client, data, f"{SESSION_ID}.jsonl", project["id"])
+
+    assert response.status_code == 201, response.text
+    assert any("invisible character" in warning for warning in response.json()["warnings"])
+    clean = upload(client, claude_code_sample(), f"{SESSION_ID}.jsonl", project["id"])
+    assert clean.json()["warnings"] == []
+
+
 def test_a_codex_session_imports_into_the_right_blocks_and_nothing_runs(client, fake):
     project, _ = project_conversation(client)
     response = upload(client, codex_sample(), "rollout-2026-11-02T09-00-00-0199a1b2.jsonl", project["id"])

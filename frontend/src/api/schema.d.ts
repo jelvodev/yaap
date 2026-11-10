@@ -6177,6 +6177,8 @@ export interface components {
         ImportProposalOut: {
             /** Body */
             body: string;
+            /** Body Marked */
+            body_marked: string;
             /** Exists */
             exists: boolean;
             /** Extra */
@@ -6200,6 +6202,8 @@ export interface components {
             source: string;
             /** Summary */
             summary: string;
+            /** Warnings */
+            warnings: string[];
         };
         /** ImportedFromOut */
         ImportedFromOut: {
@@ -6712,6 +6716,8 @@ export interface components {
             target: string;
             /** Text */
             text: string;
+            /** Text Marked */
+            text_marked: string;
             /** Warnings */
             warnings: string[];
         };
@@ -7846,6 +7852,55 @@ export interface components {
              */
             tool: "claude_code" | "codex";
         };
+        /** SessionImportOut */
+        SessionImportOut: {
+            /**
+             * Access
+             * @default default
+             * @enum {string}
+             */
+            access: "default" | "full" | "read_only";
+            /** Agent */
+            agent?: string | null;
+            /** Archived At */
+            archived_at?: string | null;
+            /** Context Limit */
+            context_limit?: number | null;
+            /** Effort */
+            effort: string;
+            /** Id */
+            id: number;
+            imported?: components["schemas"]["ImportedFromOut"] | null;
+            /** Model */
+            model: string;
+            /** Pinned Skills */
+            pinned_skills?: string[];
+            /** Project Id */
+            project_id: number | null;
+            /** Provider */
+            provider: string;
+            /**
+             * Scheduled
+             * @default false
+             */
+            scheduled: boolean;
+            /** Target Id */
+            target_id?: number | null;
+            /** Title */
+            title: string;
+            /**
+             * Unread
+             * @default false
+             */
+            unread: boolean;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Warnings */
+            warnings: string[];
+        };
         /** SettingOption */
         SettingOption: {
             /** Label */
@@ -7951,6 +8006,8 @@ export interface components {
             size: number;
             /** Text */
             text: string;
+            /** Text Marked */
+            text_marked: string;
             /** Warnings */
             warnings: string[];
         };
@@ -12053,7 +12110,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ConversationSummaryOut"];
+                    "application/json": components["schemas"]["SessionImportOut"];
                 };
             };
             /** @description Validation Error */
@@ -12088,7 +12145,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ConversationSummaryOut"];
+                    "application/json": components["schemas"]["SessionImportOut"];
                 };
             };
             /** @description Validation Error */

@@ -12,10 +12,16 @@ from app.api.schemas import ConversationSummaryOut
 from app.imports import service
 from app.imports.sessions import ImportedSession, SessionImportError, parse_session
 from app.providers.registry import ProviderRegistry
-from app.storage.models import Environment, Project, Target
+from app.storage.models import Conversation, Environment, Project, Target
 from app.targets.base import TargetError
 
 router = APIRouter(tags=["conversations"])
+
+
+class SessionImportOut(ConversationSummaryOut):
+    # What the imported session hides from a reader (invisible, direction or lookalike characters), to look at before
+    # continuing the conversation.
+    warnings: list[str]
 
 
 class SessionFileOut(BaseModel):
@@ -61,6 +67,10 @@ def parsed(data: bytes) -> ImportedSession:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
 
 
+def imported_out(conversation: Conversation, imported: ImportedSession) -> SessionImportOut:
+    return SessionImportOut(**summary_out(conversation).model_dump(), warnings=service.hidden_warnings(imported))
+
+
 def find_target(session: Session, environment: Environment, target_id: int) -> Target:
     target = session.get(Target, target_id)
     if target is None or target.environment_id != environment.id:
@@ -70,7 +80,7 @@ def find_target(session: Session, environment: Environment, target_id: int) -> T
 
 @router.post(
     "/environments/{environment_id}/conversations/import",
-    response_model=ConversationSummaryOut,
+    response_model=SessionImportOut,
     status_code=status.HTTP_201_CREATED,
 )
 async def import_session(
@@ -82,7 +92,7 @@ async def import_session(
     effort: Annotated[str, Form()],
     project_id: Annotated[int | None, Form()] = None,
     preset: Annotated[str | None, Form()] = None,
-) -> ConversationSummaryOut:
+) -> SessionImportOut:
     """An uploaded Claude Code (.jsonl) or Codex (rollout-*.jsonl) session as a new conversation. Its messages and
     tool calls are stored as read-only blocks; nothing in it is run."""
     provider = check_choice(session, providers, environment, project_id, model, effort)
@@ -93,7 +103,7 @@ async def import_session(
     conversation = service.create_conversation(
         session, environment.id, project_id, provider, model, effort, clean_preset(preset), imported, "upload", file.filename or "session.jsonl"
     )
-    return summary_out(conversation)
+    return imported_out(conversation, imported)
 
 
 @router.get("/environments/{environment_id}/targets/{target_id}/sessions", response_model=list[SessionFileOut])
@@ -116,7 +126,7 @@ async def list_target_sessions(
 
 @router.post(
     "/environments/{environment_id}/conversations/import-from-target",
-    response_model=ConversationSummaryOut,
+    response_model=SessionImportOut,
     status_code=status.HTTP_201_CREATED,
 )
 async def import_target_session(
@@ -125,7 +135,7 @@ async def import_target_session(
     session: SessionDependency,
     providers: ProviderRegistryDependency,
     cipher: CipherDependency,
-) -> ConversationSummaryOut:
+) -> SessionImportOut:
     """A session file read from a target (only from ~/.claude/projects and ~/.codex/sessions) as a new conversation."""
     provider = check_choice(session, providers, environment, payload.project_id, payload.model, payload.effort)
     target = find_target(session, environment, payload.target_id)
@@ -148,7 +158,7 @@ async def import_target_session(
         f"target:{target.name}",
         payload.path.rsplit("/", 1)[-1],
     )
-    return summary_out(conversation)
+    return imported_out(conversation, imported)
 
 
 def clean_preset(preset: str | None) -> str | None:

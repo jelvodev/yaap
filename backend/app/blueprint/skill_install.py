@@ -21,6 +21,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from app.blueprint.layers import BlueprintError, Layer, ensure_repository, parse_document
+from app.core.hidden_text import find_hidden, mark_hidden, refusal_reason, warning_lines
 from app.git.service import GitError, run_git
 
 API = "https://api.github.com"
@@ -137,6 +138,8 @@ class Candidate:
     name: str = ""
     description: str = ""
     text: str = ""
+    # The text with hidden characters made visible, for review.
+    text_marked: str = ""
     warnings: list[str] = field(default_factory=list)
     error: str | None = None
 
@@ -265,6 +268,10 @@ class GitHubSkills:
         candidate.name = skill_name(str(front.get("name") or candidate.folder_name))
         candidate.description = str(front.get("description") or "").strip()
         candidate.warnings += content_warnings(candidate.files, candidate.skipped, candidate.text)
+        findings = find_hidden(candidate.text)
+        candidate.warnings += warning_lines(findings)
+        candidate.text_marked = mark_hidden(candidate.text)
+        candidate.error = candidate.error or refusal_reason(findings)
         return candidate
 
     def download(self, source: Source, candidate: Candidate) -> dict[str, bytes]:
@@ -278,6 +285,8 @@ class GitHubSkills:
             total += len(content)
             if total > MAX_SKILL_BYTES:
                 raise SkillInstallError("The skill is larger than 5 MB.")
+            if (reason := hidden_refusal(content)) is not None:
+                raise SkillInstallError(f"{file.path}: {reason}")
             files[safe_relative(file.path)] = content
         return files
 
@@ -292,6 +301,13 @@ def safe_relative(path: str) -> str:
     if not parts or path.startswith("/") or "\\" in path or any(part in ("..", ".", ".git") for part in parts):
         raise SkillInstallError(f"The skill contains a path YAAP does not write: {path}")
     return path
+
+
+def hidden_refusal(content: bytes) -> str | None:
+    """Why a text file is refused for the characters it hides; binary content is not text and is not looked at."""
+    if b"\0" in content:
+        return None
+    return refusal_reason(find_hidden(content.decode("utf-8", errors="replace")))
 
 
 def content_warnings(files: list[RemoteFile], skipped: list[str], text: str) -> list[str]:

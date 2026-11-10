@@ -3,6 +3,7 @@ import { useState } from "react";
 import { api, errorMessage } from "../api/client";
 import type { components } from "../api/schema";
 import DiffView from "./DiffView";
+import MarkedText from "./MarkedText";
 
 type Candidate = components["schemas"]["SkillCandidateOut"];
 type Preview = components["schemas"]["GitHubPreviewOut"];
@@ -73,7 +74,11 @@ function CandidateReview({
           {show === "files" ? "Hide files" : "Show files"}
         </button>
       </p>
-      {show === "text" && <pre className="import-preview">{candidate.text}</pre>}
+      {show === "text" && (
+        <pre className="import-preview">
+          <MarkedText text={candidate.text_marked} />
+        </pre>
+      )}
       {show === "files" && (
         <pre className="import-preview">
           {candidate.files.map((file) => `${file.path}  (${formatSize(file.size)})`).join("\n")}

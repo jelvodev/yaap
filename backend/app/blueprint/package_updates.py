@@ -21,6 +21,7 @@ from app.blueprint.packages import (
     read_record,
 )
 from app.blueprint.skill_install import GitHubLink, GitHubSkills, Source, files_hash, text_diff
+from app.core.hidden_text import mark_hidden
 
 
 
@@ -92,13 +93,18 @@ def check_update(github: GitHubSkills, layer: Layer, name: str, ref: str | None 
         elif moved:
             new_item = replace(new_item, name=installed_name)
             update.item = new_item
+            try:
+                new_files = {} if new_item.error else download(github, latest_source, new_item)
+            except PackageError as error:  # A file the listing did not show is refused (for example hidden characters).
+                new_item = replace(new_item, error=str(error))
+                update.item = new_item
+                new_files = {}
             if new_item.error:
                 update.status = "changed"
-            else:
-                new_files = download(github, latest_source, new_item)
-                if new_files != old_files:
-                    update.status = "changed"
-                    update.upstream_diff = text_diff(old_files, new_files, commit[:7], latest_source.commit[:7])
+            elif new_files != old_files:
+                update.status = "changed"
+                diff = text_diff(old_files, new_files, commit[:7], latest_source.commit[:7])
+                update.upstream_diff = mark_hidden(diff)
         if update.changed_locally:
             update.local_diff = text_diff(old_files, local, commit[:7], "local")
         updates.append(update)

@@ -5352,6 +5352,10 @@
             "title": "Body",
             "type": "string"
           },
+          "body_marked": {
+            "title": "Body Marked",
+            "type": "string"
+          },
           "exists": {
             "title": "Exists",
             "type": "boolean"
@@ -5399,6 +5403,13 @@
           "summary": {
             "title": "Summary",
             "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
           }
         },
         "required": [
@@ -5408,6 +5419,8 @@
           "summary",
           "rules",
           "body",
+          "body_marked",
+          "warnings",
           "extra",
           "proposed_by_model",
           "path",
@@ -6835,6 +6848,10 @@
             "title": "Text",
             "type": "string"
           },
+          "text_marked": {
+            "title": "Text Marked",
+            "type": "string"
+          },
           "warnings": {
             "items": {
               "type": "string"
@@ -6849,6 +6866,7 @@
           "name",
           "description",
           "text",
+          "text_marked",
           "files",
           "size",
           "warnings",
@@ -10446,6 +10464,147 @@
         "title": "SessionFileOut",
         "type": "object"
       },
+      "SessionImportOut": {
+        "properties": {
+          "access": {
+            "default": "default",
+            "enum": [
+              "default",
+              "full",
+              "read_only"
+            ],
+            "title": "Access",
+            "type": "string"
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent"
+          },
+          "archived_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived At"
+          },
+          "context_limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context Limit"
+          },
+          "effort": {
+            "title": "Effort",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "imported": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImportedFromOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "pinned_skills": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Pinned Skills",
+            "type": "array"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "scheduled": {
+            "default": false,
+            "title": "Scheduled",
+            "type": "boolean"
+          },
+          "target_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "unread": {
+            "default": false,
+            "title": "Unread",
+            "type": "boolean"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "title",
+          "provider",
+          "model",
+          "effort",
+          "updated_at",
+          "warnings"
+        ],
+        "title": "SessionImportOut",
+        "type": "object"
+      },
       "SettingOption": {
         "properties": {
           "label": {
@@ -10713,6 +10872,10 @@
             "title": "Text",
             "type": "string"
           },
+          "text_marked": {
+            "title": "Text Marked",
+            "type": "string"
+          },
           "warnings": {
             "items": {
               "type": "string"
@@ -10726,6 +10889,7 @@
           "name",
           "description",
           "text",
+          "text_marked",
           "files",
           "size",
           "warnings",
@@ -18713,7 +18877,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ConversationSummaryOut"
+                  "$ref": "#/components/schemas/SessionImportOut"
                 }
               }
             },
@@ -18766,7 +18930,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ConversationSummaryOut"
+                  "$ref": "#/components/schemas/SessionImportOut"
                 }
               }
             },

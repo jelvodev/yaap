@@ -12,6 +12,7 @@ from app.agents.definitions import text_list
 from app.blueprint.layers import Document, parse_document
 from app.blueprint.packages import MANIFEST, MAX_ITEMS, PackageError, parse_manifest
 from app.blueprint.skill_install import BINARY_SUFFIXES, RUN_TEXT, SCRIPT_SUFFIXES
+from app.core.hidden_text import describe, find_hidden
 from app.presets.service import DEFAULT_PRESETS
 
 STARTER = Path(__file__).resolve().parents[2] / "blueprint" / "starter"
@@ -139,6 +140,17 @@ def test_no_text_in_a_pack_tells_the_agent_to_install_or_pipe_downloads(pack: Pa
     }
 
     assert not found, f"Install or run phrases that the package review flags: {found}"
+
+
+@pytest.mark.parametrize("pack", packs())
+def test_no_text_in_a_pack_hides_characters(pack: Path) -> None:
+    found = {
+        path.relative_to(pack).as_posix(): describe(findings)
+        for path in pack_files(pack)
+        if (findings := find_hidden(path.read_text(encoding="utf-8")))
+    }
+
+    assert not found, f"Characters the reader cannot see: {found}"
 
 
 @pytest.mark.parametrize("item", items_of("standard", "engineering", "skill", "command", "agent"))

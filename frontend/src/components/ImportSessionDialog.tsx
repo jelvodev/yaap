@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { formatSize } from "../api/attachments";
 import { api, errorMessage, type ConversationSummary, type Project } from "../api/client";
 import type { components } from "../api/schema";
+import { ReviewWarnings } from "./MarkedText";
 
 type TargetInfo = components["schemas"]["TargetOut"];
 type SessionFile = components["schemas"]["SessionFileOut"];
@@ -42,6 +43,8 @@ export default function ImportSessionDialog({
   const [picked, setPicked] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // An imported session that hides characters waits here until the user has read the warning.
+  const [reviewed, setReviewed] = useState<{ summary: ConversationSummary; warnings: string[] } | null>(null);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -79,7 +82,7 @@ export default function ImportSessionDialog({
   async function importNow() {
     setBusy(true);
     setError(null);
-    let summary: ConversationSummary | null = null;
+    let summary: (ConversationSummary & { warnings: string[] }) | null = null;
     if (source === "upload" && file) {
       const form = new FormData();
       form.append("file", file, file.name);
@@ -89,7 +92,7 @@ export default function ImportSessionDialog({
       if (preset) form.append("preset", preset);
       const response = await fetch(`/api/v1/environments/${environmentId}/conversations/import`, { method: "POST", body: form });
       const body = await response.json().catch(() => null);
-      if (response.ok) summary = body as ConversationSummary;
+      if (response.ok) summary = body as ConversationSummary & { warnings: string[] };
       else setError(errorMessage(body, `The session could not be imported (HTTP ${response.status}).`));
     } else if (source === "target" && targetId !== null && picked) {
       const { data, error: requestError } = await api.POST("/api/v1/environments/{environment_id}/conversations/import-from-target", {
@@ -100,7 +103,32 @@ export default function ImportSessionDialog({
       else setError(errorMessage(requestError, "The session could not be imported."));
     }
     setBusy(false);
-    if (summary) onImported(summary);
+    if (!summary) return;
+    if (summary.warnings.length > 0) setReviewed({ summary, warnings: summary.warnings });
+    else onImported(summary);
+  }
+
+  if (reviewed) {
+    return (
+      <div className="palette-backdrop" onMouseDown={() => onImported(reviewed.summary)}>
+        <div
+          className="palette import-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Session imported"
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          <h2>Session imported</h2>
+          <p className="small">The session was imported, but it hides characters from a reader. Look at it before you continue it.</p>
+          <ReviewWarnings warnings={reviewed.warnings} />
+          <div className="import-row import-actions">
+            <button type="button" className="button button-primary" onClick={() => onImported(reviewed.summary)}>
+              Open the conversation
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const ready = source === "upload" ? file !== null : targetId !== null && picked !== null;

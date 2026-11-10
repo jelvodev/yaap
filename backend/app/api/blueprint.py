@@ -268,6 +268,9 @@ class ImportProposalOut(BaseModel):
     summary: str
     rules: list[str]
     body: str
+    # The body with each hidden character shown as a mark such as ⟦U+200B ZERO WIDTH SPACE⟧.
+    body_marked: str
+    warnings: list[str]
     # Front matter of the document that YAAP keeps as it is (for example preset or tools of an agent).
     extra: dict[str, Any]
     proposed_by_model: bool
@@ -317,6 +320,8 @@ async def analyze_import(
             summary=proposal.summary,
             rules=proposal.rules,
             body=proposal.body,
+            body_marked=proposal.body_marked,
+            warnings=proposal.warnings,
             extra=proposal.extra,
             proposed_by_model=proposal.proposed_by_model,
             path=item_path(proposal.kind, proposal.name),
@@ -371,10 +376,12 @@ class SkillCandidateOut(BaseModel):
     name: str
     description: str
     text: str
+    # The text with each hidden character shown as a mark such as ⟦U+200B ZERO WIDTH SPACE⟧.
+    text_marked: str
     files: list[SkillFileOut]
     size: int
     warnings: list[str]
-    # Why it cannot be installed (too large, too many files), if so.
+    # Why it cannot be installed (too large, too many files, hidden characters), if so.
     error: str | None
     # The level being viewed already has a skill with this name; installing replaces it.
     exists: bool
@@ -443,6 +450,7 @@ def candidate_out(candidate: skill_install.Candidate, own: Layer) -> SkillCandid
         name=candidate.name,
         description=candidate.description,
         text=candidate.text,
+        text_marked=candidate.text_marked,
         files=[SkillFileOut(path=file.path, size=file.size) for file in candidate.files],
         size=candidate.size,
         warnings=candidate.warnings + replaces,
@@ -557,10 +565,12 @@ class PackageItemOut(BaseModel):
     name: str
     description: str
     text: str
+    # The text with each hidden character shown as a mark such as ⟦U+200B ZERO WIDTH SPACE⟧.
+    text_marked: str
     files: list[PackageFileOut]
     size: int
     warnings: list[str]
-    # Why it cannot be installed (scripts, binary files, too large, missing), if so.
+    # Why it cannot be installed (scripts, binary files, hidden characters, too large, missing), if so.
     error: str | None
     # The Blueprint path it gets, and whether the chosen level already has a file there.
     target: str
@@ -624,6 +634,7 @@ def package_item_out(
         name=item.name,
         description=item.description,
         text=item.text,
+        text_marked=item.text_marked,
         files=[PackageFileOut(path=file.path, size=file.size) for file in item.files],
         size=item.size,
         warnings=warnings,

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { api, errorMessage } from "../api/client";
 import type { components } from "../api/schema";
 import DiffView from "./DiffView";
+import MarkedText from "./MarkedText";
 import {
   type ItemChoice,
   type LevelQuery,
@@ -105,7 +106,11 @@ export function PackageItemReview({
           </>
         )}
       </p>
-      {show === "text" && <pre className="import-preview">{item.text}</pre>}
+      {show === "text" && (
+        <pre className="import-preview">
+          <MarkedText text={item.text_marked} />
+        </pre>
+      )}
       {show === "files" && (
         <pre className="import-preview">{item.files.map((file) => `${file.path}  (${formatSize(file.size)})`).join("\n")}</pre>
       )}
