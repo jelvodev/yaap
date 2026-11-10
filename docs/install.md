@@ -7,7 +7,7 @@ YAAP runs as a few containers on your own computer: YAAP itself, SearXNG (the we
 - **Docker.** Docker Desktop on Windows or macOS; Docker Engine with the Compose v2 plugin (`docker compose`) on Linux. On Windows, Docker Desktop with the WSL 2 backend.
 - **git**, to get YAAP and to update it.
 - **About 10 GB of disk** for the images, plus room for your projects and backups.
-- **At least one model connection** (see [Connect a model](#connect-a-model)): a Claude subscription, a ChatGPT plan, an Anthropic or OpenAI API key, or an Ollama server.
+- **At least one model connection** (see [Connect a model](#connect-a-model)): a Claude subscription, a ChatGPT plan, an Anthropic or OpenAI API key, an Ollama server, or an OpenAI-compatible endpoint.
 
 ## Install with the setup script
 
@@ -88,6 +88,7 @@ Connections are set in **Settings › Connections › Providers**, at Global and
 | OpenAI API key (default for OpenAI) | A key from the OpenAI platform | Settings › Connections › Providers: add the key in the environment |
 | OpenAI through Codex | A ChatGPT plan | `docker compose exec -it yaap codex login --device-auth`, then set the OpenAI connection to *Codex* |
 | Ollama | An Ollama server, for example on this computer | Settings › Connections › Providers at the Global level: set the Ollama address, for example `http://host.docker.internal:11434` |
+| OpenAI-compatible endpoint | OpenRouter, LM Studio, vLLM or another server with an OpenAI-style API | Settings › Connections › Providers at the Global level, *OpenAI-compatible endpoints*: add a name and the base URL including `/v1`, for example `https://openrouter.ai/api/v1` or `http://host.docker.internal:1234/v1`. No key is sent yet, so use a server that needs none |
 
 YAAP never handles subscription credentials itself: Claude Code and Codex keep their own sign-in in the data folder (`data/claude-code`, `data/codex`), and one sign-in serves every environment. Keys are tested before they are stored and are never shown again.
 

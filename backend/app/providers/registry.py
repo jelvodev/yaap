@@ -2,10 +2,13 @@
 
 from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.providers.base import ModelProvider
 from app.providers.catalog import ModelInfo
+
+if TYPE_CHECKING:
+    from app.providers.endpoints import EndpointState
 
 
 @dataclass(frozen=True)
@@ -33,17 +36,26 @@ class ProviderSpec:
 
 
 class ProviderRegistry:
-    def __init__(self, providers: Iterable[ProviderSpec], models: Iterable[ModelInfo], ollama: Any = None) -> None:
+    def __init__(
+        self,
+        providers: Iterable[ProviderSpec],
+        models: Iterable[ModelInfo],
+        ollama: Any = None,
+        endpoints: "EndpointState | None" = None,
+    ) -> None:
         self.specs = list(providers)
         names = {spec.name for spec in self.specs}
         self.fixed_models = [model for model in models if model.provider in names]
         # Local models: read from the Ollama server, so the list changes while YAAP runs.
         self.ollama = ollama
+        # OpenAI-compatible endpoints: their providers and models change with the global setting.
+        self.endpoints = endpoints
 
     @property
     def models(self) -> list[ModelInfo]:
         local = self.ollama.models if self.ollama is not None else []
-        return [*self.fixed_models, *local]
+        listed = self.endpoints.models if self.endpoints is not None else []
+        return [*self.fixed_models, *local, *listed]
 
     def find_provider(self, name: str, connection: str | None = None) -> ProviderSpec | None:
         """The spec for a provider and connection; without a connection, the first one registered."""
@@ -124,6 +136,7 @@ def default_provider_registry() -> ProviderRegistry:
         metered=False,
         signed_in=codex_signed_in,
     )
+    from app.providers.endpoints import EndpointState
     from app.providers.ollama_provider import OllamaProvider, OllamaState
 
     ollama_state = OllamaState()
@@ -138,5 +151,8 @@ def default_provider_registry() -> ProviderRegistry:
         local=True,
     )
     return ProviderRegistry(
-        [anthropic_api, claude_code, openai_api, codex, ollama], [*ANTHROPIC_MODELS, *OPENAI_MODELS], ollama_state
+        [anthropic_api, claude_code, openai_api, codex, ollama],
+        [*ANTHROPIC_MODELS, *OPENAI_MODELS],
+        ollama_state,
+        EndpointState(),
     )

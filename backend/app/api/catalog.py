@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
 
 from app.api.dependencies import EnvironmentDependency, ProviderRegistryDependency, SessionDependency
+from app.core.endpoint_sync import sync_endpoints
 from app.core.model_listing import model_availability
 from app.providers.catalog import ModelInfo
 from app.providers.registry import ProviderRegistry
@@ -75,7 +76,8 @@ def model_to_out(model: ModelInfo, providers: ProviderRegistry) -> ModelOut:
 
 
 def refresh_local_models(session: SessionDependency, providers: ProviderRegistry) -> None:
-    """Read Ollama's models again when its address is set (at most every minute)."""
+    """Read the models of Ollama and of the OpenAI-compatible endpoints again (at most every minute)."""
+    sync_endpoints(session, providers)
     if providers.ollama is None:
         return
     from app.core.settings import SETTING_DEFINITIONS, resolve_setting

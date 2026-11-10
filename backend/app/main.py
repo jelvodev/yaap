@@ -51,8 +51,11 @@ from app.browser.service import find_command as find_browser_command
 from app.version import VERSION
 from app.websearch.service import SearxngSearch
 from app.core.settings import SETTING_DEFINITIONS, resolve_setting
+from app.providers.endpoints import SETTING_KEY as ENDPOINTS_KEY
+from app.providers.endpoints import parse_endpoints, refresh_endpoints
 from app.providers.ollama_provider import refresh as refresh_ollama
 from app.api import mcp as mcp_api
+from app.api import openai_endpoints as openai_endpoints_api
 from app.api import tasks as tasks_api
 from app.api import estimates as estimates_api
 from app.api import reviews as reviews_api
@@ -135,6 +138,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # A key rotation: every value moves to the new key before anything uses it.
         app.state.key_rotation = rotate_all(session, app.state.cipher) if settings.previous_master_key else None
         ollama_url = str(resolve_setting(session, SETTING_DEFINITIONS["ollama_url"], None).value or "")
+        endpoints = parse_endpoints(resolve_setting(session, SETTING_DEFINITIONS[ENDPOINTS_KEY], None).value)
     app.state.master_key_source = settings.master_key_source
     # Plugins switched on in Settings; one that fails is switched off and YAAP starts without it.
     app.state.plugins.load_enabled(
@@ -143,6 +147,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if ollama_url and app.state.providers.ollama is not None:
         # Local models are known again after a restart; read in the background, as Ollama may be down.
         asyncio.get_running_loop().run_in_executor(None, refresh_ollama, app.state.providers.ollama, ollama_url)
+    if endpoints:
+        # Read in the background, as an endpoint may be down; its models are known again once it answers.
+        asyncio.get_running_loop().run_in_executor(None, refresh_endpoints, app.state.providers, endpoints)
     periodic_fetch = asyncio.create_task(
         fetch_periodically(app.state.session_factory, app.state.cipher, settings.blueprint_dir, settings.workspace_dir)
     )
@@ -312,6 +319,7 @@ def create_app(
     api.include_router(environments.router)
     api.include_router(credentials.router)
     api.include_router(catalog.router)
+    api.include_router(openai_endpoints_api.router)
     api.include_router(projects.router)
     api.include_router(blueprint.router)
     api.include_router(git.router)

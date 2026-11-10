@@ -8,6 +8,7 @@ export const api = createClient<paths>({ baseUrl: "", fetch: (request) => window
 export type Environment = components["schemas"]["EnvironmentOut"];
 export type CredentialStatus = components["schemas"]["CredentialStatusOut"];
 export type ModelInfo = components["schemas"]["ModelOut"];
+export type EndpointStatus = components["schemas"]["EndpointOut"];
 export type ConversationSummary = components["schemas"]["ConversationSummaryOut"];
 export type Conversation = components["schemas"]["ConversationOut"];
 export type Message = components["schemas"]["MessageOut"];

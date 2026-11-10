@@ -1,6 +1,7 @@
 import type { CredentialStatus } from "../../api/client";
 import { Panel } from "../../components/workbench/Workbench";
 import CredentialField from "./CredentialField";
+import EndpointsPanel from "./EndpointsPanel";
 import { ClaudeCodeStatusField, CodexStatusField } from "./StatusFields";
 import { type LevelSettings, type SettingsLevel, SelectSetting, TextSetting } from "./shared";
 
@@ -103,6 +104,8 @@ export default function ProviderPanels({
           />
         </Panel>
       )}
+
+      {level.kind === "global" && <EndpointsPanel store={store} />}
     </>
   );
 }

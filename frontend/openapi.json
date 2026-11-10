@@ -3445,6 +3445,77 @@
         "title": "DocumentReviewOut",
         "type": "object"
       },
+      "EndpointModelOut": {
+        "properties": {
+          "context_window": {
+            "title": "Context Window",
+            "type": "integer"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "priced": {
+            "title": "Priced",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "display_name",
+          "context_window",
+          "priced"
+        ],
+        "title": "EndpointModelOut",
+        "type": "object"
+      },
+      "EndpointOut": {
+        "properties": {
+          "base_url": {
+            "title": "Base Url",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "local": {
+            "title": "Local",
+            "type": "boolean"
+          },
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/EndpointModelOut"
+            },
+            "title": "Models",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "base_url",
+          "local",
+          "models",
+          "error"
+        ],
+        "title": "EndpointOut",
+        "type": "object"
+      },
       "EnvironmentCreate": {
         "properties": {
           "colour": {
@@ -22547,6 +22618,57 @@
           }
         },
         "summary": "List Models",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/v1/openai-endpoints": {
+      "get": {
+        "operationId": "list_endpoints_api_v1_openai_endpoints_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EndpointOut"
+                  },
+                  "title": "Response List Endpoints Api V1 Openai Endpoints Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Endpoints",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/v1/openai-endpoints/refresh": {
+      "post": {
+        "description": "Read the models of every endpoint again now.",
+        "operationId": "refresh_all_endpoints_api_v1_openai_endpoints_refresh_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EndpointOut"
+                  },
+                  "title": "Response Refresh All Endpoints Api V1 Openai Endpoints Refresh Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Refresh All Endpoints",
         "tags": [
           "catalog"
         ]

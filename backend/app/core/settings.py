@@ -28,6 +28,8 @@ from app.core.prompts import ENGLISH, Languages
 from app.core.utility_tasks import ROUTABLE_TASKS, check_task_models
 from app.core.utility_tasks import SETTING_KEY as UTILITY_TASKS_KEY
 from app.mcp_client.config import validate_servers
+from app.providers.endpoints import SETTING_KEY as ENDPOINTS_KEY
+from app.providers.endpoints import check_endpoints
 from app.providers.registry import ProviderRegistry
 from app.storage.models import Setting
 from app.targets.folders import validate_target_setting
@@ -553,6 +555,19 @@ SETTING_DEFINITIONS: dict[str, SettingDefinition] = {
             validate=lambda value, _providers: None
             if value == "" or (isinstance(value, str) and re.match(r"^https?://[^\s]+$", value))
             else "Use an http(s) address, such as http://host.docker.internal:11434.",
+        ),
+        SettingDefinition(
+            key=ENDPOINTS_KEY,
+            label="OpenAI-compatible endpoints",
+            description=(
+                "Servers that speak the OpenAI Chat Completions API, such as OpenRouter, LM Studio or vLLM: a list of "
+                "{name, base_url, local}. Each is a provider named like the endpoint, with the models it lists as "
+                "<name>/<model>. Set local for a server on your own computer or network, so 'only local models' "
+                "allows it."
+            ),
+            levels=frozenset({"global"}),
+            default=[],
+            validate=check_endpoints,
         ),
         SettingDefinition(
             key="mcp_servers",

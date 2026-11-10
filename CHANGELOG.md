@@ -6,6 +6,10 @@ yourself when you update; it says "None." when there is nothing.
 
 ## Unreleased
 
+- Any OpenAI-compatible endpoint (OpenRouter, LM Studio, vLLM and the like) connects as a provider of its own: add
+  its base URL in Settings › Connections, and its models show in the model picker as `<name>/<model>`. Agents run on
+  them with YAAP's tools. Keys are not part of this yet.
+
 ### Action needed
 
 None.

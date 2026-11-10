@@ -2816,6 +2816,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/openai-endpoints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Endpoints */
+        get: operations["list_endpoints_api_v1_openai_endpoints_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/openai-endpoints/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh All Endpoints
+         * @description Read the models of every endpoint again now.
+         */
+        post: operations["refresh_all_endpoints_api_v1_openai_endpoints_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/plugins": {
         parameters: {
             query?: never;
@@ -5539,6 +5576,30 @@ export interface components {
              * @default false
              */
             truncated: boolean;
+        };
+        /** EndpointModelOut */
+        EndpointModelOut: {
+            /** Context Window */
+            context_window: number;
+            /** Display Name */
+            display_name: string;
+            /** Id */
+            id: string;
+            /** Priced */
+            priced: boolean;
+        };
+        /** EndpointOut */
+        EndpointOut: {
+            /** Base Url */
+            base_url: string;
+            /** Error */
+            error: string | null;
+            /** Local */
+            local: boolean;
+            /** Models */
+            models: components["schemas"]["EndpointModelOut"][];
+            /** Name */
+            name: string;
         };
         /** EnvironmentCreate */
         EnvironmentCreate: {
@@ -14282,6 +14343,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ModelOut"][];
+                };
+            };
+        };
+    };
+    list_endpoints_api_v1_openai_endpoints_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EndpointOut"][];
+                };
+            };
+        };
+    };
+    refresh_all_endpoints_api_v1_openai_endpoints_refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EndpointOut"][];
                 };
             };
         };

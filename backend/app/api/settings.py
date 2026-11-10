@@ -12,6 +12,7 @@ from app.api.dependencies import (
 )
 from app.agent.policy import CONFIGURABLE_TOOLS
 from app.api.schemas import SettingOption, SettingOut, SettingValue, ToolPermissionOut
+from app.core.endpoint_sync import sync_endpoints
 from app.core.model_policy_store import SETTING_KEY as MODEL_POLICY
 from app.core.model_policy_store import project_widening
 from app.core.settings import (
@@ -22,6 +23,7 @@ from app.core.settings import (
     resolve_setting,
     store_setting,
 )
+from app.providers.endpoints import SETTING_KEY as ENDPOINTS_KEY
 from app.providers.registry import ProviderRegistry
 
 router = APIRouter(tags=["settings"])
@@ -81,12 +83,16 @@ def set_global_setting(
 ) -> SettingOut:
     definition = require_definition(key, "global")
     store_setting(session, definition, None, validated(definition, payload.value, providers))
+    if key == ENDPOINTS_KEY:
+        sync_endpoints(session, providers)
     return setting_to_out(resolve_setting(session, definition, None))
 
 
 @router.delete("/settings/{key}", status_code=status.HTTP_204_NO_CONTENT)
-def reset_global_setting(key: str, session: SessionDependency) -> Response:
+def reset_global_setting(key: str, session: SessionDependency, providers: ProviderRegistryDependency) -> Response:
     clear_setting(session, require_definition(key, "global"), None)
+    if key == ENDPOINTS_KEY:
+        sync_endpoints(session, providers)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
