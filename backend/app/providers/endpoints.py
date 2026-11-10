@@ -12,6 +12,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -25,8 +26,8 @@ SETTING_KEY = "openai_endpoints"
 DEFAULT_CONTEXT = 32_768
 REFRESH_SECONDS = 60
 MAX_ENDPOINTS = 20
-NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{0,30}$")
-URL_PATTERN = re.compile(r"^https?://[^\s]+$")
+NAME_PATTERN = re.compile(r"[a-z0-9][a-z0-9-]{0,30}")
+URL_PATTERN = re.compile(r"https?://[^\s]+")
 # Providers whose names an endpoint cannot take, besides the ones registered when the setting is checked.
 BUILT_IN_NAMES = frozenset({"anthropic", "openai", "ollama"})
 # Fields of a model listing that name the context window, in the order they are tried.
@@ -63,18 +64,29 @@ def check_endpoints(value: Any, providers: ProviderRegistry) -> str | None:
         if not isinstance(item, dict) or set(item) - {"name", "base_url", "local"}:
             return "Each endpoint is an object with a name, a base_url and local."
         name, base_url = item.get("name"), item.get("base_url")
-        if not isinstance(name, str) or not NAME_PATTERN.match(name):
+        if not isinstance(name, str) or not NAME_PATTERN.fullmatch(name):
             return "An endpoint name uses lowercase letters, digits and hyphens, and is at most 31 characters."
         if name in taken:
             return f"The name {name} is a provider of YAAP already; choose another."
         if name in seen:
             return f"The name {name} is used twice."
         seen.add(name)
-        if not isinstance(base_url, str) or not URL_PATTERN.match(base_url.strip()):
+        if not isinstance(base_url, str) or not valid_base_url(base_url.strip()):
             return f"The base URL of {name} is an http(s) address, such as http://localhost:1234/v1."
         if "local" in item and not isinstance(item["local"], bool):
             return f"local of {name} is true or false."
     return None
+
+
+def valid_base_url(value: str) -> bool:
+    """An http(s) address with a host and no user name or password in it: credentials in a URL end up in logs."""
+    if not URL_PATTERN.fullmatch(value):
+        return False
+    try:
+        parts = urlsplit(value)
+    except ValueError:
+        return False
+    return bool(parts.hostname) and "@" not in parts.netloc
 
 
 def positive_number(value: Any) -> float | None:

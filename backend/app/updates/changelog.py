@@ -3,9 +3,9 @@
 import re
 from dataclasses import dataclass
 
-from app.updates.versions import parse_version
+from app.updates.versions import VERSION_PATTERN, parse_version
 
-_HEADING = re.compile(r"^## (?:(\d+\.\d+\.\d+) \(.*\)|Unreleased)\s*$")
+_HEADING = re.compile(rf"^## (?:({VERSION_PATTERN}) \(.*\)|Unreleased)\s*$")
 _ACTION_HEADING = "### Action needed"
 
 

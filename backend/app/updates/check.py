@@ -24,7 +24,7 @@ from app.github.token import github_token_for
 from app.storage.models import Setting
 from app.updates.changelog import changelog_section
 from app.updates.schedule import check_due, is_off
-from app.updates.source import SOURCE_PATTERN
+from app.updates.source import is_source
 from app.updates.versions import is_newer, newest_tag
 from app.version import VERSION
 
@@ -89,6 +89,13 @@ class UpdateState:
     @property
     def update_available(self) -> bool:
         return self.newest_version is not None and is_newer(self.newest_version, VERSION)
+
+    @property
+    def release_url(self) -> str | None:
+        """The page of the newest version on github.com."""
+        if not self.newest_version or not self.source:
+            return None
+        return f"https://github.com/{self.source}/releases/tag/v{self.newest_version}"
 
 
 @dataclass(frozen=True)
@@ -177,7 +184,7 @@ class UpdateService:
         with self.session_factory() as session:
             source = str(resolve_setting(session, SETTING_DEFINITIONS["update_source"], None).value).strip()
             token = github_token_for(session, self.cipher, None)
-        if not SOURCE_PATTERN.fullmatch(source):
+        if not is_source(source):
             return CheckOutcome(self.fail(last, "The update source must look like owner/repository."))
         # A cached answer belongs to the repository it came from.
         if last.source != source:

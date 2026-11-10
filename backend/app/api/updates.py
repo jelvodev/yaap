@@ -28,13 +28,12 @@ class UpdateStatusOut(BaseModel):
 
 
 def status_out(service: UpdateService, state: UpdateState) -> UpdateStatusOut:
-    newest = state.newest_version
     return UpdateStatusOut(
         current_version=VERSION,
-        newest_version=newest,
+        newest_version=state.newest_version,
         update_available=state.update_available,
         notes=state.notes,
-        release_url=f"https://github.com/{state.source}/releases/tag/v{newest}" if newest and state.source else None,
+        release_url=state.release_url,
         last_checked_at=state.checked_at,
         error=state.error,
         checking=service.checking,

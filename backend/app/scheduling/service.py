@@ -269,7 +269,7 @@ def tick(app: Any, now: datetime | None = None) -> list[Started]:
     with app.state.session_factory() as session:
         prune_eval_workspaces(session, app.state.workspace_dir)
     backup_tick(app)
-    update_tick(app)
+    update_tick(app.state.updates)
     now = now or datetime.now(UTC)
     started = []
     with app.state.session_factory() as session:

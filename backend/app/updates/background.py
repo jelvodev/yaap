@@ -4,7 +4,6 @@ import asyncio
 import logging
 import threading
 from datetime import UTC, datetime
-from typing import Any
 
 from app.updates import check
 from app.updates.check import UpdateService
@@ -19,9 +18,8 @@ def run_in_thread(service: UpdateService) -> None:
         logger.exception("The scheduled update check failed.")
 
 
-def update_tick(app: Any, now: datetime | None = None, wait: bool = False) -> bool:
+def update_tick(service: UpdateService, now: datetime | None = None, wait: bool = False) -> bool:
     """From the minute loop: start the scheduled check when it is due. Returns whether one was started."""
-    service: UpdateService = app.state.updates
     if not service.scheduled_check_due(now or datetime.now(UTC)):
         return False
     if wait:

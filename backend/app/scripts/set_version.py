@@ -63,7 +63,8 @@ def parse_version(text: str) -> tuple[int, int, int]:
 
 
 def is_newer(new: str, old: str) -> bool:
-    return parse_version(new) > parse_version(old)
+    parse_version(new), parse_version(old)  # Both must be versions: a bad one is an error, not "not newer".
+    return versions.is_newer(new, old)
 
 
 def newline_of(text: str) -> str:

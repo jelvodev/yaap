@@ -13,6 +13,7 @@ from app.updates.background import check_at_start, update_tick
 from app.updates.changelog import changelog_section
 from app.updates.check import PRIVATE_HINT, UpdateService
 from app.updates.schedule import check_due, schedule_error
+from app.updates.source import source_error
 from app.updates.versions import is_newer, newest_tag, parse_tag, parse_version
 from app.version import VERSION
 
@@ -239,6 +240,11 @@ def test_a_changed_source_is_asked_without_the_old_etag(client, github):
     assert "/repos/someone/fork/tags" in str(last.url) and "If-None-Match" not in last.headers
 
 
+@pytest.mark.parametrize("value", [".", "./yaap", "owner/..", "../..", "a/b/c", "owner"])
+def test_the_update_source_refuses_dot_segments_and_other_shapes(value):
+    assert source_error(value) is not None
+
+
 def test_the_settings_refuse_a_bad_source_and_a_frequent_schedule(client):
     assert client.put("/api/v1/settings/update_source", json={"value": "not a repo"}).status_code == 422
     assert client.put("/api/v1/settings/update_check_schedule", json={"value": "*/10 * * * *"}).status_code == 422
@@ -248,7 +254,7 @@ def test_the_settings_refuse_a_bad_source_and_a_frequent_schedule(client):
 def test_off_means_no_call_at_start_or_on_the_schedule(client, github):
     client.put("/api/v1/settings/update_check_schedule", json={"value": "off"})
     asyncio.run(check_at_start(service_of(client), delay=0))
-    assert update_tick(client.app, datetime(2099, 1, 1, 9, 0, tzinfo=UTC), wait=True) is False
+    assert update_tick(service_of(client), datetime(2099, 1, 1, 9, 0, tzinfo=UTC), wait=True) is False
     assert github.requests == []
     assert client.get("/api/v1/updates").json()["automatic"] is False
     # By hand still works.
@@ -259,7 +265,7 @@ def test_off_means_no_call_at_start_or_on_the_schedule(client, github):
 def test_on_means_a_check_at_start_and_on_the_schedule(client, github):
     asyncio.run(check_at_start(service_of(client), delay=0))
     assert len(github.tag_calls()) == 1
-    assert update_tick(client.app, datetime(2099, 1, 1, 9, 0, tzinfo=UTC), wait=True) is True
+    assert update_tick(service_of(client), datetime(2099, 1, 1, 9, 0, tzinfo=UTC), wait=True) is True
     assert len(github.tag_calls()) == 2
 
 
