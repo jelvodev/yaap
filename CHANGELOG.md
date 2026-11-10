@@ -6,7 +6,7 @@ yourself when you update; it says "None." when there is nothing.
 
 ## Unreleased
 
-- Any OpenAI-compatible endpoint (OpenRouter, LM Studio, vLLM and the like) connects as a provider of its own: add
+- Any OpenAI-compatible endpoint (a keyless server such as LM Studio or vLLM) connects as a provider of its own: add
   its base URL in Settings › Connections, and its models show in the model picker as `<name>/<model>`. Agents run on
   them with YAAP's tools. Keys are not part of this yet.
 - YAAP tells you when a newer version exists: Settings › System › Updates shows the newest release with its notes and
@@ -16,11 +16,21 @@ yourself when you update; it says "None." when there is nothing.
   what changed with *Action needed* first, makes a backup, builds and starts the new version, checks that it
   answers and offers to go back when it does not; `-Rollback` undoes an update that turned out bad. Claude
   Code is now installed afresh once a month, in the first update of the month.
+- A conversation can move to another project of its environment, or out of its project. Its agent runs, search
+  entries, reviews and suggestions go with it, its processes and shell sessions are stopped first, and a note in
+  the conversation tells the next reply that the folder changed.
+- Text from outside is checked for hidden characters: skills from GitHub, Blueprint packages, imported documents and
+  sessions. Tag characters and text direction controls are refused; invisible characters, stray variation
+  selectors and words that mix Latin letters with Cyrillic or Greek ones are shown as warnings in the review, with
+  the characters made visible.
 
 ### Action needed
 
 The first update to 0.6.0 is by hand: `git pull` and `docker compose up -d --build`; after
 that, `scripts/update`.
+
+Skills and packages that contain tag characters or text direction controls are now refused. If one you use is
+refused, open the file and remove those characters; the review shows where they are.
 
 ## 0.5.7 (2026-11-09)
 

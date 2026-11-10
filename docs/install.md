@@ -88,7 +88,7 @@ Connections are set in **Settings › Connections › Providers**, at Global and
 | OpenAI API key (default for OpenAI) | A key from the OpenAI platform | Settings › Connections › Providers: add the key in the environment |
 | OpenAI through Codex | A ChatGPT plan | `docker compose exec -it yaap codex login --device-auth`, then set the OpenAI connection to *Codex* |
 | Ollama | An Ollama server, for example on this computer | Settings › Connections › Providers at the Global level: set the Ollama address, for example `http://host.docker.internal:11434` |
-| OpenAI-compatible endpoint | OpenRouter, LM Studio, vLLM or another server with an OpenAI-style API | Settings › Connections › Providers at the Global level, *OpenAI-compatible endpoints*: add a name and the base URL including `/v1`, for example `https://openrouter.ai/api/v1` or `http://host.docker.internal:1234/v1`. No key is sent yet, so use a server that needs none |
+| OpenAI-compatible endpoint | LM Studio, vLLM or another server with an OpenAI-style API | Settings › Connections › Providers at the Global level, *OpenAI-compatible endpoints*: add a name and the base URL including `/v1`, for example `http://host.docker.internal:1234/v1`. No key is sent yet, so use a server that needs none |
 
 YAAP never handles subscription credentials itself: Claude Code and Codex keep their own sign-in in the data folder (`data/claude-code`, `data/codex`), and one sign-in serves every environment. Keys are tested before they are stored and are never shown again.
 
