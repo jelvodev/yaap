@@ -7,6 +7,19 @@ Where YAAP is going. Each version has a theme. The order is what is intended, no
 
 The current version is **0.6.0**.
 
+## To do before going public
+
+The repository becomes public on Friday 13 November 2026. Before that:
+
+46. **Check the history and files** for anything private: names, addresses, keys, internal notes.
+47. **A last security check** of the code, before everyone can read it.
+48. **Release 0.6.1** with the smaller first download, as a GitHub Release, so the update notice finds it.
+49. **Make the repository public**, and check that the update notice in a running YAAP sees the release.
+50. **A clean install** from the public repository on another computer, from `git clone` to the first answer, with
+    the time it took.
+
+After that, ready-made images (45) can be built for free by GitHub Actions.
+
 ## 0.6.x: easier to start
 
 Fewer steps and less waiting before the first answer.
