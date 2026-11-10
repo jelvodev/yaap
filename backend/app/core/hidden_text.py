@@ -103,11 +103,35 @@ def allowed_joiner(text: str, index: int) -> bool:
     return is_emoji(before) and is_emoji(ord(text[index + 1]))
 
 
+WAVING_BLACK_FLAG = 0x1F3F4
+CANCEL_TAG = 0xE007F
+MAX_FLAG_TAGS = 7
+
+
+def is_flag_tag(code: int) -> bool:
+    """A tag letter or digit as a subdivision flag spells it (gbeng, gbsct, gbwls)."""
+    return 0xE0061 <= code <= 0xE007A or 0xE0030 <= code <= 0xE0039
+
+
+def allowed_flag_tags(text: str, index: int) -> bool:
+    """Tag characters that spell a subdivision flag: the black flag, up to seven tag letters, then the cancel tag."""
+    start = index
+    while start > 0 and is_flag_tag(ord(text[start - 1])):
+        start -= 1
+    end = index if ord(text[index]) != CANCEL_TAG else index - 1
+    while end + 1 < len(text) and is_flag_tag(ord(text[end + 1])):
+        end += 1
+    letters = end - start + 1
+    closed = end + 1 < len(text) and ord(text[end + 1]) == CANCEL_TAG
+    flagged = start > 0 and ord(text[start - 1]) == WAVING_BLACK_FLAG
+    return flagged and closed and 2 <= letters <= MAX_FLAG_TAGS
+
+
 def classify(text: str, index: int) -> HiddenKind | None:
     char = text[index]
     code = ord(char)
     if 0xE0000 <= code <= 0xE007F:
-        return "tag"
+        return None if allowed_flag_tags(text, index) else "tag"
     if code in BIDI_CONTROLS:
         return "bidi"
     if is_variation_selector(code):

@@ -50,6 +50,7 @@ def test_each_kind_is_found_with_its_position(text: str, kind: str, line: int, c
         "CJK 你好 こんにちは 漢︀字",
         f"{BOM}file that starts with a byte order mark",
         "Привет мир and αβγ in separate words",
+        "England \U0001f3f4\U000e0067\U000e0062\U000e0065\U000e006e\U000e0067\U000e007f and the rest",
         "tabs\tand\r\nwindows lines and — dashes “quotes”",
     ],
 )
@@ -100,3 +101,16 @@ def test_describe_names_each_kind_and_is_empty_for_clean_text() -> None:
     assert "invisible character" in text
     assert "line 1, column 2" in text
     assert f"p{CYRILLIC_A}ypal" in text
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "\U000e0067\U000e0062\U000e007f without the flag",
+        "\U0001f3f4\U000e0067\U000e0062\U000e0065 without the cancel tag",
+        "\U0001f3f4\U000e0049\U000e0067\U000e006e\U000e006f\U000e0072\U000e0065\U000e007f capital letters",
+        "\U0001f3f4\U000e0061\U000e0062\U000e0063\U000e0064\U000e0065\U000e0066\U000e0067\U000e0068\U000e007f too long",
+    ],
+)
+def test_tag_characters_outside_a_flag_are_refused(text: str) -> None:
+    assert refusing(find_hidden(text))
