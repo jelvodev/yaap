@@ -79,6 +79,10 @@ COPY backend/requirements.lock ./
 RUN pip install --no-cache-dir --require-hashes --no-deps -r requirements.lock
 COPY backend/app ./app
 COPY --from=frontend /build/dist ./static
+# Which commit and channel this build is, shown by GET /api/v1/version; last, so a new value rebuilds nothing before it.
+ARG YAAP_COMMIT=
+ARG YAAP_CHANNEL=
+ENV YAAP_COMMIT=${YAAP_COMMIT} YAAP_CHANNEL=${YAAP_CHANNEL}
 USER yaap
 # 8081: the preview of a project's app (YAAP_PREVIEW_PORT), a second listener the app starts itself.
 EXPOSE 8080 8081

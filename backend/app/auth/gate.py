@@ -1,9 +1,9 @@
 """The gate in front of YAAP's API: every route under /api/ needs a browser session or an API token.
 
 Open are only the routes a browser needs before it is signed in (the sign-in state, signing in, the first-run password
-screen) and the health check. A browser session is the HttpOnly cookie; a request that changes something must also send
-the session's CSRF token in the X-CSRF-Token header. Where a request comes from (its Host and Origin) was already
-checked in front of this gate, for every route (app/auth/boundary.py). An API token of purpose
+screen), the health check and the version. A browser session is the HttpOnly cookie; a request that changes
+something must also send the session's CSRF token in the X-CSRF-Token header. Where a request comes from (its Host
+and Origin) was already checked in front of this gate, for every route (app/auth/boundary.py). An API token of purpose
 `api` (Authorization: Bearer) opens the whole API without CSRF, as no browser sends it by itself.
 
 YAAP's own MCP endpoint (/mcp) and the A2A endpoints check their own tokens, and so do a plugin's page files: a
@@ -34,6 +34,7 @@ from app.plugins.page_access import PAGE_FILE, PLUGIN_HEADER, PageGrants, page_r
 OPEN_PATHS = frozenset(
     {
         "/api/v1/health",
+        "/api/v1/version",
         "/api/v1/auth/state",
         "/api/v1/auth/sign-in",
         "/api/v1/auth/setup",

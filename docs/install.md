@@ -119,6 +119,8 @@ git pull
 docker compose up -d --build
 ```
 
+Before you update, read [CHANGELOG.md](../CHANGELOG.md): each release lists what changed and, under **Action needed**, what you must do yourself. `GET /api/v1/version` tells which version is running.
+
 The database is migrated automatically on start. Your data folder and `.env` are not touched. The Codex version is pinned and changes with YAAP's updates. Claude Code comes from Anthropic's stable channel when the image is built; to get its newest version, rebuild without the cache: `docker compose build --no-cache yaap`, then `docker compose up -d`.
 
 ## Backups

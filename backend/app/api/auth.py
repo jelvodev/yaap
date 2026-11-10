@@ -23,8 +23,10 @@ from app.auth.account import (
 )
 from app.auth.gate import Identity, csrf_cookie_name, identify, request_identity, session_cookie_name
 from app.auth.tokens import API_TOKEN, PURPOSES, create_token, revoke_token, token_entries, token_of
+from app.config import environment_value
 from app.storage.models import Environment, Project, VaultEntry
 from app.vault.store import VaultError
+from app.version import VERSION
 
 router = APIRouter(tags=["auth"])
 
@@ -38,6 +40,13 @@ COOKIE_MAX_AGE = 400 * 24 * 3600
 
 class HealthOut(BaseModel):
     status: Literal["ok"]
+
+
+class VersionOut(BaseModel):
+    version: str
+    # The git commit and the update channel of the build; empty when the build did not say.
+    commit: str
+    channel: str
 
 
 class AuthStateOut(BaseModel):
@@ -90,6 +99,16 @@ class ApiTokenCreatedOut(ApiTokenOut):
 def health() -> HealthOut:
     """Open without signing in: whether YAAP answers (the setup script waits for it)."""
     return HealthOut(status="ok")
+
+
+@router.get("/version", response_model=VersionOut)
+def version() -> VersionOut:
+    """Open without signing in: the running version, and the commit and channel when the build names them."""
+    return VersionOut(
+        version=VERSION,
+        commit=environment_value("YAAP_COMMIT").strip(),
+        channel=environment_value("YAAP_CHANNEL").strip(),
+    )
 
 
 def is_https(request: Request) -> bool:

@@ -3,6 +3,10 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
+      # Shown by GET /api/v1/version; empty for a plain build.
+      args:
+        YAAP_COMMIT: ${YAAP_COMMIT:-}
+        YAAP_CHANNEL: ${YAAP_CHANNEL:-}
     image: yaap:local
     environment:
       # The master key: in .env, or in a file named by YAAP_MASTER_KEY_FILE (a Docker secret, set in the

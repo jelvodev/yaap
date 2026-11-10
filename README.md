@@ -130,6 +130,7 @@ YAAP is built for one person on one computer. It has one password, listens on `1
 | [Architecture](docs/architecture.md) | How YAAP is built, with diagrams |
 | [Plugins](docs/plugins.md) | Writing a plugin of your own |
 | [Blueprint packages](docs/blueprint-packages.md) | Sharing standards, skills and agents as a package |
+| [Changelog](CHANGELOG.md) | What changed in each release, and what you must do when you update |
 | [Roadmap](docs/roadmap.md) | What comes in the next versions, and the wish list |
 | [Credits](docs/credits.md) | Where the ideas in YAAP's starter come from |
 | [Contributing](CONTRIBUTING.md) | Development setup, tests and conventions |

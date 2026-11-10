@@ -11,8 +11,6 @@ The current version is **0.5.7**.
 
 For people who install YAAP from this repository.
 
-11. **Releases and a changelog.** Tagged releases with notes. Each release says what you must do yourself when you
-    update.
 12. **Updating with one command.** `scripts/update.ps1` and `scripts/update.sh` do four things:
     - make a backup;
     - build and start the newest release;

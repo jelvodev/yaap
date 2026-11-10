@@ -12,6 +12,7 @@ from app.api.plugins import SDK_DECLARATIONS, SDK_SCRIPT
 from app.auth.gate import OPEN_PATHS, plugin_page, token_path
 from app.auth.tokens import TOKEN_PATHS, TokenGrant, issue_api_token, require_api_token
 from app.storage.models import Account, AuthSession, VaultEntry
+from app.version import VERSION
 from tests.conftest import TEST_PASSWORD, sign_in
 
 
@@ -55,6 +56,23 @@ def test_every_api_route_refuses_without_a_session_or_token(client: TestClient) 
     # What stays open: the sign-in state, signing in, the first-run password and the health check.
     assert outsider.get("/api/v1/health").json() == {"status": "ok"}
     assert outsider.get("/api/v1/auth/state").json() == {"password_set": True, "signed_in": False, "method": None}
+
+
+@pytest.mark.parametrize(
+    ("commit", "channel"),
+    [(None, None), ("abc1234", "stable")],
+)
+def test_version_is_open_without_signing_in(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, commit: str | None, channel: str | None
+) -> None:
+    for name, value in (("YAAP_COMMIT", commit), ("YAAP_CHANNEL", channel)):
+        if value is None:
+            monkeypatch.delenv(name, raising=False)
+        else:
+            monkeypatch.setenv(name, value)
+    answer = anonymous(client).get("/api/v1/version")
+    assert answer.status_code == 200
+    assert answer.json() == {"version": VERSION, "commit": commit or "", "channel": channel or ""}
 
 
 def test_token_paths_are_left_to_their_routes() -> None:

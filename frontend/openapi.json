@@ -13299,6 +13299,29 @@
         "title": "VendorOut",
         "type": "object"
       },
+      "VersionOut": {
+        "properties": {
+          "channel": {
+            "title": "Channel",
+            "type": "string"
+          },
+          "commit": {
+            "title": "Commit",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "commit",
+          "channel"
+        ],
+        "title": "VersionOut",
+        "type": "object"
+      },
       "WaitingApprovalOut": {
         "properties": {
           "approval_id": {
@@ -27111,6 +27134,28 @@
         "summary": "Master Key State",
         "tags": [
           "vault"
+        ]
+      }
+    },
+    "/api/v1/version": {
+      "get": {
+        "description": "Open without signing in: the running version, and the commit and channel when the build names them.",
+        "operationId": "version_api_v1_version_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Version",
+        "tags": [
+          "auth"
         ]
       }
     }
