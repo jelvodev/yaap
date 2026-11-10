@@ -6,6 +6,12 @@ yourself when you update; it says "None." when there is nothing.
 
 ## Unreleased
 
+### Action needed
+
+None.
+
+## 0.6.0 (2026-11-10)
+
 - Claude Code and Codex sign in from the browser: Settings › Connections › Providers and the first start have a
   button *Sign in with your Claude subscription* (open the link, sign in, paste the code back) and *Sign in with your
   ChatGPT plan* (open the link, enter the code shown). The terminal command still works. YAAP only shows links on the

@@ -5,22 +5,7 @@ Where YAAP is going. Each version has a theme. The order is what is intended, no
 - **Numbers.** Every item has a number to refer to, and a number is never reused.
 - **Finished items** leave this list. The release notes say what came in each release.
 
-The current version is **0.5.7**.
-
-## 0.6.0: ready for others
-
-For people who install YAAP from this repository.
-
-13. **Update notice.** YAAP looks for a newer release when it starts and on a schedule (daily by default; you can
-    switch it off). Settings then shows the release notes and the command to update.
-
-<!-- A gap in the numbers: a finished item left the list. -->
-
-15. **Any OpenAI-compatible endpoint.** A connection with a base URL and an API key, for OpenRouter, LM Studio, vLLM
-    and similar servers.
-16. **Hidden characters.** Skills, Blueprint packages and imports are checked for invisible, direction-reversing and
-    look-alike characters. Any such characters are shown before you accept the item.
-17. **Move a conversation to another project**, together with what belongs to it.
+The current version is **0.6.0**.
 
 ## 0.6.x: easier to start
 
