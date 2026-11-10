@@ -722,6 +722,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/claude-code/sign-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Claude Code Sign In
+         * @description Where the sign-in stands.
+         */
+        get: operations["read_claude_code_sign_in_api_v1_claude_code_sign_in_get"];
+        put?: never;
+        /**
+         * Start Claude Code Sign In
+         * @description Start signing in; a sign-in that is already running is cancelled first.
+         */
+        post: operations["start_claude_code_sign_in_api_v1_claude_code_sign_in_post"];
+        /**
+         * Cancel Claude Code Sign In
+         * @description Stop the sign-in that is running.
+         */
+        delete: operations["cancel_claude_code_sign_in_api_v1_claude_code_sign_in_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/claude-code/sign-in/code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send Claude Code Sign In Code
+         * @description Give the CLI the code that the sign-in page showed (Claude Code).
+         */
+        post: operations["send_claude_code_sign_in_code_api_v1_claude_code_sign_in_code_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/claude-code/status": {
         parameters: {
             query?: never;
@@ -736,6 +784,54 @@ export interface paths {
         get: operations["claude_code_status_api_v1_claude_code_status_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/codex/sign-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Codex Sign In
+         * @description Where the sign-in stands.
+         */
+        get: operations["read_codex_sign_in_api_v1_codex_sign_in_get"];
+        put?: never;
+        /**
+         * Start Codex Sign In
+         * @description Start signing in; a sign-in that is already running is cancelled first.
+         */
+        post: operations["start_codex_sign_in_api_v1_codex_sign_in_post"];
+        /**
+         * Cancel Codex Sign In
+         * @description Stop the sign-in that is running.
+         */
+        delete: operations["cancel_codex_sign_in_api_v1_codex_sign_in_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/codex/sign-in/code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send Codex Sign In Code
+         * @description Give the CLI the code that the sign-in page showed (Claude Code).
+         */
+        post: operations["send_codex_sign_in_code_api_v1_codex_sign_in_code_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -8089,6 +8185,27 @@ export interface components {
              */
             verdict: "passed" | "failed" | "mixed" | "error" | "missing";
         };
+        /** SignInCodeIn */
+        SignInCodeIn: {
+            /** Code */
+            code: string;
+        };
+        /** SignInOut */
+        SignInOut: {
+            /** Code Sent */
+            code_sent: boolean;
+            /** Message */
+            message: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "idle" | "starting" | "waiting_for_code" | "waiting_for_browser" | "signed_in" | "failed" | "cancelled";
+            /** Url */
+            url: string | null;
+            /** User Code */
+            user_code: string | null;
+        };
         /** SkillCandidateOut */
         SkillCandidateOut: {
             /** Description */
@@ -10391,6 +10508,99 @@ export interface operations {
             };
         };
     };
+    read_claude_code_sign_in_api_v1_claude_code_sign_in_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignInOut"];
+                };
+            };
+        };
+    };
+    start_claude_code_sign_in_api_v1_claude_code_sign_in_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignInOut"];
+                };
+            };
+        };
+    };
+    cancel_claude_code_sign_in_api_v1_claude_code_sign_in_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignInOut"];
+                };
+            };
+        };
+    };
+    send_claude_code_sign_in_code_api_v1_claude_code_sign_in_code_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignInCodeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignInOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     claude_code_status_api_v1_claude_code_status_get: {
         parameters: {
             query?: never;
@@ -10407,6 +10617,99 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClaudeCodeStatusOut"];
+                };
+            };
+        };
+    };
+    read_codex_sign_in_api_v1_codex_sign_in_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignInOut"];
+                };
+            };
+        };
+    };
+    start_codex_sign_in_api_v1_codex_sign_in_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignInOut"];
+                };
+            };
+        };
+    };
+    cancel_codex_sign_in_api_v1_codex_sign_in_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignInOut"];
+                };
+            };
+        };
+    };
+    send_codex_sign_in_code_api_v1_codex_sign_in_code_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignInCodeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignInOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

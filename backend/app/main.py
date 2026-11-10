@@ -28,6 +28,7 @@ from app.api import (
     checkpoints,
     knowledge,
     catalog,
+    cli_sign_in as cli_sign_in_api,
     conversations,
     credentials,
     environments,
@@ -107,6 +108,7 @@ from app.vault.rotation import rotate_all
 from app.credentials.types import CredentialType, default_credential_types
 from app.environments.service import seed_default_environments
 from app.git.periodic import fetch_periodically
+from app.providers.cli_sign_in import CliSignIns
 from app.providers.registry import ProviderRegistry, default_provider_registry
 from app.agent.processes import ProcessManager
 from app.agent.shells import ShellSessions
@@ -219,6 +221,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.outside_clients.close_all(app)
     await app.state.mcp.shutdown()
     await app.state.processes.shutdown()
+    await app.state.cli_sign_ins.stop()
     await LANGUAGE_SERVERS.stop_all()
     # Before the engine goes: work still running would keep a connection, and the database file, open.
     await stop_replies_and_their_work(app.state.replies, (app.state.evals.work, app.state.replay_service.work))
@@ -299,6 +302,9 @@ def create_app(
     app.state.processes = ProcessManager()
     app.state.preview = PreviewService(app.state.processes, preview, allowed_hosts(extra_hosts))
     app.state.shells = ShellSessions()
+    app.state.cli_sign_ins = CliSignIns.of(
+        spec.sign_in for spec in app.state.providers.specs if spec.sign_in is not None
+    )
     app.state.replies = ReplyRegistry()
     # Eval runs of projects' cases, played through the reply service in the background.
     app.state.evals = EvalService(lambda: ReplyServices.from_state(app.state))
@@ -328,6 +334,7 @@ def create_app(
     api.include_router(environments.router)
     api.include_router(credentials.router)
     api.include_router(catalog.router)
+    api.include_router(cli_sign_in_api.router)
     api.include_router(openai_endpoints_api.router)
     api.include_router(projects.router)
     api.include_router(blueprint.router)

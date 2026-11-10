@@ -15,6 +15,7 @@ import contextlib
 import json
 import logging
 import os
+import re
 import signal
 import tempfile
 from collections.abc import AsyncIterator, Sequence
@@ -38,6 +39,7 @@ from app.providers.base import (
     ToolCallStarted,
 )
 from app.providers.claude_code_provider import render_transcript
+from app.providers.cli_sign_in import SignInSpec
 from app.providers.messages_content import to_messages_content
 
 logger = logging.getLogger(__name__)
@@ -45,6 +47,9 @@ logger = logging.getLogger(__name__)
 DEFAULT_COMMAND = ("codex",)
 SESSION_BLOCK_TYPE = "codex_session"
 SIGN_IN_COMMAND = "docker compose exec -it yaap codex login --device-auth"
+# Where Codex's sign-in link may point, and the shape of the one-time code it shows for the user to enter there.
+SIGN_IN_HOSTS = frozenset({"auth.openai.com"})
+USER_CODE_PATTERN = re.compile(r"\b[A-Z0-9]{3,8}-[A-Z0-9]{3,8}\b")
 STREAM_LINE_LIMIT = 16 * 1024 * 1024
 STDERR_TAIL = 2000
 TOOL_SERVER_NAME = "yaap"
@@ -175,7 +180,8 @@ def usage_from(usage: dict[str, Any]) -> TokenUsage:
 def error_for(message: str) -> ProviderError:
     lowered = message.lower()
     if "401" in lowered or "unauthorized" in lowered or "not logged in" in lowered or "login" in lowered:
-        return ProviderError(f"Codex is not signed in. Sign in once from the YAAP folder with: {SIGN_IN_COMMAND}")
+        return ProviderError(f"Codex is not signed in. Sign in under Settings › Connections › Providers, "
+            f"or from the YAAP folder with: {SIGN_IN_COMMAND}")
     if "usage limit" in lowered or "rate limit" in lowered or "429" in lowered:
         return ProviderError(f"The usage limit of your ChatGPT plan was reached. {message}".strip())
     return ProviderError(f"Codex reported an error: {message or 'no details'}")
@@ -386,6 +392,21 @@ async def read_codex_status(command: Sequence[str] = DEFAULT_COMMAND) -> CodexSt
         return CodexStatus(False, None, False, None)
     lines = [line.strip() for line in status.splitlines() if line.strip() and not line.startswith("WARNING")]
     return CodexStatus(True, version.strip() or None, code == 0, lines[-1] if lines else None)
+
+
+def codex_sign_in_spec(command: Sequence[str] = DEFAULT_COMMAND) -> SignInSpec:
+    """Signing in from the browser: `codex login --device-auth` prints a link and a one-time code, then waits."""
+    return SignInSpec(
+        key="codex",
+        display_name="Codex",
+        command=(*command, "login", "--device-auth"),
+        environment=lambda: codex_environment(None),
+        working_directory=workspace_directory,
+        allowed_hosts=SIGN_IN_HOSTS,
+        paste_code=False,
+        user_code_pattern=USER_CODE_PATTERN,
+        signed_in=codex_signed_in,
+    )
 
 
 async def codex_signed_in() -> bool:

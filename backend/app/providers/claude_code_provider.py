@@ -10,6 +10,7 @@ import contextlib
 import json
 import logging
 import os
+import re
 import signal
 import tempfile
 from collections.abc import AsyncIterator, Sequence
@@ -36,13 +37,18 @@ from app.providers.base import (
     ToolCallStarted,
     ToolServer,
 )
+from app.providers.cli_sign_in import SignInSpec
 from app.providers.messages_content import to_messages_content
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_COMMAND = ("claude",)
 SESSION_BLOCK_TYPE = "claude_code_session"
+# What `claude auth login` prints before it asks for the code again.
+REFUSED_CODE_PATTERN = re.compile(r"invalid code", re.IGNORECASE)
 SIGN_IN_COMMAND = "docker compose exec -it yaap claude auth login"
+# Where Claude Code's sign-in link may point: its own sites, nothing else.
+SIGN_IN_HOSTS = frozenset({"claude.com", "claude.ai", "platform.claude.com"})
 STREAM_LINE_LIMIT = 16 * 1024 * 1024
 STDERR_TAIL = 2000
 TOOL_SERVER_NAME = "yaap"
@@ -177,7 +183,8 @@ def usage_from(result: dict[str, Any]) -> TokenUsage:
 def error_for(result: dict[str, Any], api_error: str | None) -> ProviderError:
     detail = str(result.get("result") or "").strip()
     if api_error == "authentication_failed" or "/login" in detail:
-        return ProviderError(f"Claude Code is not signed in. Sign in once from the YAAP folder with: {SIGN_IN_COMMAND}")
+        return ProviderError(f"Claude Code is not signed in. Sign in under Settings › Connections › Providers, "
+            f"or from the YAAP folder with: {SIGN_IN_COMMAND}")
     if api_error == "rate_limit":
         return ProviderError(f"The usage limit of your Claude subscription was reached. {detail}".strip())
     return ProviderError(f"Claude Code reported an error: {detail or 'no details'}")
@@ -436,6 +443,22 @@ async def read_claude_code_status(command: Sequence[str] = DEFAULT_COMMAND) -> C
         auth_method=text("authMethod"),
         subscription_type=text("subscriptionType"),
         email=text("email"),
+    )
+
+
+def claude_code_sign_in_spec(command: Sequence[str] = DEFAULT_COMMAND) -> SignInSpec:
+    """Signing in from the browser: `claude auth login` prints a link and waits for the code the user pastes."""
+    return SignInSpec(
+        key="claude-code",
+        display_name="Claude Code",
+        command=(*command, "auth", "login"),
+        environment=claude_code_environment,
+        working_directory=workspace_directory,
+        allowed_hosts=SIGN_IN_HOSTS,
+        paste_code=True,
+        refused_code_pattern=REFUSED_CODE_PATTERN,
+        user_code_pattern=None,
+        signed_in=claude_code_signed_in,
     )
 
 

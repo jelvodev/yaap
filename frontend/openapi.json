@@ -10899,6 +10899,84 @@
         "title": "SideOut",
         "type": "object"
       },
+      "SignInCodeIn": {
+        "properties": {
+          "code": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "SignInCodeIn",
+        "type": "object"
+      },
+      "SignInOut": {
+        "properties": {
+          "code_sent": {
+            "title": "Code Sent",
+            "type": "boolean"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "state": {
+            "enum": [
+              "idle",
+              "starting",
+              "waiting_for_code",
+              "waiting_for_browser",
+              "signed_in",
+              "failed",
+              "cancelled"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "user_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Code"
+          }
+        },
+        "required": [
+          "state",
+          "url",
+          "user_code",
+          "code_sent",
+          "message"
+        ],
+        "title": "SignInOut",
+        "type": "object"
+      },
       "SkillCandidateOut": {
         "properties": {
           "description": {
@@ -16047,6 +16125,110 @@
         ]
       }
     },
+    "/api/v1/claude-code/sign-in": {
+      "delete": {
+        "description": "Stop the sign-in that is running.",
+        "operationId": "cancel_claude_code_sign_in_api_v1_claude_code_sign_in_delete",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Cancel Claude Code Sign In",
+        "tags": [
+          "sign-in"
+        ]
+      },
+      "get": {
+        "description": "Where the sign-in stands.",
+        "operationId": "read_claude_code_sign_in_api_v1_claude_code_sign_in_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Claude Code Sign In",
+        "tags": [
+          "sign-in"
+        ]
+      },
+      "post": {
+        "description": "Start signing in; a sign-in that is already running is cancelled first.",
+        "operationId": "start_claude_code_sign_in_api_v1_claude_code_sign_in_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Start Claude Code Sign In",
+        "tags": [
+          "sign-in"
+        ]
+      }
+    },
+    "/api/v1/claude-code/sign-in/code": {
+      "post": {
+        "description": "Give the CLI the code that the sign-in page showed (Claude Code).",
+        "operationId": "send_claude_code_sign_in_code_api_v1_claude_code_sign_in_code_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInCodeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Send Claude Code Sign In Code",
+        "tags": [
+          "sign-in"
+        ]
+      }
+    },
     "/api/v1/claude-code/status": {
       "get": {
         "description": "Whether Claude Code is installed in this container and signed in. One sign-in serves all environments.",
@@ -16066,6 +16248,110 @@
         "summary": "Claude Code Status",
         "tags": [
           "catalog"
+        ]
+      }
+    },
+    "/api/v1/codex/sign-in": {
+      "delete": {
+        "description": "Stop the sign-in that is running.",
+        "operationId": "cancel_codex_sign_in_api_v1_codex_sign_in_delete",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Cancel Codex Sign In",
+        "tags": [
+          "sign-in"
+        ]
+      },
+      "get": {
+        "description": "Where the sign-in stands.",
+        "operationId": "read_codex_sign_in_api_v1_codex_sign_in_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Codex Sign In",
+        "tags": [
+          "sign-in"
+        ]
+      },
+      "post": {
+        "description": "Start signing in; a sign-in that is already running is cancelled first.",
+        "operationId": "start_codex_sign_in_api_v1_codex_sign_in_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Start Codex Sign In",
+        "tags": [
+          "sign-in"
+        ]
+      }
+    },
+    "/api/v1/codex/sign-in/code": {
+      "post": {
+        "description": "Give the CLI the code that the sign-in page showed (Claude Code).",
+        "operationId": "send_codex_sign_in_code_api_v1_codex_sign_in_code_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInCodeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Send Codex Sign In Code",
+        "tags": [
+          "sign-in"
         ]
       }
     },

@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 
 import { type ClaudeCodeStatus, type CodexStatus, api } from "../../api/client";
 import type { components } from "../../api/schema";
+import type { CliName } from "../../api/signIn";
 import { Badge, FieldRow } from "../../components/workbench/Workbench";
+import CliSignIn from "./CliSignIn";
 
 type CliStatus = {
   installed: boolean;
@@ -14,11 +16,13 @@ type CliStatus = {
 /** Whether a vendor CLI in this YAAP container (Claude Code, Codex) is signed in. One sign-in serves every environment. */
 function CliStatusField<T extends CliStatus>({
   name,
+  cli,
   load,
   account,
   signInHelp,
 }: {
   name: string;
+  cli: CliName;
   load: () => Promise<T | null>;
   account: (status: T) => string;
   signInHelp: string;
@@ -56,7 +60,7 @@ function CliStatusField<T extends CliStatus>({
       {status?.installed && !status.logged_in && (
         <>
           <p className="settings-help">{signInHelp}</p>
-          <pre className="command-line settings-command">{status.sign_in_command}</pre>
+          <CliSignIn cli={cli} command={status.sign_in_command} onSignedIn={() => void check()} />
         </>
       )}
       {status && !status.installed && (
@@ -80,11 +84,11 @@ export function ClaudeCodeStatusField() {
   return (
     <CliStatusField
       name="Claude Code"
+      cli="claude-code"
       load={loadClaudeCodeStatus}
       account={(status) => [status.subscription_type, status.email].filter(Boolean).join(" · ") || status.auth_method || ""}
       signInHelp={
-        "Sign in once with your Claude account. Run this in a terminal in the YAAP folder, open the link it shows, " +
-        "and paste the code back. The sign-in stays in YAAP's data folder and serves every environment."
+        "Sign in once with your Claude account. The sign-in stays in YAAP's data folder and serves every environment."
       }
     />
   );
@@ -94,11 +98,11 @@ export function CodexStatusField() {
   return (
     <CliStatusField
       name="Codex"
+      cli="codex"
       load={loadCodexStatus}
       account={(status) => status.detail ?? ""}
       signInHelp={
-        "Sign in once with your ChatGPT account. Run this in a terminal in the YAAP folder, open the link it shows " +
-        "and enter the code there. The sign-in stays in YAAP's data folder and serves every environment."
+        "Sign in once with your ChatGPT account. The sign-in stays in YAAP's data folder and serves every environment."
       }
     />
   );

@@ -504,3 +504,41 @@
   align-items: center;
   gap: 6px;
 }
+
+.cli-sign-in {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.cli-sign-in p {
+  margin: 0;
+}
+
+.cli-sign-in-steps {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cli-sign-in-paste,
+.cli-sign-in-code {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.cli-sign-in-code {
+  display: inline-flex;
+  margin-top: 0;
+}
+
+.cli-sign-in-paste input {
+  flex: 1 1 280px;
+  min-width: 0;
+}

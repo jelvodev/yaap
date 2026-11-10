@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from app.providers.base import ModelProvider
 from app.providers.catalog import ModelInfo
+from app.providers.cli_sign_in import SignInSpec
 
 if TYPE_CHECKING:
     from app.providers.endpoints import EndpointState
@@ -33,6 +34,8 @@ class ProviderSpec:
     # For a connection that signs in by itself (a subscription CLI): whether it reports a sign-in now. It starts the
     # CLI, so callers do not run it on every request.
     signed_in: Callable[[], Awaitable[bool]] | None = None
+    # How a subscription CLI is signed in from the browser, when it can be.
+    sign_in: SignInSpec | None = None
 
 
 class ProviderRegistry:
@@ -85,8 +88,12 @@ class ProviderRegistry:
 def default_provider_registry() -> ProviderRegistry:
     from app.providers.anthropic_provider import AnthropicProvider
     from app.providers.catalog import ANTHROPIC_MODELS, OPENAI_MODELS
-    from app.providers.claude_code_provider import ClaudeCodeProvider, claude_code_signed_in
-    from app.providers.codex_provider import CodexProvider, codex_signed_in
+    from app.providers.claude_code_provider import (
+        ClaudeCodeProvider,
+        claude_code_sign_in_spec,
+        claude_code_signed_in,
+    )
+    from app.providers.codex_provider import CodexProvider, codex_sign_in_spec, codex_signed_in
     from app.providers.openai_provider import OpenAIProvider
 
     fallback_models = frozenset(model.id for model in ANTHROPIC_MODELS if model.server_side_fallback)
@@ -113,6 +120,7 @@ def default_provider_registry() -> ProviderRegistry:
         runs_agents=True,
         metered=False,
         signed_in=claude_code_signed_in,
+        sign_in=claude_code_sign_in_spec(),
     )
     def create_openai_provider(api_key: str | None) -> ModelProvider:
         assert api_key is not None
@@ -135,6 +143,7 @@ def default_provider_registry() -> ProviderRegistry:
         runs_agents=True,
         metered=False,
         signed_in=codex_signed_in,
+        sign_in=codex_sign_in_spec(),
     )
     from app.providers.endpoints import EndpointState
     from app.providers.ollama_provider import OllamaProvider, OllamaState

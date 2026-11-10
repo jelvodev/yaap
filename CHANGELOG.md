@@ -6,6 +6,10 @@ yourself when you update; it says "None." when there is nothing.
 
 ## Unreleased
 
+- Claude Code and Codex sign in from the browser: Settings › Connections › Providers and the first start have a
+  button *Sign in with your Claude subscription* (open the link, sign in, paste the code back) and *Sign in with your
+  ChatGPT plan* (open the link, enter the code shown). The terminal command still works. YAAP only shows links on the
+  vendors' own sites, and the pasted code goes straight to the CLI.
 - Any OpenAI-compatible endpoint (a keyless server such as LM Studio or vLLM) connects as a provider of its own: add
   its base URL in Settings › Connections, and its models show in the model picker as `<name>/<model>`. Agents run on
   them with YAAP's tools. Keys are not part of this yet.

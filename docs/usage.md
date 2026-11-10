@@ -251,7 +251,7 @@ Developers also measure what YAAP sends without a model: `python -m app.scripts.
 | › Profile | Display name, time zone |
 | › Access | Change the password, sign out (also every other browser), and API tokens |
 | **Connections** | |
-| › Providers | How YAAP reaches Claude and OpenAI, the default API keys (with a link to the Vault), Ollama, the search index |
+| › Providers | How YAAP reaches Claude and OpenAI, signing in to Claude Code (*Sign in with your Claude subscription*: open the link, sign in, paste the code) and Codex (*Sign in with your ChatGPT plan*: open the link, enter the code shown), the default API keys (with a link to the Vault), Ollama, the search index |
 | › Vault | Every key and secret: several keys per kind, expiry dates, where each is used and its use log; at Global also the master key |
 | › MCP servers | Per environment: outside tools for the agent, each with a test, its tools and its log |
 | › A2A agents | Per environment: other agents YAAP's agent may ask, each with a test |

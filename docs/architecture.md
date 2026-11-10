@@ -182,7 +182,7 @@ flowchart LR
 | `auth/` | The local account, browser sessions, API tokens, and the host and origin checks on every request |
 | `vault/` | Encrypted entries per kind with defaults, expiry and the use log, and master key rotation |
 | `environments/`, `presets/` | Environments, and model presets with their roles |
-| `providers/` | One adapter per model vendor behind the neutral `ModelProvider` interface; the only place for vendor code |
+| `providers/` | One adapter per model vendor behind the neutral `ModelProvider` interface; the only place for vendor code. `cli_sign_in.py` signs in to Claude Code and Codex from the browser (`/api/v1/claude-code/sign-in`, `/api/v1/codex/sign-in`): one sign-in process per CLI, each provider's spec says the command, the expected link hosts and whether a code is pasted back |
 | `targets/`, `sandbox/`, `runner/` | Where the agent works: a file system confined to a folder, and a command executor: a computer over SSH, a project's sandbox, or the environment's runner (YAAP's own process only with `YAAP_RUNNER=off`) |
 | `blueprint/` | Layers, merging, import, rules and skills from GitHub |
 | `projects/`, `knowledge/` | Projects, project memory and memory suggestions, project knowledge |
