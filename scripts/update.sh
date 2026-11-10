@@ -90,8 +90,18 @@ OLD_BRANCH="$(git symbolic-ref --short -q HEAD || true)"
 # Old code, the previous images, the data when the database moved on, then start without building.
 go_back() {
   local commit="$1" branch="$2" backup="$3"
+  # Check the backup before anything changes: without it a database that moved on cannot be restored.
+  if [ -n "$backup" ] && [ ! -f "$DATA/backups/$backup" ]; then
+    fail "The backup $DATA/backups/$backup does not exist, so nothing was changed. Restore the data from another backup as described in docs/usage.md (Backup and restore)."
+  fi
   say "Going back to ${commit:0:12} ..."
-  if [ -n "$branch" ]; then git checkout "$branch" && git reset --keep "$commit"; else git checkout --detach "$commit"; fi
+  # go_back runs in an '&&' list, where 'set -e' does not apply: every step names its own failure.
+  if [ -n "$branch" ]; then
+    git checkout "$branch" || fail "git could not check out $branch."
+    git reset --keep "$commit" || fail "git could not go back to the old commit."
+  else
+    git checkout --detach "$commit" || fail "git could not go back to the old commit."
+  fi
   for image in $IMAGES; do
     if docker image inspect "$image:previous" >/dev/null 2>&1; then docker tag "$image:previous" "$image:local"; fi
   done
@@ -198,10 +208,19 @@ printf '{"old_commit": "%s", "old_branch": "%s", "old_version": "%s", "new_versi
   || fail "$STATE cannot be written (is $DATA owned by another user? try sudo). Only a backup was made."
 
 # ---- New code, build and start -----------------------------------------------------------------------------------
+checked_out=1
 if [ "$CHANNEL" = stable ]; then
-  git checkout --detach "$TARGET"
+  git checkout --detach "$TARGET" || checked_out=0
 else
-  git checkout main && git pull --ff-only origin main
+  { git checkout main && git pull --ff-only origin main; } || checked_out=0
+fi
+if [ "$checked_out" = 0 ]; then
+  say "git could not check out the new version. Nothing was built." >&2
+  if ask "Go back to $CURRENT?" y; then
+    go_back "$OLD_COMMIT" "$OLD_BRANCH" "$BACKUP"
+    exit 1
+  fi
+  fail "YAAP stays as it is. Go back later with: ./scripts/update.sh --rollback"
 fi
 export YAAP_COMMIT="$(git rev-parse --short HEAD)" YAAP_CHANNEL="$CHANNEL" CLI_REFRESH="$(date +%Y-%m)"
 say "Building and starting YAAP $NEW. This takes a few minutes."

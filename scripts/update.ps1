@@ -11,6 +11,9 @@ param(
     [switch]$Rollback
 )
 $ErrorActionPreference = 'Stop'
+# Docker and git write UTF-8; Windows PowerShell 5.1 would otherwise read it in the console code page.
+$OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 Set-Location (Join-Path $PSScriptRoot '..')
 $Url = 'http://127.0.0.1:8080'
@@ -37,6 +40,19 @@ function Ask([string]$Question, [bool]$Default = $true) {
     $reply = Read-Host "$Question $hint"
     if (-not $reply) { return $Default }
     return $reply -match '^(y|yes)$'
+}
+
+# Runs a native command with its output discarded and says whether it succeeded. Windows PowerShell 5.1 turns what a
+# native command writes to stderr into a terminating error under 'Stop' when it is redirected, so it runs under 'Continue'.
+function Test-Native([scriptblock]$Command) {
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & $Command *> $null
+        return ($LASTEXITCODE -eq 0)
+    } finally {
+        $ErrorActionPreference = $previous
+    }
 }
 
 function Test-Running {
@@ -88,10 +104,8 @@ function Get-JsonValue([string]$Key) {
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Fail 'Docker is not installed. Install Docker Desktop: https://docs.docker.com/desktop/setup/install/windows-install/'
 }
-docker info *> $null
-if ($LASTEXITCODE -ne 0) { Fail 'Docker is installed but not running. Start Docker Desktop and run this script again.' }
-docker compose version *> $null
-if ($LASTEXITCODE -ne 0) { Fail "Docker Compose v2 is missing ('docker compose'). Update Docker Desktop." }
+if (-not (Test-Native { docker info })) { Fail 'Docker is installed but not running. Start Docker Desktop and run this script again.' }
+if (-not (Test-Native { docker compose version })) { Fail "Docker Compose v2 is missing ('docker compose'). Update Docker Desktop." }
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) { Fail 'git is not installed.' }
 if (-not ((Test-Path docker-compose.yml) -and (Test-Path backend/app/version.py) -and (Test-Path .git))) {
     Fail 'This is not the YAAP folder (a git checkout with docker-compose.yml).'
@@ -109,6 +123,10 @@ if (-not $OldBranch) { $OldBranch = '' }
 # ---- Going back ------------------------------------------------------------------------------------------------
 # Old code, the previous images, the data when the database moved on, then start without building.
 function Restore-Previous([string]$Commit, [string]$Branch, [string]$Backup) {
+    # Check the backup before anything changes: without it a database that moved on cannot be restored.
+    if ($Backup -and -not (Test-Path (Join-Path $Data "backups/$Backup"))) {
+        Fail "The backup $Data/backups/$Backup does not exist, so nothing was changed. Restore the data from another backup as described in docs/usage.md (Backup and restore)."
+    }
     Write-Host "Going back to $($Commit.Substring(0, [Math]::Min(12, $Commit.Length))) ..."
     if ($Branch) {
         git checkout $Branch
@@ -119,8 +137,7 @@ function Restore-Previous([string]$Commit, [string]$Branch, [string]$Backup) {
     }
     if ($LASTEXITCODE -ne 0) { Fail 'git could not go back to the old commit.' }
     foreach ($image in $Images) {
-        docker image inspect "${image}:previous" *> $null
-        if ($LASTEXITCODE -eq 0) { docker tag "${image}:previous" "${image}:local" }
+        if (Test-Native { docker image inspect "${image}:previous" }) { docker tag "${image}:previous" "${image}:local" }
     }
     if ($Backup) {
         docker compose run --rm --no-deps -T yaap python -m app.scripts.update rollback $Backup
@@ -225,8 +242,7 @@ Write-Host "Backup: $Backup"
 
 # ---- Keep the old version --------------------------------------------------------------------------------------
 foreach ($image in $Images) {
-    docker image inspect "${image}:local" *> $null
-    if ($LASTEXITCODE -eq 0) { docker tag "${image}:local" "${image}:previous" }
+    if (Test-Native { docker image inspect "${image}:local" }) { docker tag "${image}:local" "${image}:previous" }
 }
 New-Item -ItemType Directory -Force $Data | Out-Null
 $record = [ordered]@{
@@ -243,7 +259,14 @@ if ($Channel -eq 'stable') {
     git checkout main
     if ($LASTEXITCODE -eq 0) { git pull --ff-only origin main }
 }
-if ($LASTEXITCODE -ne 0) { Fail 'git could not check out the new version. Nothing was built; run with -Rollback to go back.' }
+if ($LASTEXITCODE -ne 0) {
+    Write-Host 'git could not check out the new version. Nothing was built.' -ForegroundColor Red
+    if (Ask "Go back to $Current?" $true) {
+        Restore-Previous $OldCommit $OldBranch $Backup
+        exit 1
+    }
+    Fail 'YAAP stays as it is. Go back later with: scripts\update.ps1 -Rollback'
+}
 $env:YAAP_COMMIT = (git rev-parse --short HEAD).Trim()
 $env:YAAP_CHANNEL = $Channel
 $env:CLI_REFRESH = (Get-Date).ToString('yyyy-MM')
@@ -260,7 +283,7 @@ if ($ok) {
     $branchField = if ($OldBranch) { $OldBranch } else { '-' }
     Write-Log "updated $Current -> $New from commit $OldCommit branch $branchField to $($env:YAAP_COMMIT) channel $Channel backup $Backup"
     Remove-Item $State -ErrorAction SilentlyContinue
-    docker image prune -f --filter dangling=true --filter label=dev.yaap=true *> $null
+    Test-Native { docker image prune -f --filter dangling=true --filter label=dev.yaap=true } | Out-Null
     Write-Host ''
     Write-Host "YAAP is updated: $Current -> $New ($Url)" -ForegroundColor Green
     Write-Host 'The version before it stays as the :previous images; scripts\update.ps1 -Rollback goes back.'
