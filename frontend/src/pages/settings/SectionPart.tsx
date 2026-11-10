@@ -13,6 +13,7 @@ import PluginsSection from "./PluginsSection";
 import PresetsSection from "./PresetsSection";
 import TargetsSection from "./TargetsSection";
 import TelemetrySection from "./TelemetrySection";
+import UpdatesSection from "./UpdatesSection";
 import UsageSection from "./UsageSection";
 import UtilityModelsSection from "./UtilityModelsSection";
 import VaultSection from "./VaultSection";
@@ -66,6 +67,8 @@ export default function SectionPart({ tab, level, store }: { tab: string; level:
       return <BackupSection level={level} />;
     case "plugins":
       return <PluginsSection level={level} />;
+    case "updates":
+      return <UpdatesSection level={level} store={store} />;
     case "first-start":
       return <FirstStartSection level={level} />;
     default:

@@ -38,6 +38,7 @@ from app.api import (
     search,
     secrets,
     settings,
+    updates,
     usage,
 )
 from app.config import environment_value, load_settings
@@ -99,6 +100,8 @@ from app.core.search_index import SearchIndexer
 from app.core.shutdown import stop_replies_and_their_work
 from app.credentials.crypto import CredentialCipher
 from app.backups.runs import recover_backup_runs
+from app.updates.background import check_at_start
+from app.updates.check import UpdateService
 from app.agents.records import close_stale_runs
 from app.vault.rotation import rotate_all
 from app.credentials.types import CredentialType, default_credential_types
@@ -184,6 +187,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     with app.state.session_factory() as session:
         recover_backup_runs(session)
     scheduler = asyncio.create_task(run_scheduler(app)) if app.state.scheduler else None
+    app.state.updates = UpdateService(app.state.session_factory, app.state.cipher)
+    start_check = asyncio.create_task(check_at_start(app.state.updates)) if app.state.update_check_at_start else None
     app.state.indexer = SearchIndexer(
         app.state.session_factory,
         settings.blueprint_dir,
@@ -209,6 +214,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     idle_language_servers.cancel()
     if scheduler is not None:
         scheduler.cancel()
+    if start_check is not None:
+        start_check.cancel()
     app.state.outside_clients.close_all(app)
     await app.state.mcp.shutdown()
     await app.state.processes.shutdown()
@@ -305,6 +312,8 @@ def create_app(
     # Reviews by another vendor after goals and scheduled tasks that changed code (tests switch this off).
     app.state.reviews_after_goals = True
     app.state.scheduler = True
+    # The update check a few seconds after start (tests switch this off; the schedule is the scheduler's).
+    app.state.update_check_at_start = True
     # The search index: the embedding model, loaded on first use, and passes in the background
     # (tests run passes themselves).
     app.state.load_embedder = load_default_embedder
@@ -332,6 +341,7 @@ def create_app(
     api.include_router(audit.router)
     api.include_router(search.router)
     api.include_router(backups.router)
+    api.include_router(updates.router)
     api.include_router(approvals.router)
     api.include_router(activity.router)
     api.include_router(checkpoints.router)

@@ -9,6 +9,9 @@ yourself when you update; it says "None." when there is nothing.
 - Any OpenAI-compatible endpoint (OpenRouter, LM Studio, vLLM and the like) connects as a provider of its own: add
   its base URL in Settings › Connections, and its models show in the model picker as `<name>/<model>`. Agents run on
   them with YAAP's tools. Keys are not part of this yet.
+- YAAP tells you when a newer version exists: Settings › System › Updates shows the newest release with its notes and
+  the update commands, a dot shows on Settings, and a page that stays open across an update offers a reload. YAAP
+  asks GitHub a few seconds after it starts and once a day; the schedule can be changed or switched off.
 
 ### Action needed
 

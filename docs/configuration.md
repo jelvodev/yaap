@@ -223,6 +223,23 @@ A backup in `data/backups` is on the same disk as the data, so add a **destinati
 
 Each destination keeps its own number of backups; YAAP removes only files named like its backups there. *Test* writes and removes a small file and shows the free space. To restore from a destination, open it and use *Copy back to restore*.
 
+## Update check
+
+This is the one call YAAP makes on its own to a place you did not choose. A few seconds after it starts, and then on a
+schedule, YAAP asks GitHub's API for the tags of its repository (`GET api.github.com/repos/jelvodev/yaap/tags`) and
+reads the `CHANGELOG.md` of the newest `vX.Y.Z` tag from `raw.githubusercontent.com`. The request carries
+`User-Agent: YAAP/<version>` and nothing about you, your projects or your installation. When an environment has a GitHub
+token (Settings › Git and GitHub), YAAP sends it so a private repository can be read; without one, a private repository
+answers "not found" and the section says that a GitHub token is needed. Pre-releases and malformed tags are ignored.
+
+| Setting (Settings › System › Updates, Global) | Default | Meaning |
+|---|---|---|
+| `update_check_schedule` | `0 9 * * *` | A cron expression in the time zone of Settings › Account › Profile, or `off`. Intervals under an hour are refused. |
+| `update_source` | `jelvodev/yaap` | The GitHub repository to read, as `owner/repository`. A fork sets its own. |
+
+To switch it off, set the schedule to `off`: YAAP then makes no call at start and none on the schedule. **Check now**
+always works, as the one call you ask for yourself.
+
 ## The vault: keys and secrets
 
 **Settings › Connections › Vault** holds YAAP's own keys (API keys, GitHub tokens) and the secrets the agent may use, at Global, per environment, and per project in the project settings. Values are encrypted with the master key, write-only, and every use is logged without the value.
@@ -345,6 +362,7 @@ The client gets YAAP's tools of the token's project (or, without a project, thos
 | Settings › Environment (environment) | The environment's name and colour |
 | Settings › Environments (global) | Add and rename environments |
 | Settings › System › Backup (global) | The schedule, destinations, recent runs; make, download, upload and restore backups (see [Backups](#backups)) |
+| Settings › System › Updates (global) | How often YAAP checks for a newer version, or off, and which repository it reads (see [Update check](#update-check)) |
 | Settings › System › Plugins (global) | Switch each plugin in `data/plugins/<name>/` on or off; takes effect after a restart. A plugin runs with YAAP's rights. See [plugins.md](plugins.md). |
 | Settings › Targets (environment) | *Runner*: whether the environment's runner, where its commands, MCP servers over stdio and browser run, can reach the internet (*Runner network*, online by default). Computers over SSH the agent can work on: address, folders, *Allow full access* and *Whole computer* (both off by default). Their keys are vault entries of kind *SSH key of a target*. *Import a session* in the chat may also list and read Claude Code and Codex session files in the home folder of the target's user (`~/.claude/projects`, `~/.codex/sessions`), read-only and nothing else there. See [install.md](install.md#let-yaap-work-on-this-computer). |
 | Project settings | Default preset and agent, where the agent works (the environment's runner, the project's own sandbox, or a target and the project's folder on it), language, permissions, default skills, knowledge folder (a project folder whose documents become knowledge), MCP servers, the project's own keys and secrets |

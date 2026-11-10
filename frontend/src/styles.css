@@ -4087,3 +4087,21 @@ button.context-meter[aria-expanded="true"] {
   align-items: center;
   gap: 8px;
 }
+
+/* After an update: the page was built for an older version than the one YAAP runs */
+.reload-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 6px 12px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.9rem;
+}
+
+/* The release notes in Settings › System › Updates */
+.update-notes {
+  max-height: 24rem;
+  overflow-y: auto;
+}

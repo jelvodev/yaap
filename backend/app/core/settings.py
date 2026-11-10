@@ -32,6 +32,9 @@ from app.providers.endpoints import SETTING_KEY as ENDPOINTS_KEY
 from app.providers.endpoints import check_endpoints
 from app.providers.registry import ProviderRegistry
 from app.storage.models import Setting
+from app.updates.schedule import DEFAULT_SCHEDULE as UPDATE_SCHEDULE_DEFAULT
+from app.updates.schedule import schedule_error
+from app.updates.source import DEFAULT_SOURCE, source_error
 from app.targets.folders import validate_target_setting
 from app.tracing.otlp_settings import CONTENT_KEY as OTLP_CONTENT
 from app.tracing.otlp_settings import ENDPOINT_KEY as OTLP_ENDPOINT
@@ -534,6 +537,25 @@ SETTING_DEFINITIONS: dict[str, SettingDefinition] = {
             levels=frozenset({"global"}),
             default=SCHEDULE_DEFAULT,
             validate=validate_schedule,
+        ),
+        SettingDefinition(
+            key="update_check_schedule",
+            label="Update check",
+            description=(
+                "When YAAP asks GitHub whether a newer version exists (cron, in the global time zone, at most once an "
+                "hour), or off. It also asks a few seconds after start; off stops both."
+            ),
+            levels=frozenset({"global"}),
+            default=UPDATE_SCHEDULE_DEFAULT,
+            validate=lambda value, _providers: schedule_error(value),
+        ),
+        SettingDefinition(
+            key="update_source",
+            label="Update source",
+            description="The GitHub repository the update check reads releases from, as owner/repository.",
+            levels=frozenset({"global"}),
+            default=DEFAULT_SOURCE,
+            validate=lambda value, _providers: source_error(value),
         ),
         SettingDefinition(
             key="backup_destinations",

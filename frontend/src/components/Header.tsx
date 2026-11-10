@@ -5,6 +5,7 @@ import { api } from "../api/client";
 import type { components } from "../api/schema";
 import { signOut } from "../auth/AuthGate";
 import { notifyIfHidden } from "../notifications";
+import { useUpdateNotice } from "../updates/useUpdateNotice";
 
 import { useEnvironment } from "../environment/EnvironmentProvider";
 import { SearchIcon } from "./icons";
@@ -26,6 +27,7 @@ export default function Header({ onOpenPalette }: { onOpenPalette: () => void })
   const [expiring, setExpiring] = useState<VaultEntry[]>([]);
   const [failedBackup, setFailedBackup] = useState<BackupRun | null>(null);
   const onChat = pathname.startsWith("/chat");
+  const { dot: updateDot } = useUpdateNotice();
 
   // Away from the chat, show that a reply is still being written, and say when it is done.
   useEffect(() => {
@@ -178,7 +180,10 @@ export default function Header({ onOpenPalette }: { onOpenPalette: () => void })
             </Link>
           )}
           <NavLink to="/blueprint">Blueprint</NavLink>
-          <NavLink to="/settings">Settings</NavLink>
+          <NavLink to="/settings" title={updateDot ? "A newer version of YAAP is available" : undefined}>
+            Settings
+            {updateDot && <span className="running-dot" aria-label="A newer version of YAAP is available" />}
+          </NavLink>
         </nav>
         <button type="button" className="palette-trigger" onClick={onOpenPalette}>
           <SearchIcon size={15} />

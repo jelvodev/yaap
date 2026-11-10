@@ -106,6 +106,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     tabs: [
       tab("backup", "Backup", GLOBAL),
       tab("plugins", "Plugins", GLOBAL),
+      tab("updates", "Updates", GLOBAL),
       tab("first-start", "First start", GLOBAL),
     ],
   },

@@ -12657,6 +12657,100 @@
         "title": "TranscriptionOut",
         "type": "object"
       },
+      "UpdateStatusOut": {
+        "properties": {
+          "announced_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Announced Version"
+          },
+          "automatic": {
+            "title": "Automatic",
+            "type": "boolean"
+          },
+          "checking": {
+            "title": "Checking",
+            "type": "boolean"
+          },
+          "current_version": {
+            "title": "Current Version",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "last_checked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Checked At"
+          },
+          "newest_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Newest Version"
+          },
+          "notes": {
+            "title": "Notes",
+            "type": "string"
+          },
+          "release_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Url"
+          },
+          "update_available": {
+            "title": "Update Available",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "current_version",
+          "newest_version",
+          "update_available",
+          "notes",
+          "release_url",
+          "last_checked_at",
+          "error",
+          "checking",
+          "automatic",
+          "announced_version"
+        ],
+        "title": "UpdateStatusOut",
+        "type": "object"
+      },
       "UsageGroupOut": {
         "properties": {
           "key": {
@@ -27091,6 +27185,50 @@
         "summary": "Configurable Tools",
         "tags": [
           "settings"
+        ]
+      }
+    },
+    "/api/v1/updates": {
+      "get": {
+        "description": "The result of the last update check.",
+        "operationId": "read_updates_api_v1_updates_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateStatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Updates",
+        "tags": [
+          "updates"
+        ]
+      }
+    },
+    "/api/v1/updates/check": {
+      "post": {
+        "description": "Check now. A check that already runs is waited for; a failed check is reported in `error`, not as an error.",
+        "operationId": "check_updates_api_v1_updates_check_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateStatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Check Updates",
+        "tags": [
+          "updates"
         ]
       }
     },

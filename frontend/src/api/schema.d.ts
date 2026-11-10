@@ -4312,6 +4312,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/updates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Updates
+         * @description The result of the last update check.
+         */
+        get: operations["read_updates_api_v1_updates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/updates/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check Updates
+         * @description Check now. A check that already runs is waited for; a failed check is reported in `error`, not as an error.
+         */
+        post: operations["check_updates_api_v1_updates_check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/usage/report": {
         parameters: {
             query?: never;
@@ -8660,6 +8700,29 @@ export interface components {
             seconds: number;
             /** Text */
             text: string;
+        };
+        /** UpdateStatusOut */
+        UpdateStatusOut: {
+            /** Announced Version */
+            announced_version: string | null;
+            /** Automatic */
+            automatic: boolean;
+            /** Checking */
+            checking: boolean;
+            /** Current Version */
+            current_version: string;
+            /** Error */
+            error: string | null;
+            /** Last Checked At */
+            last_checked_at: string | null;
+            /** Newest Version */
+            newest_version: string | null;
+            /** Notes */
+            notes: string;
+            /** Release Url */
+            release_url: string | null;
+            /** Update Available */
+            update_available: boolean;
         };
         /** UsageGroupOut */
         UsageGroupOut: {
@@ -17267,6 +17330,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ToolPermissionOut"][];
+                };
+            };
+        };
+    };
+    read_updates_api_v1_updates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateStatusOut"];
+                };
+            };
+        };
+    };
+    check_updates_api_v1_updates_check_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateStatusOut"];
                 };
             };
         };

@@ -24,6 +24,7 @@ from app.core.reply_errors import ReplyError
 from app.core.reply_service import ReplyRequest, ReplyService
 from app.core.reply_services import ReplyServices
 from app.backups.runs import backup_tick
+from app.updates.background import update_tick
 from app.reviews.service import ReviewService
 from app.vault.store import prune_uses_daily
 from app.scheduling.active import RUNNING
@@ -268,6 +269,7 @@ def tick(app: Any, now: datetime | None = None) -> list[Started]:
     with app.state.session_factory() as session:
         prune_eval_workspaces(session, app.state.workspace_dir)
     backup_tick(app)
+    update_tick(app)
     now = now or datetime.now(UTC)
     started = []
     with app.state.session_factory() as session:

@@ -9,11 +9,7 @@ import anyio
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, UploadFile, status
 from pydantic import BaseModel, Field
 
-from sqlalchemy import select
-
 from app.api.dependencies import CipherDependency, BlueprintDirDependency, SessionDependency, WorkspaceDirDependency
-from app.credentials.crypto import CredentialDecryptionError
-from app.credentials.store import read_credential_value
 from app.blueprint import package_updates, packages, skill_install
 from app.blueprint.layers import BlueprintError, Item, Layer, delete_file, merge_layers, validate_path, write_file
 from app.blueprint.skill_install import GitHubSkills, read_origin
@@ -21,6 +17,7 @@ from app.core.utility import UtilityContext
 from app.blueprint.importer import BlueprintImportError, collect_documents, item_path, propose, render, slug
 from app.blueprint.levels import layers_for
 from app.blueprint.rules import target_path, unified_diff, with_rule
+from app.github.token import github_token_for
 from app.storage.models import Environment, Project
 
 router = APIRouter(prefix="/blueprint", tags=["blueprint"])
@@ -427,19 +424,6 @@ class SkillUpdateOut(BaseModel):
     candidate: SkillCandidateOut | None
     source: GitHubSourceOut
     url: str
-
-
-def github_token_for(session: SessionDependency, cipher: CipherDependency, environment_id: int | None) -> str | None:
-    """The viewed environment's GitHub token; the global level uses the first environment that has one."""
-    ids = [environment_id] if environment_id is not None else list(session.scalars(select(Environment.id).order_by(Environment.id)))
-    for current in ids:
-        try:
-            token = read_credential_value(session, cipher, current, "github_token", used_by="Skills from GitHub")
-        except CredentialDecryptionError:
-            token = None
-        if token:
-            return token
-    return None
 
 
 def candidate_out(candidate: skill_install.Candidate, own: Layer) -> SkillCandidateOut:

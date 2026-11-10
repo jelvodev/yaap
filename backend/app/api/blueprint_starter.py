@@ -10,11 +10,12 @@ import anyio
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
-from app.api.blueprint import LayersDependency, github_token_for, unprocessable
+from app.api.blueprint import LayersDependency, unprocessable
 from app.api.dependencies import CipherDependency, SessionDependency
 from app.blueprint import starter
 from app.blueprint.layers import BlueprintError
 from app.blueprint.skill_install import GitHubSkills
+from app.github.token import github_token_for
 from app.version import VERSION
 
 router = APIRouter(prefix="/blueprint", tags=["blueprint"])

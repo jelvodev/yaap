@@ -12,7 +12,9 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
-VERSION_PATTERN = r"\d+\.\d+\.\d+"
+from app.updates import changelog, versions
+
+VERSION_PATTERN = versions.VERSION_PATTERN
 UNRELEASED_HEADING = "## Unreleased"
 EMPTY_UNRELEASED = "## Unreleased\n\n### Action needed\n\nNone.\n"
 
@@ -54,10 +56,10 @@ CHANGELOG = "CHANGELOG.md"
 
 def parse_version(text: str) -> tuple[int, int, int]:
     """A version as three numbers, so 0.10.0 is newer than 0.9.0."""
-    if not re.fullmatch(VERSION_PATTERN, text):
+    parsed = versions.parse_version(text)
+    if parsed is None:
         raise ReleaseError(f"'{text}' is not a version like 1.2.3.")
-    major, minor, patch = (int(part) for part in text.split("."))
-    return major, minor, patch
+    return parsed
 
 
 def is_newer(new: str, old: str) -> bool:
@@ -82,13 +84,10 @@ def versions_at(text: str, wanted: Spot) -> list[str]:
 
 def changelog_section(text: str, version: str) -> str:
     """The body of `## <version> (<date>)`, without its heading and without surrounding blank lines."""
-    lines = text.splitlines()
-    heading = re.compile(rf"^## {re.escape(version)} \(")
-    start = next((index for index, line in enumerate(lines) if heading.match(line)), None)
-    if start is None:
+    section = changelog.changelog_section(text, version)
+    if section is None:
         raise ReleaseError(f"CHANGELOG.md has no section for {version}.")
-    end = next((index for index in range(start + 1, len(lines)) if lines[index].startswith("## ")), len(lines))
-    return "\n".join(lines[start + 1 : end]).strip()
+    return section
 
 
 def roll_changelog(text: str, version: str, day: str) -> str:

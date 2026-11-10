@@ -275,6 +275,7 @@ Developers also measure what YAAP sends without a model: `python -m app.scripts.
 | **System** (Global) | |
 | › Backup | Backups and restore |
 | › Plugins | Your own plugins in `data/plugins`, switched on one by one |
+| › Updates | The running version, the newest release with its notes, *Check now*, the update commands and how often YAAP looks |
 
 Global has eight sections and an environment seven; a tab that exists only in an environment is left out at Global. Each
 tab has its own address, such as `/settings/connections/vault`, and older addresses
@@ -296,6 +297,20 @@ in progress stop). A plugin that fails to load is switched off and shows its err
 with a page gets **Open page**, which shows the page in an isolated frame. Its panel says which of YAAP's API routes
 the page may call (*Its page may call: …*); YAAP makes those calls for the page with your session and refuses all
 others, and the page follows the active environment, project and theme. How to write one: [plugins.md](plugins.md).
+
+### Updates
+
+**Settings › System › Updates** (Global) shows the version YAAP runs and its commit (*development build* when the
+build has none), the newest release with the notes of its changelog section (*Action needed* lists what you must do
+yourself), when YAAP last looked, and **Check now**. The two commands at the bottom update YAAP; run the one for your
+system in the folder YAAP is installed in, and copy it with the button:
+`powershell -ExecutionPolicy Bypass -File scripts\update.ps1` on Windows, `./scripts/update.sh` on macOS and Linux.
+
+When a newer version exists, a dot shows on *Settings* in the header until you open this section, and YAAP gives one
+notification for that version (a browser notification while the tab is hidden). After an update, a page that was
+open shows a bar, *YAAP was updated to v…*, with **Reload**. The release notes come from the project's repository and
+are shown as plain formatted text; they are never given to a model. The checking settings are at the bottom of the
+section; see [Update check](configuration.md#update-check).
 
 ## Backup and restore
 

@@ -117,6 +117,8 @@ def make_test_app(fake: FakeBackend) -> FastAPI:
     app.state.memory_tidy = False
     app.state.reviews_after_goals = False
     app.state.scheduler = False
+    # No update check at start: it would call GitHub.
+    app.state.update_check_at_start = False
     # No search service; web search tests set a fake one.
     app.state.web_search = None
     # No embedding model and no background indexing; search tests set an embedder and run passes themselves.

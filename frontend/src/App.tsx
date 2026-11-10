@@ -13,6 +13,7 @@ import WelcomePage from "./pages/WelcomePage";
 import { PreferencesProvider } from "./preferences/PreferencesProvider";
 import { api } from "./api/client";
 import AuthGate from "./auth/AuthGate";
+import ReloadBar from "./updates/ReloadBar";
 
 /** The model gets the date and time with each message; until a time zone is set, the browser's. */
 function useBrowserTimezone() {
@@ -77,6 +78,7 @@ function Shell() {
 
   return (
     <div className="app">
+      <ReloadBar />
       <Header onOpenPalette={() => setPaletteOpen(true)} />
       <main className="app-main">
         <Pages />
