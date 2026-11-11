@@ -7,9 +7,10 @@ Where YAAP is going. Each version has a theme. The order is what is intended, no
 
 The current version is **0.6.1**.
 
-## To do before going public
+## 0.6.x: public and easier to start
 
-The repository becomes public on Friday 13 November 2026. Before that:
+Making the repository public, then fewer steps and less waiting before the first answer, and what makes YAAP
+different within one click.
 
 46. **Check the history and files** for anything private: names, addresses, keys, internal notes.
 47. **The fixes from the security check**, before everyone can read the code, each with a test that runs on Linux
@@ -23,30 +24,29 @@ The repository becomes public on Friday 13 November 2026. Before that:
 49. **Make the repository public**, and check that the update notice in a running YAAP sees the release.
 50. **A clean install** from the public repository on another computer, from `git clone` to a first command in a
     project: its tests run after an approval in the chat, with their output shown. With the time it took.
-
-After that, ready-made images (45) can be built for free by GitHub Actions.
-
-## 0.6.x: easier to start
-
-Fewer steps and less waiting before the first answer, and what makes YAAP different within one click.
-
-45. **Ready-made images.** Each release publishes YAAP's images, so installing and updating download them instead of
-    building on your computer, and the runner's image arrives when it is first needed. Building locally stays
-    possible.
-61. **Bring your setup.** Instructions, skills, agents and commands from Claude Code, Codex, Cursor and `AGENTS.md`
-    become Blueprint items in one step, with a review before anything is written.
-62. **A second opinion.** One click under a reply asks a model of another vendor to check the answer or the changes.
-    Its findings show beside the reply, and nothing is applied by itself.
-
-## 0.7.0: the project board
-
-Plan, build and review the work of a project, steered from one board.
-
 52. **One reply at a time, no lost messages.** The server decides when a reply starts, so two sends at once never
     start two replies. A queued message leaves the queue only when its send is accepted.
 53. **Replays and evals that say what they prove.** A replay keeps the Blueprint version of the original run and shows
     which context it built again; with all fields empty it uses that version. An eval keeps failed checks apart from
     stopped runs and errors, so those do not pull the pass rate or the cost down.
+63. **The cache keeps up with a slow pace.** When you take more than a few minutes between messages, the whole
+    conversation stays in the cache for an hour, not only the start, so each answer pays for what is new.
+72. **What YAAP does behind the scenes.** A page in the documentation with every background task: when it runs,
+    what it costs and how to switch it off.
+45. **Ready-made images.** Each release publishes YAAP's images, so installing and updating download them instead of
+    building on your computer, and the runner's image arrives when it is first needed. Building locally stays
+    possible. Once the repository is public, GitHub Actions builds them for free.
+61. **Bring your setup.** Instructions, skills, agents and commands from Claude Code, Codex, Cursor and `AGENTS.md`
+    become Blueprint items in one step, with a review before anything is written.
+62. **A second opinion.** One click under a reply asks a model of another vendor to check the answer or the changes.
+    Its findings show beside the reply, and nothing is applied by itself.
+
+## 0.7.0: see and save
+
+See what YAAP does and what it costs, and pay less for the same answers.
+
+9. **A baseline measurement.** The bundled eval set is run and the result is recorded, so every change below can be
+   compared with it.
 66. **See where the tokens go.** The context meter opens a breakdown of what the conversation holds now: the system
     prompt, the Blueprint, tools, messages and tool results per tool, and the free space. A session view shows per
     answer what came from the cache, what was written to it and what was new, with the workers and the most
@@ -54,37 +54,39 @@ Plan, build and review the work of a project, steered from one board.
 58. **Less context, same answers.** A file that has not changed since it was read is not sent again, old reads of a
     file that changed since are left out, and test output keeps the failures and the summary. What is left out can
     always be read again. Switched on only when the evals show that quality holds.
-63. **The cache keeps up with a slow pace.** When you take more than a few minutes between messages, the whole
-    conversation stays in the cache for an hour, not only the start, so each answer pays for what is new.
 64. **Coming back to a long conversation.** After a pause long enough for the cache to expire, YAAP shows what
     continuing costs and offers to summarise first or to start a new conversation from a summary. Nothing happens
     by itself.
+68. **Behind the scenes, under each answer.** Small labels show what happened around an answer: the model it was
+    routed to, memory that was used, output that was shortened, helpers that ran, a secret that was replaced. Each
+    opens to the reason and the cost.
+70. **Why did that happen?** An approval that was asked, a tool that was refused, a model that was chosen or context
+    that was shortened shows the rule and the setting behind it.
 67. **YAAP's own agents and skills in the Blueprint.** The helpers that work in the background (the explorer, the
     worker, the reviewer, the router, the summariser, the memory keeper, the learner and the guard) show as
     Blueprint items with their instructions, model and cost. You can change their instructions in a layer of your
     own; the guard can be read but not switched off.
-68. **Behind the scenes, under each answer.** Small labels show what happened around an answer: the model it was
-    routed to, memory that was used, output that was shortened, helpers that ran, a secret that was replaced. Each
-    opens to the reason and the cost.
 69. **One page for background tasks.** Every task YAAP runs by itself (titles, summaries, memory, routing, reviews,
     learning) with its model, whether it is on, how often it ran and what it cost this month.
-70. **Why did that happen?** An approval that was asked, a tool that was refused, a model that was chosen or context
-    that was shortened shows the rule and the setting behind it.
 71. **The answer as a route.** Each answer drawn as a line with stops: routing, building the context, the model
     calls, the tools with their checks, the helpers and the work afterwards.
     - While the answer runs, a small strip above it grows stop by stop and shows where it is now, such as an
       approval it waits for.
     - When it is done, the strip folds into the labels of 68, with one that opens the route.
     - The trace gets a Route tab with the whole line. Each stop opens to what happened, why, its time and its cost.
-72. **What YAAP does behind the scenes.** A page in the documentation with every background task: when it runs,
-    what it costs and how to switch it off.
+59. **A lead model with cheap helpers.** The main model splits the work into small tasks, each with a check such as a
+    test. A cheaper model reads and does the work, YAAP runs the check, and after two failures the main model takes
+    over. Several readers can work at once. On the board this works per card, with the cost and the attempts of each
+    card measured.
+
+## 0.8.0: the project board
+
+Plan, build and review the work of a project, steered from one board.
+
 75. **A specification to start from.** Templates for a specification with acceptance criteria, so every piece of
     work starts the same way. The review checks the result against those criteria.
 18. **Plan, then build.** `/plan` makes a plan without changing anything: steps, files and checks. After you approve
     it, the worker model carries it out and ticks the steps off.
-59. **A lead model with cheap helpers.** The main model splits the work into small tasks, each with a check such as a
-    test. A cheaper model reads and does the work, YAAP runs the check, and after two failures the main model takes
-    over. Several readers can work at once.
 19. **Current state per project.** The project memory keeps a short *Current state*: where the work stands, what is
     open, the next step. A new conversation starts from it.
 54. **One card from start to finish first.** A request in the chat becomes a card. You approve its plan, one build runs
@@ -109,14 +111,12 @@ Plan, build and review the work of a project, steered from one board.
 
 ## Later
 
-The direction after 0.7, not yet in a version.
+The direction after 0.8, not yet in a version.
 
 26. **How much the agent steers the board**, set per project:
     - four levels, from only proposing to an autopilot up to a pull request;
     - gates per column;
     - a budget per card and per version.
-27. **Cheaper building, same quality.** A cheaper model builds and a stronger one plans and reviews. After failed
-    attempts the stronger model takes over. Cost and attempts are measured per card.
 73. **From a pull request to a release.** After the review and green checks: merge, a release with its notes, and
     optionally a deploy, each step with your approval or by the board's autonomy level.
 74. **How the work goes, across projects.** Cards finished per week, how many were right the first time, what a
@@ -137,7 +137,6 @@ The direction after 0.7, not yet in a version.
 
 Ideas without a version.
 
-35. **More checks in GitHub Actions:** linting and the audit on every pull request, and Dependabot.
 36. **Less code.** A skill that makes the agent prefer the standard library and the platform's own features, kept
     only where the evals show that quality holds.
 37. **A code graph.** A graph of the code over MCP, compared with the language servers using the evals.
@@ -153,7 +152,7 @@ Ideas without a version.
     difference before you accept the rule.
 57. **See the context before switching models.** On request YAAP shows which files, memory and tool results would go
     to the chosen model, where they come from and which project policy applies. You can leave a source out for that
-    run or send the request to a local model.
+    run or send the request to a local model. Builds on the breakdown of 66.
 65. **Build it like last time.** Mark a screen, route or service that came out well as the example for its kind.
     The next one of that kind starts from it, with the same layout and components, so it is right the first time
     instead of after corrections.
@@ -173,5 +172,4 @@ For the code base itself:
 
 8. **Linting and formatting.** One pass of ruff, mypy, ESLint and Prettier over the whole code base, with a script
    to run them.
-9. **A baseline measurement.** The bundled eval set is run and the result is recorded, so later versions can be
-   compared with it.
+35. **More checks in GitHub Actions:** linting and the audit on every pull request, and Dependabot.

@@ -37,7 +37,7 @@ Most AI coding tools tie you to one vendor, one editor or one way of working. YA
 - **Your way of working, written down once.** Your instructions, standards, skills and agents live in the **Blueprint**: Markdown files in git, followed by every conversation.
 - **Separate worlds.** Environments such as *Work* and *Private* each have their own keys, projects, standards and budget, and never see each other's.
 
-**Where it is going: your personal software factory.** From an idea to a reviewed pull request: you describe the work, a strong model plans it, cheaper models build it, and every step is checked before it reaches you. The project board that runs this line is planned for 0.7.0; see the [roadmap](docs/roadmap.md).
+**Where it is going: your personal software factory.** From an idea to a reviewed pull request: you describe the work, a strong model plans it, cheaper models build it, and every step is checked before it reaches you. The project board that runs this line is planned for 0.8.0; see the [roadmap](docs/roadmap.md).
 
 ## Who it is for
 
