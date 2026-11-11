@@ -49,7 +49,7 @@ YAAP listens on `127.0.0.1:8080` only. It answers only when it is asked for by `
 
 ## You approve what changes things
 
-Writing files, running commands and committing can each ask first; pushing and a command with a secret always ask. The access choice *full* turns asking off for one conversation; with the runner that leaves the environment's own project files and the secrets you gave the agent within its reach, nothing of YAAP's. After the agent read outside content (a web page, an attachment, a skill from GitHub, the output of an MCP server or another agent), every changing action asks for the rest of that reply, and optionally the utility model marks requests that seem to follow that content. Checkpoints let you roll back file changes per action.
+Writing files, running commands and committing can each ask first; pushing and a command with a secret always ask. The access choice *full* turns asking off for one conversation; with the runner that leaves the environment's own project files and the secrets you gave the agent within its reach, nothing of YAAP's. After the agent read outside content (a web page, an attachment, a skill from GitHub, the output of an MCP server or another agent), every changing action asks for the rest of that reply, unless the conversation has full access: *full* turns this guard off too, while pushing and a command with a secret still ask. Optionally the utility model marks requests that seem to follow that content. Checkpoints let you roll back file changes per action.
 
 ## The preview of a project's app
 
