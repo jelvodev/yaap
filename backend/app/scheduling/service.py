@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from app.core.audit import prune_audit
 from app.core.chat import add_user_message
 from app.core.goals import ACTIVE, OPEN_STATUSES, create_goal, end_goal, goal_block, goal_cost, open_goal, start_text
-from app.core.reply_errors import ReplyError
+from app.core.reply_errors import ReplyBusy, ReplyError
 from app.core.reply_service import ReplyRequest, ReplyService
 from app.core.reply_services import ReplyServices
 from app.backups.runs import backup_tick
@@ -128,10 +128,6 @@ def run_conversation(session: Session, task: ScheduledTask, now: datetime) -> Co
     if task.conversation_mode == "one" and task.conversation_id is not None:
         existing = session.get(Conversation, task.conversation_id)
         if existing is not None and existing.project_id == task.project_id:
-            goal = open_goal(session, existing.id)
-            if goal is not None:
-                end_goal(goal, "stopped", "A new run of the scheduled task started.")
-            existing.archived_at = None
             return existing
     conversation = Conversation(
         environment_id=project.environment_id,
@@ -184,33 +180,44 @@ def start_run(app: Any, task_id: int, trigger: str) -> Started | None:
             fail(session, task, record, f"The model {task.model} is not available.")
             return None
         conversation = run_conversation(session, task, now)
-        conversation.provider = model.provider
-        conversation.model = model.id
-        conversation.updated_at = now
-        record.conversation_id = conversation.id
-        replies = state.replies
-        if replies.running(conversation.id) is not None:
+        try:
+            reservation = state.replies.reserve(conversation.id)
+        except ReplyBusy:
             fail(session, task, record, "The task's conversation was still busy.")
             return None
-        try:
-            goal = create_goal(session, conversation, task.prompt)
-        except Exception as error:  # noqa: BLE001 - a GoalError, shown in the run
-            fail(session, task, record, str(error))
-            return None
-        goal.max_turns, goal.max_cost = task.max_turns, task.max_cost
-        record.goal_id = goal.id
-        session.commit()
-        try:
-            setup = service.prepare(session, conversation, task.prompt)
-        except ReplyError as error:
-            end_goal(goal, "stopped", str(error))
-            fail(session, task, record, str(error))
-            return None
-        block = goal_block(start_text(task.prompt, goal.max_turns), 1, goal.max_turns)
-        user_message = add_user_message(session, conversation, "", extra_blocks=[block])
-        started = Started(record.id, conversation.id)
-        service.launch(session, setup, ReplyRequest(conversation, user_message, unattended=True))
-        return started
+        with reservation:
+            conversation = session.get(Conversation, conversation.id, populate_existing=True)
+            if conversation is None:
+                fail(session, task, record, "The task's conversation no longer exists.")
+                return None
+            conversation.provider = model.provider
+            conversation.model = model.id
+            conversation.updated_at = now
+            record.conversation_id = conversation.id
+            if task.conversation_mode == "one":
+                goal_to_end = open_goal(session, conversation.id)
+                if goal_to_end is not None:
+                    end_goal(goal_to_end, "stopped", "A new run of the scheduled task started.")
+                conversation.archived_at = None
+            try:
+                goal = create_goal(session, conversation, task.prompt)
+            except Exception as error:  # noqa: BLE001 - a GoalError, shown in the run
+                fail(session, task, record, str(error))
+                return None
+            goal.max_turns, goal.max_cost = task.max_turns, task.max_cost
+            record.goal_id = goal.id
+            session.commit()
+            try:
+                setup = service.prepare(session, conversation, task.prompt)
+            except ReplyError as error:
+                end_goal(goal, "stopped", str(error))
+                fail(session, task, record, str(error))
+                return None
+            block = goal_block(start_text(task.prompt, goal.max_turns), 1, goal.max_turns)
+            user_message = add_user_message(session, conversation, "", extra_blocks=[block])
+            started = Started(record.id, conversation.id)
+            service.launch(session, setup, ReplyRequest(conversation, user_message, unattended=True), reservation)
+            return started
 
 
 def fail(session: Session, task: ScheduledTask, record: ScheduledRun, reason: str) -> None:

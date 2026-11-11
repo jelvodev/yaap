@@ -235,16 +235,20 @@ class ReplayService:
             session.commit()
             prompt = last_user_text(messages)
             service = ReplyService(services)
-            try:
-                setup = service.prepare(session, conversation, prompt)
-                setup, _target = play_setup(session, services, conversation, setup, folder, layers)
-                text = prompt or f"Replay of step {replay.step_position}"
-                user_message = add_user_message(session, conversation, text)
-                history = tuple(model_history(messages))
-                request = ReplyRequest(conversation, user_message, unattended=True, history=history)
-                job = service.launch(session, setup, request)
-            except (ReplyError, TargetError, PlayError) as error:
-                raise ReplayError(str(error)) from error
+            with services.replies.reserve(conversation.id) as reservation:
+                conversation = session.get(Conversation, conversation.id, populate_existing=True)
+                if conversation is None:
+                    raise ReplayError("The replay conversation no longer exists.")
+                try:
+                    setup = service.prepare(session, conversation, prompt)
+                    setup, _target = play_setup(session, services, conversation, setup, folder, layers)
+                    text = prompt or f"Replay of step {replay.step_position}"
+                    user_message = add_user_message(session, conversation, text)
+                    history = tuple(model_history(messages))
+                    request = ReplyRequest(conversation, user_message, unattended=True, history=history)
+                    job = service.launch(session, setup, request, reservation)
+                except (ReplyError, TargetError, PlayError) as error:
+                    raise ReplayError(str(error)) from error
             replay.agent_run_id = root_run(session, conversation.id)
             session.commit()
             return Started(job, conversation.id)

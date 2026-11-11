@@ -3,18 +3,19 @@ import { useCallback, useEffect, useState } from "react";
 import { api, errorMessage } from "../../api/client";
 import type { QueuedMessage } from "../../components/QueueStrip";
 
-/** A message taken from the queue to be sent now. */
-export interface TakenMessage {
-  text: string;
-  attachment_ids: number[];
+export interface QueueSelection {
+  item_id?: number;
+  all?: boolean;
 }
 
 export interface MessageQueue {
   items: QueuedMessage[];
   /** Queue a message; resolves to false when the server refused it. */
   add: (conversationId: number, text: string, attachmentIds: number[]) => Promise<boolean>;
-  /** Take one queued message, or all of them joined, off the queue. */
-  take: (conversationId: number, body: { item_id?: number; all?: boolean }) => Promise<TakenMessage | null>;
+  /** Refresh and return the server's current queue. */
+  refresh: (conversationId: number) => Promise<QueuedMessage[]>;
+  /** Persist a send-now selection and let the server resume it after stopping the current reply. */
+  sendNow: (conversationId: number, selection: QueueSelection) => Promise<boolean>;
   remove: (item: QueuedMessage) => Promise<void>;
   /** Give a queued message to the running agent. */
   steer: (item: QueuedMessage) => Promise<void>;
@@ -24,11 +25,13 @@ export interface MessageQueue {
 export function useMessageQueue(conversationId: number | null, onError: (message: string) => void): MessageQueue {
   const [items, setItems] = useState<QueuedMessage[]>([]);
 
-  const load = useCallback(async (id: number) => {
+  const load = useCallback(async (id: number): Promise<QueuedMessage[]> => {
     const { data } = await api.GET("/api/v1/conversations/{conversation_id}/queue", {
       params: { path: { conversation_id: id } },
     });
-    setItems(data ?? []);
+    const current = data ?? [];
+    setItems(current);
+    return current;
   }, []);
 
   useEffect(() => {
@@ -49,21 +52,24 @@ export function useMessageQueue(conversationId: number | null, onError: (message
     return true;
   }
 
-  async function take(id: number, body: { item_id?: number; all?: boolean }): Promise<TakenMessage | null> {
-    const { data } = await api.POST("/api/v1/conversations/{conversation_id}/queue/take", {
-      params: { path: { conversation_id: id } },
-      body: { all: body.all ?? false, item_id: body.item_id ?? null },
-    });
-    await load(id);
-    return data ?? null;
-  }
-
   async function remove(item: QueuedMessage) {
     if (!conversationId) return;
     await api.DELETE("/api/v1/conversations/{conversation_id}/queue/{item_id}", {
       params: { path: { conversation_id: conversationId, item_id: item.id } },
     });
     await load(conversationId);
+  }
+
+  async function sendNow(id: number, selection: QueueSelection): Promise<boolean> {
+    const { error: sendError } = await api.POST("/api/v1/conversations/{conversation_id}/queue/send-now", {
+      params: { path: { conversation_id: id } },
+      body: { item_id: selection.item_id ?? null, all: selection.all ?? false },
+    });
+    if (sendError) {
+      onError(errorMessage(sendError, "The queued message could not be sent now."));
+      return false;
+    }
+    return true;
   }
 
   async function steer(item: QueuedMessage) {
@@ -76,5 +82,5 @@ export function useMessageQueue(conversationId: number | null, onError: (message
     await load(conversationId);
   }
 
-  return { items, add, take, remove, steer };
+  return { items, add, refresh: load, remove, sendNow, steer };
 }

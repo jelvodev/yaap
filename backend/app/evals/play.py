@@ -176,20 +176,24 @@ class CasePlayer:
             result.conversation_id, result.model = conversation.id, conversation.model
             session.commit()
             service = ReplyService(services)
-            try:
-                setup = service.prepare(session, conversation, case.prompt)
-                setup, target = play_setup(session, services, conversation, setup, folder, request.layers)
-            except (ReplyError, TargetError) as error:
-                raise PlayError(str(error)) from error
-            user_message = add_user_message(session, conversation, case.prompt)
-            reply = ReplyRequest(
-                conversation, user_message, unattended=True, tools_by_name=case.allowed_tools or (), on_step=watch
-            )
-            watch.started = time.monotonic()  # The play's time counts from the reply's start.
-            try:
-                job = service.launch(session, setup, reply)
-            except ReplyError as error:
-                raise PlayError(str(error)) from error
+            with services.replies.reserve(conversation.id) as reservation:
+                conversation = session.get(Conversation, conversation.id, populate_existing=True)
+                if conversation is None:
+                    raise PlayError("The eval conversation no longer exists.")
+                try:
+                    setup = service.prepare(session, conversation, case.prompt)
+                    setup, target = play_setup(session, services, conversation, setup, folder, request.layers)
+                except (ReplyError, TargetError) as error:
+                    raise PlayError(str(error)) from error
+                user_message = add_user_message(session, conversation, case.prompt)
+                reply = ReplyRequest(
+                    conversation, user_message, unattended=True, tools_by_name=case.allowed_tools or (), on_step=watch
+                )
+                watch.started = time.monotonic()
+                try:
+                    job = service.launch(session, setup, reply, reservation)
+                except ReplyError as error:
+                    raise PlayError(str(error)) from error
             executor: CommandExecutor = (
                 target.runtime.executor(str(folder)) if target is not None else LocalExecutor(str(folder))
             )

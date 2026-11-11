@@ -47,7 +47,7 @@ from app.core.conversations import delete_conversation
 from app.core.goals import ACTIVE, end_goal, goal_cost, latest_goal, open_goal
 from app.core.chat import DEFAULT_TITLE, load_branch
 from app.core.replies import ReplyRegistry
-from app.core.reply_errors import InvalidReplyRequest, ReplyConflict, ReplyError
+from app.core.reply_errors import InvalidReplyRequest, ReplyBusy, ReplyConflict, ReplyError
 from app.core.reply_service import NewMessage, ReplyService
 from app.core.reply_services import ReplyServices
 from app.core.context_control import ContextControl, check_conversation_limit, resolve_context_control
@@ -421,7 +421,7 @@ def remove_conversation(
 ) -> None:
     """Delete the conversation for good. Its usage stays counted."""
     replies: ReplyRegistry = request.app.state.replies
-    if replies.running(conversation.id) is not None:
+    if replies.busy(conversation.id):
         raise HTTPException(status.HTTP_409_CONFLICT, "YAAP is still replying in this conversation; stop it first.")
     conversation_id = conversation.id
     browser_place = server_place(conversation.environment_id).place
@@ -498,6 +498,22 @@ def send_message(
 
 
 @router.post(
+    "/conversations/{conversation_id}/messages/{message_id}/retry",
+    response_class=StreamingResponse,
+    responses={200: {"content": {"text/event-stream": {}}, "description": "The reply to the stored message."}},
+)
+def retry_message(
+    message_id: int, conversation: ConversationDependency, session: SessionDependency, service: ReplyServiceDependency
+) -> StreamingResponse:
+    """Retry a reply start against its existing latest user message, without storing the message twice."""
+    try:
+        job = service.retry_user_message(session, conversation, message_id)
+    except ReplyError as error:
+        raise reply_http_error(error) from error
+    return event_stream(job.follow())
+
+
+@router.post(
     "/conversations/{conversation_id}/messages/{message_id}/regenerate",
     response_class=StreamingResponse,
     responses={200: {"content": {"text/event-stream": {}}, "description": "Server-sent events with the new reply."}},
@@ -522,7 +538,7 @@ def switch_branch(
     providers: ProviderRegistryDependency,
 ) -> ConversationOut:
     """Show another version of a message: the conversation continues from its newest follow-up."""
-    if request.app.state.replies.running(conversation.id) is not None:
+    if request.app.state.replies.busy(conversation.id):
         raise HTTPException(status.HTTP_409_CONFLICT, "Wait until YAAP has finished replying.")
     messages = list(session.scalars(select(Message).where(Message.conversation_id == conversation.id)))
     if not any(message.id == payload.message_id for message in messages):
@@ -604,7 +620,6 @@ def read_goal(conversation: ConversationDependency, session: SessionDependency) 
 @router.patch("/conversations/{conversation_id}/goal", response_model=GoalOut)
 def change_goal(
     payload: GoalUpdate,
-    request: Request,
     conversation: ConversationDependency,
     session: SessionDependency,
     service: ReplyServiceDependency,
@@ -613,20 +628,30 @@ def change_goal(
     goal = open_goal(session, conversation.id)
     if goal is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "This conversation has no open goal.")
-    if payload.max_turns is not None:
-        goal.max_turns = payload.max_turns
-    if payload.max_cost is not None:
-        goal.max_cost = payload.max_cost
     resume = payload.status == ACTIVE and goal.status != ACTIVE
-    if payload.status == "stopped":
-        end_goal(goal, "stopped", "Stopped by you.")
-    elif payload.status is not None:
-        goal.status = payload.status
-    session.commit()
-    if resume and request.app.state.replies.running(conversation.id) is None:
-        service.send_goal_turn(conversation.id, resuming=True)
-        session.expire_all()
-    return goal_out(session, session.get_one(Goal, goal.id))
+    reservation = None
+    if resume:
+        try:
+            reservation = service.reserve(conversation.id)
+        except ReplyBusy as error:
+            raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
+    try:
+        if payload.max_turns is not None:
+            goal.max_turns = payload.max_turns
+        if payload.max_cost is not None:
+            goal.max_cost = payload.max_cost
+        if payload.status == "stopped":
+            end_goal(goal, "stopped", "Stopped by you.")
+        elif payload.status is not None:
+            goal.status = payload.status
+        session.commit()
+        if resume and reservation is not None:
+            service.send_goal_turn(conversation.id, resuming=True, reservation=reservation)
+            session.expire_all()
+        return goal_out(session, session.get_one(Goal, goal.id))
+    finally:
+        if reservation is not None:
+            reservation.release()
 
 
 # --- Remember as rule ------------------------------------------------------------------------------
@@ -748,7 +773,7 @@ async def summarise_now(
 ) -> SummaryOut:
     """Summarise the earlier messages now, instead of waiting until the context fills up; with a focus
     as /compact does."""
-    if request.app.state.replies.running(conversation.id) is not None:
+    if request.app.state.replies.busy(conversation.id):
         raise HTTPException(status.HTTP_409_CONFLICT, "Wait until YAAP has finished replying.")
     if not yaap_compacts(session, providers, conversation):
         raise HTTPException(

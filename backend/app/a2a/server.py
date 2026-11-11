@@ -24,7 +24,7 @@ from app.a2a.client import PROTOCOL_VERSION, parts_text
 from app.auth.tokens import TokenGrant, require_api_token
 from app.core.api_conversations import ScopeError, in_scope, new_conversation, token_scope
 from app.core.chat import add_user_message, make_title
-from app.core.reply_errors import ReplyError
+from app.core.reply_errors import ReplyBusy, ReplyError
 from app.core.reply_service import ReplyRequest, ReplyService
 from app.core.reply_services import ReplyServices
 from app.storage.models import A2ATask, Conversation, Message
@@ -189,33 +189,43 @@ def start_task(app: Any, grant: TokenGrant, text: str, context_id: str | None) -
                 found = session.get(Conversation, earlier.conversation_id)
                 conversation = found if in_scope(found, grant.environment_id, grant.project_id) else None
         context_id = context_id or uuid.uuid4().hex
-        if conversation is not None and state.replies.running(conversation.id) is not None:
-            raise RpcError(INVALID_PARAMS, "The previous task of this context is still running; wait or cancel it.")
-        try:
-            if conversation is None:
+        if conversation is None:
+            try:
                 conversation = new_conversation(session, state.providers, scope, f"A2A · {make_title(text)}")
                 session.commit()
-            setup = service.prepare(session, conversation, text)
-        except (ScopeError, ReplyError) as error:
-            raise RpcError(INTERNAL_ERROR, str(error)) from error
-        user_message = add_user_message(session, conversation, text)
-        task = A2ATask(
-            id=uuid.uuid4().hex,
-            context_id=context_id,
-            token_id=grant.token_id,
-            environment_id=grant.environment_id,
-            project_id=grant.project_id,
-            conversation_id=conversation.id,
-            user_message_id=user_message.id,
-            canceled=False,
-            created_at=datetime.now(UTC),
-        )
-        session.add(task)
-        # Like a finished scheduled task: the conversation stays marked until the user opens it.
-        conversation.unread = True
-        session.commit()
-        service.launch(session, setup, ReplyRequest(conversation, user_message))
-        return task.id, conversation.id
+            except ScopeError as error:
+                raise RpcError(INTERNAL_ERROR, str(error)) from error
+        try:
+            reservation = state.replies.reserve(conversation.id)
+        except ReplyBusy as error:
+            raise RpcError(
+                INVALID_PARAMS, "The previous task of this context is still running; wait or cancel it."
+            ) from error
+        with reservation:
+            conversation = session.get(Conversation, conversation.id, populate_existing=True)
+            if conversation is None:
+                raise RpcError(INTERNAL_ERROR, "The conversation no longer exists.")
+            try:
+                setup = service.prepare(session, conversation, text)
+            except (ScopeError, ReplyError) as error:
+                raise RpcError(INTERNAL_ERROR, str(error)) from error
+            user_message = add_user_message(session, conversation, text)
+            task = A2ATask(
+                id=uuid.uuid4().hex,
+                context_id=context_id,
+                token_id=grant.token_id,
+                environment_id=grant.environment_id,
+                project_id=grant.project_id,
+                conversation_id=conversation.id,
+                user_message_id=user_message.id,
+                canceled=False,
+                created_at=datetime.now(UTC),
+            )
+            session.add(task)
+            conversation.unread = True
+            session.commit()
+            service.launch(session, setup, ReplyRequest(conversation, user_message), reservation)
+            return task.id, conversation.id
 
 
 async def wait_for_reply(app: Any, conversation_id: int, timeout: float) -> None:

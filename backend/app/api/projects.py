@@ -509,7 +509,7 @@ def move_project_to_environment(
     if target is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "There is no such environment.")
     conversation_ids = session.scalars(select(Conversation.id).where(Conversation.project_id == project.id))
-    if any(request.app.state.replies.running(conversation_id) for conversation_id in conversation_ids):
+    if any(request.app.state.replies.busy(conversation_id) for conversation_id in conversation_ids):
         raise HTTPException(status.HTTP_409_CONFLICT, "A reply is still running in this project. Wait for it or stop it first.")
     try:
         old_folder = move_project(session, workspace_dir, project, target)

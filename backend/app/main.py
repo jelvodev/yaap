@@ -102,6 +102,7 @@ from app.scheduling.service import recover_runs, run_periodically as run_schedul
 from app.evals.runs import EvalService, recover_runs as recover_eval_runs
 from app.replays.service import ReplayService, recover_replays
 from app.core.reply_services import ReplyServices
+from app.core.message_queue import restore_interrupted_handoffs
 from app.core.search_index import SearchIndexer
 from app.core.shutdown import stop_replies_and_their_work
 from app.credentials.crypto import CredentialCipher
@@ -143,6 +144,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     run_migrations(settings.database_url)
     engine = create_database_engine(settings.database_url)
     app.state.session_factory = create_session_factory(engine)
+    restore_interrupted_handoffs(app.state.session_factory)
     app.state.cipher = CredentialCipher(settings.master_key, settings.previous_master_key)
     with app.state.session_factory() as session:
         seed_default_environments(session)

@@ -172,6 +172,26 @@ export async function sendMessage(
   await readEvents(response, handlers);
 }
 
+/** Atomically accept selected queued items with the user message and follow its reply. */
+export async function sendQueuedMessage(
+  conversationId: number,
+  selection: { item_id?: number; all?: boolean },
+  handlers: MessageStreamHandlers,
+  signal: AbortSignal,
+): Promise<void> {
+  const response = await fetch(`/api/v1/conversations/${conversationId}/queue/send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ item_id: selection.item_id ?? null, all: selection.all ?? false }),
+    signal,
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(errorMessage(body, `The queued message could not be sent (HTTP ${response.status}).`));
+  }
+  await readEvents(response, handlers);
+}
+
 /** Answer the question of a reply again; the new reply becomes a version next to the old one. */
 export async function regenerateReply(
   conversationId: number,
@@ -186,6 +206,24 @@ export async function regenerateReply(
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     throw new Error(errorMessage(body, `The reply could not be made again (HTTP ${response.status}).`));
+  }
+  await readEvents(response, handlers);
+}
+
+/** Retry a reply against the existing stored user message without creating another user message. */
+export async function retryMessage(
+  conversationId: number,
+  messageId: number,
+  handlers: MessageStreamHandlers,
+  signal: AbortSignal,
+): Promise<void> {
+  const response = await fetch(`/api/v1/conversations/${conversationId}/messages/${messageId}/retry`, {
+    method: "POST",
+    signal,
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(errorMessage(body, `The reply could not be started again (HTTP ${response.status}).`));
   }
   await readEvents(response, handlers);
 }

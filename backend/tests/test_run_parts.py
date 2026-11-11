@@ -56,6 +56,7 @@ def parent_run(registry: RunRegistry):
         outputs=Stand("outputs"),
         extra_tools={"github__issues": Stand("tool")},
         catalog=Stand("catalog"),
+        steering=Stand("steering"),
         code_intel=Stand("code_intel"),
         injection_check=Stand("injection check"),
         delegator=Stand("delegator"),
@@ -72,6 +73,7 @@ def parent_run(registry: RunRegistry):
     run.state.outside_files.add("imported/readme.md")
     run.state.changed_files.add("app.py")
     run.state.steering.append("Use blue.")
+    run.state.steering_item_ids.append(17)
     run.state.joined_tools.add("browser__browser_navigate")
     return run
 
@@ -109,6 +111,7 @@ CHILD_FIELDS = [
     ("services", "extra_tools", SAME),
     # Which extra tools wait until they join is the parent's; what has joined starts as a copy of the parent's.
     ("services", "catalog", SAME),
+    ("services", "steering", SAME),
     ("services", "injection_check", SAME),
     ("services", "delegator", None),
     ("services", "goal", None),
@@ -126,6 +129,7 @@ CHILD_FIELDS = [
     ("state", "outside_files", SAME),
     ("state", "changed_files", set()),
     ("state", "steering", []),
+    ("state", "steering_item_ids", []),
     ("state", "joined_tools", {"browser__browser_navigate"}),
     # A test that failed twice counts per run.
     ("state", "failed_tests", {}),

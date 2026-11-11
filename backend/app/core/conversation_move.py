@@ -68,7 +68,7 @@ def project_label(session: Session, project_id: int | None) -> str:
 
 
 def check_idle(session: Session, replies: ReplyRegistry, runs: RunRegistry, conversation: Conversation) -> None:
-    if replies.running(conversation.id) is not None or runs.for_conversation(conversation.id) is not None:
+    if replies.busy(conversation.id) or runs.for_conversation(conversation.id) is not None:
         raise MoveBusy("YAAP is replying in this conversation; stop it first.")
     if open_goal(session, conversation.id) is not None:
         raise MoveBusy("A goal is open in this conversation; end it first.")

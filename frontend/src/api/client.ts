@@ -18,6 +18,7 @@ export type CodexStatus = components["schemas"]["CodexStatusOut"];
 export type Project = components["schemas"]["ProjectOut"];
 export type BlueprintItem = components["schemas"]["BlueprintItemOut"];
 export type BlueprintFile = components["schemas"]["BlueprintFileOut"];
+export type MutationStatus = components["schemas"]["MutationStatusOut"];
 export type GitRepository = components["schemas"]["RepositoryOut"];
 export type Preset = components["schemas"]["PresetOut"];
 

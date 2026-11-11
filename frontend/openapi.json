@@ -1026,6 +1026,16 @@
             "title": "Kind",
             "type": "string"
           },
+          "mutation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MutationStatusOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -1158,6 +1168,16 @@
             ],
             "title": "Kind",
             "type": "string"
+          },
+          "mutation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MutationStatusOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "name": {
             "title": "Name",
@@ -5349,6 +5369,13 @@
       },
       "ImportApplyOut": {
         "properties": {
+          "commits": {
+            "items": {
+              "$ref": "#/components/schemas/MutationStatusOut"
+            },
+            "title": "Commits",
+            "type": "array"
+          },
           "written": {
             "items": {
               "type": "string"
@@ -5358,7 +5385,8 @@
           }
         },
         "required": [
-          "written"
+          "written",
+          "commits"
         ],
         "title": "ImportApplyOut",
         "type": "object"
@@ -5634,6 +5662,30 @@
           "path"
         ],
         "title": "InstalledSkillOut",
+        "type": "object"
+      },
+      "InstalledSkillsOut": {
+        "properties": {
+          "commits": {
+            "items": {
+              "$ref": "#/components/schemas/MutationStatusOut"
+            },
+            "title": "Commits",
+            "type": "array"
+          },
+          "skills": {
+            "items": {
+              "$ref": "#/components/schemas/InstalledSkillOut"
+            },
+            "title": "Skills",
+            "type": "array"
+          }
+        },
+        "required": [
+          "skills",
+          "commits"
+        ],
+        "title": "InstalledSkillsOut",
         "type": "object"
       },
       "KnowledgeDocumentOut": {
@@ -6672,6 +6724,51 @@
         "title": "ModelPricingOut",
         "type": "object"
       },
+      "MutationStatusOut": {
+        "properties": {
+          "committed": {
+            "title": "Committed",
+            "type": "boolean"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "committed"
+        ],
+        "title": "MutationStatusOut",
+        "type": "object"
+      },
+      "MutationStatusesOut": {
+        "properties": {
+          "statuses": {
+            "items": {
+              "$ref": "#/components/schemas/MutationStatusOut"
+            },
+            "title": "Statuses",
+            "type": "array"
+          }
+        },
+        "required": [
+          "statuses"
+        ],
+        "title": "MutationStatusesOut",
+        "type": "object"
+      },
       "OutsideApprovalOut": {
         "properties": {
           "approval_id": {
@@ -6867,6 +6964,26 @@
           "items"
         ],
         "title": "PackageInstallIn",
+        "type": "object"
+      },
+      "PackageInstallOut": {
+        "properties": {
+          "commit": {
+            "$ref": "#/components/schemas/MutationStatusOut"
+          },
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "commit"
+        ],
+        "title": "PackageInstallOut",
         "type": "object"
       },
       "PackageInstalledItemOut": {
@@ -8639,6 +8756,42 @@
         "title": "PullsOut",
         "type": "object"
       },
+      "QueueSend": {
+        "properties": {
+          "all": {
+            "default": false,
+            "title": "All",
+            "type": "boolean"
+          },
+          "item_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Id"
+          }
+        },
+        "title": "QueueSend",
+        "type": "object"
+      },
+      "QueueSendNowOut": {
+        "properties": {
+          "status": {
+            "const": "stopping",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "QueueSendNowOut",
+        "type": "object"
+      },
       "QueueTake": {
         "properties": {
           "all": {
@@ -8720,6 +8873,14 @@
             "title": "Id",
             "type": "integer"
           },
+          "send_now_pending": {
+            "title": "Send Now Pending",
+            "type": "boolean"
+          },
+          "steering_pending": {
+            "title": "Steering Pending",
+            "type": "boolean"
+          },
           "text": {
             "title": "Text",
             "type": "string"
@@ -8729,7 +8890,9 @@
           "id",
           "text",
           "attachment_ids",
-          "created_at"
+          "created_at",
+          "send_now_pending",
+          "steering_pending"
         ],
         "title": "QueuedMessageOut",
         "type": "object"
@@ -9998,6 +10161,16 @@
           "diff": {
             "title": "Diff",
             "type": "string"
+          },
+          "mutation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MutationStatusOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "path": {
             "title": "Path",
@@ -14915,7 +15088,14 @@
           }
         ],
         "responses": {
-          "204": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationStatusesOut"
+                }
+              }
+            },
             "description": "Successful Response"
           },
           "422": {
@@ -15454,11 +15634,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "type": "string"
-                  },
-                  "title": "Response Install Package Api V1 Blueprint Packages Install Post",
-                  "type": "array"
+                  "$ref": "#/components/schemas/PackageInstallOut"
                 }
               }
             },
@@ -15710,11 +15886,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "type": "string"
-                  },
-                  "title": "Response Accept Package Update Api V1 Blueprint Packages  Name  Update Post",
-                  "type": "array"
+                  "$ref": "#/components/schemas/PackageInstallOut"
                 }
               }
             },
@@ -15866,11 +16038,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/InstalledSkillOut"
-                  },
-                  "title": "Response Install Github Skills Api V1 Blueprint Skills Github Install Post",
-                  "type": "array"
+                  "$ref": "#/components/schemas/InstalledSkillsOut"
                 }
               }
             },
@@ -17349,6 +17517,54 @@
         ]
       }
     },
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/retry": {
+      "post": {
+        "description": "Retry a reply start against its existing latest user message, without storing the message twice.",
+        "operationId": "retry_message_api_v1_conversations__conversation_id__messages__message_id__retry_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "title": "Message Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {}
+            },
+            "description": "The reply to the stored message."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retry Message",
+        "tags": [
+          "conversations"
+        ]
+      }
+    },
     "/api/v1/conversations/{conversation_id}/messages/{message_id}/rule-proposal": {
       "post": {
         "description": "A rule proposed from one of the user's messages; the user reviews it before anything is written.",
@@ -17808,9 +18024,111 @@
         ]
       }
     },
+    "/api/v1/conversations/{conversation_id}/queue/send": {
+      "post": {
+        "description": "Send selected queue rows with the user message that consumes them.",
+        "operationId": "send_queued_api_v1_conversations__conversation_id__queue_send_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueueSend"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {}
+            },
+            "description": "The accepted reply stream."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Send Queued",
+        "tags": [
+          "activity"
+        ]
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/queue/send-now": {
+      "post": {
+        "description": "Persist the selection, then stop exactly the reply it was meant to follow.",
+        "operationId": "send_queued_now_api_v1_conversations__conversation_id__queue_send_now_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueueSend"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueSendNowOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Send Queued Now",
+        "tags": [
+          "activity"
+        ]
+      }
+    },
     "/api/v1/conversations/{conversation_id}/queue/take": {
       "post": {
-        "description": "Remove what is about to be sent: one item, the first one, or all joined into one message.",
+        "description": "Old clients must use queue/send so a failed send cannot consume their messages.",
         "operationId": "take_from_queue_api_v1_conversations__conversation_id__queue_take_post",
         "parameters": [
           {

@@ -13,11 +13,12 @@ from its parent with exactly what it inherits.
 
 import asyncio
 import secrets
+import stat
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, Protocol
 
 from app.agent.outputs import OutputStore
 from app.agent.policy import AccessLevel, ToolPolicy
@@ -162,6 +163,7 @@ class RunServices:
     # Which extra tools are offered only after they join the run (the browser's after open_browser, a large outside MCP
     # server's after find_tools), and the outside MCP servers the prompt lists.
     catalog: ToolCatalog = field(default_factory=ToolCatalog)
+    steering: "SteeringHandoff | None" = None
     # The optional utility-model check of approvals asked by the injection guard (setting injection_check).
     injection_check: InjectionCheck | None = None
     # Starts sub-runs (delegate); only a top-level run in a project has one.
@@ -199,6 +201,7 @@ class RunState:
     changed_files: set[str] = field(default_factory=set)
     # Messages the user sent while the run works, delivered with the next tool result.
     steering: list[str] = field(default_factory=list)
+    steering_item_ids: list[int] = field(default_factory=list)
     # Extra tools held back by the catalog that have joined the run; offered from the next model call on.
     joined_tools: set[str] = field(default_factory=set)
     # How often each test command failed in this run (app/learning signals).
@@ -215,12 +218,31 @@ class RunState:
         )
 
 
+class SteeringHandoff(Protocol):
+    def claim(self, conversation_id: int, run_id: int) -> list[tuple[int, str]]: ...
+    def acknowledge(self, run_id: int, item_ids: list[int]) -> None: ...
+    def restore(self, run_id: int) -> None: ...
+
+
 @dataclass
 class AgentRun:
     token: str
     config: RunConfig
     services: RunServices = field(default_factory=RunServices)
     state: RunState = field(default_factory=RunState)
+    project_identity: tuple[int, int] | None = field(init=False, default=None)
+
+    def __post_init__(self) -> None:
+        """Remember the project directory object when the run starts, so later path replacement is detectable."""
+        folder = self.config.project_folder
+        if folder is None:
+            return
+        try:
+            info = folder.lstat()
+        except OSError:
+            return
+        if stat.S_ISDIR(info.st_mode):
+            self.project_identity = (info.st_dev, info.st_ino)
 
     def change_access(self, access: AccessLevel) -> None:
         """The user changed the conversation's access level: it applies from the next tool call."""
@@ -395,14 +417,14 @@ class RunRegistry:
         """A delegated sub-run of `parent`: its own token, label, agent and state, the parent's tools without
         `delegate` (narrowed to the agent's `allowed_tools`), and everything else of the parent."""
         token = secrets.token_urlsafe(32)
-        return self.add(
-            AgentRun(
-                token,
-                parent.config.for_child(parent.token, label, agent, allowed_tools),
-                parent.services.for_child(),
-                parent.state.for_child(record_id),
-            )
+        child = AgentRun(
+            token,
+            parent.config.for_child(parent.token, label, agent, allowed_tools),
+            parent.services.for_child(),
+            parent.state.for_child(record_id),
         )
+        child.project_identity = parent.project_identity
+        return self.add(child)
 
     def add(self, run: AgentRun) -> AgentRun:
         self.runs[run.token] = run

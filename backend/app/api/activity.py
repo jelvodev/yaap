@@ -4,12 +4,19 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from app.agent.runs import RunRegistry
 from app.agents.definitions import agent_part, find_agent
-from app.api.conversations import ConversationDependency, conversation_layers
+from app.api.conversations import (
+    ConversationDependency,
+    ReplyServiceDependency,
+    conversation_layers,
+    event_stream,
+    reply_http_error,
+)
 from app.api.dependencies import (
     EnvironmentDependency,
     BlueprintDirDependency,
@@ -18,7 +25,18 @@ from app.api.dependencies import (
     WorkspaceDirDependency,
 )
 from app.core.chat import load_branch
-from app.core.message_queue import queued_items
+from app.core.message_queue import (
+    MAX_MESSAGE_ATTACHMENTS,
+    MAX_MESSAGE_LENGTH,
+    MAX_QUEUED_MESSAGES,
+    QueueError,
+    add_steering,
+    request_send_now,
+    queued_items,
+)
+from app.core.reply_errors import ReplyError
+from app.core.reply_service import ReplyService
+from app.core.replies import ReplyRegistry
 from app.core.search import recall_project_memory
 from app.core.turn_context import memory_parts, turn_context
 from app.core.trimming import latest_trim, shorten
@@ -34,12 +52,12 @@ from app.storage.models import Attachment, Project, QueuedMessage, UsageRecord
 
 router = APIRouter(tags=["activity"])
 
-MAX_QUEUED = 20
+MAX_QUEUED = MAX_QUEUED_MESSAGES
 
 
 class QueuedMessageIn(BaseModel):
-    text: str = Field(default="", max_length=200_000)
-    attachment_ids: list[int] = Field(default_factory=list, max_length=20)
+    text: str = Field(default="", max_length=MAX_MESSAGE_LENGTH)
+    attachment_ids: list[int] = Field(default_factory=list, max_length=MAX_MESSAGE_ATTACHMENTS)
 
 
 class QueuedMessageOut(BaseModel):
@@ -47,6 +65,8 @@ class QueuedMessageOut(BaseModel):
     text: str
     attachment_ids: list[int]
     created_at: datetime
+    send_now_pending: bool
+    steering_pending: bool
 
 
 class QueueTake(BaseModel):
@@ -60,8 +80,49 @@ class QueueTaken(BaseModel):
     attachment_ids: list[int]
 
 
+class QueueSend(BaseModel):
+    item_id: int | None = None
+    all: bool = False
+
+
+class QueueSendNowOut(BaseModel):
+    status: Literal["stopping"]
+
+
+@router.post(
+    "/conversations/{conversation_id}/queue/send-now",
+    response_model=QueueSendNowOut,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def send_queued_now(
+    payload: QueueSend,
+    conversation: ConversationDependency,
+    session: SessionDependency,
+    service: ReplyServiceDependency,
+    request: Request,
+) -> QueueSendNowOut:
+    """Persist the selection, then stop exactly the reply it was meant to follow."""
+    job = request.app.state.replies.running(conversation.id)
+    if job is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "No reply is running; send the queued message directly.")
+    try:
+        request_send_now(session, conversation.id, payload.item_id, payload.all, job.id)
+    except QueueError as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
+    service.schedule_send_now(conversation.id, job.id)
+    request.app.state.replies.cancel_job(conversation.id, job.id)
+    return QueueSendNowOut(status="stopping")
+
+
 def queued_to_out(item: QueuedMessage) -> QueuedMessageOut:
-    return QueuedMessageOut(id=item.id, text=item.text, attachment_ids=item.attachment_ids or [], created_at=item.created_at)
+    return QueuedMessageOut(
+        id=item.id,
+        text=item.text,
+        attachment_ids=item.attachment_ids or [],
+        created_at=item.created_at,
+        send_now_pending=item.send_now_job_id is not None,
+        steering_pending=item.steering_run_id is not None,
+    )
 
 
 @router.get("/conversations/{conversation_id}/queue", response_model=list[QueuedMessageOut])
@@ -111,24 +172,33 @@ def remove_from_queue(item_id: int, conversation: ConversationDependency, sessio
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@router.post(
+    "/conversations/{conversation_id}/queue/send",
+    response_class=StreamingResponse,
+    responses={200: {"content": {"text/event-stream": {}}, "description": "The accepted reply stream."}},
+)
+def send_queued(
+    payload: QueueSend,
+    conversation: ConversationDependency,
+    session: SessionDependency,
+    service: ReplyServiceDependency,
+) -> StreamingResponse:
+    """Send selected queue rows with the user message that consumes them."""
+    try:
+        stream = service.send_queued(session, conversation, payload.item_id, payload.all)
+    except ReplyError as error:
+        raise reply_http_error(error) from error
+    return event_stream(stream.events)
+
+
 @router.post("/conversations/{conversation_id}/queue/take", response_model=QueueTaken)
 def take_from_queue(payload: QueueTake, conversation: ConversationDependency, session: SessionDependency) -> QueueTaken:
-    """Remove what is about to be sent: one item, the first one, or all joined into one message."""
-    items = queued_items(session, conversation.id)
-    if payload.all:
-        taken = items
-    elif payload.item_id is not None:
-        taken = [item for item in items if item.id == payload.item_id]
-    else:
-        taken = items[:1]
-    if not taken:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "The queue is empty.")
-    text = "\n\n".join(item.text for item in taken if item.text)
-    attachment_ids = [attachment for item in taken for attachment in (item.attachment_ids or [])]
-    for item in taken:
-        session.delete(item)
-    session.commit()
-    return QueueTaken(text=text, attachment_ids=attachment_ids)
+    """Old clients must use queue/send so a failed send cannot consume their messages."""
+    del payload, session
+    raise HTTPException(
+        status.HTTP_409_CONFLICT,
+        "Queue items are no longer removed before sending. Refresh YAAP and send the queued message again.",
+    )
 
 
 class SteerIn(BaseModel):
@@ -150,18 +220,15 @@ def steer(payload: SteerIn, conversation: ConversationDependency, session: Sessi
     if run is None:
         raise HTTPException(status.HTTP_409_CONFLICT, "No reply with tools is running; queue the message instead.")
     text = payload.text.strip()
-    if payload.item_id is not None:
-        item = session.get(QueuedMessage, payload.item_id)
-        if item is None or item.conversation_id != conversation.id:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Queued message not found.")
-        if item.attachment_ids:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "A message with attachments waits for the reply to end.")
-        text = item.text
-        session.delete(item)
-        session.commit()
-    if not text:
+    if payload.item_id is None and not text:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "A steering message needs text.")
-    run.state.steering.append(text)
+    if run.state.record_id is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "This reply cannot accept steering right now; queue the message instead.")
+    try:
+        add_steering(session, conversation.id, run.state.record_id, text, payload.item_id)
+    except QueueError as error:
+        code = status.HTTP_404_NOT_FOUND if str(error) == "Queued message not found." else status.HTTP_422_UNPROCESSABLE_CONTENT
+        raise HTTPException(code, str(error)) from error
     return SteerOut(status="waiting")
 
 

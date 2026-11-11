@@ -2,6 +2,8 @@
 
 import time
 
+import pytest
+
 from app.providers.fake_provider import ScriptedResponse
 from tests.test_delegation import project_conversation
 
@@ -28,6 +30,32 @@ def test_goal_mode_needs_a_project_and_an_objective(client):
     empty = client.post(f"/api/v1/conversations/{conversation_id}/messages", json={"text": "/goal"})
     assert empty.status_code == 409 and "objective" in empty.json()["detail"]
     assert client.get(f"/api/v1/conversations/{conversation_id}/goal").json() is None
+
+
+def test_busy_goal_continuation_does_not_advance_or_stop_the_goal(client):
+    from app.core.goals import create_goal
+    from app.core.reply_errors import ReplyBusy
+    from app.core.reply_service import ReplyService
+    from app.core.reply_services import ReplyServices
+    from app.storage.models import Conversation, Goal
+
+    _, conversation_id = project_conversation(client)
+    with client.app.state.session_factory() as session:
+        conversation = session.get_one(Conversation, conversation_id)
+        goal = create_goal(session, conversation, "Keep the project stable")
+        session.commit()
+        goal_id = goal.id
+
+    reservation = client.app.state.replies.reserve(conversation_id)
+    try:
+        service = ReplyService(ReplyServices.from_state(client.app.state))
+        with pytest.raises(ReplyBusy):
+            service.send_goal_turn(conversation_id, goal_id=goal_id)
+    finally:
+        reservation.release()
+    with client.app.state.session_factory() as session:
+        goal = session.get_one(Goal, goal_id)
+        assert (goal.status, goal.turns) == ("active", 1)
 
 
 def test_yaap_sends_turns_until_the_agent_finishes_the_goal(client, fake):

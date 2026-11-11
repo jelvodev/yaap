@@ -49,6 +49,10 @@ async def with_steering_fallback(
         async for event in events:
             yield event
     finally:
+        if run.state.record_id is not None and run.services.steering is not None:
+            with anyio.CancelScope(shield=True):
+                await anyio.to_thread.run_sync(run.services.steering.restore, run.state.record_id)
+            run.state.steering_item_ids = []
         if run.state.steering:
             texts, run.state.steering = run.state.steering, []
             # Shielded: a stopped reply's scope keeps cancelling every await until the reply has ended.

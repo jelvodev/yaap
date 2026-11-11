@@ -11,6 +11,7 @@ from typing import Any
 
 import anyio
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.agent.runs import AgentRun, RunRegistry
@@ -224,6 +225,88 @@ class ReplyContent:
         return blocks
 
 
+def reply_event(event: AgentEvent | dict[str, Any], reply: ReplyContent) -> tuple[str, dict[str, Any]] | None:
+    """Apply a model or run event to the reply and return the event sent to the browser."""
+    if isinstance(event, TextDelta):
+        reply.add_text("text", event.text)
+        return "text_delta", {"text": event.text}
+    if isinstance(event, ReasoningDelta):
+        reply.add_text("reasoning", event.text)
+        return "reasoning_delta", {"text": event.text}
+    if isinstance(event, ToolCallStarted):
+        reply.start_tool(event)
+        return "tool_call", {"id": event.id, "name": event.name, "input": event.input}
+    if isinstance(event, ToolCallFinished):
+        reply.finish_tool(event)
+        return "tool_result", {
+            "id": event.id,
+            "output": event.output[:MAX_STORED_TOOL_OUTPUT],
+            "is_error": event.is_error,
+        }
+    if isinstance(event, CallRestarted):
+        reply.drop_unfinished_call()
+        return "call_restarted", {"attempt": event.attempt, "reason": event.reason}
+    if isinstance(event, dict):
+        name = event.pop("event")
+        if name == "steering":
+            reply.blocks.append({"type": "steering", "text": event["text"]})
+        return name, event
+    return None
+
+
+def finish_reply(
+    session_factory: sessionmaker[Session],
+    providers: ProviderRegistry,
+    conversation_id: int,
+    user_message: Message,
+    request: AgentRequest,
+    reply: ReplyContent,
+    stored: bool,
+    reply_id: int | None,
+    outcome: ReplyOutcome,
+    run: AgentRun | None,
+    record_id: int | None,
+    route: dict[str, Any] | None,
+    billing: Billing,
+) -> tuple[int | None, str]:
+    """Store an unfinished reply when needed, then finalize its usage and run record independently."""
+    final_status = outcome.status if stored else "incomplete"
+    conversation: Conversation | None = None
+    if not stored:
+        try:
+            stopped, conversation = store_assistant_reply(
+                session_factory,
+                providers,
+                conversation_id,
+                user_message.id,
+                reply.content(),
+                ReplyOutcome("incomplete", None, "The reply was stopped before it finished."),
+                None,
+                route,
+            )
+            reply_id = stopped.id
+            final_status = "incomplete"
+        except SQLAlchemyError:
+            logger.warning("Storing the unfinished reply failed.", exc_info=True)
+    if reply_id is not None and conversation is not None:
+        try:
+            store_unfinished_usage(
+                session_factory, conversation, reply_id, run, record_id, request.model or conversation.model, billing
+            )
+        except SQLAlchemyError:
+            logger.warning("Storing unfinished reply usage failed.", exc_info=True)
+
+    tool_calls = sum(1 for block in reply.blocks if block["type"] == "tool_call")
+    try:
+        if run is not None:
+            finish_run_record(session_factory, run, reply_id, final_status, tool_calls)
+        elif record_id is not None:
+            finish_record(session_factory, record_id, reply_id, final_status, 0)
+    except SQLAlchemyError:
+        logger.warning("Storing the reply run record failed.", exc_info=True)
+    return reply_id, final_status
+
+
 async def merge_events(
     provider_events: AsyncIterator[AgentEvent], run_events: "asyncio.Queue[dict[str, Any]] | None"
 ) -> AsyncIterator[AgentEvent | dict[str, Any]]:
@@ -425,34 +508,16 @@ async def stream_reply(
     stored = False
     final_status = "incomplete"
     reply_id: int | None = None
+    outcome = ReplyOutcome("incomplete", None, "The reply was stopped before it finished.")
     try:
         try:
             async for event in merge_events(provider.stream(request), run.events if run else None):
-                if isinstance(event, TextDelta):
-                    reply.add_text("text", event.text)
-                    yield server_sent_event("text_delta", {"text": event.text})
-                elif isinstance(event, ReasoningDelta):
-                    reply.add_text("reasoning", event.text)
-                    yield server_sent_event("reasoning_delta", {"text": event.text})
-                elif isinstance(event, ToolCallStarted):
-                    reply.start_tool(event)
-                    yield server_sent_event("tool_call", {"id": event.id, "name": event.name, "input": event.input})
-                elif isinstance(event, ToolCallFinished):
-                    reply.finish_tool(event)
-                    yield server_sent_event(
-                        "tool_result", {"id": event.id, "output": event.output[:MAX_STORED_TOOL_OUTPUT], "is_error": event.is_error}
-                    )
-                elif isinstance(event, CallRestarted):
-                    reply.drop_unfinished_call()
-                    yield server_sent_event("call_restarted", {"attempt": event.attempt, "reason": event.reason})
-                elif isinstance(event, Completed):
+                if isinstance(event, Completed):
                     completed = event
-                elif isinstance(event, dict):
-                    # The run's own events: approval requests and decisions, live output, steering messages.
-                    name = event.pop("event")
-                    if name == "steering":
-                        reply.blocks.append({"type": "steering", "text": event["text"]})
-                    yield server_sent_event(name, event)
+                    continue
+                converted = reply_event(event, reply)
+                if converted is not None:
+                    yield server_sent_event(*converted)
             outcome = (
                 outcome_from_completion(completed)
                 if completed
@@ -476,9 +541,18 @@ async def stream_reply(
         final_status, reply_id = outcome.status, message.id
         if completed is None:
             # A provider error or a missing final message: the calls that returned before it still cost.
-            store_unfinished_usage(
-                session_factory, conversation, message.id, run, record_id, request.model or conversation.model, billing
-            )
+            try:
+                store_unfinished_usage(
+                    session_factory,
+                    conversation,
+                    message.id,
+                    run,
+                    record_id,
+                    request.model or conversation.model,
+                    billing,
+                )
+            except SQLAlchemyError:
+                logger.warning("Storing unfinished reply usage failed.", exc_info=True)
         yield server_sent_event(
             "done",
             {
@@ -495,31 +569,30 @@ async def stream_reply(
         for skip in skipped_since(session_factory, conversation_id, user_message.created_at):
             yield server_sent_event("utility_skipped", skip.model_dump(mode="json"))
     finally:
-        if not stored:
-            # The client went away mid-stream: keep what arrived, marked incomplete and left out of history.
-            stopped, conversation = store_assistant_reply(
-                session_factory,
-                providers,
-                conversation_id,
-                user_message.id,
-                reply.content(),
-                ReplyOutcome("incomplete", None, "The reply was stopped before it finished."),
-                None,
-                route,
-            )
-            reply_id = stopped.id
-            store_unfinished_usage(
-                session_factory, conversation, stopped.id, run, record_id, request.model or conversation.model, billing
-            )
-        if run is not None and runs is not None:
-            runs.finish(run)
-            tool_calls = sum(1 for block in reply.blocks if block["type"] == "tool_call")
-            finish_run_record(session_factory, run, reply_id, final_status, tool_calls)
-        elif record_id is not None:
-            finish_record(session_factory, record_id, reply_id, final_status, 0)
-        # Shielded: a stopped reply's scope keeps cancelling every await until the reply has ended.
-        with anyio.CancelScope(shield=True):
-            try:
+        # YAAP runs replies in the background; only a stop or failure leaves this path incomplete.
+        try:
+            # Shielded so cancellation cannot interrupt provider cleanup.
+            with anyio.CancelScope(shield=True):
                 await provider.close()
-            except Exception:  # noqa: BLE001 - closing must never hide the original outcome
-                logger.warning("Closing the provider client failed.", exc_info=True)
+        except Exception:  # noqa: BLE001 - closing must never hide the original outcome
+            logger.warning("Closing the provider client failed.", exc_info=True)
+        finally:
+            try:
+                if run is not None and runs is not None:
+                    runs.finish(run)
+            finally:
+                finish_reply(
+                    session_factory,
+                    providers,
+                    conversation_id,
+                    user_message,
+                    request,
+                    reply,
+                    stored,
+                    reply_id,
+                    outcome,
+                    run,
+                    record_id,
+                    route,
+                    billing,
+                )

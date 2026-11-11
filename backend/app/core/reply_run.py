@@ -28,6 +28,7 @@ from app.core.goals import ACTIVE, GoalHandle, open_goal
 from app.core.model_policy_store import resolve_model_policy
 from app.core.reply_services import ReplyServices
 from app.core.reply_setup import ReplySetup
+from app.core.message_queue import QueueSteeringHandoff
 from app.core.search import RunSearch
 from app.core.settings import SETTING_DEFINITIONS, resolve_setting, resolve_text, resolve_tool_policy
 from app.documents.service import DocumentLink
@@ -76,9 +77,13 @@ def start_agent_run(
         config = replace(config, policy=replace(config.policy, tools=(*config.policy.tools, *tools_by_name)))
     parts = run_services(services, session, conversation, setup, allowed_tools, on_step)
     run = services.runs.start(config, parts)
-    # A new reply is activity in the conversation, so its background processes keep running.
-    services.processes.touch_conversation(conversation.id)
-    run.state.record_id = start_run_record(session, run, setup.reply_model(conversation)[0])
+    try:
+        # A new reply is activity in the conversation, so its background processes keep running.
+        services.processes.touch_conversation(conversation.id)
+        run.state.record_id = start_run_record(session, run, setup.reply_model(conversation)[0])
+    except BaseException:  # A failed start must not leave a usable tool-server token behind.
+        services.runs.finish(run)
+        raise
     return run
 
 
@@ -197,6 +202,7 @@ def run_services(
         outputs=OutputStore(services.data_dir, conversation.id),
         extra_tools=extra_tools,
         catalog=catalog,
+        steering=QueueSteeringHandoff(services.session_factory),
         injection_check=injection_check(services, session, conversation, setup),
         delegator=delegator(services, conversation, setup) if in_project else None,
         goal=GoalHandle(goal.id, services.session_factory) if goal is not None and goal.status == ACTIVE else None,

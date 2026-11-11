@@ -18,14 +18,16 @@ from functools import partial
 from typing import Any
 
 import anyio
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.agent.runs import AgentRun
 from app.agent.tool_catalog import with_listing
 from app.agent.toolbox import RunToolBox
+from app.agents.records import finish_record, finish_run_record
 from app.attachments.files import AttachmentError
 from app.attachments.service import AttachmentResolver, claim_attachments, conversation_attachments
-from app.blueprint.check import CheckError, check_block
+from app.blueprint.check import CheckError, check_block, is_read_only_check
 from app.core.audit import record_request, reply_entry, with_refusal
 from app.core.cache_policy import reply_cache_ttl
 from app.core.budget_stop import both_listeners, reply_budget_guard, with_budget_stop
@@ -34,10 +36,12 @@ from app.core.context_control import output_tokens
 from app.core.goals import GoalError, create_goal, end_goal, goal_block, goal_objective, next_turn, start_text
 from app.core.message_parts import expand_command, skill_blocks
 from app.core.model_choice import Billing
+from app.core.message_queue import QueueError, select_for_send, select_ids_for_send
 from app.core.outgoing_checks import checked_provider, request_refusal
-from app.core.replies import ReplyJob
-from app.core.reply_errors import CommandRefused, InvalidReplyRequest, ReplyError
+from app.core.replies import ReplyJob, Reservation
+from app.core.reply_errors import CommandRefused, InvalidReplyRequest, ReplyBusy, ReplyError
 from app.core.reply_events import (
+    BACKGROUND_WORK,
     TitleRequest,
     first_title,
     with_goal_follow_up,
@@ -57,7 +61,7 @@ from app.core.turn_context import with_turn_context
 from app.learning.after_reply import with_learning_review
 from app.providers.base import AgentRequest, HistoryMessage, ToolServer
 from app.reviews.service import ReviewService
-from app.storage.models import Attachment, Conversation, Goal, Message
+from app.storage.models import Attachment, Conversation, Goal, Message, QueuedMessage
 from app.tracing.otlp_export import with_telemetry_export
 from app.tracing.provider import traced_provider
 from app.tracing.recorder import StepListener
@@ -96,6 +100,7 @@ class NewMessage:
     text: str
     edit_of: int | None = None
     attachment_ids: tuple[int, ...] = ()
+    queued_item_ids: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -114,9 +119,16 @@ class ReplyService:
     def prepare(self, session: Session, conversation: Conversation, query: str = "") -> ReplySetup:
         return prepare_reply(self.services, session, conversation, query)
 
-    def launch(self, session: Session, setup: ReplySetup, request: ReplyRequest) -> ReplyJob:
+    def reserve(self, conversation_id: int) -> Reservation:
+        return self.services.replies.reserve(conversation_id)
+
+    def launch(
+        self, session: Session, setup: ReplySetup, request: ReplyRequest, reservation: Reservation
+    ) -> ReplyJob:
         """Start the reply to request.user_message in the background; the job can be followed from its start."""
         services, conversation = self.services, request.conversation
+        if reservation.conversation_id != conversation.id:
+            raise ReplyBusy("The reply reservation belongs to a different conversation.")
         if request.history is None:
             # A replay keeps the model it was given; every other reply routes when its preset does.
             setup = replace(setup, route=route_reply(services, session, conversation, request.user_message))
@@ -146,30 +158,37 @@ class ReplyService:
         run = None
         if runs_tools:
             run, agent_request = self.start_run(session, setup, request, attachments, agent_request, on_step)
-        entry = reply_entry(conversation, setup.provider_spec, agent_request, setup.project_data, bool(attachments))
-        record_request(services.session_factory, with_refusal(entry, request_refusal(agent_request, setup.outgoing)))
-        trace = reply_model_trace(services, session, conversation, setup, run, on_step)
-        billing: Billing = "metered" if setup.provider_spec.metered else "subscription"
-        events = stream_reply(
-            services.session_factory,
-            services.providers,
-            traced_provider(checked_provider(setup.provider_spec.create(setup.api_key), setup.outgoing), trace),
-            conversation.id,
-            request.user_message,
-            agent_request,
-            run,
-            services.runs,
-            self.title_task(conversation, setup, request.title_text),
-            record_id=trace.run_id if run is None else None,
-            route=setup.route.stored() if setup.route is not None else None,
-            billing=billing,
-        )
-        if guard is not None:
-            events = with_budget_stop(services.session_factory, guard, conversation_id, events)
-        events = self.after_reply(conversation, run, events)
-        events = with_telemetry_export(services.telemetry, trace.run_id, events)
-        # The reply runs on its own: whoever started it only follows it, and leaving does not stop it.
-        return anyio.from_thread.run_sync(services.replies.start, conversation.id, conversation.environment_id, events)
+        provider = None
+        trace = None
+        try:
+            entry = reply_entry(conversation, setup.provider_spec, agent_request, setup.project_data, bool(attachments))
+            record_request(services.session_factory, with_refusal(entry, request_refusal(agent_request, setup.outgoing)))
+            trace = reply_model_trace(services, session, conversation, setup, run, on_step)
+            billing: Billing = "metered" if setup.provider_spec.metered else "subscription"
+            provider = traced_provider(checked_provider(setup.provider_spec.create(setup.api_key), setup.outgoing), trace)
+            events = stream_reply(
+                services.session_factory, services.providers, provider, conversation.id, request.user_message,
+                agent_request, run, services.runs, self.title_task(conversation, setup, request.title_text),
+                record_id=trace.run_id if run is None else None,
+                route=setup.route.stored() if setup.route is not None else None, billing=billing,
+            )
+            if guard is not None:
+                events = with_budget_stop(services.session_factory, guard, conversation_id, events)
+            events = self.after_reply(conversation, run, events)
+            events = with_telemetry_export(services.telemetry, trace.run_id, events)
+            return anyio.from_thread.run_sync(services.replies.start, reservation, conversation.environment_id, events)
+        except BaseException:  # A failed launch never reaches the stream's normal cleanup.
+            if run is not None:
+                services.runs.finish(run)
+                finish_run_record(services.session_factory, run, None, "incomplete", 0)
+            elif trace is not None:
+                finish_record(services.session_factory, trace.run_id, None, "incomplete", 0)
+            if provider is not None:
+                try:
+                    anyio.from_thread.run(provider.close)
+                except Exception:  # A cleanup failure must not hide the original start failure.
+                    logger.warning("Closing the provider after a failed reply start failed.", exc_info=True)
+            raise
 
     def start_run(
         self,
@@ -193,15 +212,19 @@ class ReplyService:
             request.tools_by_name,
             on_step,
         )
-        return run, replace(
-            agent_request,
-            # The run's outside MCP servers, known once its tools are loaded, cached with the stable parts, and the
-            # repository map of the folder it works on.
-            system=with_repo_map(services, session, setup, run, with_listing(agent_request.system, run.catalog)),
-            working_folder=run_folder(services, setup),
-            tool_server=ToolServer(url=f"{services.internal_url}/mcp", token=run.token),
-            tool_box=RunToolBox(services.runs, run),
-        )
+        try:
+            return run, replace(
+                agent_request,
+                # The run's outside MCP servers and repository map are known once its tools are loaded.
+                system=with_repo_map(services, session, setup, run, with_listing(agent_request.system, run.catalog)),
+                working_folder=run_folder(services, setup),
+                tool_server=ToolServer(url=f"{services.internal_url}/mcp", token=run.token),
+                tool_box=RunToolBox(services.runs, run),
+            )
+        except BaseException:  # Failure before launch must not leave a usable tool-server token.
+            services.runs.finish(run)
+            finish_run_record(services.session_factory, run, None, "incomplete", 0)
+            raise
 
     def title_task(
         self, conversation: Conversation, setup: ReplySetup, title_text: str | None
@@ -231,16 +254,125 @@ class ReplyService:
 
     def send(self, session: Session, conversation: Conversation, message: NewMessage) -> ReplyStream:
         """Send the user's message and start the reply, or summarise now for /compact."""
+        with self.services.replies.reserve(conversation.id) as reservation:
+            current = session.get(Conversation, conversation.id, populate_existing=True)
+            if current is None:
+                raise InvalidReplyRequest("This conversation no longer exists.")
+            return self._send_reserved(session, current, message, reservation)
+
+    def send_queued(
+        self, session: Session, conversation: Conversation, item_id: int | None, send_all: bool
+    ) -> ReplyStream:
+        """Accept queued rows together with the user message that consumes them."""
+        with self.services.replies.reserve(conversation.id) as reservation:
+            current = session.get(Conversation, conversation.id, populate_existing=True)
+            if current is None:
+                raise InvalidReplyRequest("This conversation no longer exists.")
+            try:
+                selected = select_for_send(session, current.id, item_id, send_all)
+            except QueueError as error:
+                raise InvalidReplyRequest(str(error)) from error
+            message = NewMessage(
+                "\n\n".join(item.text for item in selected if item.text),
+                attachment_ids=tuple(
+                    attachment_id for item in selected for attachment_id in (item.attachment_ids or [])
+                ),
+                queued_item_ids=tuple(item.id for item in selected),
+            )
+            return self._send_reserved(session, current, message, reservation)
+
+    def send_queued_ids(
+        self, session: Session, conversation: Conversation, item_ids: list[int], job_id: str
+    ) -> ReplyStream:
+        """Send the exact queue rows saved in a durable send-now handoff."""
+        with self.services.replies.reserve(conversation.id) as reservation:
+            current = session.get(Conversation, conversation.id, populate_existing=True)
+            if current is None:
+                raise InvalidReplyRequest("This conversation no longer exists.")
+            try:
+                selected = select_ids_for_send(session, current.id, item_ids, job_id)
+            except QueueError as error:
+                raise InvalidReplyRequest(str(error)) from error
+            message = NewMessage(
+                "\n\n".join(item.text for item in selected if item.text),
+                attachment_ids=tuple(
+                    attachment_id for item in selected for attachment_id in (item.attachment_ids or [])
+                ),
+                queued_item_ids=tuple(item.id for item in selected),
+            )
+            return self._send_reserved(session, current, message, reservation)
+
+    def retry_user_message(self, session: Session, conversation: Conversation, message_id: int) -> ReplyJob:
+        """Start a new reply to an already stored user message without creating a duplicate message."""
+        with self.services.replies.reserve(conversation.id) as reservation:
+            current = session.get(Conversation, conversation.id, populate_existing=True)
+            message = session.get(Message, message_id)
+            if current is None or message is None or message.conversation_id != conversation.id or message.role != "user":
+                raise InvalidReplyRequest("That stored user message cannot be retried.")
+            if current.head_message_id != message.id:
+                raise InvalidReplyRequest("Only the latest user message can be retried.")
+            setup = self.prepare(session, current, message_text(message))
+            request = ReplyRequest(current, message, read_only=is_read_only_check(message.content))
+            return self.launch(session, setup, request, reservation)
+
+    def schedule_send_now(self, conversation_id: int, job_id: str) -> None:
+        """Run a saved send-now selection after its specific reply releases the conversation."""
+        BACKGROUND_WORK.start(self._send_now_after_job(conversation_id, job_id), name=f"queue-send-now-{job_id}")
+
+    async def _send_now_after_job(self, conversation_id: int, job_id: str) -> None:
+        while self.services.replies.busy(conversation_id):
+            await asyncio.sleep(0.05)
+        try:
+            await anyio.to_thread.run_sync(partial(self._send_now_selection, conversation_id, job_id))
+        except Exception:  # A background handoff must return its selection to the queue after any failure.
+            logger.exception("A durable send-now handoff could not be started; its messages remain queued.")
+            with self.services.session_factory() as session:
+                session.execute(
+                    update(QueuedMessage)
+                    .where(
+                        QueuedMessage.conversation_id == conversation_id,
+                        QueuedMessage.send_now_job_id == job_id,
+                    )
+                    .values(send_now_job_id=None)
+                )
+                session.commit()
+
+    def _send_now_selection(self, conversation_id: int, job_id: str) -> None:
+        with self.services.session_factory() as session:
+            ids = list(
+                session.scalars(
+                    select(QueuedMessage.id)
+                    .where(
+                        QueuedMessage.conversation_id == conversation_id,
+                        QueuedMessage.send_now_job_id == job_id,
+                    )
+                    .order_by(QueuedMessage.position, QueuedMessage.id)
+                )
+            )
+            if not ids:
+                return
+            conversation = session.get(Conversation, conversation_id)
+            if conversation is None:
+                return
+            self.send_queued_ids(session, conversation, ids, job_id)
+
+    def _send_reserved(
+        self, session: Session, conversation: Conversation, message: NewMessage, reservation: Reservation
+    ) -> ReplyStream:
         setup = self.prepare(session, conversation, message.text)
         # /compact [focus] summarises now instead of replying, unless the Blueprint has its own command.
         commands = setup.agent.commands if setup.agent else None
         own_command = expand_command(setup.layers, message.text, commands) is not None
         focus = compact_focus(message.text) if not own_command else None
         if focus is not None:
+            if message.queued_item_ids:
+                raise CommandRefused("Queued /compact messages stay in the queue until they can be accepted atomically.")
             return ReplyStream(self.compact_now(session, conversation, focus))
         # /eval [case] starts an eval run of the project's cases instead of replying, unless the Blueprint has its own.
         evaluated = EVAL_COMMAND.match(message.text.strip()) if not own_command else None
         if evaluated is not None:
+            if message.queued_item_ids:
+                raise CommandRefused("Queued /eval messages stay in the queue until they can be accepted atomically.")
             return ReplyStream(self.eval_now(conversation, evaluated.group(1)))
         # Writing in an archived conversation brings it back.
         conversation.archived_at = None
@@ -252,13 +384,26 @@ class ReplyService:
         first_exchange = conversation.head_message_id is None
         extra_blocks, read_only = self.command_blocks(session, conversation, setup, message.text, parent_id)
         text = message.text.strip()
+        if message.queued_item_ids:
+            selected = list(
+                session.scalars(
+                    select(QueuedMessage).where(
+                        QueuedMessage.conversation_id == conversation.id,
+                        QueuedMessage.id.in_(message.queued_item_ids),
+                    )
+                )
+            )
+            if {item.id for item in selected} != set(message.queued_item_ids):
+                raise InvalidReplyRequest("A selected queued message changed before it could be accepted.")
+            for item in selected:
+                session.delete(item)
         user_message = add_user_message(
             session, conversation, text, [*carried, *new_attachments], extra_blocks, parent_id=parent_id
         )
         title_text = None
         if first_exchange:
             title_text = text or ", ".join(attachment.filename for attachment in new_attachments)
-        job = self.launch(session, setup, ReplyRequest(conversation, user_message, title_text, read_only))
+        job = self.launch(session, setup, ReplyRequest(conversation, user_message, title_text, read_only), reservation)
         return ReplyStream(job.follow(), job)
 
     def edit_point(
@@ -344,6 +489,15 @@ class ReplyService:
 
     def regenerate(self, session: Session, conversation: Conversation, message_id: int) -> ReplyJob:
         """A new version of a reply: the same question answered again, next to the earlier answer."""
+        with self.services.replies.reserve(conversation.id) as reservation:
+            current = session.get(Conversation, conversation.id, populate_existing=True)
+            if current is None:
+                raise InvalidReplyRequest("This conversation no longer exists.")
+            return self._regenerate_reserved(session, current, message_id, reservation)
+
+    def _regenerate_reserved(
+        self, session: Session, conversation: Conversation, message_id: int, reservation: Reservation
+    ) -> ReplyJob:
         reply = session.get(Message, message_id)
         if (
             reply is None
@@ -356,41 +510,67 @@ class ReplyService:
         setup = self.prepare(session, conversation, message_text(question))
         conversation.head_message_id = question.id
         session.commit()
-        return self.launch(session, setup, ReplyRequest(conversation, question))
+        return self.launch(
+            session, setup, ReplyRequest(conversation, question, read_only=is_read_only_check(question.content)), reservation
+        )
 
-    def send_goal_turn(self, conversation_id: int, resuming: bool = False, goal_id: int | None = None) -> bool:
+    def send_goal_turn(
+        self,
+        conversation_id: int,
+        resuming: bool = False,
+        goal_id: int | None = None,
+        reservation: Reservation | None = None,
+    ) -> bool:
         """Send the next turn of the conversation's goal, when it goes on; with goal_id only of that goal. Runs
         in a worker thread."""
         with self.services.session_factory() as session:
-            turn = next_turn(session, conversation_id, resuming, goal_id)
-            if turn is None:
-                return False
-            conversation = session.get_one(Conversation, conversation_id)
-            try:
-                setup = self.prepare(session, conversation, turn.text)
-            except ReplyError as error:
-                end_goal(session.get_one(Goal, turn.goal_id), "stopped", str(error))
-                session.commit()
-                return False
-            block = goal_block(turn.text, turn.turn, turn.max_turns)
-            user_message = add_user_message(session, conversation, "", extra_blocks=[block])
-            self.launch(session, setup, ReplyRequest(conversation, user_message))
-            return True
+            if session.scalar(
+                select(QueuedMessage.id).where(
+                    QueuedMessage.conversation_id == conversation_id,
+                    QueuedMessage.send_now_job_id.is_not(None),
+                )
+            ) is not None:
+                raise ReplyBusy("A saved send-now handoff takes precedence over the goal's next turn.")
+            reservation = reservation or self.reserve(conversation_id)
+            with reservation:
+                turn = next_turn(session, conversation_id, resuming, goal_id)
+                if turn is None:
+                    return False
+                conversation = session.get_one(Conversation, conversation_id, populate_existing=True)
+                try:
+                    setup = self.prepare(session, conversation, turn.text)
+                except ReplyError as error:
+                    end_goal(session.get_one(Goal, turn.goal_id), "stopped", str(error))
+                    session.commit()
+                    return False
+                block = goal_block(turn.text, turn.turn, turn.max_turns)
+                user_message = add_user_message(session, conversation, "", extra_blocks=[block])
+                self.launch(session, setup, ReplyRequest(conversation, user_message), reservation)
+                return True
 
     async def send_goal_turn_later(self, conversation_id: int, goal_id: int | None) -> None:
         """After a reply: the next turn of the goal it worked for (goal_id), or, when that goal ended, its review."""
         replies = self.services.replies
-        for _ in range(200):  # The reply that just ended leaves the registry a moment after its last event.
-            if replies.running(conversation_id) is None:
+        sent = False
+        while goal_id is not None:
+            while replies.busy(conversation_id):
+                await asyncio.sleep(0.05)
+            with self.services.session_factory() as session:
+                goal = session.get(Goal, goal_id)
+                if goal is None or goal.conversation_id != conversation_id or goal.status != "active":
+                    break
+            try:
+                sent = await anyio.to_thread.run_sync(
+                    partial(self.send_goal_turn, conversation_id, goal_id=goal_id)
+                )
                 break
-            await asyncio.sleep(0.05)
-        try:
-            sent = goal_id is not None and await anyio.to_thread.run_sync(
-                partial(self.send_goal_turn, conversation_id, goal_id=goal_id)
-            )
-        except Exception:  # A background task: the goal stays open and the failure is logged.
-            logger.exception("Sending the next turn of a goal failed.")
-            return
+            except ReplyBusy:
+                # A new reply reserved the conversation between the idle check and our reservation attempt.
+                await asyncio.sleep(0.05)
+                continue
+            except Exception:  # A background task: the goal stays open and the failure is logged.
+                logger.exception("Sending the next turn of a goal failed.")
+                return
         if not sent:
             try:
                 await ReviewService(self.services).after_goal_of(conversation_id)

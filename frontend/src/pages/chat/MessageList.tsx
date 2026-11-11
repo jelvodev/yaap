@@ -24,6 +24,8 @@ interface MessageListProps {
   endRef: RefObject<HTMLDivElement | null>;
   /** Ask the agent to carry on where an incomplete reply stopped. */
   onContinue: () => void;
+  /** Retry the reply to the latest stored user message without adding another message. */
+  onRetryMessage: (messageId: number) => void;
   /** An approval asked outside the reply was decided: load the conversation again. */
   onOutsideDecided: () => void;
 }
@@ -31,6 +33,7 @@ interface MessageListProps {
 /** The messages of the open conversation and the reply streaming in, or the empty state of a new one. */
 export default function MessageList(props: MessageListProps) {
   const { conversation, streaming } = props;
+  const lastMessage = conversation?.messages.at(-1);
   return (
     <div className="messages">
       <div className="messages-inner">
@@ -51,7 +54,7 @@ export default function MessageList(props: MessageListProps) {
           )}
         </OutputContext.Provider>
         {conversation && <OutsideApprovals conversationId={conversation.id} onDecided={props.onOutsideDecided} />}
-        {conversation && !streaming && conversation.messages.at(-1)?.status === "incomplete" && (
+        {conversation && !streaming && lastMessage?.status === "incomplete" && (
           <div className="nudge">
             <button
               type="button"
@@ -60,6 +63,18 @@ export default function MessageList(props: MessageListProps) {
               onClick={props.onContinue}
             >
               Continue
+            </button>
+          </div>
+        )}
+        {conversation && !streaming && lastMessage?.role === "user" && (
+          <div className="nudge">
+            <button
+              type="button"
+              className="button"
+              title="Retry the reply using this saved message"
+              onClick={() => props.onRetryMessage(lastMessage.id)}
+            >
+              Retry reply
             </button>
           </div>
         )}

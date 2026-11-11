@@ -17,7 +17,7 @@ from app.core.audit import NO_PROJECT_DATA, ProjectData, record_request, reply_e
 from app.core.model_choice import ForReply, ModelChoiceError, PolicyForbids, read_key, resolve_provider
 from app.core.outgoing_checks import OutgoingRules, outgoing_rules
 from app.core.prompts import Languages
-from app.core.reply_errors import ReplyBusy, ReplyUnavailable
+from app.core.reply_errors import ReplyUnavailable
 from app.core.reply_services import ReplyServices
 from app.core.routing import Route
 from app.core.search import recall_project_memory
@@ -73,8 +73,6 @@ class ReplySetup:
 
 def prepare_reply(services: ReplyServices, session: Session, conversation: Conversation, query: str = "") -> ReplySetup:
     """What a reply needs. query is the user's message, used to choose what of a large project memory is recalled."""
-    if services.replies.running(conversation.id) is not None:
-        raise ReplyBusy("YAAP is still replying in this conversation; wait or stop it first.")
     model_request = ForReply(
         conversation.provider, conversation.model, conversation.effort, conversation.preset, conversation.project_id
     )

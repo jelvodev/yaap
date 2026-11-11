@@ -389,6 +389,11 @@ class QueuedMessage(Base):
     text: Mapped[str] = mapped_column(Text)
     attachment_ids: Mapped[list[int]] = mapped_column(JSON, default=list)
     position: Mapped[int] = mapped_column(Integer)
+    # A send-now request is tied to one running reply; the row stays queued until its message is accepted.
+    send_now_job_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    # A steering row remains queued until a tool result hands its text to this run.
+    steering_run_id: Mapped[int | None] = mapped_column(Integer, index=True)
+    steering_claimed: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utc_now)
 
 

@@ -115,15 +115,32 @@ async def gate_call(
     # The output goes back to the model, so it leaves YAAP too: a listed pattern blocks it (secrets are masked above).
     blocked = text_refusal(str(output), OutgoingRules(patterns=run.model_policy.patterns))
     if blocked is not None:
+        if run.state.steering_item_ids and run.services.steering is not None and run.state.record_id is not None:
+            run.services.steering.restore(run.state.record_id)
+            run.state.steering_item_ids = []
         return ToolOutput(f"The output of {name} was not passed on. {blocked}"), True
+    if run.state.steering_item_ids and run.services.steering is not None and run.state.record_id is not None:
+        run.services.steering.acknowledge(run.state.record_id, run.state.steering_item_ids)
+        run.state.steering_item_ids = []
     return ToolOutput.of(output), is_error
 
 
 def deliver_steering(run: AgentRun, name: str, arguments: dict[str, Any], output: str | ToolOutput) -> str | ToolOutput:
     """Messages the user sent while the run worked go to the model with this tool result."""
-    if not run.state.steering or run.parent_token is not None:
+    if run.parent_token is not None:
         return output
-    texts, run.state.steering = run.state.steering, []
+    delivered = (
+        run.services.steering.claim(run.conversation_id, run.state.record_id)
+        if run.state.record_id is not None and run.services.steering is not None
+        else []
+    )
+    texts = [text for _, text in delivered]
+    run.state.steering_item_ids = [item_id for item_id, _ in delivered]
+    if run.state.steering:
+        texts.extend(run.state.steering)
+        run.state.steering = []
+    if not texts:
+        return output
     run.events.put_nowait({"event": "steering", "call_key": call_key(name, arguments), "text": "\n\n".join(texts)})
     note = "".join(f"\n\n{STEERING_NOTE}\n{text}" for text in texts)
     return with_text(output, str(output) + note)

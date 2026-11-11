@@ -129,7 +129,7 @@ async def rebuild_sandbox(
     is gone, the project folder stays. Refused while a reply runs in the project."""
     target = existing_sandbox(session, project)
     conversation_ids = session.scalars(select(Conversation.id).where(Conversation.project_id == project.id))
-    if any(request.app.state.replies.running(conversation_id) for conversation_id in conversation_ids):
+    if any(request.app.state.replies.busy(conversation_id) for conversation_id in conversation_ids):
         raise HTTPException(status.HTTP_409_CONFLICT, "A reply is still running in this project. Wait for it or stop it first.")
     try:
         await SANDBOXES.rebuild(session, cipher, target)

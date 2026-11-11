@@ -92,6 +92,10 @@ export default function ChatMain(props: ChatMainProps) {
         error={active.error}
         endRef={props.endRef}
         onContinue={() => conversation && void session.stream.sendText(conversation.id, "Continue", [])}
+        onRetryMessage={(messageId) => {
+          const message = conversation?.messages.find((entry) => entry.id === messageId);
+          if (message) session.stream.retryStoredMessage(message);
+        }}
         onOutsideDecided={() => conversation && void active.load(conversation.id)}
       />
       {conversation && <UtilitySkipNotice skips={session.skips.shown} onDismiss={session.skips.dismiss} />}

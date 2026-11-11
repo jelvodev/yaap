@@ -6,6 +6,7 @@ from sqlalchemy import select
 
 from app.agent.runs import RunConfig, RunRegistry
 from app.agent.gate import STEERING_NOTE, call_tool
+from app.core.message_queue import QueueSteeringHandoff
 from app.providers.fake_provider import ScriptedResponse
 from app.storage.models import Message, QueuedMessage
 from tests.test_agent_tools import project, start_run  # noqa: F401
@@ -80,9 +81,13 @@ def test_a_queued_message_can_steer_the_running_reply(client, monkeypatch):
     run = client.app.state.runs.start(RunConfig(
         conversation_id=conversation_id, environment_id=1, blueprint_layers=[], tool_names=frozenset()
     ))
+    run.state.record_id = 42
     monkeypatch.setattr(client.app.state.replies, "running", lambda conversation: object())
     response = client.post(f"/api/v1/conversations/{conversation_id}/steer", json={"item_id": item["id"]})
-    assert response.status_code == 202 and run.state.steering == ["Skip the tests"]
+    assert response.status_code == 202
     with client.app.state.session_factory() as session:
-        assert session.scalars(select(QueuedMessage)).all() == []
+        assert session.scalars(select(QueuedMessage)).one().steering_run_id == 42
+    handoff = QueueSteeringHandoff(client.app.state.session_factory)
+    assert handoff.claim(conversation_id, 42) == [(item["id"], "Skip the tests")]
+    handoff.acknowledge(42, [item["id"]])
     client.app.state.runs.finish(run)

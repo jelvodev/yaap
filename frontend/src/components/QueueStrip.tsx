@@ -48,14 +48,27 @@ export default function QueueStrip({
                 className="link-button"
                 onClick={() => onSteer(item)}
                 title="Send this to YAAP now without stopping: it reads it with the result of its next action"
+                disabled={item.steering_pending || item.send_now_pending}
               >
-                Steer
+                {item.steering_pending ? "Steering…" : "Steer"}
               </button>
             )}
-            <button type="button" className="link-button" onClick={() => onSendNow(item)} title="Stop the reply and send this now">
-              Send now
+            <button
+              type="button"
+              className="link-button"
+              onClick={() => onSendNow(item)}
+              title="Stop the reply and send this now"
+              disabled={item.steering_pending || item.send_now_pending}
+            >
+              {item.send_now_pending ? "Sending next…" : "Send now"}
             </button>
-            <button type="button" className="icon-button" aria-label="Remove from the queue" onClick={() => onRemove(item)}>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Remove from the queue"
+              onClick={() => onRemove(item)}
+              disabled={item.steering_pending || item.send_now_pending}
+            >
               ×
             </button>
           </li>

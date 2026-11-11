@@ -1,20 +1,24 @@
 """The reply service: every entry point starts a reply through it, and its errors keep their HTTP codes."""
 
 import ast
+import asyncio
+import threading
 import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
 
 import anyio
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import select
 from starlette.requests import Request
 
 from app.a2a.server import start_task
 from app.api.conversations import reply_http_error
 from app.auth.tokens import TokenGrant, verify_token
-from app.core.replies import ReplyJob
+from app.core.replies import ReplyJob, ReplyRegistry
 from app.core.reply_errors import (
     CommandRefused,
     InvalidReplyRequest,
@@ -24,9 +28,9 @@ from app.core.reply_errors import (
     ReplyUnavailable,
 )
 from app.core.summaries import TOO_LITTLE
-from app.providers.fake_provider import ScriptedResponse
+from app.providers.fake_provider import FakeProvider, ScriptedResponse
 from app.scheduling.service import claim, start_run
-from app.storage.models import Message, ScheduledTask
+from app.storage.models import AgentRunRecord, Message, ScheduledTask
 from tests.test_a2a import make_project, token
 from tests.test_chat import add_key, start_conversation
 from tests.test_scheduled_tasks import project, task_body
@@ -107,6 +111,131 @@ def test_each_reply_error_maps_to_its_status_code_with_its_message(error, status
     assert translated.status_code == status_code and translated.detail == str(error)
 
 
+def test_reply_registry_releases_reservations_on_start_failure_and_keeps_new_jobs(monkeypatch):
+    registry = ReplyRegistry()
+    reservation = registry.reserve(7)
+
+    async def events():
+        yield "done"
+
+    def fail_start(_work, name=None):
+        raise RuntimeError("event loop unavailable")
+
+    monkeypatch.setattr(registry.work, "start", fail_start)
+
+    async def start_and_check():
+        with pytest.raises(RuntimeError, match="event loop unavailable"):
+            registry.start(reservation, 3, events())
+
+    asyncio.run(start_and_check())
+    assert registry.running(7) is None
+    assert registry.busy(7)
+    reservation.release()
+    assert not registry.busy(7)
+
+    old, current = ReplyJob(7, 3), ReplyJob(7, 3)
+    registry.jobs[7] = current
+    registry._remove_job(7, old)
+    assert registry.running(7) is current
+    assert registry.cancel_job(7, old.id) is None
+    assert registry.running(7) is current
+
+
+def test_failed_job_registration_closes_provider_and_revokes_run(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    add_key(client)
+    conversation_id = start_conversation(client)
+    closed: list[bool] = []
+
+    def refuse_start(*_args: object, **_kwargs: object) -> None:
+        raise ReplyUnavailable("The reply could not start.")
+
+    async def close_provider(_self: FakeProvider) -> None:
+        closed.append(True)
+
+    monkeypatch.setattr(client.app.state.replies, "start", refuse_start)
+    monkeypatch.setattr(FakeProvider, "close", close_provider)
+    response = client.post(f"/api/v1/conversations/{conversation_id}/messages", json={"text": "Hello"})
+
+    assert response.status_code == 409
+    assert closed == [True]
+    assert client.app.state.runs.for_conversation(conversation_id) is None
+    assert not client.app.state.replies.busy(conversation_id)
+    with client.app.state.session_factory() as session:
+        record = session.scalar(select(AgentRunRecord).where(AgentRunRecord.conversation_id == conversation_id))
+        assert record is not None and record.status == "incomplete"
+
+
+def test_failed_run_record_creation_revokes_run(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    add_key(client)
+    conversation_id = start_conversation(client)
+
+    def fail_record(*_args: object, **_kwargs: object) -> None:
+        raise ReplyUnavailable("The run record could not be created.")
+
+    monkeypatch.setattr("app.core.reply_run.start_run_record", fail_record)
+    response = client.post(f"/api/v1/conversations/{conversation_id}/messages", json={"text": "Hello"})
+
+    assert response.status_code == 409
+    assert client.app.state.runs.for_conversation(conversation_id) is None
+    assert not client.app.state.replies.busy(conversation_id)
+
+
+def test_reply_registry_rejects_released_foreign_and_consumed_reservations():
+    registry, foreign_registry = ReplyRegistry(), ReplyRegistry()
+
+    async def events():
+        yield "done"
+
+    async def check():
+        foreign = foreign_registry.reserve(8)
+        with pytest.raises(ReplyBusy):
+            registry.start(foreign, 1, events())
+        foreign.release()
+
+        released = registry.reserve(8)
+        released.release()
+        with pytest.raises(ReplyBusy):
+            registry.start(released, 1, events())
+
+        live = registry.reserve(8)
+        job = registry.start(live, 1, events())
+        with pytest.raises(ReplyBusy):
+            registry.start(live, 1, events())
+        assert job.task is not None
+        await job.task
+
+    asyncio.run(check())
+
+
+def test_reply_launch_rejects_a_reservation_for_another_conversation(client):
+    from types import SimpleNamespace
+
+    from app.core.reply_service import ReplyService
+    from app.core.reply_services import ReplyServices
+
+    service = ReplyService(ReplyServices.from_state(client.app.state))
+    reservation = client.app.state.replies.reserve(7)
+    request = SimpleNamespace(conversation=SimpleNamespace(id=8))
+    try:
+        with pytest.raises(ReplyBusy, match="different conversation"):
+            service.launch(None, None, request, reservation)
+    finally:
+        reservation.release()
+
+
+def test_provider_setup_failure_releases_the_conversation_reservation(client, fake):
+    conversation_id = start_conversation(client)
+    refused = client.post(f"/api/v1/conversations/{conversation_id}/messages", json={"text": "First"})
+    assert refused.status_code == 409
+    add_key(client)
+    fake.responses.append(ScriptedResponse(text="Now it starts."))
+
+    accepted = client.post(f"/api/v1/conversations/{conversation_id}/messages", json={"text": "Retry"})
+    assert accepted.status_code == 200, accepted.text
+
+
 def first_messages(client, fake) -> tuple[int, int, int]:
     """A conversation with one exchange: its id, the user's message and the reply."""
     add_key(client)
@@ -173,6 +302,54 @@ def test_a_reply_that_cannot_start_answers_as_before(client, fake, scenario, sta
     assert response.status_code == status_code, response.text
     answer = response.json()["detail"]
     assert answer == (detail if detail is not None else answer) and answer
+
+
+@pytest.mark.parametrize(
+    ("first_action", "second_action"), [("send", "send"), ("send", "regenerate"), ("regenerate", "send")]
+)
+def test_overlapping_reply_starts_conflict_before_writing_second_message(
+    client, fake, monkeypatch, first_action, second_action
+):
+    from app.core.reply_service import ReplyService
+
+    conversation_id, _, reply_id = first_messages(client, fake)
+    entered_prepare, release_prepare = threading.Event(), threading.Event()
+    original_prepare = ReplyService.prepare
+
+    def blocked_prepare(self, session, conversation, query=""):
+        entered_prepare.set()
+        assert release_prepare.wait(10)
+        return original_prepare(self, session, conversation, query)
+
+    monkeypatch.setattr(ReplyService, "prepare", blocked_prepare)
+    fake.responses.append(ScriptedResponse(text="One reply."))
+    url = (
+        f"/api/v1/conversations/{conversation_id}/messages"
+        if first_action == "send"
+        else f"/api/v1/conversations/{conversation_id}/messages/{reply_id}/regenerate"
+    )
+    body = {"text": "Concurrent send"} if first_action == "send" else None
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        first = pool.submit(client.post, url, json=body) if body is not None else pool.submit(client.post, url)
+        assert entered_prepare.wait(5)
+        second_url = (
+            f"/api/v1/conversations/{conversation_id}/messages"
+            if second_action == "send"
+            else f"/api/v1/conversations/{conversation_id}/messages/{reply_id}/regenerate"
+        )
+        second = (
+            client.post(second_url, json={"text": "Second send"})
+            if second_action == "send"
+            else client.post(second_url)
+        )
+        assert second.status_code == 409
+        release_prepare.set()
+        first_response = first.result(timeout=15)
+    assert first_response.status_code == 200, first_response.text
+    with client.app.state.session_factory() as session:
+        messages = list(session.scalars(select(Message).where(Message.conversation_id == conversation_id)))
+        assert sum(message.role == "user" for message in messages) == (2 if first_action == "send" else 1)
+        assert sum(message.role == "assistant" for message in messages) == 2
 
 
 def imports_of(path: Path) -> list[str]:

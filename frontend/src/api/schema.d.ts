@@ -1155,6 +1155,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry Message
+         * @description Retry a reply start against its existing latest user message, without storing the message twice.
+         */
+        post: operations["retry_message_api_v1_conversations__conversation_id__messages__message_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/conversations/{conversation_id}/messages/{message_id}/rule-proposal": {
         parameters: {
             query?: never;
@@ -1317,6 +1337,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/conversations/{conversation_id}/queue/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send Queued
+         * @description Send selected queue rows with the user message that consumes them.
+         */
+        post: operations["send_queued_api_v1_conversations__conversation_id__queue_send_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/queue/send-now": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send Queued Now
+         * @description Persist the selection, then stop exactly the reply it was meant to follow.
+         */
+        post: operations["send_queued_now_api_v1_conversations__conversation_id__queue_send_now_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/conversations/{conversation_id}/queue/take": {
         parameters: {
             query?: never;
@@ -1328,7 +1388,7 @@ export interface paths {
         put?: never;
         /**
          * Take From Queue
-         * @description Remove what is about to be sent: one item, the first one, or all joined into one message.
+         * @description Old clients must use queue/send so a failed send cannot consume their messages.
          */
         post: operations["take_from_queue_api_v1_conversations__conversation_id__queue_take_post"];
         delete?: never;
@@ -5003,6 +5063,7 @@ export interface components {
              * @enum {string}
              */
             kind: "instructions" | "standard" | "engineering" | "skill" | "command" | "agent";
+            mutation?: components["schemas"]["MutationStatusOut"] | null;
             /** Name */
             name: string;
             origin?: components["schemas"]["SkillOriginOut"] | null;
@@ -5051,6 +5112,7 @@ export interface components {
              * @enum {string}
              */
             kind: "instructions" | "standard" | "engineering" | "skill" | "command" | "agent";
+            mutation?: components["schemas"]["MutationStatusOut"] | null;
             /** Name */
             name: string;
             origin?: components["schemas"]["SkillOriginOut"] | null;
@@ -6404,6 +6466,8 @@ export interface components {
         };
         /** ImportApplyOut */
         ImportApplyOut: {
+            /** Commits */
+            commits: components["schemas"]["MutationStatusOut"][];
             /** Written */
             written: string[];
         };
@@ -6510,6 +6574,13 @@ export interface components {
             name: string;
             /** Path */
             path: string;
+        };
+        /** InstalledSkillsOut */
+        InstalledSkillsOut: {
+            /** Commits */
+            commits: components["schemas"]["MutationStatusOut"][];
+            /** Skills */
+            skills: components["schemas"]["InstalledSkillOut"][];
         };
         /** KnowledgeDocumentOut */
         KnowledgeDocumentOut: {
@@ -6891,6 +6962,20 @@ export interface components {
             /** Output Per Million */
             output_per_million: number;
         };
+        /** MutationStatusOut */
+        MutationStatusOut: {
+            /** Committed */
+            committed: boolean;
+            /** Error */
+            error?: string | null;
+            /** Path */
+            path: string;
+        };
+        /** MutationStatusesOut */
+        MutationStatusesOut: {
+            /** Statuses */
+            statuses: components["schemas"]["MutationStatusOut"][];
+        };
         /** OutsideApprovalOut */
         OutsideApprovalOut: {
             /** Approval Id */
@@ -6951,6 +7036,12 @@ export interface components {
             ref: string;
             /** Url */
             url: string;
+        };
+        /** PackageInstallOut */
+        PackageInstallOut: {
+            commit: components["schemas"]["MutationStatusOut"];
+            /** Items */
+            items: string[];
         };
         /** PackageInstalledItemOut */
         PackageInstalledItemOut: {
@@ -7520,6 +7611,24 @@ export interface components {
             /** Repository */
             repository: string | null;
         };
+        /** QueueSend */
+        QueueSend: {
+            /**
+             * All
+             * @default false
+             */
+            all: boolean;
+            /** Item Id */
+            item_id?: number | null;
+        };
+        /** QueueSendNowOut */
+        QueueSendNowOut: {
+            /**
+             * Status
+             * @constant
+             */
+            status: "stopping";
+        };
         /** QueueTake */
         QueueTake: {
             /**
@@ -7558,6 +7667,10 @@ export interface components {
             created_at: string;
             /** Id */
             id: number;
+            /** Send Now Pending */
+            send_now_pending: boolean;
+            /** Steering Pending */
+            steering_pending: boolean;
             /** Text */
             text: string;
         };
@@ -7953,6 +8066,7 @@ export interface components {
             applied: boolean;
             /** Diff */
             diff: string;
+            mutation?: components["schemas"]["MutationStatusOut"] | null;
             /** Path */
             path: string;
         };
@@ -10087,11 +10201,13 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["MutationStatusesOut"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -10263,7 +10379,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string[];
+                    "application/json": components["schemas"]["PackageInstallOut"];
                 };
             };
             /** @description Validation Error */
@@ -10372,7 +10488,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string[];
+                    "application/json": components["schemas"]["PackageInstallOut"];
                 };
             };
             /** @description Validation Error */
@@ -10444,7 +10560,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InstalledSkillOut"][];
+                    "application/json": components["schemas"]["InstalledSkillsOut"];
                 };
             };
             /** @description Validation Error */
@@ -11441,6 +11557,38 @@ export interface operations {
             };
         };
     };
+    retry_message_api_v1_conversations__conversation_id__messages__message_id__retry_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                message_id: number;
+                conversation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The reply to the stored message. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     propose_rule_api_v1_conversations__conversation_id__messages__message_id__rule_proposal_post: {
         parameters: {
             query?: never;
@@ -11726,6 +11874,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QueuedMessageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_queued_api_v1_conversations__conversation_id__queue_send_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QueueSend"];
+            };
+        };
+        responses: {
+            /** @description The accepted reply stream. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_queued_now_api_v1_conversations__conversation_id__queue_send_now_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QueueSend"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueueSendNowOut"];
                 };
             };
             /** @description Validation Error */

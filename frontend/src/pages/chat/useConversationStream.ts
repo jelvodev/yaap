@@ -7,6 +7,8 @@ import {
   followReply,
   regenerateReply,
   sendMessage,
+  sendQueuedMessage,
+  retryMessage,
   stopReply,
 } from "../../api/message-stream";
 import type { Goal } from "../../components/GoalStrip";
@@ -15,7 +17,7 @@ import { notifyIfHidden } from "../../notifications";
 import { readAloud, readsEveryReply } from "../../speech/readAloud";
 import { watchFileChanges } from "./fileChanges";
 import type { ActiveConversation } from "./useActiveConversation";
-import type { MessageQueue, TakenMessage } from "./useMessageQueue";
+import type { MessageQueue, QueueSelection } from "./useMessageQueue";
 import type { ReplyBlocks } from "./useReplyBlocks";
 import { type RunningReplies, listRunningReplies } from "./useRunningReplies";
 
@@ -50,6 +52,7 @@ export interface ConversationStream {
   /** Stop the reply; the server stores what arrived and the stream then ends by itself. */
   stop: () => void;
   sendQueuedNow: (item: QueuedMessage, all?: boolean) => Promise<void>;
+  retryStoredMessage: (message: Message) => void;
 }
 
 interface StreamRefs {
@@ -58,7 +61,6 @@ interface StreamRefs {
   following: MutableRefObject<number | null>;
   /** Why the running reply was stopped: by the user (nothing follows) or to send a queued message now. */
   stopIntent: MutableRefObject<"none" | "user" | "send-now">;
-  sendNow: MutableRefObject<TakenMessage | null>;
 }
 
 /** What every step of following a reply works with: the options of this render and the refs that outlive it. */
@@ -156,27 +158,53 @@ async function sendText(context: StreamContext, conversationId: number, text: st
   );
 }
 
+function retryStoredMessage(context: StreamContext, message: Message) {
+  const conversation = context.active.conversation;
+  if (!conversation || conversation.messages.at(-1)?.id !== message.id || message.role !== "user") return;
+  context.active.setError(null);
+  context.reply.start();
+  context.running.markRunning(conversation.id);
+  void follow(context, conversation.id, (handlers, signal) =>
+    retryMessage(conversation.id, message.id, handlers, signal),
+  ).then(() => context.active.load(conversation.id));
+}
+
 /** What happens when a reply ends: a "send now" message goes first, otherwise the next queued one. */
 async function afterReply(context: StreamContext, conversationId: number) {
   const { refs } = context;
   const intent = refs.stopIntent.current;
   refs.stopIntent.current = "none";
-  const now = refs.sendNow.current;
-  refs.sendNow.current = null;
-  if (now) {
-    await sendText(context, conversationId, now.text, now.attachment_ids);
+  if (intent === "send-now") {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      if ((await listRunningReplies(context.environmentId)).includes(conversationId)) {
+        await followRunning(context, conversationId);
+        return;
+      }
+      await context.queue.refresh(conversationId);
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
     return;
   }
   if (intent === "user") {
     void context.loadGoal(conversationId);
     return;
   }
-  const next = await context.queue.take(conversationId, {});
-  if (next) {
-    await sendText(context, conversationId, next.text, next.attachment_ids);
+  const next = await context.queue.refresh(conversationId);
+  if (next[0]) {
+    await sendQueued(context, conversationId, { item_id: next[0].id });
     return;
   }
   await followGoalTurn(context, conversationId);
+}
+
+async function sendQueued(context: StreamContext, conversationId: number, selection: QueueSelection) {
+  context.active.setError(null);
+  context.reply.start();
+  context.running.markRunning(conversationId);
+  await follow(context, conversationId, (handlers, signal) =>
+    sendQueuedMessage(conversationId, selection, handlers, signal),
+  );
+  await context.queue.refresh(conversationId);
 }
 
 /** In goal mode the server sends the next turn by itself: follow it once it has started. */
@@ -225,14 +253,12 @@ async function sendQueuedNow(context: StreamContext, item: QueuedMessage, all: b
   const { refs, active } = context;
   if (!active.conversation) return;
   const id = active.conversation.id;
-  const taken = await context.queue.take(id, all ? { all: true } : { item_id: item.id });
-  if (!taken) return;
   if (refs.following.current === id) {
-    refs.sendNow.current = taken;
+    const accepted = await context.queue.sendNow(id, all ? { all: true } : { item_id: item.id });
+    if (!accepted) return;
     refs.stopIntent.current = "send-now";
-    void stopReply(id);
   } else {
-    await sendText(context, id, taken.text, taken.attachment_ids);
+    await sendQueued(context, id, all ? { all: true } : { item_id: item.id });
   }
 }
 
@@ -244,8 +270,7 @@ export function useConversationStream(options: ConversationStreamOptions): Conve
   const abort = useRef<AbortController | null>(null);
   const following = useRef<number | null>(null);
   const stopIntent = useRef<"none" | "user" | "send-now">("none");
-  const sendNow = useRef<TakenMessage | null>(null);
-  const context: StreamContext = { ...options, refs: { abort, following, stopIntent, sendNow } };
+  const context: StreamContext = { ...options, refs: { abort, following, stopIntent } };
 
   useEffect(() => openSelected(context), [options.selectedId]);
 
@@ -266,5 +291,6 @@ export function useConversationStream(options: ConversationStreamOptions): Conve
       if (following.current !== null) void stopReply(following.current);
     },
     sendQueuedNow: (item, all = false) => sendQueuedNow(context, item, all),
+    retryStoredMessage: (message) => retryStoredMessage(context, message),
   };
 }
