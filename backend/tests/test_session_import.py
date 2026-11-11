@@ -1,17 +1,21 @@
 """Importing Claude Code and Codex sessions. The samples are small synthetic files in the public
 formats; nothing in them may run on import."""
 
+import asyncio
 import json
 import os
 from pathlib import Path
 
+import pytest
 from sqlalchemy import func, select
 
 from app.imports import service
+from app.imports.service import read_session_file
 from app.imports.sessions import CLAUDE_CODE, CODEX, parse_session
 from app.providers.fake_provider import ScriptedResponse
 from app.storage.models import AgentRunRecord, Checkpoint, Target, UsageRecord
 from app.targets.container import CONTAINER
+from app.targets.base import TargetError
 from tests.test_chat import send
 from tests.test_delegation import project_conversation
 
@@ -229,6 +233,20 @@ def test_files_that_are_no_session_are_refused(client):
     assert refused.status_code == 422 and "no messages" in refused.json()["detail"]
     other_project = upload(client, codex_sample(), "rollout-x.jsonl", 999)
     assert other_project.status_code == 422
+
+
+@pytest.mark.skipif(os.name != "posix", reason="symlink checks require POSIX")
+def test_imported_session_symlink_cannot_read_outside_target(tmp_path: Path):
+    home = tmp_path / "home"
+    outside = tmp_path / "outside.jsonl"
+    outside.write_text("external session canary", encoding="utf-8")
+    relative = ".codex/sessions/2026/rollout-external.jsonl"
+    linked = home / relative
+    linked.parent.mkdir(parents=True)
+    linked.symlink_to(outside)
+
+    with pytest.raises(TargetError):
+        asyncio.run(read_session_file(CONTAINER.files(str(home)), relative))
 
 
 def test_an_older_codex_rollout_without_wrappers_is_read():

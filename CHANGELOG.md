@@ -6,6 +6,12 @@ yourself when you update; it says "None." when there is nothing.
 
 ## Unreleased
 
+- API tokens can no longer change or revoke other API tokens through the vault; use a signed-in browser.
+- Web fetch checks public destinations on every redirect and connects to the checked address.
+- Retrying or regenerating a built-in `/check` keeps the run read only, including for existing messages.
+- Resetting a settings list now reports a failed request instead of showing a success message.
+- A failed reply start now closes the model connection and revokes the run's tool-server token.
+
 ### Action needed
 
 None.
