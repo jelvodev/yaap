@@ -14,7 +14,6 @@ the user accepts.
 """
 
 import json
-import shutil
 import urllib.parse
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
@@ -27,9 +26,14 @@ from app.blueprint.layers import (
     Layer,
     ensure_repository,
     forget_merged,
+    layer_has_directory,
+    layer_has_file,
+    layer_tree_files,
     parse_document,
+    read_layer_bytes,
     validate_path,
 )
+from app.blueprint.mutations import MutationResult, commit_paths, replace_folder_contents, write_bytes
 from app.blueprint.skill_install import (
     BINARY_SUFFIXES,
     LINK,
@@ -45,12 +49,10 @@ from app.blueprint.skill_install import (
     SkillInstallError,
     Source,
     files_hash,
-    local_files,
     safe_relative,
     skill_name,
 )
 from app.core.hidden_text import find_hidden, mark_hidden, refusal_reason, warning_lines
-from app.git.service import GitError, run_git
 
 MANIFEST = "blueprint-package.json"
 MAX_MANIFEST_BYTES = 64 * 1024
@@ -65,6 +67,12 @@ STALE = "stale"
 
 class PackageError(SkillInstallError):
     """A package action that cannot be done; the message is safe to show to the user."""
+
+
+@dataclass(frozen=True)
+class PackageInstallResult:
+    paths: list[str]
+    commit: MutationResult
 
 
 # --- The link and the manifest -------------------------------------------------------------------------------------
@@ -363,29 +371,31 @@ def record_file(layer: Layer, name: str) -> Path:
 def item_files(layer: Layer, target: str) -> dict[str, bytes]:
     """An installed item's files in the layer, by their path in the layer (without a skill's source.json)."""
     if target.startswith("skills/"):
-        folder = layer.root / PurePosixPath(target).parent
-        if not folder.is_dir():
+        folder = PurePosixPath(target).parent.as_posix()
+        if not layer_has_directory(layer, folder):
             return {}
-        prefix = PurePosixPath(target).parent.as_posix()
-        return {f"{prefix}/{path}": content for path, content in local_files(folder).items()}
-    file = layer.root / target
-    return {target: file.read_bytes()} if file.is_file() else {}
+        return {
+            f"{folder}/{path}": content
+            for path, content in layer_tree_files(layer, folder, frozenset({SOURCE_FILE})).items()
+        }
+    return {target: read_layer_bytes(layer, target)} if layer_has_file(layer, target) else {}
 
 
 def read_record(layer: Layer, name: str) -> dict[str, Any] | None:
     """A package's record, with only the items whose files still exist."""
     file = record_file(layer, name)
-    if not file.is_file():
+    relative = f"{RECORDS_FOLDER}/{name}.json"
+    if not layer_has_file(layer, relative):
         return None
     try:
-        record = json.loads(file.read_text(encoding="utf-8"))
+        record = json.loads(read_layer_bytes(layer, relative).decode("utf-8"))
         if not all(isinstance(record.get(key), str) for key in ("name", "repository", "ref", "path", "url")):
             return None
         items = record.get("items") if isinstance(record.get("items"), dict) else {}
         record["items"] = {
             target: entry
             for target, entry in items.items()
-            if isinstance(entry, dict) and (layer.root / target).is_file()
+            if isinstance(entry, dict) and (layer_has_file(layer, target) or layer_has_directory(layer, target))
         }
         # Items whose files are gone (deleted outside the Blueprint screen); dropped from the file on the next write.
         record[STALE] = [target for target in items if target not in record["items"]]
@@ -395,10 +405,14 @@ def read_record(layer: Layer, name: str) -> dict[str, Any] | None:
 
 
 def read_records(layer: Layer) -> list[dict[str, Any]]:
-    folder = layer.root / RECORDS_FOLDER
-    if not folder.is_dir():
+    if not layer_has_directory(layer, RECORDS_FOLDER):
         return []
-    records = [read_record(layer, file.stem) for file in sorted(folder.glob("*.json")) if SKILL_NAME.match(file.stem)]
+    names = sorted(
+        PurePosixPath(path).name[:-5]
+        for path in layer_tree_files(layer, RECORDS_FOLDER)
+        if "/" not in path and path.endswith(".json") and SKILL_NAME.match(path[:-5])
+    )
+    records = [read_record(layer, name) for name in names]
     return [record for record in records if record is not None]
 
 
@@ -431,24 +445,12 @@ def installed_items(layer: Layer) -> dict[str, InstalledItem]:
 
 def write_record(layer: Layer, record: dict[str, Any]) -> str:
     file = record_file(layer, record["name"])
-    file.parent.mkdir(parents=True, exist_ok=True)
     stored = {key: value for key, value in record.items() if key != STALE}
-    file.write_text(json.dumps(stored, indent=2) + "\n", encoding="utf-8")
+    write_bytes(layer, str(file.relative_to(layer.root).as_posix()), (json.dumps(stored, indent=2) + "\n").encode())
     return f"{RECORDS_FOLDER}/{file.name}"
 
 
-def commit_paths(layer: Layer, paths: list[str], message: str) -> None:
-    pathspecs = [f"{layer.prefix}{path}" for path in paths]
-    forget_merged()
-    try:
-        run_git(["add", "--all", "--", *pathspecs], layer.repository)
-        if run_git(["status", "--porcelain", "--", *pathspecs], layer.repository).stdout.strip():
-            run_git(["commit", "-m", message, "--", *pathspecs], layer.repository)
-    except GitError as error:
-        raise PackageError(f"The items were written, but committing them failed: {error}") from error
-
-
-def forget_items(layer: Layer, targets: list[str], message: str) -> None:
+def forget_items(layer: Layer, targets: list[str], message: str) -> MutationResult | None:
     """Drop items from the records of their packages, for example after the item was deleted."""
     changed: list[str] = []
     for record in read_records(layer):
@@ -457,7 +459,37 @@ def forget_items(layer: Layer, targets: list[str], message: str) -> None:
             record["items"] = kept
             changed.append(write_record(layer, record))
     if changed:
-        commit_paths(layer, changed, message)
+        forget_merged()
+        return commit_paths(layer, changed, message)
+    return None
+
+
+def stage_item(
+    layer: Layer, item: PackageItem, files: dict[str, bytes], url: str, source: Source, name: str, installed_at: str
+) -> str:
+    if item.kind != "skill":
+        for path, content in files.items():
+            write_bytes(layer, path, content)
+        return item.target
+
+    prefix = f"{PurePosixPath(item.target).parent.as_posix()}/"
+    relative = {path[len(prefix) :]: content for path, content in files.items()}
+    source_record = {
+        "url": url,
+        "repository": source.repository,
+        "ref": source.ref,
+        "commit": source.commit,
+        "path": "/".join(part for part in (source.path, item.path) if part),
+        "installed_at": installed_at,
+        "hash": files_hash(relative),
+        "package": name,
+    }
+    relative[SOURCE_FILE] = (json.dumps(source_record, indent=2) + "\n").encode()
+    try:
+        replace_folder_contents(layer, PurePosixPath(item.target).parent.as_posix(), relative)
+    except OSError as error:
+        raise PackageError(f"Could not replace skill '{item.name}': {error}") from error
+    return PurePosixPath(item.target).parent.as_posix()
 
 
 # --- Installing and updating -----------------------------------------------------------------------------------------
@@ -470,7 +502,7 @@ def install(
     source: Source,
     choices: list[tuple[str, str, str]],
     action: str = "Install",
-) -> list[str]:
+) -> PackageInstallResult:
     """Install items (kind, path in the package, name in the layer) exactly as they are at the source's commit.
 
     Everything is read and checked before anything is written; the items and the package record are one commit.
@@ -511,31 +543,7 @@ def install(
     paths: list[str] = []
     for item, files in planned:
         target = item.target
-        if item.kind == "skill":
-            folder = layer.root / PurePosixPath(target).parent
-            if folder.exists():
-                shutil.rmtree(folder)
-            prefix = f"{PurePosixPath(target).parent.as_posix()}/"
-            relative = {path[len(prefix) :]: content for path, content in files.items()}
-            source_record = {
-                "url": url,
-                "repository": pinned.repository,
-                "ref": pinned.ref,
-                "commit": pinned.commit,
-                "path": "/".join(part for part in (pinned.path, item.path) if part),
-                "installed_at": now,
-                "hash": files_hash(relative),
-                "package": name,
-            }
-            folder.mkdir(parents=True, exist_ok=True)
-            (folder / SOURCE_FILE).write_text(json.dumps(source_record, indent=2) + "\n", encoding="utf-8")
-            paths.append(prefix.rstrip("/"))
-        else:
-            paths.append(target)
-        for path, content in files.items():
-            file = layer.root / path
-            file.parent.mkdir(parents=True, exist_ok=True)
-            file.write_bytes(content)
+        paths.append(stage_item(layer, item, files, url, pinned, name, now))
         record["items"][target] = {
             "kind": item.kind,
             "name": item.name,
@@ -553,13 +561,16 @@ def install(
     names = ", ".join(item.name for item, _ in planned)
     if len(names) > 80:
         names = f"{len(planned)} items"
-    commit_paths(layer, paths, f"{action} {names} from package {name} ({pinned.repository}@{pinned.commit[:7]}, {layer.label})")
-    return targets
+    forget_merged()
+    result = commit_paths(
+        layer, paths, f"{action} {names} from package {name} ({pinned.repository}@{pinned.commit[:7]}, {layer.label})"
+    )
+    return PackageInstallResult(targets, result)
 
 
 def install_from_link(
     github: GitHubSkills, layer: Layer, url: str, ref: str, commit: str, choices: list[tuple[str, str, str]]
-) -> list[str]:
+) -> PackageInstallResult:
     """Install reviewed items at the reviewed commit; the link and ref are those of the review."""
     link = parse_package_link(url)
     source = Source(link.repository, ref, commit, package_folder(link, ref))

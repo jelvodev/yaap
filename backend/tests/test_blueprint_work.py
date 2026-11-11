@@ -2,15 +2,37 @@
 
 import subprocess
 from pathlib import Path
+from typing import Literal
 
 import httpx
+import pytest
+from fastapi.testclient import TestClient
 
+from app.blueprint.check import CHECK_INSTRUCTION_PREFIX, is_read_only_check
+from app.core.reply_errors import ReplyUnavailable
+from app.core.reply_service import ReplyService
 from app.github import client as github_client
 from app.providers.fake_provider import ScriptedResponse
+from tests.conftest import FakeBackend
 from tests.test_commands_and_skills import last_user_text, put_item, send, start
 from tests.test_github import TOKEN, FakeGitHub, store_token
 
 STANDARD = "---\nsummary: {summary}\n---\n{body}\n"
+
+
+@pytest.mark.parametrize(
+    ("blocks", "expected"),
+    [
+        ([], False),
+        ([{"type": "text", "text": "/check"}], False),
+        ([{"type": "command", "name": "check", "text": "A custom command"}], False),
+        ([{"type": "command", "name": "check", "read_only": True}], True),
+        ([{"type": "command", "name": "check", "text": CHECK_INSTRUCTION_PREFIX + " For each"}], True),
+        ([{"type": "command", "name": "other", "read_only": True}], False),
+    ],
+)
+def test_stored_builtin_checks_keep_read_only_access(blocks: list[dict[str, object]], expected: bool) -> None:
+    assert is_read_only_check(blocks) is expected
 
 
 def add_standards(client):
@@ -40,6 +62,40 @@ def test_check_lists_the_standards_and_runs_read_only(client, fake, tmp_path):
     assert finished and "read only" in str(finished[0]), names
     assert not list(Path(tmp_path).rglob("x.txt"))
     assert client.get(f"/api/v1/conversations/{conversation_id}").json()["access"] == "default"
+
+
+@pytest.mark.parametrize("action", ["retry", "regenerate"])
+def test_restarted_check_cannot_write_files(
+    client: TestClient,
+    fake: FakeBackend,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    action: Literal["retry", "regenerate"],
+) -> None:
+    add_standards(client)
+    conversation_id = project_conversation(client)
+    if action == "retry":
+        def fail_launch(*_args: object, **_kwargs: object) -> None:
+            raise ReplyUnavailable("The reply could not start.")
+
+        with monkeypatch.context() as patch:
+            patch.setattr(ReplyService, "launch", fail_launch)
+            response = client.post(f"/api/v1/conversations/{conversation_id}/messages", json={"text": "/check"})
+        assert response.status_code == 409
+    else:
+        fake.responses.append(ScriptedResponse(text="Checked."))
+        send(client, conversation_id, "/check")
+    messages = client.get(f"/api/v1/conversations/{conversation_id}").json()["messages"]
+    role = "user" if action == "retry" else "assistant"
+    message_id = next(message["id"] for message in messages if message["role"] == role)
+    fake.responses.append(
+        ScriptedResponse(text="Done.", tool_calls=(("write_file", {"path": "unsafe.txt", "content": "no"}),))
+    )
+
+    response = client.post(f"/api/v1/conversations/{conversation_id}/messages/{message_id}/{action}")
+
+    assert response.status_code == 200 and "read only" in response.text
+    assert not list(Path(tmp_path).rglob("unsafe.txt"))
 
 
 def test_check_one_standard_or_refuse_an_unknown_one(client, fake):

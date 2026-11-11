@@ -93,6 +93,11 @@ export default function RulePanel({
         <p>
           Saved in <code>{saved.path}</code> ({levelLabel}). It applies from the next reply on.
         </p>
+        {saved.mutation && !saved.mutation.committed && (
+          <p className="form-error">
+            Saved, but not committed: {saved.mutation.error ?? saved.mutation.path}. Apply the rule again to retry.
+          </p>
+        )}
         <div className="form-row">
           <button type="button" className="button button-ghost" onClick={onClose}>
             Close

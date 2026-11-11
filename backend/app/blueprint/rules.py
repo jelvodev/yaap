@@ -12,7 +12,7 @@ import difflib
 
 import yaml
 
-from app.blueprint.layers import BlueprintError, Layer, layer_files, parse_document, validate_path
+from app.blueprint.layers import BlueprintError, Layer, layer_files, parse_document, read_layer_text, validate_path
 
 MAX_RULE_CHARS = 500
 
@@ -43,8 +43,7 @@ def with_rule(layer: Layer, path: str, rule: str) -> tuple[str, str]:
         raise BlueprintError("The rule is empty.")
     if len(rule) > MAX_RULE_CHARS:
         raise BlueprintError(f"Keep a rule under {MAX_RULE_CHARS} characters.")
-    file = layer.root / path
-    before = file.read_text(encoding="utf-8") if file.is_file() else ""
+    before = read_layer_text(layer, path) if path in layer_files(layer) else ""
     if path == "instructions.md":
         return before, f"{before.rstrip()}\n- {rule}\n".lstrip("\n")
     if before:

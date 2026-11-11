@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 
-import { api, errorMessage } from "../api/client";
+import { api, errorMessage, type MutationStatus } from "../api/client";
 import type { components } from "../api/schema";
 
 export type PackageItem = components["schemas"]["PackageItemOut"];
@@ -137,7 +137,12 @@ export function usePackageReviews() {
         setError(errorMessage(failure, fallback));
         return { paths, complete: false };
       }
-      paths.push(...data);
+      paths.push(...data.items);
+      if (!data.commit.committed) {
+        setBusy(null);
+        setError(commitFailure(data.commit));
+        return { paths, complete: false };
+      }
     }
     setBusy(null);
     return { paths, complete: true };
@@ -150,6 +155,10 @@ export function usePackageReviews() {
 
   const chosenCount = reviews.reduce((count, review) => count + chosenItems(review).length, 0);
   return { reviews, busy, error, chosenCount, problem: reviewProblem(reviews), read, choose, install, clear };
+}
+
+function commitFailure(status: MutationStatus): string {
+  return `Saved, but not committed: ${status.error ?? status.path}. Re-apply the package to retry.`;
 }
 
 export type PackageReviews = ReturnType<typeof usePackageReviews>;

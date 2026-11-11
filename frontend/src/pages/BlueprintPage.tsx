@@ -718,7 +718,10 @@ export default function BlueprintPage() {
           setMain("item");
           await reloadAll();
         }}
-        onRemoved={() => update({ path: null })}
+        onRemoved={(message) => {
+          update({ path: null });
+          if (message) setNotice(message);
+        }}
       />
     );
   } else {
@@ -733,7 +736,7 @@ export default function BlueprintPage() {
                 {level.kind === "global"
                   ? "Shared by every environment and project."
                   : `Inherits from the levels above. Override, extend, add or switch off items for ${currentName} only.`}{" "}
-                Each layer is a git repository; every save is a commit.
+                Each layer is a git repository; every save attempts a path-scoped commit.
               </p>
               <p>{kindInfo(kind).hint}</p>
             </>

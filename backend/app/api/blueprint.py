@@ -11,7 +11,19 @@ from pydantic import BaseModel, Field
 
 from app.api.dependencies import CipherDependency, BlueprintDirDependency, SessionDependency, WorkspaceDirDependency
 from app.blueprint import package_updates, packages, skill_install
-from app.blueprint.layers import BlueprintError, Item, Layer, delete_file, merge_layers, validate_path, write_file
+from app.blueprint.layers import (
+    BlueprintError,
+    Item,
+    Layer,
+    delete_file,
+    layer_has_directory,
+    layer_has_file,
+    merge_layers,
+    read_layer_text,
+    validate_path,
+    write_file,
+)
+from app.blueprint.mutations import MutationResult
 from app.blueprint.skill_install import GitHubSkills, read_origin
 from app.core.utility import UtilityContext
 from app.blueprint.importer import BlueprintImportError, collect_documents, item_path, propose, render, slug
@@ -23,6 +35,20 @@ from app.storage.models import Environment, Project
 router = APIRouter(prefix="/blueprint", tags=["blueprint"])
 
 SWITCHED_OFF = "---\ndisabled: true\n---\n"
+
+
+class MutationStatusOut(BaseModel):
+    path: str
+    committed: bool
+    error: str | None = None
+
+
+class MutationStatusesOut(BaseModel):
+    statuses: list[MutationStatusOut]
+
+
+def mutation_status(path: str, result: MutationResult) -> MutationStatusOut:
+    return MutationStatusOut(path=path, committed=result.committed, error=result.error)
 
 
 class SkillOriginOut(BaseModel):
@@ -77,6 +103,7 @@ class BlueprintItemOut(BaseModel):
     extended_here: bool = False
     # This level's file extends a skill that no level above has; it is not used.
     orphan_extension: bool = False
+    mutation: MutationStatusOut | None = None
 
 
 class BlueprintFileOut(BlueprintItemOut):
@@ -203,10 +230,10 @@ def read_file(layers: LayersDependency, path: Annotated[str, Query()]) -> Bluepr
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No Blueprint file at this path.")
     own = layers[-1]
     if any(layer == own for layer, _ in item.extensions):
-        content = (own.root / item.path).read_text(encoding="utf-8", errors="replace")
+        content = read_layer_text(own, item.path, errors="replace")
         inherited = item.without_layer(own).text()
         return BlueprintFileOut(**item_to_out(item, own).model_dump(), content=content, inherited_content=inherited)
-    content = (item.source.root / item.path).read_text(encoding="utf-8", errors="replace")
+    content = read_layer_text(item.source, item.path, errors="replace")
     # An inherited skill this level could add to: the full text it would add to, additions of levels above included.
     inherited = item.text() if item.kind == "skill" and item.source != own and not item.orphan_extension else None
     return BlueprintFileOut(**item_to_out(item, own).model_dump(), content=content, inherited_content=inherited)
@@ -219,10 +246,12 @@ def save_file(
     """Create the file at this level, or override an inherited one."""
     own = layers[-1]
     try:
-        write_file(own, checked_path(path), payload.content, f"Update {path} ({own.label})")
+        result = write_file(own, checked_path(path), payload.content, f"Update {path} ({own.label})")
     except BlueprintError as error:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
-    return read_file(layers, path)
+    output = read_file(layers, path)
+    output.mutation = mutation_status(path, result)
+    return output
 
 
 @router.post("/switch-off", response_model=BlueprintItemOut)
@@ -235,24 +264,29 @@ def switch_off(layers: LayersDependency, path: Annotated[str, Query()]) -> Bluep
             status.HTTP_409_CONFLICT, "Only an inherited item can be switched off. Delete an item of this level instead."
         )
     try:
-        write_file(own, path, SWITCHED_OFF, f"Switch off {path} ({own.label})")
+        result = write_file(own, path, SWITCHED_OFF, f"Switch off {path} ({own.label})")
     except BlueprintError as error:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
     switched = find_item(layers, path)
     assert switched is not None
-    return item_to_out(switched, own)
+    output = item_to_out(switched, own)
+    output.mutation = mutation_status(path, result)
+    return output
 
 
-@router.delete("/file", status_code=status.HTTP_204_NO_CONTENT)
-def remove_file(layers: LayersDependency, path: Annotated[str, Query()]) -> Response:
+@router.delete("/file", response_model=MutationStatusesOut)
+def remove_file(layers: LayersDependency, path: Annotated[str, Query()]) -> MutationStatusesOut:
     """Remove this level's file: an override or switch-off is reset to inherited; an own item is deleted."""
     own = layers[-1]
     try:
-        delete_file(own, checked_path(path), f"Remove {path} ({own.label})")
-        packages.forget_items(own, [path], f"Forget {path} in its package ({own.label})")
+        result = delete_file(own, checked_path(path), f"Remove {path} ({own.label})")
+        record_result = packages.forget_items(own, [path], f"Forget {path} in its package ({own.label})")
     except BlueprintError as error:
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    statuses = [mutation_status(path, result)]
+    if record_result is not None:
+        statuses.append(mutation_status("packages/*.json", record_result))
+    return MutationStatusesOut(statuses=statuses)
 
 
 # --- Import --------------------------------------------------------------------------------------------------------
@@ -291,6 +325,7 @@ class ImportApplyIn(BaseModel):
 
 class ImportApplyOut(BaseModel):
     written: list[str]
+    commits: list[MutationStatusOut]
 
 
 @router.post("/import/analyze", response_model=list[ImportProposalOut])
@@ -322,7 +357,7 @@ async def analyze_import(
             extra=proposal.extra,
             proposed_by_model=proposal.proposed_by_model,
             path=item_path(proposal.kind, proposal.name),
-            exists=(own.root / item_path(proposal.kind, proposal.name)).exists(),
+            exists=layer_has_file(own, item_path(proposal.kind, proposal.name)),
         )
         for proposal in proposals
     ]
@@ -337,18 +372,20 @@ def apply_import(payload: ImportApplyIn, layers: LayersDependency) -> ImportAppl
     if len(set(paths)) != len(paths):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Two items would get the same path; rename one.")
     written: list[str] = []
+    commits: list[MutationStatusOut] = []
     for path, item in planned:
         rules = [rule.strip() for rule in item.rules if rule.strip()]
         content = render(item.kind, item.summary.strip(), rules, item.body, item.extra)
         try:
-            write_file(own, validate_path(path), content, f"Import {path} ({own.label})")
+            result = write_file(own, validate_path(path), content, f"Import {path} ({own.label})")
         except BlueprintError as error:
             done = ", ".join(written) or "none"
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_CONTENT, f"{path}: {error} Imported before it: {done}."
             ) from error
         written.append(path)
-    return ImportApplyOut(written=written)
+        commits.append(mutation_status(path, result))
+    return ImportApplyOut(written=written, commits=commits)
 
 
 # --- Skills from GitHub --------------------------------------------------------------------
@@ -411,6 +448,11 @@ class InstalledSkillOut(BaseModel):
     path: str
 
 
+class InstalledSkillsOut(BaseModel):
+    skills: list[InstalledSkillOut]
+    commits: list[MutationStatusOut]
+
+
 class SkillUpdateOut(BaseModel):
     up_to_date: bool
     installed_commit: str
@@ -427,7 +469,7 @@ class SkillUpdateOut(BaseModel):
 
 
 def candidate_out(candidate: skill_install.Candidate, own: Layer) -> SkillCandidateOut:
-    exists = (own.root / "skills" / candidate.name).exists()
+    exists = layer_has_directory(own, f"skills/{candidate.name}")
     replaces = [f"Replaces the skill '{candidate.name}' at this level."] if exists else []
     return SkillCandidateOut(
         path=candidate.path,
@@ -476,14 +518,14 @@ async def preview_github_skills(
     )
 
 
-@router.post("/skills/github/install", response_model=list[InstalledSkillOut])
+@router.post("/skills/github/install", response_model=InstalledSkillsOut)
 async def install_github_skills(
     payload: GitHubInstallIn,
     layers: LayersDependency,
     session: SessionDependency,
     cipher: CipherDependency,
     environment_id: Annotated[int | None, Query()] = None,
-) -> list[InstalledSkillOut]:
+) -> InstalledSkillsOut:
     """Install the reviewed skills at the reviewed commit into this level, one commit per skill."""
     names = [choice.name for choice in payload.skills]
     if len(set(names)) != len(names):
@@ -491,12 +533,15 @@ async def install_github_skills(
     github = GitHubSkills(github_token_for(session, cipher, environment_id))
     choices = [(choice.path, choice.name) for choice in payload.skills]
     try:
-        written = await anyio.to_thread.run_sync(
+        result = await anyio.to_thread.run_sync(
             skill_install.install_at_commit, github, layers[-1], payload.url, payload.ref, payload.commit, choices
         )
     except BlueprintError as error:
         raise unprocessable(error) from error
-    return [InstalledSkillOut(name=name, path=f"skills/{name}/SKILL.md") for name in written]
+    return InstalledSkillsOut(
+        skills=[InstalledSkillOut(name=name, path=f"skills/{name}/SKILL.md") for name in result.names],
+        commits=[mutation_status(f"skills/{name}", commit) for name, commit in zip(result.names, result.commits)],
+    )
 
 
 @router.get("/skills/{name}/update", response_model=SkillUpdateOut)
@@ -586,6 +631,11 @@ class PackageInstallIn(BaseModel):
     items: list[PackageChoiceIn] = Field(min_length=1, max_length=packages.MAX_ITEMS)
 
 
+class PackageInstallOut(BaseModel):
+    items: list[str]
+    commit: MutationStatusOut
+
+
 class PackageInstalledItemOut(BaseModel):
     path: str
     kind: PackageKind
@@ -606,7 +656,7 @@ class InstalledPackageOut(BaseModel):
 def package_item_out(
     item: packages.PackageItem, own: Layer, installed: dict[str, packages.InstalledItem], replacing: bool = True
 ) -> PackageItemOut:
-    exists = (own.root / item.target).exists()
+    exists = layer_has_directory(own, item.target) or layer_has_file(own, item.target)
     warnings = list(item.warnings)
     if exists and replacing:
         owner = installed.get(item.target)
@@ -651,23 +701,27 @@ async def preview_package(
     )
 
 
-@router.post("/packages/install", response_model=list[str])
+@router.post("/packages/install", response_model=PackageInstallOut)
 async def install_package(
     payload: PackageInstallIn,
     layers: LayersDependency,
     session: SessionDependency,
     cipher: CipherDependency,
     environment_id: Annotated[int | None, Query()] = None,
-) -> list[str]:
+) -> PackageInstallOut:
     """Install the chosen items at the reviewed commit into this level, as one commit; returns their paths."""
     github = GitHubSkills(github_token_for(session, cipher, environment_id))
     choices = [(choice.kind, choice.path.strip("/"), choice.name) for choice in payload.items]
     try:
-        return await anyio.to_thread.run_sync(
+        result = await anyio.to_thread.run_sync(
             packages.install_from_link, github, layers[-1], payload.url, payload.ref, payload.commit, choices
         )
     except BlueprintError as error:
         raise unprocessable(error) from error
+    return PackageInstallOut(
+        items=result.paths,
+        commit=mutation_status(", ".join(result.paths), result.commit),
+    )
 
 
 @router.get("/packages", response_model=list[InstalledPackageOut])
@@ -786,7 +840,7 @@ async def check_package_update(
     )
 
 
-@router.post("/packages/{name}/update", response_model=list[str])
+@router.post("/packages/{name}/update", response_model=PackageInstallOut)
 async def accept_package_update(
     name: str,
     payload: PackageAcceptIn,
@@ -794,17 +848,21 @@ async def accept_package_update(
     session: SessionDependency,
     cipher: CipherDependency,
     environment_id: Annotated[int | None, Query()] = None,
-) -> list[str]:
+) -> PackageInstallOut:
     """Write the accepted items exactly as they are at the reviewed commit, as one commit; returns their paths."""
     own = layers[-1]
     installed_package(own, name)
     github = GitHubSkills(github_token_for(session, cipher, environment_id))
     try:
-        return await anyio.to_thread.run_sync(
+        result = await anyio.to_thread.run_sync(
             package_updates.accept_update, github, own, name, payload.commit, payload.paths, payload.ref
         )
     except BlueprintError as error:
         raise unprocessable(error) from error
+    return PackageInstallOut(
+        items=result.paths,
+        commit=mutation_status(", ".join(result.paths), result.commit),
+    )
 
 
 # --- Remember as rule ------------------------------------------------------------------------------
@@ -822,17 +880,24 @@ class RuleOut(BaseModel):
     path: str
     diff: str
     applied: bool
+    mutation: MutationStatusOut | None = None
 
 
 @router.post("/rule", response_model=RuleOut)
 def remember_rule(layers: LayersDependency, payload: RuleIn) -> RuleOut:
     """Add a rule to a file this level owns: preview the diff, then apply it as one commit."""
     own = layers[-1]
+    result: MutationResult | None = None
     try:
         path = target_path(own, payload.path)
         before, after = with_rule(own, path, payload.rule)
         if payload.apply:
-            write_file(own, path, after, f"Remember rule: {' '.join(payload.rule.split())[:60]} ({own.label})")
+            result = write_file(own, path, after, f"Remember rule: {' '.join(payload.rule.split())[:60]} ({own.label})")
     except BlueprintError as error:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
-    return RuleOut(path=path, diff=unified_diff(path, before, after), applied=payload.apply)
+    return RuleOut(
+        path=path,
+        diff=unified_diff(path, before, after),
+        applied=payload.apply,
+        mutation=mutation_status(path, result) if result is not None else None,
+    )

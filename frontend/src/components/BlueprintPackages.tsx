@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { api, errorMessage } from "../api/client";
+import { api, errorMessage, type MutationStatus } from "../api/client";
 import type { components } from "../api/schema";
 import DiffView from "./DiffView";
 import MarkedText from "./MarkedText";
@@ -387,7 +387,11 @@ export function PackageUpdateReview({
       setError(errorMessage(failure, "The update could not be installed."));
       return;
     }
-    await onUpdated(data);
+    if (!data.commit.committed) {
+      setError(commitFailure(data.commit));
+      return;
+    }
+    await onUpdated(data.items);
   }
 
   const items = check
@@ -475,6 +479,10 @@ export function PackageUpdateReview({
       )}
     </div>
   );
+}
+
+function commitFailure(status: MutationStatus): string {
+  return `Saved, but not committed: ${status.error ?? status.path}. Re-apply the package to retry.`;
 }
 
 /** Where an item from a package comes from, and checking its package for updates. */

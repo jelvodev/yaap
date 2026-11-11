@@ -153,7 +153,12 @@ export function GitHubInstallPanel({
       setError(errorMessage(failure, "The skills could not be installed."));
       return;
     }
-    onInstalled(data.map((skill) => skill.name));
+    const failedCommit = data.commits.find((status) => !status.committed);
+    if (failedCommit) {
+      setError(`Saved, but not committed: ${failedCommit.error ?? failedCommit.path}. Re-apply the skill to retry.`);
+      return;
+    }
+    onInstalled(data.skills.map((skill) => skill.name));
   }
 
   return (
@@ -267,13 +272,18 @@ export function SkillOriginPanel({
     if (!check) return;
     setBusy("updating");
     setError(null);
-    const { error: failure } = await api.POST("/api/v1/blueprint/skills/github/install", {
+    const { data, error: failure } = await api.POST("/api/v1/blueprint/skills/github/install", {
       params: { query },
       body: { url: check.url, ref: check.ref, commit: check.latest_commit, skills: [{ path: origin.path, name }] },
     });
     setBusy(null);
-    if (failure) {
+    if (failure || !data) {
       setError(errorMessage(failure, "The update could not be installed."));
+      return;
+    }
+    const failedCommit = data.commits[0];
+    if (failedCommit && !failedCommit.committed) {
+      setError(`Saved, but not committed: ${failedCommit.error ?? failedCommit.path}. Re-apply the update to retry.`);
       return;
     }
     setCheck(null);

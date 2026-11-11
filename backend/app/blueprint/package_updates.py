@@ -10,6 +10,7 @@ from typing import Any
 
 from app.blueprint.layers import Layer
 from app.blueprint.packages import (
+    PackageInstallResult,
     FOLDERS,
     Package,
     PackageError,
@@ -120,7 +121,7 @@ def check_update(github: GitHubSkills, layer: Layer, name: str, ref: str | None 
 
 def accept_update(
     github: GitHubSkills, layer: Layer, name: str, commit: str, targets: list[str], ref: str | None = None
-) -> list[str]:
+) -> PackageInstallResult:
     """Write the accepted items exactly as they are at the reviewed commit; `ref` is recorded instead of the old one."""
     record = read_record(layer, name)
     if record is None:

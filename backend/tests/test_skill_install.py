@@ -174,6 +174,8 @@ def test_install_writes_the_folder_with_its_source_and_one_commit(client, github
     assert response.status_code == 200, response.text
     root = Path(tmp_path) / "blueprint" / "global"
     folder = root / "skills" / "pdf"
+    assert response.json()["skills"] == [{"name": "pdf", "path": "skills/pdf/SKILL.md"}]
+    assert response.json()["commits"] == [{"path": "skills/pdf", "committed": True, "error": None}]
     assert (folder / "SKILL.md").read_bytes() == PDF_SKILL
     assert (folder / "scripts" / "run.py").exists() and not (folder / "link").exists()
     record = json.loads((folder / "source.json").read_text())
@@ -191,7 +193,8 @@ def test_install_writes_the_folder_with_its_source_and_one_commit(client, github
     assert items["skills/pdf/SKILL.md"]["origin"]["changed_locally"] is True
 
     # Deleting removes the whole folder.
-    assert client.delete("/api/v1/blueprint/file", params={"path": "skills/pdf/SKILL.md"}).status_code == 204
+    removed = client.delete("/api/v1/blueprint/file", params={"path": "skills/pdf/SKILL.md"})
+    assert removed.status_code == 200 and removed.json()["statuses"][0]["committed"] is True
     assert not folder.exists()
 
 

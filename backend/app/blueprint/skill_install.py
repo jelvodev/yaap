@@ -9,7 +9,6 @@ one commit.
 import hashlib
 import json
 import re
-import shutil
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -20,9 +19,19 @@ from difflib import unified_diff
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from app.blueprint.layers import BlueprintError, Layer, ensure_repository, parse_document
+from app.blueprint.layers import (
+    BlueprintError,
+    Layer,
+    ensure_repository,
+    forget_merged,
+    layer_has_directory,
+    layer_has_file,
+    layer_tree_files,
+    parse_document,
+    read_layer_bytes,
+)
+from app.blueprint.mutations import MutationResult, replace_folder
 from app.core.hidden_text import find_hidden, mark_hidden, refusal_reason, warning_lines
-from app.git.service import GitError, run_git
 
 API = "https://api.github.com"
 RAW = "https://raw.githubusercontent.com"
@@ -53,6 +62,12 @@ class SkillInstallError(BlueprintError):
     def __init__(self, message: str, status: int | None = None) -> None:
         super().__init__(message)
         self.status = status
+
+
+@dataclass(frozen=True)
+class SkillInstallResult:
+    names: list[str]
+    commits: list[MutationResult]
 
 
 # Added to "not found" when no token was sent: GitHub answers 404 for a private repository it may not show.
@@ -352,7 +367,9 @@ def files_hash(files: dict[str, bytes]) -> str:
     return digest.hexdigest()
 
 
-def local_files(folder: Path) -> dict[str, bytes]:
+def local_files(folder: Path, layer: Layer | None = None) -> dict[str, bytes]:
+    if layer is not None and layer.kind == "project":
+        return layer_tree_files(layer, folder.relative_to(layer.root).as_posix(), frozenset({SOURCE_FILE}))
     return {
         file.relative_to(folder).as_posix(): file.read_bytes()
         for file in sorted(folder.rglob("*"))
@@ -362,11 +379,11 @@ def local_files(folder: Path) -> dict[str, bytes]:
 
 def install(
     layer: Layer, name: str, source: Source, candidate_path: str, files: dict[str, bytes], link: str, action: str
-) -> dict[str, Any]:
+) -> MutationResult:
     """Replace `skills/<name>/` with these files and its source.json, as one commit."""
+    skill_folder(layer, name)
     if "SKILL.md" not in files:
         raise SkillInstallError("The skill has no SKILL.md.")
-    folder = skill_folder(layer, name)
     record = {
         "url": link,
         "repository": source.repository,
@@ -377,25 +394,20 @@ def install(
         "hash": files_hash(files),
     }
     ensure_repository(layer)
-    if folder.exists():
-        shutil.rmtree(folder)
-    for path, content in files.items():
-        target = folder / safe_relative(path)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(content)
-    (folder / SOURCE_FILE).write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
-    pathspec = f"{layer.prefix}skills/{name}"
     try:
-        run_git(["add", "--all", "--", pathspec], layer.repository)
-        if run_git(["status", "--porcelain", "--", pathspec], layer.repository).stdout.strip():
-            short = source.commit[:7]
-            run_git(
-                ["commit", "-m", f"{action} skill {name} from {source.repository}@{short} ({layer.label})", "--", pathspec],
-                layer.repository,
-            )
-    except GitError as error:
-        raise SkillInstallError(f"The skill was written, but committing it failed: {error}") from error
-    return record
+        result = replace_folder(
+            layer,
+            f"skills/{name}",
+            {
+                **{safe_relative(path): content for path, content in files.items()},
+                SOURCE_FILE: (json.dumps(record, indent=2) + "\n").encode(),
+            },
+            f"{action} skill {name} from {source.repository}@{source.commit[:7]} ({layer.label})",
+        )
+        forget_merged()
+        return result
+    except OSError as error:
+        raise SkillInstallError(f"Could not replace skill '{name}': {error}") from error
 
 
 @dataclass
@@ -410,12 +422,12 @@ class Origin:
 
 def read_origin(layer: Layer, name: str) -> Origin | None:
     folder = layer.root / "skills" / name
-    file = folder / SOURCE_FILE
-    if not file.is_file():
+    relative = f"skills/{name}/{SOURCE_FILE}"
+    if not layer_has_file(layer, relative):
         return None
     try:
-        record = json.loads(file.read_text(encoding="utf-8"))
-        changed = files_hash(local_files(folder)) != record.get("hash")
+        record = json.loads(read_layer_bytes(layer, relative).decode("utf-8"))
+        changed = files_hash(local_files(folder, layer)) != record.get("hash")
         if not all(isinstance(record.get(key), str) for key in ("repository", "ref", "commit", "path")):
             return None
     except (OSError, ValueError, AttributeError):
@@ -459,11 +471,12 @@ def preview(github: GitHubSkills, url: str) -> tuple[Source, list[Candidate]]:
 
 def install_at_commit(
     github: GitHubSkills, layer: Layer, url: str, ref: str, commit: str, choices: list[tuple[str, str]]
-) -> list[str]:
+) -> SkillInstallResult:
     """Install skills (folder path in the repository, name) exactly as they are at the reviewed commit."""
     link = parse_link(url)
     pinned, tree = github.resolve(link, commit)
     written: list[str] = []
+    commits: list[MutationResult] = []
     for path, name in choices:
         skill_folder(layer, name)  # Validates the name before anything is downloaded.
         source = Source(pinned.repository, ref, pinned.commit, path)
@@ -471,10 +484,10 @@ def install_at_commit(
         if candidate is None:
             raise SkillInstallError(f"There is no skill at '{path}' in {pinned.repository}@{pinned.commit[:7]}.")
         files = github.download(source, github.describe(source, candidate))
-        action = "Update" if skill_folder(layer, name).exists() else "Install"
-        install(layer, name, source, path, files, url, action)
+        action = "Update" if layer_has_directory(layer, f"skills/{name}") else "Install"
+        commits.append(install(layer, name, source, path, files, url, action))
         written.append(name)
-    return written
+    return SkillInstallResult(written, commits)
 
 
 @dataclass
@@ -512,5 +525,7 @@ def check_update(github: GitHubSkills, layer: Layer, name: str, origin: Origin) 
         upstream_diff = text_diff(old_files, new_files, installed.commit[:7], latest.commit[:7])
     local_diff = ""
     if origin.changed_locally:
-        local_diff = text_diff(old_files, local_files(layer.root / "skills" / name), installed.commit[:7], "local")
+        local_diff = text_diff(
+            old_files, local_files(layer.root / "skills" / name, layer), installed.commit[:7], "local"
+        )
     return UpdateCheck(latest, candidate, upstream_diff, local_diff)

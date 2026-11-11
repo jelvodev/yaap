@@ -64,13 +64,24 @@ export function ListCard({
 
   async function reset() {
     try {
-      const response = await fetch(url, { method: "DELETE" });
       if (level.kind === "global") {
-        const list = await fetch(settingsUrl(level)).then((result) => result.json() as Promise<Setting[]>);
-        const fresh = list.find((item) => item.key === setting.key);
-        if (fresh) onChange(fresh);
-      } else if (response.ok) {
-        onChange((await response.json()) as Setting);
+        const resetResult = await api.DELETE("/api/v1/settings/{key}", { params: { path: { key: setting.key } } });
+        if (!resetResult.response.ok) throw new Error(errorMessage(resetResult.error, "Reset failed."));
+        const listResult = await api.GET("/api/v1/settings");
+        if (!listResult.response.ok) throw new Error(errorMessage(listResult.error, "Loading settings failed."));
+        const fresh = listResult.data?.find((item) => item.key === setting.key);
+        if (!fresh) throw new Error("The reset setting could not be loaded.");
+        onChange(fresh);
+      } else {
+        const result = level.kind === "environment"
+          ? await api.DELETE("/api/v1/environments/{environment_id}/settings/{key}", {
+              params: { path: { environment_id: level.id, key: setting.key } },
+            })
+          : await api.DELETE("/api/v1/projects/{project_id}/settings/{key}", {
+              params: { path: { project_id: level.id, key: setting.key } },
+            });
+        if (!result.response.ok || !result.data) throw new Error(errorMessage(result.error, "Reset failed."));
+        onChange(result.data);
       }
       setMessage({ error: false, text: "Back to inherited." });
     } catch (error) {

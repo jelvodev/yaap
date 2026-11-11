@@ -1,9 +1,12 @@
 import subprocess
+from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
 
-from app.blueprint.layers import BlueprintError, parse_document
+from app.blueprint import mutations
+from app.blueprint.layers import BlueprintError, Layer, layer_files, parse_document, read_merged
+from app.git.service import GitError, GitResult, init_repository, run_git
 from app.providers.fake_provider import ScriptedResponse
 
 CODING = """---
@@ -38,6 +41,50 @@ def test_front_matter_is_parsed():
         parse_document("---\n[unclosed\n---\nbody")
 
 
+@pytest.mark.skipif(__import__("os").name != "posix", reason="symlink checks require POSIX")
+def test_project_blueprint_layer_does_not_read_links_outside_project(tmp_path: Path):
+    project = tmp_path / "project"
+    layer_root = project / ".blueprint"
+    standards = layer_root / "standards"
+    standards.mkdir(parents=True)
+    internal = standards / "inside.md"
+    internal.write_text("Inside standard.", encoding="utf-8")
+    external = tmp_path / "external.md"
+    external.write_text("external canary", encoding="utf-8")
+    (standards / "internal-link.md").symlink_to(internal)
+    (standards / "external-link.md").symlink_to(external)
+    (layer_root / "skills").mkdir()
+    (layer_root / "skills" / "external-skill").symlink_to(external.parent, target_is_directory=True)
+    layer = Layer("project", "Project", layer_root, project, ".blueprint/")
+
+    found = layer_files(layer)
+    assert set(found) == {"standards/inside.md", "standards/internal-link.md"}
+    merged = read_merged([layer])
+    assert [item.text() for item in merged] == ["Inside standard.\n", "Inside standard.\n"]
+
+
+@pytest.mark.skipif(__import__("os").name != "posix", reason="symlink checks require POSIX")
+def test_project_blueprint_mutations_cannot_follow_links_into_git_or_outside(tmp_path: Path):
+    project = tmp_path / "project"
+    layer_root = project / ".blueprint"
+    layer_root.mkdir(parents=True)
+    git_config = project / ".git" / "config"
+    git_config.parent.mkdir()
+    git_config.write_text("safe", encoding="utf-8")
+    (layer_root / "git-config.md").symlink_to(git_config)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (layer_root / "linked").symlink_to(outside, target_is_directory=True)
+    layer = Layer("project", "Project", layer_root, project, ".blueprint/")
+
+    with pytest.raises(OSError):
+        mutations.write_bytes(layer, "git-config.md", b"unsafe")
+    with pytest.raises(OSError):
+        mutations.write_bytes(layer, "linked/new.md", b"unsafe")
+    assert git_config.read_text(encoding="utf-8") == "safe"
+    assert not (outside / "new.md").exists()
+
+
 def test_global_item_is_inherited_by_environments(client, tmp_path):
     assert put(client, "engineering/coding.md", CODING).status_code == 200
 
@@ -63,7 +110,8 @@ def test_environment_override_and_reset(client):
     # Private still sees the global version.
     assert items(client, environment_id=1)["engineering/coding.md"]["summary"].startswith("Simple")
 
-    assert client.delete("/api/v1/blueprint/file", params={"path": "engineering/coding.md", "environment_id": 2}).status_code == 204
+    removed = client.delete("/api/v1/blueprint/file", params={"path": "engineering/coding.md", "environment_id": 2})
+    assert removed.status_code == 200 and removed.json()["statuses"][0]["committed"] is True
     assert items(client, environment_id=2)["engineering/coding.md"]["source"] == "global"
 
 
@@ -91,6 +139,49 @@ def test_invalid_paths_and_front_matter_are_refused(client):
     assert put(client, "../escape.md", "x").status_code == 422
     assert put(client, "standards/Bad Name.md", "x").status_code == 422
     assert put(client, "standards/ok.md", "---\n[unclosed\n---\n").status_code == 422
+
+
+def test_save_reports_commit_failure_and_a_later_save_commits_the_file(client, monkeypatch, tmp_path):
+    root = Path(tmp_path) / "blueprint" / "global"
+    real_run_git = mutations.run_git
+
+    def fail_commit(arguments: Sequence[str], cwd: Path) -> GitResult:
+        if arguments[0] == "commit":
+            raise GitError("injected commit failure")
+        return real_run_git(arguments, cwd)
+
+    with monkeypatch.context() as patcher:
+        patcher.setattr(mutations, "run_git", fail_commit)
+        failed = put(client, "standards/retry.md", "Saved content.")
+
+    assert failed.status_code == 200
+    assert failed.json()["mutation"] == {
+        "path": "standards/retry.md",
+        "committed": False,
+        "error": "injected commit failure",
+    }
+    assert (root / "standards" / "retry.md").read_text(encoding="utf-8") == "Saved content."
+
+    retried = put(client, "standards/retry.md", "Saved content.")
+    assert retried.status_code == 200 and retried.json()["mutation"]["committed"] is True
+    assert run_git(["show", "HEAD:standards/retry.md"], root).stdout == "Saved content."
+
+
+def test_blueprint_commit_leaves_an_unrelated_staged_file_alone(tmp_path):
+    repository = Path(tmp_path) / "repository"
+    layer_root = repository / ".blueprint"
+    repository.mkdir()
+    init_repository(repository)
+    layer = Layer("project", "Site", layer_root, repository, ".blueprint/")
+    unrelated = repository / "unrelated.txt"
+    unrelated.write_text("keep staged", encoding="utf-8")
+    run_git(["add", "--", "unrelated.txt"], repository)
+
+    result = mutations.write(layer, "instructions.md", "Use the project standard.\n", "Save Blueprint")
+
+    assert result.committed is True
+    assert run_git(["diff", "--cached", "--name-only"], repository).stdout.strip() == "unrelated.txt"
+    assert run_git(["show", "--name-only", "--format=", "HEAD"], repository).stdout.strip() == ".blueprint/instructions.md"
 
 
 def test_blueprint_reaches_the_system_prompt(client, fake):
@@ -157,7 +248,8 @@ def test_a_project_can_extend_an_inherited_skill(client, tmp_path):
     assert "publish to PyPI" in client.get("/api/v1/blueprint/file", params={"path": "skills/release/SKILL.md", **level}).json()["inherited_content"]
 
     # Reset removes only the project's additions.
-    assert client.delete("/api/v1/blueprint/file", params={"path": "skills/release/SKILL.md", **level}).status_code == 204
+    removed = client.delete("/api/v1/blueprint/file", params={"path": "skills/release/SKILL.md", **level})
+    assert removed.status_code == 200 and removed.json()["statuses"][0]["committed"] is True
     assert items(client, **level)["skills/release/SKILL.md"]["extended_by"] == ["Private"]
 
 

@@ -7,7 +7,6 @@ skill and adds its body after it.
 """
 
 import re
-import shutil
 import threading
 import time
 from dataclasses import dataclass, field
@@ -16,7 +15,9 @@ from typing import Any, Literal
 
 import yaml
 
-from app.git.service import GitError, init_repository, run_git
+from app.blueprint import mutations
+from app.blueprint.mutations import MutationResult
+from app.targets.safe_root import SafeRoot
 
 LayerKind = Literal["global", "environment", "project"]
 ItemKind = Literal["instructions", "standard", "engineering", "skill", "command", "agent"]
@@ -85,7 +86,7 @@ class Item:
 
     def text(self) -> str:
         """The full file as the agent loads it: the source file, then each layer's additions."""
-        text = (self.source.root / self.path).read_text(encoding="utf-8", errors="replace").rstrip()
+        text = read_layer_text(self.source, self.path, errors="replace").rstrip()
         for layer, document in self.extensions:
             text += f"\n\n{additions_heading(layer)}\n\n{document.body.strip()}"
         return text + "\n"
@@ -93,7 +94,7 @@ class Item:
     def without_layer(self, layer: Layer) -> "Item":
         """This item as the layers above `layer` see it: without that layer's additions."""
         kept = [(other, document) for other, document in self.extensions if other != layer]
-        base = read_document(self.source.root / self.path)
+        base = read_layer_document(self.source, self.path)
         return Item(self.path, self.kind, self.name, self.source, combined(base, kept), self.overrides, kept)
 
     @property
@@ -154,10 +155,106 @@ def read_document(path: Path) -> Document:
         return Document({}, path.read_text(encoding="utf-8", errors="replace"))
 
 
+def layer_relative(layer: Layer, path: str) -> str:
+    """A file relative to the filesystem root used for this layer."""
+    return f"{layer.prefix}{path}" if layer.kind == "project" else path
+
+
+def read_layer_bytes(layer: Layer, path: str) -> bytes:
+    relative = layer_relative(layer, path)
+    if layer.kind == "project":
+        with SafeRoot(layer.repository) as root:
+            return root.read_bytes(relative)
+    return (layer.root / path).read_bytes()
+
+
+def read_layer_text(layer: Layer, path: str, errors: str = "strict") -> str:
+    return read_layer_bytes(layer, path).decode("utf-8", errors=errors)
+
+
+def read_layer_document(layer: Layer, path: str) -> Document:
+    try:
+        text = read_layer_text(layer, path)
+    except OSError:
+        return Document({}, "")
+    except UnicodeDecodeError:
+        text = read_layer_text(layer, path, errors="replace")
+    try:
+        return parse_document(text)
+    except BlueprintError:
+        return Document({}, text)
+
+
+def layer_has_file(layer: Layer, path: str) -> bool:
+    if layer.kind == "project":
+        try:
+            with SafeRoot(layer.repository) as root:
+                return root.is_file(layer_relative(layer, path))
+        except OSError:
+            return False
+    return (layer.root / path).is_file()
+
+
+def layer_has_directory(layer: Layer, path: str) -> bool:
+    if layer.kind == "project":
+        try:
+            with SafeRoot(layer.repository) as root:
+                return root.is_dir(layer_relative(layer, path))
+        except OSError:
+            return False
+    return (layer.root / path).is_dir()
+
+
+def layer_tree_files(layer: Layer, path: str, excluded: frozenset[str] = frozenset()) -> dict[str, bytes]:
+    """Read regular files below a layer folder without following links outside a project."""
+    if layer.kind == "project":
+        try:
+            with SafeRoot(layer.repository) as root:
+                base = layer_relative(layer, path)
+                found: dict[str, bytes] = {}
+                for relative, info in root.entries(base, recursive=True):
+                    if relative.rsplit("/", 1)[-1] not in excluded and root.is_file(relative):
+                        suffix = relative.removeprefix(f"{base}/")
+                        found[suffix] = root.read_bytes(relative)
+                return found
+        except OSError:
+            return {}
+    folder = layer.root / path
+    return {
+        file.relative_to(folder).as_posix(): file.read_bytes()
+        for file in sorted(folder.rglob("*"))
+        if file.is_file() and not file.is_symlink() and file.name not in excluded
+    }
+
+
 def layer_files(layer: Layer) -> dict[str, Path]:
     """The layer's item files. Only the folders items can live in are listed, never the whole tree: a layer is a git
     repository, and walking its .git folder on every message made replies slow on a mounted data folder."""
     root = layer.root
+    if layer.kind == "project":
+        try:
+            with SafeRoot(layer.repository) as safe:
+                found: dict[str, Path] = {}
+                if safe.is_file(layer_relative(layer, "instructions.md")):
+                    found["instructions.md"] = root / "instructions.md"
+                for folder in ("standards", "engineering", "commands", "agents", "skills"):
+                    relative_folder = layer_relative(layer, folder)
+                    if not safe.is_dir(relative_folder):
+                        continue
+                    for entry, info in safe.entries(relative_folder, recursive=False):
+                        relative = entry.removeprefix(layer.prefix)
+                        if folder == "skills":
+                            if not safe.is_dir(entry):
+                                continue
+                            skill_file = f"{relative}/SKILL.md"
+                            if safe.is_file(layer_relative(layer, skill_file)):
+                                found[skill_file] = root / skill_file
+                        elif Path(relative).suffix == ".md" and safe.is_file(entry):
+                            if ITEM_PATH.match(relative):
+                                found[relative] = root / relative
+                return found
+        except OSError:
+            return {}
     if not root.is_dir():
         return {}
     candidates: list[Path] = [root / "instructions.md"]
@@ -216,14 +313,14 @@ def read_merged(layers: list[Layer]) -> list[Item]:
     for layer in layers:
         for path, file in layer_files(layer).items():
             previous = merged.get(path)
-            document = read_document(file)
+            document = read_layer_document(layer, path)
             kind = kind_of(path)
             if kind == "skill" and document.extends and not document.disabled:
                 if previous is None or previous.orphan_extension:
                     merged[path] = Item(path, kind, name_of(path), layer, document, orphan_extension=True)
                 else:
                     extensions = [*previous.extensions, (layer, document)]
-                    base = read_document(previous.source.root / path)
+                    base = read_layer_document(previous.source, path)
                     merged[path] = Item(
                         path, kind, previous.name, previous.source, combined(base, extensions), previous.overrides, extensions
                     )
@@ -240,52 +337,41 @@ def active_items(layers: list[Layer]) -> list[Item]:
     return [item for item in merge_layers(layers) if not item.document.disabled and not item.orphan_extension]
 
 
-def write_file(layer: Layer, path: str, content: str, message: str) -> None:
+def write_file(layer: Layer, path: str, content: str, message: str) -> MutationResult:
     validate_path(path)
     if len(content.encode()) > MAX_FILE_BYTES:
         raise BlueprintError("The file is larger than 512 KB.")
     parse_document(content)  # Reject invalid front matter before anything is written.
     ensure_repository(layer)
-    target = layer.root / path
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(content.replace("\r\n", "\n"), encoding="utf-8")
+    result = mutations.write(layer, path, content, message)
     forget_merged()
-    commit(layer, path, message)
+    return result
 
 
-def delete_file(layer: Layer, path: str, message: str) -> None:
+def delete_file(layer: Layer, path: str, message: str) -> MutationResult:
     validate_path(path)
-    target = layer.root / path
-    if not target.is_file():
+    if not layer_has_file(layer, path):
         raise BlueprintError("This level has no file at that path.")
-    forget_merged()
+    ensure_repository(layer)
     if kind_of(path) == "skill":
         # A skill is its whole folder, including the files and source.json of one installed from GitHub.
-        shutil.rmtree(target.parent)
-        commit(layer, str(Path(path).parent.as_posix()), message)
-        return
-    target.unlink()
-    if target.parent != layer.root and not any(target.parent.iterdir()):
-        target.parent.rmdir()
-    commit(layer, path, message)
+        result = mutations.delete(layer, str(Path(path).parent.as_posix()), message)
+    else:
+        result = mutations.delete(layer, path, message)
+    forget_merged()
+    return result
 
 
 def ensure_repository(layer: Layer) -> None:
     # Called before every write YAAP makes in a layer.
     forget_merged()
-    layer.root.mkdir(parents=True, exist_ok=True)
-    if layer.kind != "project":
-        init_repository(layer.repository)
+    mutations.ensure_repository(layer)
 
 
-def commit(layer: Layer, path: str, message: str) -> None:
+def commit(layer: Layer, path: str, message: str) -> MutationResult:
     """Commit only this file, so other changes in the repository (for example in a project) are left alone."""
-    pathspec = f"{layer.prefix}{path}"
     forget_merged()
-    try:
-        run_git(["add", "--all", "--", pathspec], layer.repository)
-        status = run_git(["status", "--porcelain", "--", pathspec], layer.repository).stdout.strip()
-        if status:
-            run_git(["commit", "-m", message, "--", pathspec], layer.repository)
-    except GitError as error:
-        raise BlueprintError(f"The file was saved, but committing it failed: {error}") from error
+    result = mutations.commit_paths(layer, [path], message)
+    if not result.committed:
+        raise BlueprintError(f"The file was saved, but committing it failed: {result.error}")
+    return result

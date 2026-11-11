@@ -80,6 +80,11 @@ export default function ImportPanel({
       setError(errorMessage(failure, "The items could not be written."));
       return;
     }
+    const failedCommit = data.commits.find((commit) => !commit.committed);
+    if (failedCommit) {
+      setError(`Saved, but not committed: ${failedCommit.error ?? failedCommit.path}. Re-apply the import to retry.`);
+      return;
+    }
     onImported(data.written);
   }
 

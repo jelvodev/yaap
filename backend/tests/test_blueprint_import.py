@@ -67,6 +67,7 @@ def test_reviewed_items_are_written_as_blueprint_files(client):
     applied = client.post("/api/v1/blueprint/import/apply", params={"environment_id": 1}, json={"items": items})
     assert applied.status_code == 200, applied.text
     assert applied.json()["written"] == ["standards/api-design.md", "agents/planner.md"]
+    assert all(entry["committed"] for entry in applied.json()["commits"])
 
     standard = client.get("/api/v1/blueprint/file", params={"environment_id": 1, "path": "standards/api-design.md"}).json()
     assert standard["summary"] == "How APIs look." and standard["rules"] == ["Plural nouns."]

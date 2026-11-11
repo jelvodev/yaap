@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { type BlueprintFile, type BlueprintItem, api, errorMessage } from "../../api/client";
+import { type BlueprintFile, type BlueprintItem, type MutationStatus, api, errorMessage } from "../../api/client";
+import type { components } from "../../api/schema";
 import { PackageOriginPanel } from "../../components/BlueprintPackages";
 import { SkillOriginPanel } from "../../components/GitHubSkills";
 import { type Level, levelQuery } from "../../components/workbench/LevelPicker";
@@ -27,6 +28,19 @@ import {
   stateLabel,
 } from "./model";
 import { useConfirm } from "../../components/dialog/ConfirmDialog";
+
+type MutationPayload =
+  | components["schemas"]["BlueprintItemOut"]
+  | components["schemas"]["BlueprintFileOut"]
+  | components["schemas"]["MutationStatusesOut"];
+
+function failedMutationMessage(data?: MutationPayload): string | null {
+  if (!data) return null;
+  const statuses: MutationStatus[] = "statuses" in data ? data.statuses : data.mutation ? [data.mutation] : [];
+  const failures = statuses.filter((entry) => !entry.committed);
+  if (failures.length === 0) return null;
+  return `Saved, but not committed: ${failures.map((entry) => entry.error ?? entry.path).join("; ")}. Save again to retry.`;
+}
 
 /** One level of the chain an item is inherited along, with the item as that level sees it. */
 export interface ChainEntry {
@@ -217,7 +231,7 @@ export default function ItemDetail({
   agent: Agent | undefined;
   agentEnvironmentId: number | null;
   onChanged: () => Promise<void>;
-  onRemoved: () => void;
+  onRemoved: (message?: string) => void;
 }) {
   const confirm = useConfirm();
   const navigate = useNavigate();
@@ -277,17 +291,22 @@ export default function ItemDetail({
   const extending = Boolean(file?.extended_here && !file.orphan_extension) || skillChoice === "extend";
   const showEditor = isNew !== null || !canExtend || skillChoice !== null;
 
-  async function run(action: () => Promise<{ error?: unknown }>, after: "reload" | "removed" = "reload") {
+  async function run(
+    action: () => Promise<{ data?: MutationPayload; error?: unknown }>,
+    after: "reload" | "removed" = "reload",
+  ) {
     setBusy(true);
     setMessage(null);
-    const { error } = await action();
+    const result = await action();
     setBusy(false);
-    if (error) {
-      setMessage(errorMessage(error));
+    if (result.error) {
+      setMessage(errorMessage(result.error));
       return;
     }
+    const commitMessage = failedMutationMessage(result.data);
+    if (commitMessage) setMessage(commitMessage);
     await onChanged();
-    if (after === "removed") onRemoved();
+    if (after === "removed") onRemoved(commitMessage ?? undefined);
     else {
       setSkillChoice(null);
       await load();

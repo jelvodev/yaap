@@ -7,7 +7,9 @@ from pathlib import Path
 import pytest
 
 from app.blueprint import packages, skill_install
+from app.blueprint import mutations
 from app.blueprint.packages import PackageError, parse_manifest
+from app.blueprint.layers import Layer
 from app.blueprint.skill_install import API, RAW, SkillInstallError
 
 COMMIT_A = "a" * 40
@@ -214,7 +216,8 @@ def test_a_link_without_a_manifest_is_refused(client, github):
 def test_install_writes_chosen_items_pinned_to_the_commit(client, github, tmp_path):
     response = install(client)
     assert response.status_code == 200, response.text
-    assert response.json() == ["standards/security.md", "skills/review-code/SKILL.md", "commands/ship.md"]
+    assert response.json()["items"] == ["standards/security.md", "skills/review-code/SKILL.md", "commands/ship.md"]
+    assert response.json()["commit"]["committed"] is True
     root = Path(tmp_path) / "blueprint" / "global"
     assert (root / "standards" / "security.md").read_bytes() == SECURITY
     assert (root / "skills" / "review-code" / "checklist.md").read_bytes() == b"- Tests\n"
@@ -254,9 +257,68 @@ def test_install_writes_chosen_items_pinned_to_the_commit(client, github, tmp_pa
     client.put("/api/v1/blueprint/file", params={"path": "commands/ship.md"}, json={"content": "Mine.\n"})
     items = {item["path"]: item for item in client.get("/api/v1/blueprint/items").json()}
     assert items["commands/ship.md"]["package"]["changed_locally"] is True
-    assert client.delete("/api/v1/blueprint/file", params={"path": "commands/ship.md"}).status_code == 204
+    removed = client.delete("/api/v1/blueprint/file", params={"path": "commands/ship.md"})
+    assert removed.status_code == 200 and all(item["committed"] for item in removed.json()["statuses"])
     record = json.loads((root / "packages" / "acme-basics.json").read_text())
     assert "commands/ship.md" not in record["items"]
+
+
+def test_failed_staged_skill_replacement_keeps_the_installed_folder(client, github, monkeypatch, tmp_path):
+    assert install(client).status_code == 200
+    root = Path(tmp_path) / "blueprint" / "global"
+    folder = root / "skills" / "review-code"
+    before = {file.name: file.read_bytes() for file in folder.iterdir() if file.is_file()}
+    history = commits(root)
+    github.add_commit(
+        COMMIT_B,
+        {
+            "skills/review-code/SKILL.md": REVIEW + b"\nUpdated.\n",
+            "skills/review-code/checklist.md": b"- New checklist\n",
+        },
+    )
+    original_write = Path.write_bytes
+    staged_writes = 0
+
+    def fail_second_staged_write(path: Path, content: bytes) -> int:
+        nonlocal staged_writes
+        if any(part.startswith(".review-code.new-") for part in path.parts):
+            staged_writes += 1
+            if staged_writes == 2:
+                raise OSError("injected staging write failure")
+        return original_write(path, content)
+
+    monkeypatch.setattr(Path, "write_bytes", fail_second_staged_write)
+    failed = install(client, commit=COMMIT_B)
+
+    assert failed.status_code == 422 and "injected staging write failure" in failed.json()["detail"]
+    assert {file.name: file.read_bytes() for file in folder.iterdir() if file.is_file()} == before
+    assert commits(root) == history
+    assert "Read the diff first." in client.get("/api/v1/blueprint/file", params={"path": "skills/review-code/SKILL.md"}).json()["content"]
+
+
+def test_folder_swap_failure_restores_the_previous_folder(monkeypatch, tmp_path):
+    root = Path(tmp_path) / "blueprint"
+    target = root / "skills" / "existing"
+    target.mkdir(parents=True)
+    (target / "SKILL.md").write_bytes(b"old skill")
+    layer = Layer("global", "Global", root, root)
+    replace = mutations.os.replace
+    attempts = 0
+
+    def fail_install_swap(source: str | Path, destination: str | Path) -> None:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 2:
+            raise OSError("injected folder swap failure")
+        replace(source, destination)
+
+    monkeypatch.setattr(mutations.os, "replace", fail_install_swap)
+    with pytest.raises(OSError, match="injected folder swap failure"):
+        mutations.replace_folder_contents(layer, "skills/existing", {"SKILL.md": b"new skill"})
+
+    assert (target / "SKILL.md").read_bytes() == b"old skill"
+    assert not list(target.parent.glob(".existing.new-*"))
+    assert not list(target.parent.glob(".existing.backup-*"))
 
 
 def test_install_renames_and_into_the_chosen_level(client, github, tmp_path):
@@ -264,7 +326,8 @@ def test_install_renames_and_into_the_chosen_level(client, github, tmp_path):
     params = {"environment_id": environment["id"]}
     response = install(client, items=[{"kind": "agent", "path": "agents/helper.md", "name": "aide"}], params=params)
     assert response.status_code == 200, response.text
-    assert response.json() == ["agents/aide.md"]
+    assert response.json()["items"] == ["agents/aide.md"]
+    assert response.json()["commit"]["committed"] is True
     written = list((Path(tmp_path) / "blueprint").glob("*/agents/aide.md"))
     assert len(written) == 1 and written[0].parent.parent.name != "global"
     assert not (Path(tmp_path) / "blueprint" / "global" / "agents").exists()
@@ -385,7 +448,8 @@ def test_an_update_shows_a_diff_per_item_and_changes_nothing_until_accepted(clie
         json={"commit": COMMIT_B, "paths": ["standards/security.md"]},
     )
     assert accepted.status_code == 200, accepted.text
-    assert accepted.json() == ["standards/security.md"]
+    assert accepted.json()["items"] == ["standards/security.md"]
+    assert accepted.json()["commit"]["committed"] is True
     assert (root / "standards" / "security.md").read_bytes().endswith(b"Rotate keys yearly.\n")
     assert (root / "skills" / "review-code" / "checklist.md").read_bytes() == b"- Tests\n"
     assert (root / "commands" / "ship.md").read_text() == "My own release steps.\n"

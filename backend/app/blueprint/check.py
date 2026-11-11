@@ -6,12 +6,24 @@ read and compared: per standard a verdict and the deviations with file and line.
 """
 
 import re
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from app.blueprint.layers import Item, Layer, active_items
 
 CHECK_COMMAND = re.compile(r"^/check(?:\s+(\S.*))?$", re.DOTALL)
 CHECKED_KINDS = ("standard", "engineering")
+CHECK_INSTRUCTION_PREFIX = "Check this project against the standards below, one at a time, in this order."
+
+
+def is_read_only_check(blocks: Sequence[Mapping[str, object]]) -> bool:
+    """Recognize persisted built-in checks, including messages saved before the explicit marker existed."""
+    for block in blocks:
+        text = block.get("text")
+        if block.get("type") == "command" and block.get("name") == "check":
+            if block.get("read_only") is True or (isinstance(text, str) and text.startswith(CHECK_INSTRUCTION_PREFIX)):
+                return True
+    return False
 
 
 class CheckError(Exception):
@@ -40,7 +52,7 @@ def check_block(layers: list[Layer], text: str) -> dict[str, Any] | None:
     items = standards_to_check(layers, name)
     listed = "\n".join(f"{number}. {item.name} ({item.kind}, from {item.source.label})" for number, item in enumerate(items, 1))
     instructions = (
-        "Check this project against the standards below, one at a time, in this order. For each, load its full text "
+        f"{CHECK_INSTRUCTION_PREFIX} For each, load its full text "
         "with load_standard, then look at the project's files that it concerns: list, search and read them. You work "
         "read only: change nothing, run no commands, only read.\n\n"
         f"Standards to check:\n{listed}\n\n"
@@ -54,4 +66,4 @@ def check_block(layers: list[Layer], text: str) -> dict[str, Any] | None:
         "## Summary: how many standards follow, deviate and do not apply, and the three deviations most worth fixing "
         "first."
     )
-    return {"type": "command", "name": "check", "text": instructions}
+    return {"type": "command", "name": "check", "text": instructions, "read_only": True}
