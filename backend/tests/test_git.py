@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from app.git import service
 from app.git.service import (
     GitError,
     auth_config,
@@ -31,6 +32,12 @@ def repositories(tmp_path):
     for clone in (first, second):
         git("clone", str(remote), str(clone), cwd=tmp_path)
     return remote, first, second
+
+
+def allow_local_fixture_remote(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Let integration tests exercise local bare remotes without widening production transport policy."""
+    monkeypatch.setattr(service, "validate_remote_url", lambda url: url)
+    monkeypatch.setattr(service, "remote_operation_variables", lambda: {"GIT_ALLOW_PROTOCOL": "https:file"})
 
 
 def test_status_lists_changes_by_state(tmp_path):
@@ -74,7 +81,8 @@ def test_commit_needs_changes_and_a_message(tmp_path):
         commit_all(folder, "Again")
 
 
-def test_push_pull_and_divergence(repositories):
+def test_push_pull_and_divergence(repositories, monkeypatch):
+    allow_local_fixture_remote(monkeypatch)
     _, first, second = repositories
     (first / "readme.md").write_text("hello\n")
     commit_all(first, "Add readme")
@@ -98,7 +106,11 @@ def test_push_pull_and_divergence(repositories):
 
 def test_remote_urls_never_carry_credentials():
     assert validate_remote_url("https://github.com/example/yaap.git")
-    for bad in ("https://token@github.com/example/yaap.git", "git@github.com:example/yaap.git", "http://github.com/x/y"):
+    for bad in (
+        "https://token@github.com/example/yaap.git",
+        "git@github.com:example/yaap.git",
+        "http://github.com/x/y",
+    ):
         with pytest.raises(GitError):
             validate_remote_url(bad)
 
@@ -117,7 +129,11 @@ def test_git_api_lists_blueprint_and_projects_of_one_environment(client):
     client.post("/api/v1/environments/2/projects", json={"name": "Work tool"})
 
     repositories = client.get("/api/v1/environments/1/git/repositories").json()
-    assert [repository["label"] for repository in repositories] == ["Blueprint · Global", "Blueprint · Private", "Site"]
+    assert [repository["label"] for repository in repositories] == [
+        "Blueprint · Global",
+        "Blueprint · Private",
+        "Site",
+    ]
     work_project = client.get("/api/v1/environments/2/git/repositories").json()[-1]
     assert client.get(f"/api/v1/environments/1/git/repositories/{work_project['id']}").status_code == 404
 
@@ -132,7 +148,9 @@ def test_git_api_commit_and_remote(client, tmp_path):
 
     diff = client.get(f"/api/v1/environments/1/git/repositories/{repository_id}/diff").json()["diff"]
     assert "+<h1>Hi</h1>" in diff
-    committed = client.post(f"/api/v1/environments/1/git/repositories/{repository_id}/commit", json={"message": "Add page"})
+    committed = client.post(
+        f"/api/v1/environments/1/git/repositories/{repository_id}/commit", json={"message": "Add page"}
+    )
     assert committed.status_code == 200 and committed.json()["changes"] == []
     assert git("log", "--format=%an", cwd=folder).strip() == "Alex"
 
@@ -141,7 +159,8 @@ def test_git_api_commit_and_remote(client, tmp_path):
     )
     assert refused.status_code == 409
     remote = client.put(
-        f"/api/v1/environments/1/git/repositories/{repository_id}/remote", json={"url": "https://github.com/example/site.git"}
+        f"/api/v1/environments/1/git/repositories/{repository_id}/remote",
+        json={"url": "https://github.com/example/site.git"},
     )
     assert remote.json()["remote_url"] == "https://github.com/example/site.git"
     assert "github.com/example/site.git" in run_git(["config", "--get", "remote.origin.url"], folder).stdout
@@ -155,7 +174,8 @@ def test_clone_refuses_a_url_with_credentials(client):
     assert client.get("/api/v1/environments/1/projects").json() == []
 
 
-def test_periodic_fetch_brings_in_changes_made_elsewhere(client, tmp_path):
+def test_periodic_fetch_brings_in_changes_made_elsewhere(client, tmp_path, monkeypatch):
+    allow_local_fixture_remote(monkeypatch)
     from app.git.periodic import fetch_all
     from app.git.service import repository_status
 

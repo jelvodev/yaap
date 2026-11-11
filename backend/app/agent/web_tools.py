@@ -1,9 +1,8 @@
 """The web tools: fetch a page and search the web. What they return counts as outside content."""
 
 import html
+import http.client
 import re
-import urllib.error
-import urllib.request
 from typing import Any
 
 import anyio
@@ -12,6 +11,7 @@ from app.agent.guard import note_outside
 from app.agent.runs import AgentRun
 from app.agent.toolkit import STRING, Tool, ToolError, schema, text_argument, truncate
 from app.websearch.service import SearchError, format_results
+from app.websearch.safe_fetch import fetch_public
 
 MAX_FETCH_BYTES = 2 * 1024 * 1024
 MAX_WEB_RESULTS = 20
@@ -31,18 +31,14 @@ async def web_fetch(run: AgentRun, arguments: dict[str, Any]) -> str:
     if not re.match(r"^https?://", url):
         raise ToolError("Only http and https URLs can be fetched.")
 
-    def fetch() -> tuple[str, str]:
-        request = urllib.request.Request(url, headers={"User-Agent": "YAAP"})
-        with urllib.request.urlopen(request, timeout=20) as response:
-            return response.headers.get("Content-Type", ""), response.read(MAX_FETCH_BYTES).decode(errors="replace")
-
     try:
-        content_type, body = await anyio.to_thread.run_sync(fetch)
-    except (urllib.error.URLError, TimeoutError, ValueError) as error:
-        raise ToolError(f"Fetching {url} failed: {error}") from error
+        content_type, body, final_url = await anyio.to_thread.run_sync(fetch_public, url, MAX_FETCH_BYTES)
+    except (OSError, http.client.HTTPException, ValueError) as error:
+        raise ToolError(f"Fetching the page failed: {error}") from error
     text = html_to_text(body) if "html" in content_type else body
-    note_outside(run, f"web page {url}", text)
-    return truncate(text, 50_000)
+    note_outside(run, f"web page {final_url}", text)
+    result = truncate(text, 50_000)
+    return f"Fetched from {final_url}\n\n{result}" if final_url != url else result
 
 
 async def web_search(run: AgentRun, arguments: dict[str, Any]) -> str:

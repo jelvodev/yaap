@@ -29,6 +29,7 @@ from app.git.service import (
     fetch,
     list_branches,
     push,
+    pull,
     repository_diff,
     repository_status,
     switch_branch,
@@ -54,7 +55,7 @@ def payload(marker: Path) -> str:
 
 
 @pytest.fixture
-def project(tmp_path: Path) -> tuple[Path, Path, Path]:
+def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path, Path]:
     """A project with one commit, pushed to a local bare remote; and the marker file a payload would write."""
     remote = tmp_path / "remote.git"
     host_git("init", "--bare", "-b", "main", str(remote), cwd=tmp_path)
@@ -64,6 +65,14 @@ def project(tmp_path: Path) -> tuple[Path, Path, Path]:
     host_git("add", ".", cwd=folder)
     host_git("commit", "-m", "First", cwd=folder)
     host_git("push", "-u", "origin", "main", cwd=folder)
+    # Local bare remotes keep these integration tests offline; transport policy is tested separately.
+    monkeypatch.setattr(service, "remote_operation_variables", lambda: {})
+    validate_url = service.validate_remote_url
+    monkeypatch.setattr(
+        service,
+        "validate_remote_url",
+        lambda url: url if url == str(remote) else validate_url(url),
+    )
     return folder, remote, tmp_path / "marker"
 
 
@@ -200,6 +209,7 @@ def test_hooks_never_run_and_every_operation_still_works(project, tmp_path):
     commit_all(folder, "Change")
     push(folder, None)
     fetch(folder, None)
+    pull(folder, None)
     create_branch(folder, "feature/x")
     switch_branch(folder, "main")
     assert {branch.name for branch in list_branches(folder)} == {"main", "feature/x"}
@@ -297,6 +307,26 @@ def test_a_new_config_is_checked_again(project):
     set_config(folder, "core.fsmonitor", "true")
     with pytest.raises(UnsafeRepository, match="core.fsmonitor"):
         check_repository(folder)
+
+
+@pytest.mark.parametrize("url", ["../other.git", "file:///tmp/other.git", "ext::sh", "ssh://host/repo.git"])
+@pytest.mark.parametrize("operation", [fetch, pull, push])
+def test_remote_operations_refuse_non_https_urls(project, url, operation):
+    folder, _, _ = project
+    set_config(folder, "remote.origin.url", url)
+    with pytest.raises(GitError, match="https URL"):
+        operation(folder, None)
+
+
+def test_push_refuses_a_non_https_pushurl(project):
+    folder, _, _ = project
+    set_config(folder, "remote.origin.pushurl", "file:///tmp/other.git")
+    with pytest.raises(GitError, match="https URL"):
+        push(folder, None)
+
+
+def test_remote_operations_are_restricted_to_https_protocol():
+    assert service.remote_operation_variables() == {"GIT_ALLOW_PROTOCOL": "https"}
 
 
 def test_a_config_changed_behind_an_old_modification_time_is_checked_again(project):

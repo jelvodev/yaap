@@ -8,19 +8,31 @@ from typing import Any
 import anyio
 
 from app.agent.runs import AgentRun
-from app.agent.tool_context import project_root
+from app.agent.tool_context import executor, project_root
 from app.agent.toolkit import STRING, Tool, ToolError, schema, text_argument, truncate
-from app.git.service import commit_all, list_branches, push, remote_url, repository_diff, repository_status
+from app.git.service import RepositoryStatus, commit_all, list_branches, push, repository_diff, repository_status
+from app.git.worktree import (
+    commit_all as commit_all_on_target,
+    list_branches as list_branches_on_target,
+    push_commits,
+    repository_diff as repository_diff_on_target,
+    repository_status as repository_status_on_target,
+)
 from app.github.client import GitHubClient, GitHubError, repository_name
 
 
 async def git_status(run: AgentRun, _arguments: dict[str, Any]) -> str:
-    status = await anyio.to_thread.run_sync(repository_status, project_root(run))
+    if run.target is not None:
+        target_executor = executor(run)
+        status = await repository_status_on_target(target_executor)
+        branches = await list_branches_on_target(target_executor)
+    else:
+        status = await anyio.to_thread.run_sync(repository_status, project_root(run))
+        branches = await anyio.to_thread.run_sync(list_branches, project_root(run))
     lines = [
         f"Branch: {status.branch or 'detached'}",
         f"Upstream: {status.upstream or 'none'} (ahead {status.ahead}, behind {status.behind})",
     ]
-    branches = await anyio.to_thread.run_sync(list_branches, project_root(run))
     others = [branch.name for branch in branches if not branch.current]
     if others:
         lines.append(f"Other local branches: {', '.join(others[:30])}")
@@ -29,27 +41,36 @@ async def git_status(run: AgentRun, _arguments: dict[str, Any]) -> str:
 
 
 async def git_diff(run: AgentRun, _arguments: dict[str, Any]) -> str:
-    diff = await anyio.to_thread.run_sync(repository_diff, project_root(run))
+    if run.target is not None:
+        diff = await repository_diff_on_target(executor(run))
+    else:
+        diff = await anyio.to_thread.run_sync(repository_diff, project_root(run))
     return truncate(diff) if diff.strip() else "No changes."
 
 
 async def git_commit(run: AgentRun, arguments: dict[str, Any]) -> str:
     message = text_argument(arguments, "message")
-    commit = await anyio.to_thread.run_sync(commit_all, project_root(run), message, run.git_author)
+    if run.target is not None:
+        commit = await commit_all_on_target(executor(run), message, run.git_author)
+    else:
+        commit = await anyio.to_thread.run_sync(commit_all, project_root(run), message, run.git_author)
     return f"Committed all changes as {commit}."
 
 
 async def git_push(run: AgentRun, _arguments: dict[str, Any]) -> str:
-    await anyio.to_thread.run_sync(push, project_root(run), run.github_token)
+    if run.target is not None:
+        await push_commits(executor(run), project_root(run), run.github_token)
+    else:
+        await anyio.to_thread.run_sync(push, project_root(run), run.github_token)
     return "Pushed."
 
 
-def open_pull(run: AgentRun, arguments: dict[str, Any]) -> str:
+def open_pull(run: AgentRun, arguments: dict[str, Any], status: RepositoryStatus | None = None) -> str:
     folder = project_root(run)
-    name = repository_name(remote_url(folder))
+    status = status or repository_status(folder)
+    name = repository_name(status.remote_url)
     if name is None:
         raise ToolError("This project's remote is not a GitHub repository.")
-    status = repository_status(folder)
     if not status.branch:
         raise ToolError("The project is not on a branch.")
     if not status.upstream or status.ahead:
@@ -73,6 +94,9 @@ def open_pull(run: AgentRun, arguments: dict[str, Any]) -> str:
 
 
 async def create_pull_request(run: AgentRun, arguments: dict[str, Any]) -> str:
+    if run.target is not None:
+        status = await repository_status_on_target(executor(run))
+        return await anyio.to_thread.run_sync(open_pull, run, arguments, status)
     return await anyio.to_thread.run_sync(open_pull, run, arguments)
 
 

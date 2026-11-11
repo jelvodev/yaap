@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 from app.api.plugins import SDK_DECLARATIONS, SDK_SCRIPT
 from app.auth.gate import OPEN_PATHS, plugin_page, token_path
-from app.auth.tokens import TOKEN_PATHS, TokenGrant, issue_api_token, require_api_token
+from app.auth.tokens import TOKEN_PATHS, TokenGrant, issue_api_token, may_modify_vault_entry, require_api_token
 from app.storage.models import Account, AuthSession, VaultEntry
 from app.version import VERSION
 from tests.conftest import TEST_PASSWORD, sign_in
@@ -200,6 +200,29 @@ def test_api_token_is_shown_once_works_and_is_revoked(client: TestClient) -> Non
     assert client.delete(f"/api/v1/auth/tokens/{listed[0]['id']}").status_code == 204
     refused = script.get("/api/v1/environments", headers=headers)
     assert refused.status_code == 401 and "not valid" in refused.json()["detail"]
+
+
+def test_api_token_cannot_manage_tokens_through_the_vault(client: TestClient) -> None:
+    created = client.post("/api/v1/auth/tokens", json={"name": "script", "purpose": "api"}).json()
+    entry_id = created["id"]
+    headers = {"Authorization": f"Bearer {created['token']}"}
+    script = anonymous(client)
+    path = f"/api/v1/vault/entries/{entry_id}"
+    assert script.patch(path, json={"description": "changed"}, headers=headers).status_code == 403
+    assert script.delete(path, headers=headers).status_code == 403
+    assert script.get("/api/v1/environments", headers=headers).status_code == 200
+    assert client.patch(path, json={"description": "changed"}).status_code == 200
+    assert client.delete(path).status_code == 204
+    assert script.get("/api/v1/environments", headers=headers).status_code == 401
+
+
+@pytest.mark.parametrize(
+    ("method", "kind", "allowed"),
+    [("session", "api_token", True), ("token", "api_token", False), (None, "api_token", False),
+     ("token", "generic", True), ("session", "generic", True)],
+)
+def test_vault_token_management_requires_a_session(method: str | None, kind: str, allowed: bool) -> None:
+    assert may_modify_vault_entry(method, kind) is allowed
 
 
 def test_confined_tokens_need_an_environment_and_stay_off_the_rest_api(client: TestClient) -> None:

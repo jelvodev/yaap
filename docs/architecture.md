@@ -64,6 +64,7 @@ flowchart TB
 
 - **Frontend.** React and Vite, built into the image and served by FastAPI. Commands are plain HTTP requests; replies, tool calls and approvals stream back as server-sent events.
 - **Backend.** One FastAPI process. Replies run on the server, apart from the browser connection, so closing the tab does not stop them.
+- **Web fetch.** Each destination, including redirects, is resolved and checked for public IP addresses before connecting; the connection uses a checked address while retaining the host for TLS.
 - **Models.** Claude and OpenAI through an API key, or through the vendors' own CLIs (Claude Code, Codex) signed in with your subscription; local models through Ollama.
 - **Data.** SQLite for state, git repositories for the Blueprint and projects, plain folders for files. One folder to back up.
 
@@ -106,7 +107,7 @@ flowchart LR
 - **YAAP never shares a network with a runner or sandbox.** It reaches one only through the helper's relay: it sends the helper's token and the runner's key (`e<environment>`), the helper checks the container's labels and copies bytes; SSH runs end to end with a key YAAP made per runner and a host key YAAP made and pinned. From a runner, YAAP's API and SearXNG are unreachable.
 - **Online by default.** Runners join `yaap-sandbox-online` (installing packages is normal work); the environment setting *Runner network* (Settings › Targets) moves its runner to `yaap-sandbox-offline`. Project sandboxes stay offline unless the project switches the network on. Containers on the same network can reach each other's open ports (a dev server), never each other's files.
 - **The project folder is shared, not copied.** YAAP's file tools, checkpoints, git tools, semantic search and the editor work on `data/workspace/...` in YAAP's container; the runner sees the same folder at `/workspace/<project>`. Claude Code and Codex stay in YAAP and use only YAAP's tools over MCP, so their commands also go to the runner.
-- **YAAP's own git runs nothing from the repository.** Because a command in the runner can write a project's `.git`, every git YAAP starts (`app/git/safety.py`: the project panel, the git tools, the periodic fetch, the Blueprint and checkpoints) skips the system and user configs, takes fixed settings at command scope that switch off hooks, the fsmonitor, pagers, editors and credential helpers, and first checks the repository's own config against the keys YAAP honours; anything else (a filter, a diff or merge driver, an include) makes it refuse git there with the key to remove. Claude Code, which runs git in the project folder for its context, gets the same.
+- **Git and the runner.** Agent work-tree git runs in the runner when one is configured. Other git operations, including the project panel and Claude Code's context gathering, still run in YAAP. They ignore system and user configs, use fixed settings that disable hooks and other execution features, and check the repository config. A runner can still race that check; the remaining boundary is described in `SECURITY.md`.
 - **Lifecycle.** The helper creates a runner on first use, from `yaap-sandbox:local` (or the image with extra packages named in the override file), starts it when it stopped, and YAAP stops it after an hour without use (no running background process). A rebuilt image makes the runner again on its next start.
 - **Without the helper** (not running, image not built) commands are refused with what to do; YAAP never runs them in its own container. `YAAP_RUNNER=off` does run them in YAAP's process, for development without Docker.
 
@@ -265,6 +266,7 @@ flowchart TB
 
 - A setting resolves to the nearest level that sets it: project, environment, global, then the default.
 - Blueprint layers merge in the same order: a file at the same path replaces the inherited one, `disabled: true` switches it off, and a skill with `extends: true` adds to it.
+- A Blueprint save changes the file first, then commits only that path. If Git cannot commit, the API reports `committed: false` and the saved file remains available; saving it again retries the commit. Package skill folders are built beside the target and swapped into place only after the replacement is complete.
 - Keys, the GitHub token and projects exist only per environment, so one environment never sees another's credentials, standards or memory.
 
 ## 5. Data

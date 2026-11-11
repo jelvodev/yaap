@@ -32,6 +32,13 @@ from app.storage.models import Environment, Project, VaultEntry
 from app.vault.store import VaultError, check_name, record_use, save_entry
 
 API_TOKEN = "api_token"
+
+
+def may_modify_vault_entry(identity_method: str | None, kind: str) -> bool:
+    """Token management requires a browser session, including through the vault."""
+    return kind != API_TOKEN or identity_method == "session"
+
+
 PURPOSES: dict[str, str] = {
     "api": "REST API",
     "mcp": "MCP server",

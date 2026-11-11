@@ -10,7 +10,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import CipherDependency, CredentialTypesDependency, SessionDependency
-from app.auth.tokens import API_TOKEN
+from app.auth.gate import request_identity
+from app.auth.tokens import API_TOKEN, may_modify_vault_entry
 from app.credentials.crypto import CredentialDecryptionError
 from app.credentials.types import CredentialType
 from app.secrets.service import PLACEHOLDER
@@ -412,12 +413,16 @@ def get_entry(entry_id: int, session: SessionDependency, credential_types: Crede
 async def update_entry(
     entry_id: int,
     payload: VaultEntryUpdate,
+    request: Request,
     session: SessionDependency,
     cipher: CipherDependency,
     credential_types: CredentialTypesDependency,
 ) -> VaultEntryOut:
     """Replace the value (a key is tested first), change the description or expiry, or make a key the default."""
     entry = find(session, entry_id)
+    identity = request_identity(request)
+    if not may_modify_vault_entry(identity.method if identity else None, entry.kind):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "A browser session is required to manage API tokens.")
     labels = kinds(credential_types)
     if payload.value is not None and entry.kind == API_TOKEN:
         raise HTTPException(status.HTTP_409_CONFLICT, "An API token cannot be replaced; make a new one and revoke this one.")
@@ -464,7 +469,11 @@ async def test_entry(
 
 
 @router.delete("/entries/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_entry(entry_id: int, session: SessionDependency) -> Response:
-    remove_entry(session, find(session, entry_id))
+def delete_entry(entry_id: int, session: SessionDependency, request: Request) -> Response:
+    entry = find(session, entry_id)
+    identity = request_identity(request)
+    if not may_modify_vault_entry(identity.method if identity else None, entry.kind):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "A browser session is required to manage API tokens.")
+    remove_entry(session, entry)
     session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

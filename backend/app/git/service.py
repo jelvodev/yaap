@@ -1,5 +1,6 @@
 """Git commands for project and Blueprint repositories, run with the git binary in the container."""
 
+import ast
 import base64
 import io
 import os
@@ -39,6 +40,7 @@ class UnsafeRepositoryError(GitError):
 class GitResult:
     stdout: str
     stderr: str
+    exit_code: int = 0
 
 
 IDENTITY = {
@@ -66,10 +68,22 @@ def run_git(
     timeout: int = GIT_TIMEOUT_SECONDS,
     accept_exit_codes: Sequence[int] = (0,),
     private_config: Sequence[ConfigEntry] = (),
+    allow_local_transport: bool = False,
 ) -> GitResult:
     """Run `git -c <config>... <arguments>` in cwd, after checking that the repository there sets nothing git could
     use to run a program (`check_repository`). `config` entries are passed per command and never stored;
     `private_config` (a credential) goes through the environment, never on the command line."""
+    effective_environment = dict(extra_environment or {})
+    remote_commands = {"fetch", "push", "pull", "clone", "ls-remote", "update"}
+    if arguments and arguments[0] in remote_commands:
+        effective_environment.update(remote_operation_variables())
+        if allow_local_transport and arguments[0] == "clone":
+            source = Path(arguments[-2]) if len(arguments) >= 3 else None
+            if source is None or not source.is_absolute() or not source.is_dir() or not (source / ".git").exists():
+                raise GitError("The local clone exception is only for an existing repository folder.")
+            effective_environment["GIT_ALLOW_PROTOCOL"] = "https:file"
+        elif allow_local_transport:
+            raise GitError("The local transport exception is only available for cloning a trusted repository folder.")
     try:
         check_repository(cwd)
     except UnsafeRepository as error:
@@ -78,7 +92,7 @@ def run_git(
         completed = subprocess.run(
             git_command(arguments, config),
             cwd=cwd,
-            env=git_environment(cwd, extra_environment, private_config),
+            env=git_environment(cwd, effective_environment, private_config),
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -93,7 +107,17 @@ def run_git(
     if completed.returncode not in accept_exit_codes:
         detail = (completed.stderr or completed.stdout).strip()
         raise GitError(f"git {arguments[0]} failed: {detail}")
-    return GitResult(completed.stdout, completed.stderr)
+    result = GitResult(completed.stdout, completed.stderr, completed.returncode)
+    try:
+        check_repository(cwd)
+    except UnsafeRepository as error:
+        raise UnsafeRepositoryError(str(error)) from error
+    return result
+
+
+def remote_operation_variables() -> dict[str, str]:
+    """Keep network git transports on HTTPS, regardless of a repository's remote URL."""
+    return {"GIT_ALLOW_PROTOCOL": "https"}
 
 
 def archive(repository: Path, commit: str, paths: Sequence[str] = ()) -> bytes:
@@ -182,7 +206,20 @@ def required_remote_url(folder: Path) -> str:
         url = ""
     if not url:
         raise GitError("This repository has no remote yet. Set a GitHub URL first.")
-    return url
+    return validate_remote_url(url)
+
+
+def required_push_url(folder: Path) -> str:
+    """The URL git will use for an origin push, including a configured pushurl."""
+    try:
+        url = run_git(["remote", "get-url", "--push", "origin"], folder).stdout.strip()
+    except UnsafeRepositoryError:
+        raise
+    except GitError as error:
+        raise GitError("This repository has no remote yet. Set a GitHub URL first.") from error
+    if not url:
+        raise GitError("This repository has no remote yet. Set a GitHub URL first.")
+    return validate_remote_url(url)
 
 
 def set_remote_url(folder: Path, url: str) -> None:
@@ -236,11 +273,32 @@ def change_state(code: str) -> str:
 
 def repository_status(folder: Path) -> RepositoryStatus:
     output = run_git(["status", "--porcelain=v2", "--branch", "--untracked-files=all"], folder, config=QUOTEPATH_OFF)
+    status = parse_repository_status(output.stdout, remote_url(folder))
+    if not status.has_commits and status.upstream:
+        # A branch without commits gets no ahead/behind from git; everything on the upstream is "behind".
+        try:
+            behind = int(run_git(["rev-list", "--count", status.upstream], folder).stdout.strip() or 0)
+        except GitError:
+            behind = 0
+        return RepositoryStatus(
+            status.branch,
+            status.upstream,
+            status.ahead,
+            behind,
+            status.has_commits,
+            status.remote_url,
+            status.changes,
+        )
+    return status
+
+
+def parse_repository_status(output: str, url: str | None = None, unborn_behind: int = 0) -> RepositoryStatus:
+    """Parse `git status --porcelain=v2 --branch` output shared by local and runner git."""
     branch = upstream = None
     ahead = behind = 0
     has_commits = True
     changes: list[FileChange] = []
-    for line in output.stdout.splitlines():
+    for line in output.splitlines():
         if line.startswith("# branch.oid"):
             has_commits = line.split(" ", 2)[2] != "(initial)"
         elif line.startswith("# branch.head"):
@@ -253,22 +311,38 @@ def repository_status(folder: Path) -> RepositoryStatus:
             ahead, behind = int(ahead_text), abs(int(behind_text))
         elif line.startswith("1 "):
             fields = line.split(" ", 8)
-            changes.append(FileChange(fields[8], change_state(fields[1].replace(".", "")), fields[1][0] != "."))
+            changes.append(
+                FileChange(unquote_git_path(fields[8]), change_state(fields[1].replace(".", "")), fields[1][0] != ".")
+            )
         elif line.startswith("2 "):
             fields = line.split(" ", 9)
             path, _, original = fields[9].partition("\t")
-            changes.append(FileChange(path, "renamed", fields[1][0] != ".", original or None))
+            changes.append(
+                FileChange(
+                    unquote_git_path(path),
+                    "renamed",
+                    fields[1][0] != ".",
+                    unquote_git_path(original) or None,
+                )
+            )
         elif line.startswith("u "):
-            changes.append(FileChange(line.split(" ", 10)[10], "conflict", False))
+            changes.append(FileChange(unquote_git_path(line.split(" ", 10)[10]), "conflict", False))
         elif line.startswith("? "):
-            changes.append(FileChange(line[2:], "untracked", False))
-    if not has_commits and upstream:
-        # A branch without commits gets no ahead/behind from git; everything on the upstream is "behind".
-        try:
-            behind = int(run_git(["rev-list", "--count", upstream], folder).stdout.strip() or 0)
-        except GitError:
-            behind = 0
-    return RepositoryStatus(branch, upstream, ahead, behind, has_commits, remote_url(folder), changes)
+            changes.append(FileChange(unquote_git_path(line[2:]), "untracked", False))
+    if not has_commits:
+        behind = unborn_behind
+    return RepositoryStatus(branch, upstream, ahead, behind, has_commits, url, changes)
+
+
+def unquote_git_path(path: str) -> str:
+    """Decode the quoted pathname Git uses for control characters in porcelain output."""
+    if not path.startswith('"'):
+        return path
+    try:
+        decoded = ast.literal_eval(path)
+    except (SyntaxError, ValueError):
+        return path
+    return decoded if isinstance(decoded, str) else path
 
 
 MAX_DIFF_CHARS = 400_000
@@ -372,7 +446,7 @@ def fetch(folder: Path, github_token: str | None) -> None:
 
 
 def push(folder: Path, github_token: str | None) -> None:
-    url = required_remote_url(folder)
+    url = required_push_url(folder)
     status = repository_status(folder)
     if not status.has_commits:
         raise GitError("There are no commits to push yet.")
@@ -383,8 +457,10 @@ def push(folder: Path, github_token: str | None) -> None:
 def pull(folder: Path, github_token: str | None) -> None:
     """Fast-forward only: when histories have diverged, nothing changes and the user decides what to do."""
     url = required_remote_url(folder)
+    authorization = auth_config(url, github_token)
+    run_git(["fetch", UPLOAD_PACK, "origin"], folder, private_config=authorization, timeout=300)
     try:
-        run_git(["pull", UPLOAD_PACK, "--ff-only"], folder, private_config=auth_config(url, github_token), timeout=300)
+        run_git(["merge", "--ff-only", "@{upstream}"], folder, timeout=300)
     except GitError as error:
         if "Not possible to fast-forward" in str(error) or "diverged" in str(error):
             raise GitError(
@@ -422,11 +498,22 @@ def check_branch_name(folder: Path, name: str) -> str:
 
 def list_branches(folder: Path) -> list[Branch]:
     output = run_git(
-        ["for-each-ref", "--sort=-committerdate", "--format=%(HEAD)%00%(refname:short)%00%(upstream:short)%00%(upstream:track,nobracket)%00%(contents:subject)", "refs/heads"],
+        [
+            "for-each-ref",
+            "--sort=-committerdate",
+            "--format=%(HEAD)%00%(refname:short)%00%(upstream:short)%00%(upstream:track,nobracket)%00"
+            "%(contents:subject)",
+            "refs/heads",
+        ],
         folder,
     )
+    return parse_branches(output.stdout)
+
+
+def parse_branches(output: str) -> list[Branch]:
+    """Parse the null-delimited output of `for-each-ref` shared by local and runner git."""
     branches = []
-    for line in output.stdout.splitlines():
+    for line in output.splitlines():
         head, name, upstream, track, subject = (line.split("\0") + [""] * 5)[:5]
         branches.append(Branch(name, head == "*", upstream or None, track, subject))
     return branches
