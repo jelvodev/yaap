@@ -1,6 +1,7 @@
 """Projects: a working folder under /workspace/<environment>/<project>, with its conversations."""
 
 import shutil
+import stat
 from collections.abc import Iterable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -28,9 +29,22 @@ def unique_project_slug(session: Session, environment_id: int, name: str) -> str
 
 
 def project_path(workspace_dir: Path, project: Project) -> Path:
-    path = (workspace_dir / project.folder).resolve()
-    if not path.is_relative_to(workspace_dir.resolve()):
+    workspace = workspace_dir.resolve()
+    relative = Path(project.folder)
+    if relative.is_absolute() or ".." in relative.parts:
         raise ProjectError("The project folder lies outside the workspace.")
+    path = workspace / relative
+    current = workspace
+    for part in relative.parts:
+        current /= part
+        try:
+            info = current.lstat()
+        except FileNotFoundError:
+            continue
+        except OSError as error:
+            raise ProjectError("The project folder could not be checked safely.") from error
+        if stat.S_ISLNK(info.st_mode):
+            raise ProjectError("The project folder or one of its parent folders is a symbolic link.")
     return path
 
 

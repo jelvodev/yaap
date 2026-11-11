@@ -78,7 +78,7 @@ def clone_at(project_folder: Path, folder: Path, commit: str) -> None:
         )
     try:
         clone = ["clone", "--quiet", "--no-checkout", "--no-hardlinks", str(project_folder), str(folder)]
-        run_git(clone, project_folder)
+        run_git(clone, project_folder, allow_local_transport=True)
         found = run_git(["cat-file", "-t", f"{commit}^{{commit}}"], folder, accept_exit_codes=(0, 1, 128))
         if found.stdout.strip() != "commit":
             raise WorkspaceError(f"The start commit {commit} is not on any branch or tag of the project.")

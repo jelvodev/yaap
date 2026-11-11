@@ -1,14 +1,18 @@
 """Knowledge additions: OCR, web pages and a project's knowledge folder."""
 
 import io
+import os
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+
+import pytest
 
 from PIL import Image, ImageDraw
 
 from app.attachments import ocr
 from app.attachments.files import pdf_text
+from app.knowledge.service import folder_files
 
 
 def scanned_pdf() -> bytes:
@@ -113,3 +117,22 @@ def test_the_knowledge_folder_is_mirrored(client):
     client.put(f"/api/v1/projects/{proj['id']}/settings/knowledge_folder", json={"value": ""})
     client.post(f"{url}/sync")
     assert client.get(url).json() == []
+
+
+@pytest.mark.skipif(os.name != "posix", reason="symlink checks require POSIX")
+def test_knowledge_folder_ignores_links_outside_the_project(tmp_path: Path):
+    project = tmp_path / "project"
+    docs = project / "docs"
+    docs.mkdir(parents=True)
+    (docs / "inside.md").write_text("inside marker", encoding="utf-8")
+    (docs / ".git").mkdir()
+    (docs / ".git" / "hidden.md").write_text("git marker", encoding="utf-8")
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "secret.md").write_text("external canary", encoding="utf-8")
+    (docs / "internal-link.md").symlink_to(docs / "inside.md")
+    (docs / "external-link.md").symlink_to(outside / "secret.md")
+    (docs / "external-dir").symlink_to(outside, target_is_directory=True)
+
+    found = folder_files(project, "docs")
+    assert found == {"docs/inside.md": b"inside marker", "docs/internal-link.md": b"inside marker"}

@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from app.blueprint.layers import PROJECT_LAYER_FOLDER, BlueprintError, Layer, commit
+from app.targets.safe_root import SafeRoot
 
 MEMORY_FILE = "memory.md"
 SECTIONS = ("Decisions", "Conventions", "Lessons learned", "Notes")
@@ -36,8 +37,11 @@ def memory_path(project_folder: Path) -> Path:
 
 
 def read_memory(project_folder: Path) -> str:
-    path = memory_path(project_folder)
-    return path.read_text(encoding="utf-8") if path.is_file() else ""
+    try:
+        with SafeRoot(project_folder) as root:
+            return root.read_bytes(f"{PROJECT_LAYER_FOLDER}/{MEMORY_FILE}").decode("utf-8")
+    except (OSError, UnicodeDecodeError):
+        return ""
 
 
 def has_entries(text: str) -> bool:
@@ -51,9 +55,14 @@ def write_memory(project_folder: Path, content: str, message: str) -> None:
         raise ProjectMemoryError(
             "The project memory is larger than 64 KB. Keep it to what every conversation needs."
         )
-    path = memory_path(project_folder)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(normalized if normalized.endswith("\n") else normalized + "\n", encoding="utf-8")
+    try:
+        with SafeRoot(project_folder) as root:
+            root.write_bytes(
+                f"{PROJECT_LAYER_FOLDER}/{MEMORY_FILE}",
+                (normalized if normalized.endswith("\n") else normalized + "\n").encode("utf-8"),
+            )
+    except OSError as error:
+        raise ProjectMemoryError(f"The project memory could not be written safely: {error}") from error
     try:
         commit(memory_layer(project_folder), MEMORY_FILE, message)
     except BlueprintError as error:

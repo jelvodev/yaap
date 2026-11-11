@@ -1,4 +1,8 @@
 import asyncio
+import os
+from types import SimpleNamespace
+
+import pytest
 
 from app.agent.runs import RunConfig, RunRegistry
 from app.agent.gate import call_tool
@@ -6,6 +10,65 @@ from app.agent.tools import tools_for
 from app.agent.policy import ToolPolicy
 from app.targets.base import CommandResult
 from app.targets.container import LocalExecutor, LocalFiles
+from app.projects.service import ProjectError, project_path
+
+
+def test_project_path_rejects_parent_traversal(tmp_path):
+    with pytest.raises(ProjectError):
+        project_path(tmp_path, SimpleNamespace(folder="env/../../outside"))
+
+
+def test_project_path_rejects_a_symlinked_project_root(tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (workspace / "env").symlink_to(outside, target_is_directory=True)
+
+    try:
+        project_path(workspace, SimpleNamespace(folder="env/project"))
+    except ProjectError as error:
+        assert "symbolic link" in str(error)
+    else:
+        raise AssertionError("a symlinked project parent was accepted")
+
+
+def test_search_skips_symlinks_outside_project_and_non_regular_files(tmp_path):
+    root = tmp_path / "project"
+    root.mkdir()
+    outside = tmp_path / "outside.txt"
+    outside.write_text("outside-canary\n")
+    (root / "outside.txt").symlink_to(outside)
+    if hasattr(os, "mkfifo"):
+        os.mkfifo(root / "pipe.txt")
+
+    results = asyncio.run(LocalFiles(str(root)).search("canary", ".", "*.txt", 10))
+    assert results == []
+
+
+def test_search_keeps_internal_file_symlinks(tmp_path):
+    root = tmp_path / "project"
+    root.mkdir()
+    (root / "source.txt").write_text("inside-marker\n")
+    (root / "link.txt").symlink_to(root / "source.txt")
+
+    results = asyncio.run(LocalFiles(str(root)).search("inside-marker", ".", "link.txt", 10))
+    assert results == ["link.txt:1: inside-marker"]
+
+
+def test_run_refuses_project_root_replaced_between_tool_calls(tmp_path):
+    project = tmp_path / "project"
+    project.mkdir()
+    registry, run = start_run(project)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "canary.txt").write_text("outside-canary")
+    project.rename(tmp_path / "original")
+    project.symlink_to(outside, target_is_directory=True)
+
+    (output, is_error), = calls(registry, run, [("read_file", {"path": "canary.txt"})])
+    assert is_error
+    assert "replaced" in output
 
 
 def start_run(folder, target=None):

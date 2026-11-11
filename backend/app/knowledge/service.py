@@ -7,8 +7,10 @@ are read (PDF, Office, text, and the text files of a zip). The search index pick
 
 import hashlib
 import io
+import os
 import re
 import shutil
+import stat
 import urllib.error
 import urllib.request
 from datetime import UTC, datetime
@@ -20,6 +22,7 @@ from sqlalchemy.orm import Session
 from app.attachments import ocr
 from app.attachments.files import AttachmentError, looks_like_text, store_upload
 from app.storage.models import KnowledgeDocument, Project
+from app.targets.safe_root import SafeRoot
 
 MAX_FILE_BYTES = 50 * 1024 * 1024
 MAX_PROJECT_BYTES = 500 * 1024 * 1024
@@ -191,28 +194,43 @@ FOLDER_SUFFIXES = {".md": "text", ".markdown": "text", ".txt": "text", ".rst": "
 MAX_FOLDER_FILES = 500
 
 
-def folder_files(project_folder: Path, relative: str) -> dict[str, Path]:
-    """The readable files under the knowledge folder, by their path in the project."""
-    root = (project_folder / relative).resolve()
-    if not root.is_dir() or not root.is_relative_to(project_folder.resolve()):
+def folder_files(project_folder: Path, relative: str) -> dict[str, bytes]:
+    """The readable knowledge files under the project folder, by their path and safely-read bytes."""
+    try:
+        with SafeRoot(project_folder) as root:
+            found: dict[str, bytes] = {}
+            for path, info in root.entries(relative, recursive=True, skip_dirs={".git"}):
+                if not (stat.S_ISREG(info.st_mode) or stat.S_ISLNK(info.st_mode)):
+                    continue
+                if Path(path).suffix.lower() not in FOLDER_SUFFIXES:
+                    continue
+                if info.st_size > MAX_FILE_BYTES:
+                    continue
+                try:
+                    descriptor = root.open_file(path)
+                    with os.fdopen(descriptor, "rb") as file:
+                        opened = os.fstat(file.fileno())
+                        if opened.st_size > MAX_FILE_BYTES:
+                            continue
+                        data = file.read(MAX_FILE_BYTES + 1)
+                    if len(data) <= MAX_FILE_BYTES:
+                        found[path] = data
+                except OSError:
+                    continue
+                if len(found) >= MAX_FOLDER_FILES:
+                    break
+            return found
+    except OSError:
         return {}
-    found: dict[str, Path] = {}
-    for path in sorted(root.rglob("*")):
-        if len(found) >= MAX_FOLDER_FILES:
-            break
-        if path.is_file() and path.suffix.lower() in FOLDER_SUFFIXES and ".git" not in path.parts:
-            if path.stat().st_size <= MAX_FILE_BYTES:
-                found[path.relative_to(project_folder.resolve()).as_posix()] = path
-    return found
 
 
-def folder_text(path: Path) -> str:
-    if FOLDER_SUFFIXES[path.suffix.lower()] == "pdf":
+def folder_text(data: bytes, path: str) -> str:
+    if FOLDER_SUFFIXES[Path(path).suffix.lower()] == "pdf":
         from app.attachments.files import pdf_text
 
-        text, _pages = pdf_text(path, max_pages=2000)
+        text, _pages = pdf_text(data, max_pages=2000)
         return text
-    return path.read_text(encoding="utf-8", errors="replace")
+    return data.decode("utf-8", errors="replace")
 
 
 def sync_folder(session: Session, data_dir: Path, project: Project, project_folder: Path, relative: str) -> int:
@@ -228,14 +246,13 @@ def sync_folder(session: Session, data_dir: Path, project: Project, project_fold
         if path_text not in files:
             remove_document(session, data_dir, document)
             changed += 1
-    for path_text, path in files.items():
-        data = path.read_bytes()
+    for path_text, data in files.items():
         digest = hashlib.sha256(data).hexdigest()
         document = existing.get(path_text)
         if document is not None and document.content_hash == digest:
             continue
         try:
-            text = folder_text(path)[:MAX_TEXT_CHARS].strip()
+            text = folder_text(data, path_text)[:MAX_TEXT_CHARS].strip()
         except (AttachmentError, OSError):
             text = ""
         if not text:
@@ -244,7 +261,7 @@ def sync_folder(session: Session, data_dir: Path, project: Project, project_fold
             document = KnowledgeDocument(
                 project_id=project.id,
                 name=path_text[:200],
-                kind=FOLDER_SUFFIXES[path.suffix.lower()],
+                kind=FOLDER_SUFFIXES[Path(path_text).suffix.lower()],
                 size=0,
                 chars=0,
                 source_path=path_text,

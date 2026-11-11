@@ -2,6 +2,7 @@
 generated folders, made through the run's file access, and switched off by its setting."""
 
 import asyncio
+import os
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -13,7 +14,7 @@ from app.evals.workspace import remove_folder
 from app.git.service import run_git
 from app.outline.parsers import ParserOutliner
 from app.outline.symbols import Outline, Symbol
-from app.repomap.builder import DEFAULT_BUDGET_TOKENS, MapSource, RepoMap, build_repo_map
+from app.repomap.builder import DEFAULT_BUDGET_TOKENS, MapSource, RepoMap, build_repo_map, symbols_of
 from app.repomap.listing import head_commit, is_skipped
 from app.repomap.ranking import Module, is_test, path_score, public_symbols, ranked, spread
 from app.repomap.render import render_map
@@ -104,7 +105,7 @@ def test_a_clean_commit_shares_its_map_between_folders(tmp_path: Path):
     write(project, {"app/main.py": "def run():\n    pass\n"})
     commit(project)
     clone = tmp_path / "two"
-    run_git(["clone", "--quiet", str(project), str(clone)], tmp_path)
+    run_git(["clone", "--quiet", str(project), str(clone)], tmp_path, allow_local_transport=True)
     assert not make_map(project, store, "container::one").cached
     assert make_map(clone, store, "container::two").cached
 
@@ -131,6 +132,32 @@ def test_skipped_and_ignored_folders_are_absent(tmp_path: Path):
     assert "src/app.ts: start()" in text
     for absent in ("node_modules", ".venv", "dist", "build/", "vendor", ".blueprint", ".evals", "generated"):
         assert absent not in text
+
+
+@pytest.mark.skipif(os.name != "posix", reason="symlink checks require POSIX")
+def test_repo_map_does_not_outline_external_file_links(tmp_path: Path):
+    project = tmp_path / "project"
+    project.mkdir()
+    inside = project / "inside.py"
+    inside.write_text("inside canary", encoding="utf-8")
+    outside = tmp_path / "outside.py"
+    outside.write_text("external canary", encoding="utf-8")
+    (project / "internal.py").symlink_to(inside)
+    (project / "external.py").symlink_to(outside)
+
+    class RecordingOutliner:
+        def __init__(self) -> None:
+            self.texts: list[str] = []
+
+        async def outline(self, path: str, text: str) -> Outline:
+            self.texts.append(text)
+            return Outline(())
+
+    outliner = RecordingOutliner()
+    source = MapSource(CONTAINER.files(str(project)), CONTAINER.executor(str(project)), outliner, "test")
+    assert asyncio.run(symbols_of(source, "internal.py")) == ()
+    assert asyncio.run(symbols_of(source, "external.py")) == ()
+    assert outliner.texts == ["inside canary"]
 
 
 def test_a_folder_outside_git_is_keyed_on_its_file_list(tmp_path: Path):

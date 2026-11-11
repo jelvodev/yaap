@@ -6,6 +6,7 @@ tools allowed without asking, the budget and the checks. Validation is a pure fu
 collects every problem instead of stopping at the first, so one look at a broken case shows all that is wrong.
 """
 
+import os
 import re
 from pathlib import Path
 
@@ -21,6 +22,7 @@ from app.evals.models import (
     StartState,
 )
 from app.evals.units import UnitError, parse_cost, parse_seconds, parse_steps, parse_tokens
+from app.targets.safe_root import SafeRoot
 
 EVALS_FOLDER = "evals"
 CASE_NAME = re.compile(r"^[a-z0-9][a-z0-9-]{0,59}$")
@@ -48,21 +50,37 @@ def evals_dir(project_folder: Path) -> Path:
 
 def read_cases(project_folder: Path, known_tools: frozenset[str] | None = None) -> list[CaseFile]:
     """Every case file of the project, valid or not, by name. A file that cannot be read is listed with why."""
-    folder = evals_dir(project_folder)
-    if not folder.is_dir():
-        return []
     found: list[CaseFile] = []
-    for file in sorted(folder.glob("*.md")):
-        relative = file.relative_to(project_folder).as_posix()
-        try:
-            if file.stat().st_size > MAX_FILE_BYTES:
-                found.append(CaseFile(file.stem, relative, None, (f"The file is larger than {MAX_FILE_BYTES} bytes.",)))
-                continue
-            text = file.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError) as error:
-            found.append(CaseFile(file.stem, relative, None, (f"The file cannot be read: {error}",)))
-            continue
-        found.append(parse_case(file.stem, text, relative, known_tools))
+    try:
+        with SafeRoot(project_folder) as root:
+            entries = sorted(root.entries(f"{PROJECT_LAYER_FOLDER}/{EVALS_FOLDER}", recursive=False))
+            for relative, _info in entries:
+                name = Path(relative).name
+                if not name.endswith(".md"):
+                    continue
+                stem = Path(name).stem
+                try:
+                    descriptor = root.open_file(relative)
+                    with os.fdopen(descriptor, "rb") as file:
+                        opened = os.fstat(file.fileno())
+                        if opened.st_size > MAX_FILE_BYTES:
+                            found.append(
+                                CaseFile(stem, relative, None, (f"The file is larger than {MAX_FILE_BYTES} bytes.",))
+                            )
+                            continue
+                        data = file.read(MAX_FILE_BYTES + 1)
+                    if len(data) > MAX_FILE_BYTES:
+                        found.append(CaseFile(stem, relative, None, (f"The file is larger than {MAX_FILE_BYTES} bytes.",)))
+                        continue
+                    text = data.decode("utf-8")
+                except (OSError, UnicodeDecodeError) as error:
+                    found.append(CaseFile(stem, relative, None, (f"The file cannot be read: {error}",)))
+                    continue
+                found.append(parse_case(stem, text, relative, known_tools))
+    except FileNotFoundError:
+        return []
+    except OSError:
+        return []
     return found
 
 

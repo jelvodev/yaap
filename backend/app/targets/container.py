@@ -7,17 +7,19 @@ import re
 import shlex
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 from collections.abc import Callable
-from functools import partial
 from pathlib import Path
+from pathlib import PurePosixPath
 from typing import Any
 
 import anyio
 
 from app.config import environment_value
 from app.targets.base import CommandResult, FileEntry, TargetError
+from app.targets.safe_root import SafeRoot, SafeRootError, relative_parts
 from app.targets.sessions import ShellState, bash_session
 
 MAX_SEARCH_FILE_BYTES = 1024 * 1024
@@ -87,87 +89,130 @@ def session_script(session: ShellState, command: str) -> str:
 def local_entry(relative: str, path: Path, is_dir: bool | None = None) -> FileEntry:
     """An entry with its size and last change; a file that vanished or cannot be read keeps size 0."""
     try:
-        info = path.stat()
+        info = path.lstat()
     except OSError:
         return FileEntry(relative, bool(is_dir), 0)
-    folder = path.is_dir() if is_dir is None else is_dir
-    return FileEntry(relative, folder, 0 if folder else info.st_size, info.st_mtime)
+    folder = stat.S_ISDIR(info.st_mode) if is_dir is None else is_dir
+    return FileEntry(relative, folder, 0 if folder or not stat.S_ISREG(info.st_mode) else info.st_size, info.st_mtime)
 
 
 class LocalFiles:
     def __init__(self, root: str) -> None:
-        self.root = Path(root).resolve()
+        self.root = Path(os.path.abspath(root))
+        self.safe = SafeRoot(self.root)
 
     def absolute(self, path: str) -> Path:
-        return (self.root / (path or ".")).resolve()
+        return self.root.joinpath(*relative_parts(path or "."))
 
     def relative(self, path: Path) -> str:
-        return path.relative_to(self.root).as_posix() or "."
+        try:
+            return path.relative_to(self.root).as_posix() or "."
+        except ValueError as error:
+            raise TargetError(f"{path} is outside the project folder.") from error
 
     def check(self, path: str, for_write: bool = False) -> str:
-        target = self.absolute(path)
-        if not target.is_relative_to(self.root):
-            raise TargetError(f"{path} is outside the project folder. Use a path relative to the project.")
-        if for_write and (target == self.root or ".git" in target.relative_to(self.root).parts):
-            raise TargetError("Writing into .git or replacing the project folder itself is not allowed.")
-        return self.relative(target)
+        try:
+            parts = relative_parts(path or ".")
+        except SafeRootError as error:
+            raise TargetError(f"{path} is outside the project folder. Use a path relative to the project.") from error
+        if for_write:
+            try:
+                canonical = self.safe.canonical_parts("/".join(parts)) if parts else ()
+            except SafeRootError as error:
+                if "replaced" in str(error).casefold():
+                    raise TargetError("The project folder was replaced.") from error
+                raise TargetError(f"The path {path} cannot be written safely.") from error
+            git_parts = {part.casefold() for part in canonical} if os.name == "nt" else set(canonical)
+            if not parts or ".git" in git_parts:
+                raise TargetError("Writing into .git or replacing the project folder itself is not allowed.")
+        return "/".join(parts) or "."
 
     async def stat(self, path: str) -> FileEntry | None:
-        target = self.absolute(self.check(path))
-        if not target.exists():
+        relative = self.check(path)
+        try:
+            info = self.safe.stat(relative)
+        except OSError as error:
+            raise TargetError(f"Could not inspect {path}: {error}") from error
+        if info is None:
             return None
-        return local_entry(self.relative(target), target)
+        is_directory = stat.S_ISDIR(info.st_mode)
+        size = info.st_size if stat.S_ISREG(info.st_mode) else 0
+        return FileEntry(relative, is_directory, size, info.st_mtime)
 
     async def read_bytes(self, path: str) -> bytes:
-        return await anyio.to_thread.run_sync(self.absolute(self.check(path)).read_bytes)
+        relative = self.check(path)
+        try:
+            return await anyio.to_thread.run_sync(self.safe.read_bytes, relative)
+        except OSError as error:
+            raise TargetError(f"Could not read {path}: {error}") from error
 
     async def write_bytes(self, path: str, data: bytes) -> None:
-        target = self.absolute(self.check(path, for_write=True))
-        target.parent.mkdir(parents=True, exist_ok=True)
-        await anyio.to_thread.run_sync(target.write_bytes, data)
+        relative = self.check(path, for_write=True)
+        try:
+            await anyio.to_thread.run_sync(self.safe.write_bytes, relative, data)
+        except OSError as error:
+            raise TargetError(f"Could not write {path}: {error}") from error
 
     async def remove(self, path: str) -> None:
-        target = self.absolute(self.check(path, for_write=True))
-        await anyio.to_thread.run_sync(partial(target.unlink, missing_ok=True))
+        relative = self.check(path, for_write=True)
+        try:
+            await anyio.to_thread.run_sync(self.safe.remove, relative)
+        except OSError as error:
+            raise TargetError(f"Could not remove {path}: {error}") from error
 
     async def walk(self, path: str, recursive: bool, skip: set[str], limit: int) -> list[FileEntry]:
-        folder = self.absolute(self.check(path))
+        relative = self.check(path)
 
         def collect() -> list[FileEntry]:
             entries: list[FileEntry] = []
-            for current, folders, files in os.walk(folder):
-                folders[:] = sorted(name for name in folders if name not in skip)
-                base = Path(current)
-                entries += [local_entry(self.relative(base / name), base / name, True) for name in folders]
-                entries += [local_entry(self.relative(base / name), base / name, False) for name in sorted(files)]
-                if not recursive or len(entries) > limit:
-                    break
+            try:
+                found = self.safe.entries(relative, recursive, skip)
+                for entry_path, info in found:
+                    folder_entry = stat.S_ISDIR(info.st_mode)
+                    size = info.st_size if stat.S_ISREG(info.st_mode) else 0
+                    entries.append(FileEntry(entry_path, folder_entry, size, info.st_mtime))
+                    if len(entries) >= limit:
+                        break
+            except OSError as error:
+                raise TargetError(f"Could not list {path}: {error}") from error
+            if not recursive:
+                return entries
             return entries
 
         return await anyio.to_thread.run_sync(collect)
 
     async def search(self, pattern: str, path: str, glob: str, limit: int, skip: set[str] | None = None) -> list[str]:
         compiled = re.compile(pattern)
-        folder = self.absolute(self.check(path))
+        relative = self.check(path)
         skipped = skip or set()
 
         def scan() -> list[str]:
             matches: list[str] = []
-            for current, folders, files in os.walk(folder):
-                folders[:] = [name for name in folders if name not in skipped]
-                for name in files:
-                    file = Path(current) / name
-                    if not file.match(glob) or file.stat().st_size > MAX_SEARCH_FILE_BYTES:
+            try:
+                for name, info in self.safe.entries(relative, True, skipped):
+                    if stat.S_ISDIR(info.st_mode):
+                        continue
+                    if not PurePosixPath(name).match(glob or "*"):
                         continue
                     try:
-                        text = file.read_text(encoding="utf-8")
+                        descriptor = self.safe.open_file(name)
+                        with os.fdopen(descriptor, "rb") as stream:
+                            opened = os.fstat(stream.fileno())
+                            if not stat.S_ISREG(opened.st_mode) or opened.st_size > MAX_SEARCH_FILE_BYTES:
+                                continue
+                            data = stream.read(MAX_SEARCH_FILE_BYTES + 1)
+                        if len(data) > MAX_SEARCH_FILE_BYTES:
+                            continue
+                        text = data.decode("utf-8")
                     except (UnicodeDecodeError, OSError):
                         continue
                     for number, line in enumerate(text.splitlines(), 1):
                         if compiled.search(line):
-                            matches.append(f"{self.relative(file)}:{number}: {line.strip()[:300]}")
+                            matches.append(f"{name}:{number}: {line.strip()[:300]}")
                             if len(matches) >= limit:
                                 return matches
+            except (UnicodeDecodeError, OSError):
+                return matches
             return matches
 
         return await anyio.to_thread.run_sync(scan)

@@ -8,10 +8,13 @@ like). Each is a pure function of its input, so the choice is table-tested.
 
 import json
 import re
+import stat
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
+
+from app.targets.safe_root import SafeRoot
 
 TestCommandSource = Literal["conversation", "settings", "detected"]
 
@@ -67,56 +70,65 @@ def find_test_command(ran: Sequence[RanCommand], allowlist: Sequence[str], folde
 
 def detect_test_command(folder: Path) -> str | None:
     """What the project's files suggest, in a fixed order; None when nothing does."""
-    package = node_test_command(folder)
-    if package:
-        return package
-    if is_python_tested(folder):
-        return "pytest -q"
-    if (folder / "Cargo.toml").is_file():
-        return "cargo test"
-    if (folder / "go.mod").is_file():
-        return "go test ./..."
-    if has_make_target(folder / "Makefile", "test"):
-        return "make test"
+    try:
+        with SafeRoot(folder) as root:
+            package = node_test_command(root)
+            if package:
+                return package
+            if is_python_tested(root):
+                return "pytest -q"
+            if root.is_file("Cargo.toml"):
+                return "cargo test"
+            if root.is_file("go.mod"):
+                return "go test ./..."
+            if has_make_target(root, "Makefile", "test"):
+                return "make test"
+    except OSError:
+        return None
     return None
 
 
-def node_test_command(folder: Path) -> str | None:
+def node_test_command(root: SafeRoot) -> str | None:
     """`npm test` (or pnpm or yarn, by the lock file) when package.json has a real test script."""
     try:
-        package = json.loads((folder / "package.json").read_text(encoding="utf-8"))
+        contents = root.read_limited("package.json", 256 * 1024)
+        if contents is None:
+            return None
+        package = json.loads(contents.decode("utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         return None
     scripts = package.get("scripts") if isinstance(package, dict) else None
     script = scripts.get("test") if isinstance(scripts, dict) else None
     if not isinstance(script, str) or not script.strip() or NPM_DEFAULT_TEST in script:
         return None
-    if (folder / "pnpm-lock.yaml").is_file():
+    if root.is_file("pnpm-lock.yaml"):
         return "pnpm test"
-    if (folder / "yarn.lock").is_file():
+    if root.is_file("yarn.lock"):
         return "yarn test"
     return "npm test"
 
 
-def is_python_tested(folder: Path) -> bool:
-    if (folder / "pytest.ini").is_file() or (folder / "conftest.py").is_file():
+def is_python_tested(root: SafeRoot) -> bool:
+    if root.is_file("pytest.ini") or root.is_file("conftest.py"):
         return True
     for name, marker in (("pyproject.toml", "[tool.pytest"), ("setup.cfg", "[tool:pytest]"), ("tox.ini", "[pytest]")):
-        if marker in read_small(folder / name):
+        if marker in read_small(root, name):
             return True
-    tests = folder / "tests"
-    return tests.is_dir() and any(tests.glob("test_*.py"))
+    return root.is_dir("tests") and any(
+        name.startswith("tests/test_") and name.endswith(".py") and not is_directory
+        for name, info in root.entries("tests", recursive=False)
+        for is_directory in (stat.S_ISDIR(info.st_mode),)
+    )
 
 
-def has_make_target(makefile: Path, target: str) -> bool:
-    return re.search(rf"^{re.escape(target)}\s*:", read_small(makefile), re.MULTILINE) is not None
+def has_make_target(root: SafeRoot, path: str, target: str) -> bool:
+    return re.search(rf"^{re.escape(target)}\s*:", read_small(root, path), re.MULTILINE) is not None
 
 
-def read_small(path: Path, limit: int = 256 * 1024) -> str:
+def read_small(root: SafeRoot, path: str, limit: int = 256 * 1024) -> str:
     """A small text file's content, or empty when it is absent, too large or unreadable."""
     try:
-        if not path.is_file() or path.stat().st_size > limit:
-            return ""
-        return path.read_text(encoding="utf-8", errors="replace")
+        content = root.read_limited(path, limit)
+        return content.decode("utf-8", errors="replace") if content is not None else ""
     except OSError:
         return ""

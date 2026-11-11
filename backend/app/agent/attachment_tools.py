@@ -6,7 +6,7 @@ Reading is always allowed; importing writes into the project folder and asks bef
 import base64
 import os
 import re
-import shutil
+import stat
 from functools import partial
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -26,6 +26,7 @@ from app.attachments.files import (
     pdf_text,
     scaled_image,
 )
+from app.targets.safe_root import SafeRoot, SafeRootError, relative_parts
 
 MAX_LISTED = 1000
 MAX_MATCHES = 200
@@ -205,31 +206,64 @@ async def search_attachment(run: AgentRun, arguments: dict[str, Any]) -> str:
     return "\n".join(matches) if matches else "No matches."
 
 
-def import_plan(run: AgentRun, arguments: dict[str, Any]) -> list[tuple[Path, Path]]:
-    """(source, target) pairs for an import, checked to stay inside the archive and the project."""
+def import_plan(run: AgentRun, arguments: dict[str, Any]) -> list[tuple[Path, str, str]]:
+    """(source root, source path, target path) triples, checked below their respective roots."""
     if run.project_folder is None:
         raise ToolError("This conversation has no project to import into.")
     attachment = find_attachment(run, str(arguments.get("attachment") or ""))
-    project = run.project_folder.resolve()
-    target = (project / str(arguments.get("target") or ".")).resolve()
-    if not target.is_relative_to(project) or ".git" in target.relative_to(project).parts:
-        raise ToolError("The target must be inside the project and outside .git.")
-    if attachment.kind not in UNPACKED_KINDS:
-        source = original_file(attachment.folder)
-        destination = target / source.name if target.is_dir() or not target.suffix else target
-        return [(source, destination)]
-    root = archive_root(attachment)
-    source = archive_file(attachment, str(arguments.get("path") or "."))
-    if source.is_file():
-        destination = target / source.name if target.is_dir() or not target.suffix else target
-        return [(source, destination)]
-    return [(file, target / file.relative_to(source)) for file in sorted(source.rglob("*")) if file.is_file()]
+    try:
+        with SafeRoot(run.project_folder) as project:
+            target_parts = relative_parts(str(arguments.get("target") or "."))
+            target_canonical = project.canonical_parts("/".join(target_parts)) if target_parts else ()
+            if any(part.casefold() == ".git" for part in target_canonical):
+                raise ToolError("The target must be inside the project and outside .git.")
+            target = "/".join(target_parts)
+
+            def destination(source_relative: str, source_root: Path, source_path: str) -> tuple[Path, str, str]:
+                is_directory = project.is_dir(target)
+                exists = project.stat(target) is not None
+                if is_directory or (not exists and not PurePosixPath(target).suffix):
+                    destination_path = "/".join((*target_parts, *relative_parts(source_relative)))
+                else:
+                    destination_path = target
+                destination_parts = relative_parts(destination_path)
+                canonical = project.canonical_parts("/".join(destination_parts)) if destination_parts else ()
+                if any(part.casefold() == ".git" for part in canonical):
+                    raise ToolError("The target must be inside the project and outside .git.")
+                return source_root, source_path, "/".join(destination_parts)
+
+            if attachment.kind not in UNPACKED_KINDS:
+                source = original_file(attachment.folder)
+                source_relative = source.relative_to(attachment.folder).as_posix()
+                return [destination(source.name, attachment.folder, source_relative)]
+            root = archive_root(attachment)
+            with SafeRoot(root) as source_root:
+                source_path = "/".join(relative_parts(str(arguments.get("path") or ".")))
+                source_info = source_root.stat(source_path)
+                if source_info is None:
+                    raise ToolError(f"{source_path} does not exist in {attachment.name}.")
+                if not source_root.is_dir(source_path):
+                    name = PurePosixPath(source_path).name
+                    return [destination(name, root, source_path)]
+                planned: list[tuple[Path, str, str]] = []
+                for entry, info in source_root.entries(source_path, recursive=True):
+                    if stat.S_ISDIR(info.st_mode) or not source_root.is_file(entry):
+                        continue
+                    relative_to_source = PurePosixPath(entry).relative_to(PurePosixPath(source_path))
+                    planned.append(destination(relative_to_source.as_posix(), root, entry))
+                return planned
+    except SafeRootError as error:
+        raise ToolError(f"Could not inspect {attachment.name}: {error}") from error
 
 
 def overwrites(run: AgentRun, arguments: dict[str, Any]) -> bool:
     try:
-        return any(target.exists() for _, target in import_plan(run, arguments))
-    except (ToolError, AttachmentError):
+        plan = import_plan(run, arguments)
+        if run.project_folder is None:
+            return False
+        with SafeRoot(run.project_folder) as files:
+            return any(files.stat(target) is not None for _, _, target in plan)
+    except (ToolError, AttachmentError, SafeRootError):
         return False
 
 
@@ -238,21 +272,25 @@ async def import_attachment(run: AgentRun, arguments: dict[str, Any]) -> str:
         plan = import_plan(run, arguments)
     except AttachmentError as error:
         raise ToolError(str(error)) from error
-    project = run.project_folder.resolve() if run.project_folder else Path()
+    if run.project_folder is None:
+        raise ToolError("This conversation has no project to import into.")
+    project = run.project_folder
 
     def copy() -> tuple[int, int]:
         created = replaced = 0
-        for source, target in plan:
-            existed = target.exists()
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(source, target)
-            replaced += existed
-            created += not existed
+        with SafeRoot(project) as files:
+            for source_root, source_path, target_path in plan:
+                with SafeRoot(source_root) as source:
+                    content = source.read_bytes(source_path)
+                existed = files.stat(target_path) is not None
+                files.write_bytes(target_path, content)
+                replaced += existed
+                created += not existed
         return created, replaced
 
     created, replaced = await anyio.to_thread.run_sync(copy)
-    run.state.outside_files.update(target.relative_to(project).as_posix() for _, target in plan)
-    shown = ", ".join(target.relative_to(project).as_posix() for _, target in plan[:10])
+    run.state.outside_files.update(target for _, _, target in plan)
+    shown = ", ".join(target for _, _, target in plan[:10])
     more = f" and {len(plan) - 10} more" if len(plan) > 10 else ""
     return f"Imported {len(plan)} files ({created} new, {replaced} replaced): {shown}{more}."
 

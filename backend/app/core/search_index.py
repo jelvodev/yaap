@@ -26,7 +26,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.embeddings import OFF, Embedder, to_blob
 from app.core.settings import resolve_text
-from app.blueprint.layers import Layer, layer_files
+from app.blueprint.layers import Layer, layer_files, read_layer_text
 from app.blueprint.levels import environment_layer, global_layer, project_layer
 from app.knowledge.service import MAX_INDEXED_CHARS, project_documents, read_text, sync_knowledge_folder
 from app.projects.memory import has_entries, read_memory
@@ -289,9 +289,9 @@ class SearchIndexer:
                     )
 
     def _layer_sources(self, layer: Layer, environment_id: int | None, project_id: int | None) -> Iterator[Source]:
-        for path, file in sorted(layer_files(layer).items()):
+        for path in sorted(layer_files(layer)):
             try:
-                text = file.read_text(encoding="utf-8", errors="replace")
+                text = read_layer_text(layer, path, errors="replace")
             except OSError:
                 continue
             yield Source(

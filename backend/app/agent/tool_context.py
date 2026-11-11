@@ -3,6 +3,7 @@
 Shared by the tool modules and the gate, so none of them imports another for these.
 """
 
+import stat
 from pathlib import Path
 
 from app.agent.runs import AgentRun
@@ -14,7 +15,17 @@ from app.targets.container import CONTAINER
 def project_root(run: AgentRun) -> Path:
     if run.project_folder is None:
         raise ToolError("This conversation has no project folder.")
-    return run.project_folder.resolve()
+    try:
+        info = run.project_folder.lstat()
+    except OSError as error:
+        raise ToolError("The project folder is unavailable or was replaced.") from error
+    if (
+        not stat.S_ISDIR(info.st_mode)
+        or run.project_identity is None
+        or (info.st_dev, info.st_ino) != run.project_identity
+    ):
+        raise ToolError("The project folder was replaced while this run was active.")
+    return run.project_folder
 
 
 def files(run: AgentRun) -> TargetFiles:
