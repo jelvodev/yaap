@@ -47,9 +47,39 @@ Plan, build and review the work of a project, steered from one board.
 53. **Replays and evals that say what they prove.** A replay keeps the Blueprint version of the original run and shows
     which context it built again; with all fields empty it uses that version. An eval keeps failed checks apart from
     stopped runs and errors, so those do not pull the pass rate or the cost down.
+66. **See where the tokens go.** The context meter opens a breakdown of what the conversation holds now: the system
+    prompt, the Blueprint, tools, messages and tool results per tool, and the free space. A session view shows per
+    answer what came from the cache, what was written to it and what was new, with the workers and the most
+    expensive tool results, and points out where tokens were lost.
 58. **Less context, same answers.** A file that has not changed since it was read is not sent again, old reads of a
     file that changed since are left out, and test output keeps the failures and the summary. What is left out can
     always be read again. Switched on only when the evals show that quality holds.
+63. **The cache keeps up with a slow pace.** When you take more than a few minutes between messages, the whole
+    conversation stays in the cache for an hour, not only the start, so each answer pays for what is new.
+64. **Coming back to a long conversation.** After a pause long enough for the cache to expire, YAAP shows what
+    continuing costs and offers to summarise first or to start a new conversation from a summary. Nothing happens
+    by itself.
+67. **YAAP's own agents and skills in the Blueprint.** The helpers that work in the background (the explorer, the
+    worker, the reviewer, the router, the summariser, the memory keeper, the learner and the guard) show as
+    Blueprint items with their instructions, model and cost. You can change their instructions in a layer of your
+    own; the guard can be read but not switched off.
+68. **Behind the scenes, under each answer.** Small labels show what happened around an answer: the model it was
+    routed to, memory that was used, output that was shortened, helpers that ran, a secret that was replaced. Each
+    opens to the reason and the cost.
+69. **One page for background tasks.** Every task YAAP runs by itself (titles, summaries, memory, routing, reviews,
+    learning) with its model, whether it is on, how often it ran and what it cost this month.
+70. **Why did that happen?** An approval that was asked, a tool that was refused, a model that was chosen or context
+    that was shortened shows the rule and the setting behind it.
+71. **The answer as a route.** Each answer drawn as a line with stops: routing, building the context, the model
+    calls, the tools with their checks, the helpers and the work afterwards.
+    - While the answer runs, a small strip above it grows stop by stop and shows where it is now, such as an
+      approval it waits for.
+    - When it is done, the strip folds into the labels of 68, with one that opens the route.
+    - The trace gets a Route tab with the whole line. Each stop opens to what happened, why, its time and its cost.
+72. **What YAAP does behind the scenes.** A page in the documentation with every background task: when it runs,
+    what it costs and how to switch it off.
+75. **A specification to start from.** Templates for a specification with acceptance criteria, so every piece of
+    work starts the same way. The review checks the result against those criteria.
 18. **Plan, then build.** `/plan` makes a plan without changing anything: steps, files and checks. After you approve
     it, the worker model carries it out and ticks the steps off.
 59. **A lead model with cheap helpers.** The main model splits the work into small tasks, each with a check such as a
@@ -87,6 +117,10 @@ The direction after 0.7, not yet in a version.
     - a budget per card and per version.
 27. **Cheaper building, same quality.** A cheaper model builds and a stronger one plans and reviews. After failed
     attempts the stronger model takes over. Cost and attempts are measured per card.
+73. **From a pull request to a release.** After the review and green checks: merge, a release with its notes, and
+    optionally a deploy, each step with your approval or by the board's autonomy level.
+74. **How the work goes, across projects.** Cards finished per week, how many were right the first time, what a
+    card costs, and which kinds of work a cheaper model handles well.
 28. **Project health.** Test coverage, dependency age, advisories and notes such as TODO and FIXME. A weekly chore
     adds the most useful fixes to the Inbox.
 29. **Updating from the app**, with one click.
@@ -120,6 +154,20 @@ Ideas without a version.
 57. **See the context before switching models.** On request YAAP shows which files, memory and tool results would go
     to the chosen model, where they come from and which project policy applies. You can leave a source out for that
     run or send the request to a local model.
+65. **Build it like last time.** Mark a screen, route or service that came out well as the example for its kind.
+    The next one of that kind starts from it, with the same layout and components, so it is right the first time
+    instead of after corrections.
+76. **YAAP in a team.** Each developer keeps their own YAAP. The team shares a Blueprint layer through git
+    (standards, skills, agents, patterns and eval cases, changed by pull request), one board per project with who
+    works on which card, and a team policy for models and budgets that every YAAP applies.
+    - Still open: whether a team lead sees costs per person or only totals, and who decides on the team's Blueprint:
+      reviewers of its pull requests or one owner.
+77. **A team server.** A YAAP on a server for a whole team: sign-in with the company account, roles, a vault per
+    person and one for the team, and a runner per person so nobody sees another's work in progress. It can also
+    build cards overnight within a budget. Personal YAAPs can connect to it for the team's board and Blueprint.
+    - Still open: a hub for the board, the Blueprint and the numbers first, or a YAAP for several people in the
+      browser right away; whether personal YAAPs and a server can share one board; how the overnight builds share a
+      budget and a subscription's limits; what licences and terms allow for coding CLIs on a shared server.
 
 For the code base itself:
 

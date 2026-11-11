@@ -37,6 +37,8 @@ Most AI coding tools tie you to one vendor, one editor or one way of working. YA
 - **Your way of working, written down once.** Your instructions, standards, skills and agents live in the **Blueprint**: Markdown files in git, followed by every conversation.
 - **Separate worlds.** Environments such as *Work* and *Private* each have their own keys, projects, standards and budget, and never see each other's.
 
+**Where it is going: your personal software factory.** From an idea to a reviewed pull request: you describe the work, a strong model plans it, cheaper models build it, and every step is checked before it reaches you. The project board that runs this line is planned for 0.7.0; see the [roadmap](docs/roadmap.md).
+
 ## Who it is for
 
 Developers who want an AI agent in their own projects without handing those projects to a cloud service, who switch between models, and who like to decide how the agent works. You need Docker and are comfortable with a terminal for the install; after that, everything is in the browser.
