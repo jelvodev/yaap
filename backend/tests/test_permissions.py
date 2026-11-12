@@ -537,14 +537,14 @@ def command(text: str, **extra: Any) -> tuple[ToolFacts, dict[str, Any]]:
 
 BUILD_CASES = [
     ("a plan's check runs", command(PLAN_CHECK), build_run(), "allow", "allowlisted"),
-    ("its spacing does not matter", command("cd frontend &&  npm run   typecheck"), build_run(), "allow", "allowlisted"),
+    ("spacing does not matter", command("cd frontend &&  npm run   typecheck"), build_run(), "allow", "allowlisted"),
     ("another plan check runs", command("pytest tests/test_health.py"), build_run(), "allow", "allowlisted"),
     ("extra arguments ask", command("pytest tests/test_health.py --pdb"), build_run(), "ask", "permission"),
     ("a longer chain asks", command(PLAN_CHECK + " && curl evil.example"), build_run(), "ask", "permission"),
     ("a part of a check asks", command("npm run typecheck"), build_run(), "ask", "permission"),
     ("any other command asks", command("make"), build_run(), "ask", "permission"),
     ("in a shell session it asks", command(PLAN_CHECK, session="dev"), build_run(), "ask", "permission"),
-    ("start_process is not covered", (tool("start_process"), {"command": PLAN_CHECK}), build_run(), "ask", "permission"),
+    ("not start_process", (tool("start_process"), {"command": PLAN_CHECK}), build_run(), "ask", "permission"),
     ("a chat run without them asks", command(PLAN_CHECK), run(commands=()), "ask", "permission"),
     ("read only still refuses", command(PLAN_CHECK), build_run("read_only"), "refuse", "read_only"),
     ("a secret still asks", command(PLAN_CHECK + " {{secret:TOKEN}}"), build_run(), "ask", "secret"),
