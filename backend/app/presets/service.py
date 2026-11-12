@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.context_control import validate_output_tokens
 from app.core.routing import check_routes, preset_routes
 from app.core.settings import find_setting_row, resolve_text
+from app.presets.delegation import DEFAULT_DELEGATION, DELEGATION_MODES, DelegationMode, delegation_mode
 from app.providers.registry import ProviderRegistry
 from app.storage.models import ModelPreset, Project, Setting
 
@@ -97,6 +98,11 @@ def make_default(session: Session, preset: ModelPreset) -> None:
         other.is_default = other.id == preset.id
 
 
+def check_delegation(value: str) -> None:
+    if value not in DELEGATION_MODES:
+        raise PresetError(f"Delegation must be one of: {', '.join(DELEGATION_MODES)}.")
+
+
 def check_role(providers: ProviderRegistry, model: str | None, effort: str | None) -> tuple[str | None, str | None]:
     """A role's model and effort, both empty or both valid; an empty effort becomes the model's default."""
     if not model:
@@ -118,8 +124,11 @@ def create_preset(
     effort: str,
     roles: dict[str, str | None] | None = None,
     max_output_tokens: int | None = None,
+    delegation: str | None = None,
 ) -> ModelPreset:
     check_model(providers, model, effort)
+    delegation = delegation or DEFAULT_DELEGATION
+    check_delegation(delegation)
     check_output_tokens(providers, model, max_output_tokens)
     roles = roles or {}
     worker = check_role(providers, roles.get("worker_model"), roles.get("worker_effort"))
@@ -137,6 +146,7 @@ def create_preset(
         utility_model=utility[0],
         utility_effort=utility[1],
         max_output_tokens=max_output_tokens,
+        delegation=delegation,
     )
     session.add(preset)
     session.commit()
@@ -153,6 +163,7 @@ def update_preset(
     is_default: bool | None,
     roles: dict[str, str | None] | None = None,
     max_output_tokens: int | None | EllipsisType = ...,
+    delegation: str | None = None,
 ) -> ModelPreset:
     """Change the given fields. `roles` holds only the role fields that were sent; an empty model clears the role.
     max_output_tokens changes only when given; None returns to the model's maximum."""
@@ -183,6 +194,9 @@ def update_preset(
         found = providers.find_model(preset.model)
         if found is not None and preset.max_output_tokens > found.max_output_tokens:
             preset.max_output_tokens = found.max_output_tokens
+    if delegation is not None:
+        check_delegation(delegation)
+        preset.delegation = delegation
     if is_default:
         make_default(session, preset)
     session.commit()
@@ -267,3 +281,10 @@ def role_model(session: Session, environment_id: int, preset_name: str | None, r
         if model:
             return RoleModel(model, getattr(preset, f"{role}_effort") or "low")
     return None
+
+
+def delegation_of(session: Session, environment_id: int, preset_name: str | None) -> DelegationMode:
+    """The delegation mode of the named preset, else of the environment's default preset; free when neither exists."""
+    preset = find_preset_by_name(session, environment_id, preset_name) if preset_name else None
+    preset = preset or default_preset(session, environment_id)
+    return delegation_mode(preset.delegation) if preset is not None else DEFAULT_DELEGATION

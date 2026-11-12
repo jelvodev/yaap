@@ -5,6 +5,7 @@ import type { components } from "../../api/schema";
 import ModelOptions from "../../components/ModelOptions";
 import { modelState, stateMark } from "../../components/modelState";
 import { Badge, EmptyState, Panel } from "../../components/workbench/Workbench";
+import PresetDelegation from "./PresetDelegation";
 import PresetRouting from "./PresetRouting";
 import PresetVendorSwitch from "./PresetVendorSwitch";
 import { type LevelSettings, type SettingsLevel, SectionHeader, SelectSetting, useModels } from "./shared";
@@ -245,6 +246,7 @@ function PresetRow({
         </td>
       </tr>
       <PresetRouting preset={preset} models={models} onSave={(body) => void save(body)} />
+      <PresetDelegation preset={preset} onSave={(body) => void save(body)} />
       {message && (
         <tr>
           <td colSpan={7} className="form-error">

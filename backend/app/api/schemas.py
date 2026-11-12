@@ -15,6 +15,7 @@ from app.core.conversation_schemas import (
     MessageOut as MessageOut,
     message_to_out as message_to_out,
 )
+from app.presets.delegation import DelegationMode
 
 HEX_COLOUR = r"^#[0-9A-Fa-f]{6}$"
 
@@ -409,6 +410,7 @@ class PresetOut(BaseModel):
     # Routing: per reply the utility model names the kind of message, and each kind goes to a role.
     routing: bool = False
     routes: list[PresetRouteOut] = Field(default_factory=list)
+    delegation: DelegationMode = "free"
 
 
 class VendorOut(BaseModel):
@@ -444,6 +446,8 @@ class PresetCreate(BaseModel):
     utility_effort: str | None = None
     # The longest reply in tokens; null is the model's maximum.
     max_output_tokens: int | None = None
+    # Left out, a new preset delegates freely.
+    delegation: DelegationMode | None = None
 
 
 class PresetUpdate(BaseModel):
@@ -462,6 +466,7 @@ class PresetUpdate(BaseModel):
     # Turn routing on or off; the kinds sent change their role, the others keep theirs.
     routing: bool | None = None
     routes: dict[RouteKind, RouteRole] | None = None
+    delegation: DelegationMode | None = None
 
 
 class AgentOut(BaseModel):
