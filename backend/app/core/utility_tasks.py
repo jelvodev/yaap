@@ -28,6 +28,7 @@ ROUTABLE_TASKS: dict[str, str] = {
     "route": "Reply routing",
     "learning": "Learning proposals",
     "review": "Code reviews",
+    "current_state": "Current state of projects",
 }
 # A call that does two tasks at once runs on the model of the more demanding one: the title of a new conversation
 # that comes with its first memory suggestions runs on the memory suggestions' model.
@@ -46,7 +47,7 @@ TASK_LABELS: dict[str, str] = {
 # commit_message, pull_request) have no switch, and neither do the outside-content check, summaries or rubric scores.
 SWITCHABLE_TASKS: dict[str, str] = {
     task: TASK_LABELS[task]
-    for task in ("title", "memory_suggestion", "memory_tidy", "route", "learning", "review")
+    for task in ("title", "memory_suggestion", "memory_tidy", "route", "learning", "review", "current_state")
 }
 OFF_SETTING_KEY = "utility_tasks_off"
 # The combined call stands for two switchable tasks: it runs only while both are on, so switching one off leaves the

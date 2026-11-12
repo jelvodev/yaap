@@ -15,7 +15,8 @@ from typing import Literal, get_args
 from app.blueprint.layers import BlueprintError, Layer, active_items, parse_document
 
 BuiltinName = Literal[
-    "explorer", "worker", "brief-worker", "reviewer", "router", "guard", "summariser", "memory-keeper", "learner"
+    "explorer", "worker", "brief-worker", "reviewer", "router", "guard", "summariser", "memory-keeper", "learner",
+    "state-keeper",
 ]
 BuiltinKind = Literal["agent", "skill"]
 BuiltinRole = Literal["worker", "explorer"]
@@ -31,6 +32,7 @@ KIND_BY_NAME: dict[str, BuiltinKind] = {
     "summariser": "skill",
     "memory-keeper": "skill",
     "learner": "skill",
+    "state-keeper": "skill",
 }
 # Names whose behaviour is a security decision: a user file of the same name never replaces them.
 LOCKED = frozenset({"guard", "outgoing-check"})
