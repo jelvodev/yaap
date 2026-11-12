@@ -14,7 +14,8 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.core.audit import record_request, utility_entry, with_refusal
 from app.core.model_choice import ForUtility, ModelChoice, ModelChoiceError, PolicyForbids, read_key, resolve_provider
 from app.core.outgoing_checks import OutgoingRules, checked_provider, outgoing_rules, request_refusal
-from app.core.utility_tasks import task_label
+from app.core.settings import SETTING_DEFINITIONS, resolve_setting
+from app.core.utility_tasks import OFF_SETTING_KEY, task_enabled, task_label
 from app.credentials.crypto import CredentialCipher
 from app.credentials.types import CredentialType
 from app.providers.base import AgentRequest, Completed, HistoryMessage, ProviderError, SystemPart, TextDelta
@@ -30,6 +31,7 @@ UTILITY_SYSTEM = (
 )
 TITLE_WORDS = 6
 MAX_DIFF_CHARS = 40_000
+SWITCHED_OFF_REASON = "Switched off in Settings › Models › Background tasks."
 
 
 @dataclass(frozen=True)
@@ -82,15 +84,20 @@ async def run_utility_or_skip(
     role: Literal["utility", "worker"] = "utility",
     project_id: int | None = None,
 ) -> str | UtilitySkipped | None:
-    """The utility model's answer; UtilitySkipped when the model policy allows no model for the task; None when no
-    model is available otherwise. With role worker, the preset's worker model answers (for larger tasks such as
-    summaries), else the utility model. project_id names the project a task without a conversation works for (a
-    commit message): its model policy applies, and the audit log records it. A conversation brings its own."""
+    """The utility model's answer; UtilitySkipped when the model policy allows no model for the task or the user
+    switched the task off (nothing is sent or recorded then); None when no model is available otherwise. With role
+    worker, the preset's worker model answers (for larger tasks such as summaries), else the utility model.
+    project_id names the project a task without a conversation works for (a commit message): its model policy
+    applies, and the audit log records it. A conversation brings its own."""
     with context.session_factory() as session:
         conversation = session.get(Conversation, conversation_id) if conversation_id is not None else None
         preset = conversation.preset if conversation else None
         if conversation is not None:
             project_id = conversation.project_id
+        off = resolve_setting(session, SETTING_DEFINITIONS[OFF_SETTING_KEY], environment_id).value
+        if not task_enabled(task, off):
+            logger.debug("The utility task %s is switched off.", task)
+            return UtilitySkipped(task, SWITCHED_OFF_REASON)
         try:
             request = ForUtility(preset, role, project_id, task)
             choice = resolve_provider(session, context.providers, environment_id, request)

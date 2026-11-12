@@ -25,7 +25,7 @@ from app.core.context_control import (
 )
 from app.core.model_policy import check_policy
 from app.core.prompts import ENGLISH, Languages
-from app.core.utility_tasks import ROUTABLE_TASKS, check_task_models
+from app.core.utility_tasks import OFF_SETTING_KEY, ROUTABLE_TASKS, check_task_models, check_tasks_off
 from app.core.utility_tasks import SETTING_KEY as UTILITY_TASKS_KEY
 from app.mcp_client.config import validate_servers
 from app.providers.endpoints import SETTING_KEY as ENDPOINTS_KEY
@@ -352,6 +352,17 @@ SETTING_DEFINITIONS: dict[str, SettingDefinition] = {
             validate=check_task_models,
             options=tuple(SettingOption(task, label) for task, label in ROUTABLE_TASKS.items()),
             merge=True,
+        ),
+        SettingDefinition(
+            key=OFF_SETTING_KEY,
+            label="Background tasks switched off",
+            description=(
+                "Background tasks that do not run, such as titles or memory suggestions. A task that you start "
+                "yourself and the check of outside content always run."
+            ),
+            levels=frozenset({"global", "environment"}),
+            default=[],
+            validate=check_tasks_off,
         ),
         # Coding agent CLIs as workers for delegate.
         *(
