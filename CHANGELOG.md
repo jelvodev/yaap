@@ -21,6 +21,17 @@ yourself when you update; it says "None." when there is nothing.
   - With the board switched off, the board's files are kept but not used.
   - Pushing sends only the `yaap-board` branch. YAAP asks for confirmation when the remote is public, or when it cannot tell whether it is.
 
+- *Approve and build* on a plan card: YAAP builds the plan step by step in a copy of the project (`.yaap/builds/<plan>`) with its own repository, so your files and checked-out branch stay as they are. Each step goes to the worker model with its checks; YAAP runs the checks itself, sends a failing step back to the worker once and then to the main model, and commits each passing step in the copy.
+- The plan card shows a live checklist while it builds: each step's state, its commit, who took its attempts ("worker ×2 → main"), the worker's note, the cost so far and approvals the build waits for, with *Stop* and *Continue*.
+- When the build ends, or is stopped or fails, its branch (`yaap/plan-<n>-<title>`) is brought into the project; only that branch comes back. Every check runs once more on the finished work and is kept with the plan.
+- Approving a plan approves exactly its check commands for that build, shown on the card before you click; everything else asks as in a chat.
+- A build cut off by a restart is marked interrupted; *Continue* goes on from the last finished step.
+- Setting *Build steps* (global, environment, project): whether the worker or the main model takes a step first.
+- Copies of finished builds are cleaned up: failed and discarded ones after a week, done ones once merged or after two weeks.
+- The agent's file tools, search and the repository map skip `.yaap/` folders.
+- A built-in `specification` skill writes a specification with you from one of four templates (feature, bug, refactor, chore), each with a goal, context, acceptance criteria, what is out of scope and open questions. The skill and each template can be replaced in your Blueprint.
+- Acceptance criteria can carry a check YAAP runs itself: `run: <command>`, `file: <path> exists` or `file: <path> contains <text>`; a criterion without a check is judged by the reviewer.
+
 ### Action needed
 
 - `git push --all` and `git push --mirror` also push the `yaap-board` branch, and with it every card, specification and plan. On a public repository, push your branches one by one.
