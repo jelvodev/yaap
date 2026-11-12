@@ -51,7 +51,9 @@ class BuildRefused(Exception):
         self.code: BuildRefusal = code
 
 
-# Hears a plan's events (plan id, event) on the event loop: the current-state refresh, later the card's route.
+# Hears a plan's events (plan id, event): the current-state refresh and the card's route. A build's events come on the
+# event loop; `submit` and `approve` come from a worker thread, so a listener that starts work for them hands it to the
+# event loop itself.
 PlanListener = Callable[[int, PlanEvent], None]
 
 
@@ -144,6 +146,8 @@ def move(store: PlanStore, record: PlanRecord, event: PlanEvent) -> None:
 @dataclass(frozen=True)
 class PlanService:
     session_factory: sessionmaker[Session]
+    # Told when a plan is submitted; None where nothing listens (the API, a build's own reads).
+    listeners: PlanListeners | None = None
 
     def submit(self, project_id: int, conversation_id: int, arguments: Mapping[str, Any]) -> PlanView:
         """Store a new draft plan; the conversation's other drafts are replaced by it in the same transaction."""
@@ -157,7 +161,10 @@ class PlanService:
                 move(store, earlier, "replan")
             record = store.create(project_id, conversation_id, plan, status)
             session.commit()
-            return plan_view(record)
+            view = plan_view(record)
+        if self.listeners is not None:
+            self.listeners.tell(view.id, "submit")
+        return view
 
     def get(self, plan_id: int) -> PlanView:
         with self.session_factory() as session:

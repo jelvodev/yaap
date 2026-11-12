@@ -27,6 +27,9 @@ BoardErrorCode = Literal[
     "public_remote",
     "no_remote",
     "push_failed",
+    "action_running",
+    "no_plan",
+    "nothing_to_review",
 ]
 # Why the flow (app.board.flow) refuses a move or event.
 RefusalCode = Literal[
@@ -217,3 +220,20 @@ class NoRemote(BoardError):
 class PushFailed(BoardError):
     code: ClassVar[BoardErrorCode] = "push_failed"
     default_sentence: ClassVar[str] = "The board could not be pushed."
+
+
+class ActionRunning(BoardError):
+    """A stage of the card is already running (its plan conversation is replying, or its review runs)."""
+
+    code: ClassVar[BoardErrorCode] = "action_running"
+    default_sentence: ClassVar[str] = "This stage of the card is already running. Wait for it to finish."
+
+
+class NoPlan(BoardError):
+    code: ClassVar[BoardErrorCode] = "no_plan"
+    default_sentence: ClassVar[str] = "The card has no plan for this. Make its plan first."
+
+
+class NothingToReviewOnCard(BoardError):
+    code: ClassVar[BoardErrorCode] = "nothing_to_review"
+    default_sentence: ClassVar[str] = "The build branch has no changes to review."
