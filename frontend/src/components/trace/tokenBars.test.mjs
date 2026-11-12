@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { tokenSegments, largestTotal, percent, rowTotal } from "./tokenBars.ts";
+import { tokenSegments, largestTotal, numberedReply, percent, rowTotal } from "./tokenBars.ts";
 
 function row(cacheRead, cacheWrite, input, output) {
   return {
@@ -47,4 +47,9 @@ test("without any tokens every width is zero", () => {
 test("the cache hit rate shows as a rounded percentage", () => {
   assert.equal(percent(0.876), "88%");
   assert.equal(percent(null), null);
+});
+
+test("numberedReply numbers a reply row and leaves other rows alone", () => {
+  assert.equal(numberedReply({ ...row(0, 0, 0, 0), label: "Reply" }, 1).label, "Reply 2");
+  assert.equal(numberedReply({ ...row(0, 0, 0, 0), label: "Title" }, 1).label, "Title");
 });

@@ -49,3 +49,8 @@ export function largestTotal(rows: readonly TokenRow[]): number {
 export function percent(rate: number | null | undefined): string | null {
   return rate == null ? null : `${Math.round(rate * 100)}%`;
 }
+
+/** A reply row with its position in the conversation in its label, so the replies can be told apart. */
+export function numberedReply(row: TokenRow, index: number): TokenRow {
+  return row.label === "Reply" ? { ...row, label: `Reply ${index + 1}` } : row;
+}
