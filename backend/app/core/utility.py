@@ -247,10 +247,14 @@ async def propose_title(
     return clean_title(answer or "")
 
 
+# Names the message and not the reply, which may be in another language than the user wrote in.
+USER_MESSAGE_LANGUAGE = "the language of the message after \"User:\" (not of the Assistant's reply or of file names)"
+
+
 def title_request(reply_language: str = "", instructions: str | None = None) -> str:
     """What a title must be, for a prompt that asks for one, alone or with other work. The instructions may be the
     user's replacement; clean_title() does not depend on them."""
-    language = reply_language or "the language of the user's message"
+    language = reply_language or USER_MESSAGE_LANGUAGE
     template = instructions if instructions is not None else shipped_instructions("memory-keeper", "Title")
     return render(template, {"words": str(TITLE_WORDS), "language": language})
 

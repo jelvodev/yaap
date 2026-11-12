@@ -18,7 +18,7 @@ from app.core.builtin_prompts import utility_instructions
 from app.core.routing import route_prompt
 from app.core.rule_proposal import RuleSituation, rule_prompt
 from app.core.summaries import summary_prompt
-from app.core.utility import UtilityContext, title_request
+from app.core.utility import USER_MESSAGE_LANGUAGE, UtilityContext, title_request
 from app.learning.measuring import contradiction_prompt
 from app.learning.proposals import ReviewInput, RuleView, StepSignal
 from app.learning.proposals import review_prompt as learning_prompt
@@ -325,7 +325,7 @@ def memory_input() -> SuggestionInput:
 def old_suggestions(answer: str, language: str = "") -> str:
     found = memory_input()
     known = found.memory + "".join(f"\n- {item} (suggested, waiting)" for item in found.pending)
-    title = OLD_TITLE.format(words=6, language=language or "the language of the user's message")
+    title = OLD_TITLE.format(words=6, language=language or USER_MESSAGE_LANGUAGE)
     return OLD_SUGGESTIONS.format(
         limit=5,
         answer=answer.format(sections=", ".join(SECTIONS), language="Dutch", title=title),
