@@ -21,6 +21,7 @@ WhySource = Literal[
     "outgoing",
     "guard",
     "hint",
+    "delegation",
 ]
 # Where the setting behind a rule was set.
 LayerKind = Literal["global", "environment", "project", "conversation"]

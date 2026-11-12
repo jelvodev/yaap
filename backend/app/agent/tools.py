@@ -10,7 +10,7 @@ from app.agent.attachment_tools import ATTACHMENT_TOOLS
 from app.agent.blueprint_tools import BLUEPRINT_TOOLS
 from app.agent.code_tools import CODE_TOOLS
 from app.agent.command_tools import COMMAND_TOOLS
-from app.agent.delegation_tools import DELEGATION_TOOLS
+from app.agent.delegation_tools import DELEGATION_TOOLS, delegate_tool_for
 from app.agent.document_tools import DOCUMENT_TOOLS
 from app.agent.file_tools import FILE_TOOLS
 from app.agent.git_tools import GIT_TOOLS
@@ -112,7 +112,7 @@ def tools_for(
 def own_tools(run: AgentRun) -> list[Tool]:
     """The run's registry tools that it has what they need for."""
     return [
-        tool
+        delegate_tool_for(run) if tool.name == "delegate" else tool
         for tool in TOOLS
         if tool.name in run.tool_names
         and (tool.name not in CONDITIONAL_TOOLS or getattr(run, CONDITIONAL_TOOLS[tool.name]))

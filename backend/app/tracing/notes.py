@@ -21,7 +21,7 @@ from app.core.why import Why, why_from
 from app.storage.models import RunStep
 
 NOTE_KIND = "note"
-NoteKind = Literal["memory", "trim", "summary", "secrets_masked", "outgoing_blocked", "cache", "guard"]
+NoteKind = Literal["memory", "trim", "summary", "secrets_masked", "outgoing_blocked", "cache", "guard", "escalation"]
 NOTE_KINDS: tuple[NoteKind, ...] = get_args(NoteKind)
 # What happened to a call that needed a decision: the user approved or declined it, the policy refused it, or it
 # would have asked in an unattended run (a scheduled task, an eval case), where nobody can approve, and was refused.

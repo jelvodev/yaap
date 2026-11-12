@@ -224,6 +224,8 @@ class ModelPreset(Base):
     # to a role of this preset; kept while routing is off, so turning it on again restores the assignment.
     routing: Mapped[bool] = mapped_column(Boolean, default=False)
     routes: Mapped[dict[str, str] | None] = mapped_column(JSON)
+    # How the lead model hands work to workers: free, or by brief with a check (presets/delegation.py).
+    delegation: Mapped[str] = mapped_column(String(10), default="free", server_default="free")
 
 
 class AgentRunRecord(Base):
