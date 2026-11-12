@@ -42,6 +42,10 @@ yourself when you update; it says "None." when there is nothing.
 - Added: a project without cards opens with one field to start a conversation or note a first idea.
 - Added: the board can be switched on or off per project in its settings; switched off, a project click behaves as
 
+- The agent can put a card in a project board's Inbox for something it noticed outside its task (`add_card`). It
+- Import GitHub issues into a board's Inbox, by number or by label (*Import issues*). One way: nothing is written to
+- *Make a card* on a review finding the change did not fix: a card in Inbox that points back at the review.
+
 ### Action needed
 
 - `git push --all` and `git push --mirror` also push the `yaap-board` branch, and with it every card, specification and plan. On a public repository, push your branches one by one.
