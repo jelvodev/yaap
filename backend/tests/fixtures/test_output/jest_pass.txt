@@ -1,0 +1,30 @@
+PASS src/components/Widget1.test.js
+PASS src/components/Widget2.test.js
+PASS src/components/Widget3.test.js
+PASS src/components/Widget4.test.js
+PASS src/components/Widget5.test.js
+PASS src/components/Widget6.test.js
+PASS src/components/Widget7.test.js
+PASS src/components/Widget8.test.js
+PASS src/components/Widget9.test.js
+PASS src/components/Widget10.test.js
+PASS src/components/Widget11.test.js
+PASS src/components/Widget12.test.js
+PASS src/components/Widget13.test.js
+PASS src/components/Widget14.test.js
+PASS src/components/Widget15.test.js
+PASS src/components/Widget16.test.js
+PASS src/components/Widget17.test.js
+PASS src/components/Widget18.test.js
+PASS src/components/Widget19.test.js
+PASS src/components/Widget20.test.js
+PASS src/components/Widget21.test.js
+PASS src/components/Widget22.test.js
+PASS src/components/Widget23.test.js
+PASS src/components/Widget24.test.js
+
+Test Suites: 24 passed, 24 total
+Tests:       324 passed, 324 total
+Snapshots:   3 passed, 3 total
+Time:        4.218 s
+Ran all test suites.
