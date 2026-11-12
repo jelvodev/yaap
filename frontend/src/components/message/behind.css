@@ -8,6 +8,10 @@
   font-size: 12px;
 }
 
+.behind:empty {
+  display: none;
+}
+
 .behind-item {
   position: relative;
 }

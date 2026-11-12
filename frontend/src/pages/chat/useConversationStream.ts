@@ -13,6 +13,8 @@ import {
 } from "../../api/message-stream";
 import type { Goal } from "../../components/GoalStrip";
 import type { QueuedMessage } from "../../components/QueueStrip";
+import { forgetRoute } from "../../components/route/useRoute";
+import type { RouteStages } from "../../components/route/useRouteStages";
 import { notifyIfHidden } from "../../notifications";
 import { readAloud, readsEveryReply } from "../../speech/readAloud";
 import { watchFileChanges } from "./fileChanges";
@@ -30,6 +32,8 @@ export interface ConversationStreamOptions {
   reply: ReplyBlocks;
   queue: MessageQueue;
   running: RunningReplies;
+  /** The stops of the route of the reply that streams in. */
+  stages: RouteStages;
   loadGoal: (conversationId: number) => Promise<Goal | null>;
   onSummary: (summary: ConversationSummary) => void;
   onDocument: (event: DocumentEvent) => void;
@@ -74,7 +78,7 @@ function detach({ refs, reply }: StreamContext) {
 }
 
 function streamHandlers(context: StreamContext): MessageStreamHandlers {
-  const { reply, active, onDocument, onSummary, onFileChanged, onEvalStarted, onUtilitySkipped } = context;
+  const { reply, active, stages, onDocument, onSummary, onFileChanged, onEvalStarted, onUtilitySkipped } = context;
   const files = watchFileChanges(() => onFileChanged?.());
   return {
     ...reply.handlers,
@@ -97,6 +101,8 @@ function streamHandlers(context: StreamContext): MessageStreamHandlers {
     },
     onDocument,
     onUtilitySkipped,
+    onStage: stages.upsert,
+    onStageRemoved: stages.remove,
     onTitle: (summary) => {
       active.applyTitle(summary);
       onSummary(summary);
@@ -104,6 +110,7 @@ function streamHandlers(context: StreamContext): MessageStreamHandlers {
     onDone: (message, summary) => {
       // The reply is complete; a title may still follow, but the composer is free again.
       reply.clear();
+      forgetRoute(message.id);
       active.appendMessage(message);
       if (readsEveryReply() && message.status === "complete") void readAloud(message.id);
       active.applySummary(summary);

@@ -65,7 +65,7 @@ def test_notes_are_not_steps_of_a_run(client):
     assert [step.kind for step in by_run[run_id]] == ["model", "tool"]
 
 
-def test_the_listener_is_told_about_model_and_tool_steps_but_not_notes(client):
+def test_the_listener_is_told_about_notes_as_well_as_model_and_tool_steps(client):
     run_id = make_run(client)
     told: list[object] = []
     recorder = TraceRecorder(client.app.state.session_factory, listener=lambda _run, step: told.append(step))
@@ -77,7 +77,7 @@ def test_the_listener_is_told_about_model_and_tool_steps_but_not_notes(client):
 
     anyio.run(record)
 
-    assert told == [tool]
+    assert [type(step).__name__ for step in told] == ["NoteStep", "ToolStep"]
 
 
 def test_a_note_made_from_a_worker_thread_takes_the_next_position(client):

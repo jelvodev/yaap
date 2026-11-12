@@ -12,7 +12,7 @@ export type StepContext = components["schemas"]["StepContextOut"];
  * can open at the step of one of its tool calls.
  */
 export type TraceTarget =
-  | { conversationId: number; messageId: number; toolCall?: ToolCallRef }
+  | { conversationId: number; messageId: number; toolCall?: ToolCallRef; tab?: "route" }
   | { conversationId: number; runId: number };
 
 async function fetchTrace(target: TraceTarget) {

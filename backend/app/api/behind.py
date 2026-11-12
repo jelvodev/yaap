@@ -5,19 +5,12 @@ from pydantic import BaseModel
 
 from app.api.conversations import ConversationDependency
 from app.api.dependencies import SessionDependency
-from app.core.why import LayerKind, Why, WhySource
+from app.core.why import WhyOut, why_out
 from app.storage.models import Message
 from app.tracing.behind import BehindLabel, LabelKind, ReplyBehind, reply_behind
 from app.tracing.notes import ApprovalOutcome, CallWhy
 
 router = APIRouter(tags=["tracing"])
-
-
-class WhyOut(BaseModel):
-    rule: str
-    source: WhySource
-    setting: str | None
-    layer: LayerKind | None
 
 
 class BehindLabelOut(BaseModel):
@@ -42,10 +35,6 @@ class CallWhyOut(BaseModel):
 class BehindOut(BaseModel):
     labels: list[BehindLabelOut]
     calls: list[CallWhyOut]
-
-
-def why_out(why: Why) -> WhyOut:
-    return WhyOut(rule=why.rule, source=why.source, setting=why.setting, layer=why.layer)
 
 
 def label_out(label: BehindLabel) -> BehindLabelOut:

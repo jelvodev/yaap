@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from app.evals.checks import budget_overruns
 from app.evals.models import Budget, CaseUsage
 from app.storage.models import AgentRunRecord, RunStep
-from app.tracing.recorder import ModelStep, ToolStep
+from app.tracing.recorder import ModelStep, NoteStep, ToolStep
 
 
 def step_tokens(step: ModelStep) -> int:
@@ -43,7 +43,9 @@ class BudgetWatch:
     def usage(self) -> CaseUsage:
         return CaseUsage(self.steps, self.tokens, round(self.cost, 6), time.monotonic() - self.started)
 
-    def __call__(self, _run_id: int, step: ModelStep | ToolStep) -> None:
+    def __call__(self, _run_id: int, step: ModelStep | ToolStep | NoteStep) -> None:
+        if isinstance(step, NoteStep):
+            return
         self.steps += 1
         if isinstance(step, ModelStep):
             self.tokens += step_tokens(step)

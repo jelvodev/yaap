@@ -49,6 +49,7 @@ from app.core.reply_events import (
     with_goal_follow_up,
     with_index_nudge,
     with_memory_suggestions,
+    with_stage_events,
     with_steering_fallback,
     with_summary_check,
 )
@@ -69,6 +70,7 @@ from app.storage.models import Attachment, Conversation, Goal, Message, QueuedMe
 from app.tracing.otlp_export import with_telemetry_export
 from app.tracing.provider import traced_provider
 from app.tracing.recorder import StepListener
+from app.tracing.route_feed import StageFeed
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +156,8 @@ class ReplyService:
         guard = reply_budget_guard(
             session, lambda: services.replies.cancel(conversation_id), conversation.environment_id
         )
-        on_step = both_listeners(request.on_step, guard)
+        feed = StageFeed(setup.route.stored() if setup.route is not None else None)
+        on_step = both_listeners(both_listeners(request.on_step, guard), feed.on_step)
         run = None
         if runs_tools:
             run, agent_request = self.start_run(session, setup, request, attachments, agent_request, on_step)
@@ -164,6 +167,7 @@ class ReplyService:
             entry = reply_entry(conversation, setup.provider_spec, agent_request, setup.project_data, bool(attachments))
             record_request(services.session_factory, with_refusal(entry, request_refusal(agent_request, setup.outgoing)))
             trace = reply_model_trace(services, session, conversation, setup, run, on_step)
+            feed.set_main_run(trace.run_id)
             record_reply_notes(trace, [*setup.notes, cache_note(cache)])
             billing: Billing = "metered" if setup.provider_spec.metered else "subscription"
             provider = traced_provider(checked_provider(setup.provider_spec.create(setup.api_key), setup.outgoing), trace)
@@ -173,6 +177,7 @@ class ReplyService:
                 record_id=trace.run_id if run is None else None,
                 route=setup.route.stored() if setup.route is not None else None, billing=billing,
             )
+            events = with_stage_events(feed, events)
             if guard is not None:
                 events = with_budget_stop(services.session_factory, guard, conversation_id, events)
             events = self.after_reply(conversation, run, events)

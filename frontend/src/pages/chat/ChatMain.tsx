@@ -70,8 +70,8 @@ export default function ChatMain(props: ChatMainProps) {
     `${goal?.id ?? ""}:${goal?.status ?? ""}`,
   );
   const lastReplyId = conversation ? lastReplyOf(conversation) : null;
-  const showTrace = (messageId: number, toolCall?: ToolCallRef) =>
-    conversation && setTrace({ conversationId: conversation.id, messageId, toolCall });
+  const showTrace = (messageId: number, toolCall?: ToolCallRef, tab?: "route") =>
+    conversation && setTrace({ conversationId: conversation.id, messageId, toolCall, tab });
   const composerDraft = useComposerDraft(conversation?.id ?? null);
   const secondOpinions = useSecondOpinions(conversation?.id ?? null);
   const actions: MessageActions = {
@@ -79,7 +79,7 @@ export default function ChatMain(props: ChatMainProps) {
     secondOpinions: secondOpinions ?? undefined,
     onUseInConversation: composerDraft.fill,
     onOpenReview: props.rail.focusReview,
-    onShowTrace: (message, toolCall) => showTrace(message.id, toolCall),
+    onShowTrace: (message, toolCall, tab) => showTrace(message.id, toolCall, tab),
     lastReply:
       conversation && lastReplyId !== null ? lastReplyActions(conversation, lastReplyId, session.busy) : undefined,
   };
@@ -101,6 +101,7 @@ export default function ChatMain(props: ChatMainProps) {
       <MessageList
         conversation={conversation}
         streaming={session.reply.blocks}
+        routeStops={session.stages.stops}
         focusMessageId={props.focusMessageId}
         actions={actions}
         checkpointLinks={props.checkpointLinks}

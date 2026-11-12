@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.core.budget import BudgetLine, budget_lines, budget_stop_message, crossed_line
 from app.core.goals import end_goal, open_goal
 from app.storage.models import Conversation, Message
-from app.tracing.recorder import ModelStep, StepListener, ToolStep
+from app.tracing.recorder import ModelStep, NoteStep, StepListener, ToolStep
 
 
 class BudgetGuard:
@@ -32,7 +32,7 @@ class BudgetGuard:
         # Why the reply was stopped, once it was.
         self.reason: str | None = None
 
-    def __call__(self, _run_id: int, step: ModelStep | ToolStep) -> None:
+    def __call__(self, _run_id: int, step: ModelStep | ToolStep | NoteStep) -> None:
         if self.reason is not None or not isinstance(step, ModelStep) or not step.cost:
             return
         self.used += step.cost
@@ -53,7 +53,7 @@ def both_listeners(first: StepListener | None, second: StepListener | None) -> S
     if first is None or second is None:
         return first or second
 
-    def listen(run_id: int, step: ModelStep | ToolStep) -> None:
+    def listen(run_id: int, step: ModelStep | ToolStep | NoteStep) -> None:
         first(run_id, step)
         second(run_id, step)
 
