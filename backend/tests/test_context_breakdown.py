@@ -3,7 +3,7 @@
 import pytest
 
 from app.agent.tool_catalog import searchable_tool_count
-from app.core.context_breakdown import RequestParts, categories_of, masked_blocks
+from app.core.context_breakdown import RequestParts, categories_of, masked_blocks, trimmed_tool_tokens
 from app.core.context_categories import (
     ContextCategory,
     StepRef,
@@ -18,6 +18,7 @@ from app.core.context_categories import (
 )
 from app.core.context_control import ContextControl
 from app.providers.base import ToolDefinition
+from app.storage.models import Message
 
 TOOL_CALL = {
     "type": "tool_call",
@@ -194,3 +195,15 @@ def test_labels_of_an_assembled_context_hide_secret_values():
     labels = [item.label for draft in drafts for item in draft.items]
     assert labels and all(secret not in label for label in labels)
     assert any("[secret:TOKEN]" in label for label in labels)
+
+
+def branch_with(*, trimmed: bool) -> list[Message]:
+    long_call = {**TOOL_CALL, "output": "y" * 10_000}
+    reply = Message(role="assistant", content=[long_call], provider_raw={}, status="complete")
+    last = Message(role="user", content=[{"type": "trim"}] if trimmed else [{"type": "text", "text": "Hi"}])
+    return [Message(role="user", content=[{"type": "text", "text": "Go"}]), reply, last]
+
+
+@pytest.mark.parametrize(("trimmed", "saved"), [(False, False), (True, True)])
+def test_tokens_saved_by_trimming_show_only_after_a_trim(trimmed, saved):
+    assert (trimmed_tool_tokens(branch_with(trimmed=trimmed)) > 0) is saved
