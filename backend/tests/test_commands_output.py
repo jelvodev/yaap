@@ -50,7 +50,9 @@ def test_run_command_explains_a_stop_and_spots_a_question(project):  # noqa: F81
     assert any(event["event"] == "tool_output" and "Overwrite" in event["text"] for event in events)
 
 
-def test_commands_run_without_a_terminal_and_without_colours(project):  # noqa: F811
+def test_commands_run_without_a_terminal_and_without_colours(project, monkeypatch):  # noqa: F811
+    # A CI service sets CI itself, and a value that is already set wins over YAAP's default.
+    monkeypatch.delenv("CI", raising=False)
     registry = RunRegistry()
     run = start_run(registry, project)
     code = "import os; print(os.environ['GIT_PAGER'], os.environ['CI'], chr(27) + '[31mred' + chr(27) + '[0m')"

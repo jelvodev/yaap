@@ -169,6 +169,7 @@ class SignInRun:
             logger.info("Sign-in to %s ended: %s", self.spec.key, state)
 
     async def run(self) -> None:
+        failure: str | None = None
         try:
             if await self.ensure_installed() and await self.spec.signed_in():
                 # Signed in with the CLI of an earlier image: its sign-in folder is still there.
@@ -177,14 +178,17 @@ class SignInRun:
             async with asyncio.timeout(self.total_timeout):
                 await self.drive()
         except TimeoutError:
-            self.finish("failed", "The sign-in took too long and was stopped. Start again.")
+            failure = "The sign-in took too long and was stopped. Start again."
         except SignInFailed as error:
-            self.finish("failed", str(error))
+            failure = str(error)
         except OSError:
-            self.finish("failed", f"{self.spec.display_name} could not be started in this container.")
+            failure = f"{self.spec.display_name} could not be started in this container."
         finally:
-            self.finish("cancelled")
+            # The process is reaped before the run shows as ended, so an ended run never has a live process.
             await self.end_process()
+            if failure is not None:
+                self.finish("failed", failure)
+            self.finish("cancelled")
 
     async def ensure_installed(self) -> bool:
         """Install the CLI first when it is missing or outdated; the time it takes is not part of the sign-in's.

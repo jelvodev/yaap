@@ -10,7 +10,7 @@
     "gen:api": "openapi-typescript openapi.json -o src/api/schema.d.ts",
     "gen:sdk": "node plugin-sdk/generate.mjs openapi.json plugin-sdk/.build",
     "check:sdk": "npm run gen:sdk && tsc -p plugin-sdk/tsconfig.json",
-    "test:sdk": "node --test plugin-sdk/",
+    "test:sdk": "node --test \"plugin-sdk/*.test.mjs\"",
     "test:unit": "node --test \"src/**/*.test.mjs\""
   },
   "dependencies": {
