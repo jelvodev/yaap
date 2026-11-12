@@ -16,7 +16,9 @@ TestRunner = Literal["pytest", "vitest", "jest", "go", "cargo", "dotnet"]
 FAILURE_BUDGET = 3_500
 SUMMARY_BUDGET = 1_000
 
-SEPARATORS = re.compile(r"&&|\|\||;|\n")
+COMPOSITION = re.compile(r"[;&|`\n]|\$\(")
+# A leading `cd <folder> &&` prints nothing and passes the exit code on, so the run behind it still counts.
+LEADING_CD = re.compile(r"^(?:cd\s+[^\s;&|`$()]+\s*&&\s*)+")
 ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 PYTHON = re.compile(r"^(python[\d.]*|py)$")
 ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
@@ -74,16 +76,15 @@ def runner_of(tokens: list[str]) -> TestRunner | None:
 
 
 def recognise_runner(command: str) -> TestRunner | None:
-    """The test runner a command starts, or None. A command that only mentions a runner (`echo pytest`) is none."""
-    for segment in SEPARATORS.split(command):
-        try:
-            tokens = shlex.split(segment.split("|")[0], posix=False)
-        except ValueError:
-            continue
-        runner = runner_of(tokens)
-        if runner is not None:
-            return runner
-    return None
+    """The test runner a command is, or None. Only a single invocation counts: in a compound command or a pipe the
+    exit code and the output belong to more than the test run, so they are left as they are."""
+    command = LEADING_CD.sub("", command.strip())
+    if COMPOSITION.search(command):
+        return None
+    try:
+        return runner_of(shlex.split(command, posix=False))
+    except ValueError:
+        return None
 
 
 # Parsing helpers.
