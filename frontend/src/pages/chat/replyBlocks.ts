@@ -63,6 +63,7 @@ export function addApproval(blocks: ReplyBlock[], request: ApprovalRequest): Rep
       decision: null,
       reason: request.reason ?? null,
       suspicion: request.suspicion ?? null,
+      why: request.why ?? null,
     },
   ];
 }

@@ -19,6 +19,7 @@ import anyio
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
+from app.agent.policy import CaseApprovals
 from app.agent.runs import AgentRun
 from app.agent.tool_catalog import with_listing
 from app.agent.toolbox import RunToolBox
@@ -27,7 +28,7 @@ from app.attachments.files import AttachmentError
 from app.attachments.service import AttachmentResolver, claim_attachments, conversation_attachments
 from app.blueprint.check import is_read_only_check
 from app.core.audit import record_request, reply_entry, with_refusal
-from app.core.cache_policy import reply_cache_ttl
+from app.core.cache_policy import reply_cache_choice
 from app.core.budget_stop import both_listeners, reply_budget_guard, with_budget_stop
 from app.core.chat import build_request, stream_reply
 from app.core.chat_history import add_user_message, load_branch
@@ -48,10 +49,12 @@ from app.core.reply_events import (
     with_goal_follow_up,
     with_index_nudge,
     with_memory_suggestions,
+    with_stage_events,
     with_steering_fallback,
     with_summary_check,
 )
 from app.core.reply_blueprint_versions import record_blueprint_versions
+from app.core.reply_notes import cache_note, record_reply_notes
 from app.core.reply_repo_map import with_repo_map
 from app.core.reply_routing import route_reply
 from app.core.reply_run import reply_model_trace, run_folder, start_agent_run
@@ -67,6 +70,7 @@ from app.storage.models import Attachment, Conversation, Goal, Message, QueuedMe
 from app.tracing.otlp_export import with_telemetry_export
 from app.tracing.provider import traced_provider
 from app.tracing.recorder import StepListener
+from app.tracing.route_feed import StageFeed
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +88,8 @@ class ReplyRequest:
     unattended: bool = False
     # In an unattended reply: tools that run without asking, by name (an eval case's allowed_tools).
     tools_by_name: tuple[str, ...] = ()
+    # An eval play's approvals for the injection guard; nothing else sets it.
+    case_approvals: CaseApprovals | None = None
     # Hears every step of the reply as it is recorded (an eval case watching its budget).
     on_step: StepListener | None = None
     # The messages the model gets instead of the conversation's branch (a replay starts with what an earlier model
@@ -144,18 +150,14 @@ class ReplyService:
             messages = list(request.history)
         else:
             messages = with_turn_context(agent_request.messages, setup.turn_context)
-        agent_request = replace(
-            agent_request,
-            model=model,
-            effort=effort,
-            messages=messages,
-            cache_ttl=reply_cache_ttl(session, conversation, branch, setup.provider_spec),
-        )
+        cache = reply_cache_choice(session, conversation, branch, setup.provider_spec)
+        agent_request = replace(agent_request, model=model, effort=effort, messages=messages, cache_ttl=cache.ttl)
         conversation_id = conversation.id
         guard = reply_budget_guard(
             session, lambda: services.replies.cancel(conversation_id), conversation.environment_id
         )
-        on_step = both_listeners(request.on_step, guard)
+        feed = StageFeed(setup.route.stored() if setup.route is not None else None)
+        on_step = both_listeners(both_listeners(request.on_step, guard), feed.on_step)
         run = None
         if runs_tools:
             run, agent_request = self.start_run(session, setup, request, attachments, agent_request, on_step)
@@ -165,6 +167,8 @@ class ReplyService:
             entry = reply_entry(conversation, setup.provider_spec, agent_request, setup.project_data, bool(attachments))
             record_request(services.session_factory, with_refusal(entry, request_refusal(agent_request, setup.outgoing)))
             trace = reply_model_trace(services, session, conversation, setup, run, on_step)
+            feed.set_main_run(trace.run_id)
+            record_reply_notes(trace, [*setup.notes, cache_note(cache)])
             billing: Billing = "metered" if setup.provider_spec.metered else "subscription"
             provider = traced_provider(checked_provider(setup.provider_spec.create(setup.api_key), setup.outgoing), trace)
             events = stream_reply(
@@ -173,6 +177,7 @@ class ReplyService:
                 record_id=trace.run_id if run is None else None,
                 route=setup.route.stored() if setup.route is not None else None, billing=billing,
             )
+            events = with_stage_events(feed, events)
             if guard is not None:
                 events = with_budget_stop(services.session_factory, guard, conversation_id, events)
             events = self.after_reply(conversation, run, events)
@@ -212,6 +217,7 @@ class ReplyService:
             request.unattended,
             request.tools_by_name,
             on_step,
+            case_approvals=request.case_approvals,
         )
         record_blueprint_versions(session, setup, run)
         try:
@@ -367,7 +373,7 @@ class ReplyService:
         focus = compact_focus(message.text) if not own_command else None
         queued = QueuedCommand(message.queued_item_ids, message.handoff_job_id)
         if focus is not None:
-            return ReplyStream(self.commands.compact(session, conversation, focus, queued))
+            return ReplyStream(self.commands.compact(session, conversation, focus, queued, reservation))
         # /eval [case] starts an eval run of the project's cases instead of replying, unless the Blueprint has its own.
         evaluated = EVAL_COMMAND.match(message.text.strip()) if not own_command else None
         if evaluated is not None:

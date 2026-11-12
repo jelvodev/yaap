@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from app.agent.policy import CaseApprovals
 from app.evals.baseline import BASELINE_DIR, BaselineCommits, BaselineError, build_project, copy_mcp_server
 from app.evals.cases import read_cases
 from app.evals.checks import local_context, run_check
@@ -83,6 +84,8 @@ def test_the_baseline_has_ten_valid_cases_of_the_planned_kinds() -> None:
     assert {name for name, needs_change in CASES.items() if needs_change} == {
         path.stem for path in SOLUTIONS.glob("*.patch")
     }
+    approve = cases["tracker-csv-export"].approve
+    assert approve == CaseApprovals(frozenset({"edit_file", "write_file"}), ("python3 -m unittest",))
     assert any(tool.startswith("tracker__") for tool in cases["tracker-csv-export"].allowed_tools or ())
 
 

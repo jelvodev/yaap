@@ -6,6 +6,44 @@ yourself when you update; it says "None." when there is nothing.
 
 ## Unreleased
 
+- Fetch, push, pull and clone use the GitHub token only in a transport repository that YAAP alone writes, in the data folder; a process in the runner can no longer change how a token-carrying git command connects. Commits move between that repository and the project as git bundles, whose branch names and commits YAAP checks.
+- The git panel keeps its connection to the runner for a few minutes instead of making a new one (and a new vault use entry) on every request.
+- A queued `/eval` starts at most one eval run, also when it is sent twice or YAAP restarts in between; the run records the queue item it came from.
+- A queued `/compact` keeps the conversation reserved while it summarises, so a reply cannot start in the middle of it.
+- *Where it goes* in the model setup's Context now breaks the context down as a bar and a table by category (system prompt, Blueprint, tools, messages, the room until YAAP summarises, free space). The total is exact from the last reply; the split is estimated and scaled to it. A category opens to its largest items, with *Show in trace* for tool results. With Claude Code and Codex the CLI's own prompt and history show as one remainder.
+- The trace has two more tabs: *Context* (the same breakdown) and *Tokens*: per reply the cache read, cache write, uncached input and output with the cost, workers and background calls as rows of their own, the ten largest tool results, the cache hit rate, and hints where tokens were lost (a file read more than once, a cold cache after a pause, tool results over half of the context, one outside MCP server with a large share of the tool definitions).
+- `GET /conversations/{id}/token-usage`: where a conversation's tokens went over the session.
+- `GET /conversations/{id}/context` returns categories with their largest items instead of a flat list of parts.
+- The token footprint script and the screen count with the same division.
+- A setting `context_savings` (off by default) to send less of what the model already has: a repeated read of unchanged lines in the same reply becomes one line; long output of a known test runner (pytest, vitest, jest, go test, cargo test, dotnet test) keeps the failures and the summary, with the whole output readable through `read_output`; when old tool output is shortened, reads of files that changed since are left out with a note to read them again; and a conversation keeps its repository map until it is shortened or summarised. What is left out always says how to get it back.
+- The token footprint measures a longer project reply with these savings off and on.
+- Small labels under each reply show what happened behind it: the model the route chose, the project memory that went along, helpers, approvals, the injection check, secret values replaced in tool output, output the outgoing check blocked, older output shortened or summarised, and the prompt cache with its hit rate. Each label opens to its reason and cost. Replies made before this version show no labels.
+- A "why" popover shows the rule and the setting behind a decision: on the approval card, on a tool call that was refused or asked, on the labels under a reply and on the token hints.
+- The trace keeps step notes (memory recalled, cache lifetime, trim and summary, masked secrets by name only, blocked output, the injection check's verdict); they do not count as steps in eval budgets or the OpenTelemetry export.
+- New endpoint `GET /api/v1/conversations/{id}/messages/{message_id}/behind`; the `approval_request` stream event and token hints carry a `why`.
+- YAAP's own helpers (explorer, worker, reviewer, router, guard, summariser, memory keeper, learner) show in the Blueprint as a read-only Built-in layer, with their instructions, model and cost this month.
+- An item of the same name in Global or an environment replaces a helper's instructions (the worker and the explorer also in a project); *Change in my layer* copies one to Global. The guard that checks outside content cannot be replaced.
+- Settings › Models › Background tasks lists every task YAAP runs by itself with its model, runs and cost this month and its last runs, and the work it starts on a schedule.
+- Background tasks can be switched off one by one (setting `utility_tasks_off`): titles, memory suggestions, memory tidying, reply routing, learning and code reviews. The check of outside content and the tasks you start yourself cannot be switched off.
+- The context savings switch is on the Context tab in Settings.
+- Coming back to a long conversation after its prompt cache has expired shows, before the next send, what continuing costs (estimated; tokens on a subscription), with *Summarise first* (YAAP's own loop), *New conversation from a summary* (every connection) and *Just send*. Nothing happens by itself.
+- A conversation started from a summary links to the earlier one in its heading, and the earlier one links to it.
+- An eval case can approve calls up front with `approve` (`tools` and plain `commands`): in that case's own play they pass the injection guard after the run has read outside content, such as an MCP server's output. Only file edits, renames, local commits and listed commands can be approved; ordinary conversations keep the guard as before, and the play's trace shows each call the case approved.
+- The baseline case tracker-csv-export approves its edits and the unit test command, so it can pass after reading its issue from the tracker.
+- Presets can delegate by brief (Settings › Models › Presets, *Delegation*; off by default): the agent hands checkable work to the cheaper worker with the files, known facts, when it is done and a check command.
+- With delegation by brief YAAP runs the worker's check itself, with the conversation's permissions, and gives the agent the worker's report, the check's result and the diff of the changed files.
+- A failed check goes back to the worker once; a second failure hands the task to the main model. The trace notes each step back or up, and each attempt shows with its cost.
+- With delegation by brief, up to three exploring workers run at the same time.
+- Every answer can be seen as a route: message, routing, context, each model call, the tool calls with their checks, helpers and the work done afterwards. While a reply runs, a strip above it grows stop by stop and pulses where it waits for you, such as an approval.
+- When a reply is done, a *Route* chip among the labels under it shows its time and cost and opens the trace on the new *Route* tab, where each stop opens a drawer with what happened, why, its time and its cost. Repeated calls of one tool are stacked into one stop.
+- The trace dialog's tabs are now Timeline, Route, Context and Tokens.
+- The context breakdown shows again how many tokens shortening old tool output saved.
+- The trace shows when an eval case's approval let a call through ("approved by the eval case") instead of an empty approval field.
+- The summary that starts a continued conversation no longer shows try again, second opinion or versions.
+- A click on the context ring opens the model setup with the context breakdown already shown.
+- Without a reply language set, replies and conversation titles follow the language of your message; before, a reply or title could come back in another language.
+- A browser screenshot the agent saves under a file name now also comes back as an image, so the agent sees it and the chat shows it.
+
 ### Action needed
 
 None.

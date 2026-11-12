@@ -18,6 +18,7 @@ from app.api.schemas import (
     WorkerOut,
 )
 from app.core.routing import ROUTE_KINDS, preset_routes
+from app.presets.delegation import delegation_mode
 from app.presets.service import (
     PresetError,
     change_routing,
@@ -53,6 +54,7 @@ def preset_out(preset: ModelPreset, plain_chat: ModelPreset | None) -> PresetOut
             PresetRouteOut(kind=kind, label=ROUTE_KINDS[kind], role=role)
             for kind, role in preset_routes(preset.routes).items()
         ],
+        delegation=delegation_mode(preset.delegation),
     )
 
 
@@ -87,7 +89,15 @@ def add_preset(
     try:
         roles = {field: getattr(payload, field) for field in ROLE_FIELDS}
         preset = create_preset(
-            session, providers, environment.id, payload.name, payload.model, payload.effort, roles, payload.max_output_tokens
+            session,
+            providers,
+            environment.id,
+            payload.name,
+            payload.model,
+            payload.effort,
+            roles,
+            payload.max_output_tokens,
+            payload.delegation,
         )
     except PresetError as error:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
@@ -110,6 +120,7 @@ def change_preset(
             payload.is_default,
             roles,
             payload.max_output_tokens if "max_output_tokens" in payload.model_fields_set else ...,
+            payload.delegation,
         )
         if payload.routing is not None or payload.routes is not None:
             change_routing(session, preset, payload.routing, dict(payload.routes) if payload.routes else None)

@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { api, errorMessage } from "../api/client";
 import type { components } from "../api/schema";
 import { type ContextUse, formatTokens } from "./composer/modelSetup";
+import ContextPanel, { type StepLink } from "./context/ContextPanel";
+import { type Breakdown, useContextBreakdown } from "./context/useContextBreakdown";
+import TraceDialog from "./trace/TraceDialog";
 
-type Breakdown = components["schemas"]["ContextBreakdownOut"];
 export type ContextControl = components["schemas"]["ContextControlOut"];
 
 const LIMIT_SOURCES: Record<ContextControl["source"], string> = {
@@ -39,16 +41,10 @@ export default function ContextBreakdown({
   // After "Summarise now", so the chat shows the summary marker.
   onSummarised?: () => void;
 }) {
-  const [breakdown, setBreakdown] = useState<Breakdown | null>(null);
+  const { breakdown, error, reload } = useContextBreakdown(conversationId, version);
+  const [traceAt, setTraceAt] = useState<StepLink | null>(null);
   const [summarising, setSummarising] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
-  const [reloads, setReloads] = useState(0);
-
-  useEffect(() => {
-    void api
-      .GET("/api/v1/conversations/{conversation_id}/context", { params: { path: { conversation_id: conversationId } } })
-      .then(({ data }) => setBreakdown(data ?? null));
-  }, [conversationId, version, reloads]);
 
   async function summariseNow() {
     setSummarising(true);
@@ -61,7 +57,7 @@ export default function ContextBreakdown({
       setSummaryError(errorMessage(error));
       return;
     }
-    setReloads((value) => value + 1);
+    reload();
     onSummarised?.();
   }
 
@@ -79,11 +75,15 @@ export default function ContextBreakdown({
           {control.compacts_itself
             ? "This connection (Claude Code or Codex) compacts its own session; YAAP leaves it alone."
             : control.auto_compact
-              ? `YAAP shortens old tool output at ${control.trim_at}% (${formatTokens((limit * control.trim_at) / 100)}) and summarises the earlier messages at ${control.compact_at}% (${formatTokens((limit * control.compact_at) / 100)}), marked on the meter.`
+              ? `YAAP shortens old tool output at ${control.trim_at}% ` +
+                `(${formatTokens((limit * control.trim_at) / 100)}) and summarises the earlier messages at ` +
+                `${control.compact_at}% (${formatTokens((limit * control.compact_at) / 100)}), marked on the meter.`
               : "Automatic compaction is off: only /compact and Summarise now summarise."}
         </p>
       )}
-      {!breakdown ? (
+      {error ? (
+        <p className="form-error small">{error}</p>
+      ) : !breakdown ? (
         <p className="muted small">Loading…</p>
       ) : (
         <BreakdownParts
@@ -91,6 +91,14 @@ export default function ContextBreakdown({
           summarising={summarising}
           summaryError={summaryError}
           onSummarise={() => void summariseNow()}
+          onOpenStep={setTraceAt}
+        />
+      )}
+      {traceAt && (
+        <TraceDialog
+          target={{ conversationId, runId: traceAt.runId }}
+          initialStepId={traceAt.stepId}
+          onClose={() => setTraceAt(null)}
         />
       )}
     </>
@@ -102,39 +110,37 @@ function BreakdownParts({
   summarising,
   summaryError,
   onSummarise,
+  onOpenStep,
 }: {
   breakdown: Breakdown;
   summarising: boolean;
   summaryError: string | null;
   onSummarise: () => void;
+  onOpenStep: (link: StepLink) => void;
 }) {
-  const largest = Math.max(1, ...breakdown.parts.map((part) => part.tokens));
   const last = breakdown.last_reply;
   return (
     <>
-      <table className="context-parts">
-        <tbody>
-          {breakdown.parts.map((part) => (
-            <tr key={part.label}>
-              <td>{part.label}</td>
-              <td className="context-bar-cell">
-                <span className="context-bar" style={{ width: `${(part.tokens / largest) * 100}%` }} />
-              </td>
-              <td className="mono nowrap">≈ {formatTokens(part.tokens)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <ContextPanel breakdown={breakdown} onOpenStep={onOpenStep} />
       <p className="faint small">
-        Parts are estimated from their length. The last reply used{" "}
-        {breakdown.context_tokens !== null ? `${formatTokens(breakdown.context_tokens)} tokens of context` : "no context yet"}
+        The last reply used{" "}
+        {breakdown.context_tokens !== null
+          ? `${formatTokens(breakdown.context_tokens)} tokens of context`
+          : "no context yet"}
         .
       </p>
+      {breakdown.trimmed_tool_tokens > 0 && (
+        <p className="faint small">
+          Old tool output shortened · about {formatTokens(breakdown.trimmed_tool_tokens)} tokens saved; tool results
+          count at their shortened size.
+        </p>
+      )}
       {(breakdown.can_summarise || breakdown.summarised_messages > 0) && (
         <div className="context-summary">
           <p className="faint small">
             {breakdown.summarised_messages > 0
-              ? `The model gets a summary of the first ${breakdown.summarised_messages} messages instead of the messages themselves.`
+              ? `The model gets a summary of the first ${breakdown.summarised_messages} messages ` +
+                "instead of the messages themselves."
               : "Summarising keeps the last turns whole; /compact <focus> says what the summary should keep."}
           </p>
           {breakdown.can_summarise && (

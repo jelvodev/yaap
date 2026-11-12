@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 
 from app.core.model_policy import ListedPattern, ModelPolicy
 from app.core.model_policy_store import resolve_model_policy
+from app.core.why import Why
 from app.credentials.crypto import CredentialCipher
 from app.providers.base import AgentEvent, AgentRequest, ContentBlock, ModelProvider, ProviderError
 from app.secrets.service import PLACEHOLDER, masked_forms, resolve_secrets
@@ -44,25 +45,43 @@ class OutgoingRules:
         return not self.secrets and not self.patterns
 
 
-def text_refusal(text: str, rules: OutgoingRules) -> str | None:
-    """Why this text may not leave YAAP, or None. Placeholders pass."""
+@dataclass(frozen=True)
+class OutgoingBlock:
+    """A text that may not leave YAAP: the message for the user or model, and the rule behind it."""
+
+    message: str
+    why: Why
+
+
+def text_block(text: str, rules: OutgoingRules) -> OutgoingBlock | None:
+    """The block on this text with its reason, or None. Placeholders pass; a secret is named, never shown."""
     if not text or rules.empty:
         return None
     for name, value in sorted(rules.secrets.items()):
         if any(form in text for form in masked_forms(value)):
-            return (
+            message = (
                 f"Blocked before it left YAAP: the text contains the value of the secret {name}. Remove it; a command "
                 f"can use it as {{{{secret:{name}}}}} without the value."
             )
+            rule = f"Nothing leaves YAAP with the value of the secret {name} in it."
+            return OutgoingBlock(message, Why(rule, "outgoing"))
     without_placeholders = PLACEHOLDER.sub(" ", text)
     for listed in rules.patterns:
         if re.search(listed.pattern, without_placeholders):
-            return (
+            message = (
                 f"Blocked before it left YAAP by the outgoing check of {listed.source.label}: the text matches the "
                 f"pattern `{listed.pattern}`. Remove that data and try again, or change the pattern in Settings › "
                 "Models › Policy."
             )
+            rule = f"The model policy of {listed.source.label} lists a pattern the text matches, so it is blocked."
+            return OutgoingBlock(message, Why(rule, "outgoing", "model_policy", listed.source.kind))
     return None
+
+
+def text_refusal(text: str, rules: OutgoingRules) -> str | None:
+    """Why this text may not leave YAAP, or None. Placeholders pass."""
+    block = text_block(text, rules)
+    return block.message if block else None
 
 
 def block_texts(blocks: list[ContentBlock]) -> Iterator[str]:

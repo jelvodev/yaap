@@ -14,7 +14,14 @@ export function formatLimit(value: number): string {
 }
 
 /** The context settings in the order the screens show them, with their choices. */
-export const CONTEXT_KEYS = ["context_limit", "auto_compact", "compact_at", "trim_at", "repo_map"] as const;
+export const CONTEXT_KEYS = [
+  "context_limit",
+  "auto_compact",
+  "compact_at",
+  "trim_at",
+  "repo_map",
+  "context_savings",
+] as const;
 
 // Shares of the limit, in percent, offered for compact_at and trim_at.
 const SHARES = [20, 30, 40, 50, 60, 70, 75, 80, 85, 90];
@@ -35,7 +42,7 @@ export function contextChoices(key: string, current: unknown): ContextChoice[] {
       { value: "off", label: "Off: only /compact and Summarise now", stored: "off" },
     ];
   }
-  if (key === "repo_map") {
+  if (key === "repo_map" || key === "context_savings") {
     return [
       { value: "on", label: "On", stored: "on" },
       { value: "off", label: "Off", stored: "off" },

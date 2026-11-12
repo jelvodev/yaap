@@ -32,7 +32,9 @@ class ChatEvals(Protocol):
     """Starts an eval run for /eval in a conversation (app/evals); returns the run's id and what the chat shows.
     Raises CommandRefused (core/reply_errors.py) when the run cannot start."""
 
-    def start_from_chat(self, conversation: Conversation, case_name: str | None) -> tuple[int, str]: ...
+    def start_from_chat(
+        self, conversation: Conversation, case_name: str | None, queue_item_id: int | None = None
+    ) -> tuple[int, str]: ...
 
 
 @dataclass(frozen=True)
@@ -75,7 +77,9 @@ class ReplyServices:
 
     @property
     def utility(self) -> UtilityContext:
-        return UtilityContext(self.session_factory, self.cipher, self.credential_types, self.providers)
+        return UtilityContext(
+            self.session_factory, self.cipher, self.credential_types, self.providers, self.blueprint_dir
+        )
 
     @property
     def telemetry(self) -> TelemetrySender:

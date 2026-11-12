@@ -36,7 +36,7 @@ OPUS = next(model for model in ANTHROPIC_MODELS if model.id == "claude-opus-5-5"
     ],
 )
 def test_the_hour_is_chosen_for_goals_scheduled_tasks_and_long_pauses_only(facts, expected):
-    assert choose_cache_ttl(facts) == expected
+    assert choose_cache_ttl(facts).ttl == expected
 
 
 def request_with(ttl: str) -> AgentRequest:
@@ -59,8 +59,8 @@ def test_the_anthropic_request_carries_the_ttl_on_the_cacheable_system_part(ttl,
     system = calls[0]["system"]
     assert system[0]["cache_control"] == control
     assert "cache_control" not in system[1]
-    # The automatic breakpoint on the conversation stays at five minutes, after the hour entry, as the API requires.
-    assert calls[0]["cache_control"] == {"type": "ephemeral"}
+    # The automatic breakpoint on the conversation follows the request's lifetime, so the history is kept as long.
+    assert calls[0]["cache_control"] == control
 
 
 def test_hour_writes_are_read_from_the_usage_and_priced_at_twice_the_input(monkeypatch):
@@ -185,3 +185,19 @@ def test_a_scheduled_task_conversation_gets_the_hour(client):
         assert reply_cache_ttl(session, conversation, [], spec) == "1h"  # type: ignore[arg-type]  # a stand-in
         plain = SimpleNamespace(id=0, scheduled_task_id=None)
         assert reply_cache_ttl(session, plain, [], spec) == "5m"  # type: ignore[arg-type]  # a stand-in
+
+
+@pytest.mark.parametrize(
+    ("facts", "needle"),
+    [
+        (CacheFacts(long_cache=False, goal=True, now=NOW), "no long cache"),
+        (CacheFacts(long_cache=True, goal=True, now=NOW), "goal"),
+        (CacheFacts(long_cache=True, scheduled=True, now=NOW), "scheduled task"),
+        (CacheFacts(long_cache=True, last_reply_at=NOW - timedelta(minutes=12), now=NOW), "more than 5 minutes"),
+        (CacheFacts(long_cache=True, last_reply_at=NOW - timedelta(minutes=2), now=NOW), "quick follow-up"),
+        (CacheFacts(long_cache=True, now=NOW), "quick follow-up"),
+    ],
+)
+def test_each_cache_choice_carries_the_rule_of_its_branch(facts, needle):
+    why = choose_cache_ttl(facts).why
+    assert why.source == "cache" and needle in why.rule

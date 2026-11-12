@@ -16,13 +16,16 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.blueprint.builtin import shipped_instructions
 from app.core.background import BackgroundWork
+from app.core.builtin_prompts import utility_instructions
 from app.core.chat_events import server_sent_event
 from app.core.chat_history import is_part_of_history, load_branch
 from app.core.utility import UtilityContext, UtilitySkipped, run_utility_or_skip
 from app.providers.base import HistoryMessage
 from app.providers.registry import ProviderRegistry
 from app.storage.models import Conversation, Message, UsageRecord
+from app.tracing.notes import Note
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +180,11 @@ def compact_focus(text: str) -> str | None:
     return " ".join((match.group(1) or "").split())[:MAX_FOCUS_CHARS]
 
 
-def summary_prompt(previous: str | None, messages: list[Message], focus: str | None = None) -> str:
+def summary_prompt(
+    previous: str | None, messages: list[Message], focus: str | None = None, instructions: str | None = None
+) -> str:
+    """What the summary model is asked; the instructions may be the user's replacement."""
+    lead = instructions if instructions is not None else shipped_instructions("summariser")
     earlier = f"Summary so far:\n{previous}\n\nWhat followed:\n\n" if previous else ""
     focused = (
         f"The user asks the summary to focus on: {focus}. Keep everything about it in full detail, even when it "
@@ -185,15 +192,7 @@ def summary_prompt(previous: str | None, messages: list[Message], focus: str | N
         if focus
         else ""
     )
-    return (
-        "Summarise this conversation between a user and an AI development assistant, so the assistant can continue "
-        "the work without the full text. Keep: the goal and the user's requests, decisions and their reasons, "
-        "constraints and preferences the user stated, files and commands that matter, what was done and what is "
-        "still open, and errors with their causes. Skills and standards stay available apart from the summary, so do "
-        "not summarise their text. Leave out pleasantries and repeated details. Write in the "
-        "language of the conversation, as compact notes under short headings.\n\n"
-        f"{focused}{earlier}{transcript(messages)}"
-    )
+    return f"{lead}\n\n{focused}{earlier}{transcript(messages)}"
 
 
 @dataclass
@@ -218,7 +217,7 @@ async def summarise(context: UtilityContext, conversation_id: int, focus: str | 
         messages = branch[start : point + 1]
         covered_id = branch[point].id
         environment_id = conversation.environment_id
-        prompt = summary_prompt(previous, messages, focus)
+        prompt = summary_prompt(previous, messages, focus, utility_instructions(context, environment_id, "summariser"))
     text = await run_utility_or_skip(
         context, environment_id, prompt, conversation_id, max_tokens=SUMMARY_TOKENS, task="summary", role="worker"
     )
@@ -271,7 +270,8 @@ async def summarise_if_needed(context: UtilityContext, conversation_id: int) -> 
         with context.session_factory() as session:
             conversation = session.get_one(Conversation, conversation_id)
             from app.core.context_control import resolve_context_control
-            from app.core.trimming import mark_trim
+            from app.core.reply_notes import SUMMARY_TEXT, note_on_reply
+            from app.core.trimming import mark_trim, summary_why, trim_why
 
             branch = load_branch(session, conversation_id, conversation.head_message_id)
             control = resolve_context_control(session, context.providers, conversation)
@@ -279,9 +279,12 @@ async def summarise_if_needed(context: UtilityContext, conversation_id: int) -> 
             if not control.needs_summary(used) or cover_point(branch) is None:
                 # The cheaper step first: shorten old tool output.
                 if control.needs_trim(used):
-                    mark_trim(session, branch)
+                    mark_trim(session, branch, trim_why(control, used))
                 return False
+            why, reply_id = summary_why(control, used), branch[-1].id
         await summarise(context, conversation_id)
+        with context.session_factory() as session:
+            note_on_reply(session, conversation_id, reply_id, Note("summary", SUMMARY_TEXT, why))
         return True
     except SummaryError as error:
         logger.info("No summary for conversation %s: %s", conversation_id, error)

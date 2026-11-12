@@ -1,0 +1,248 @@
+=== RUN   TestCase1
+--- PASS: TestCase1 (0.00s)
+=== RUN   TestCase2
+--- PASS: TestCase2 (0.00s)
+=== RUN   TestCase3
+--- PASS: TestCase3 (0.00s)
+=== RUN   TestCase4
+--- PASS: TestCase4 (0.00s)
+=== RUN   TestCase5
+--- PASS: TestCase5 (0.00s)
+=== RUN   TestCase6
+--- PASS: TestCase6 (0.00s)
+=== RUN   TestCase7
+--- PASS: TestCase7 (0.00s)
+=== RUN   TestCase8
+--- PASS: TestCase8 (0.00s)
+=== RUN   TestCase9
+--- PASS: TestCase9 (0.00s)
+=== RUN   TestCase10
+--- PASS: TestCase10 (0.00s)
+=== RUN   TestCase11
+--- PASS: TestCase11 (0.00s)
+=== RUN   TestCase12
+--- PASS: TestCase12 (0.00s)
+=== RUN   TestCase13
+--- PASS: TestCase13 (0.00s)
+=== RUN   TestCase14
+--- PASS: TestCase14 (0.00s)
+=== RUN   TestCase15
+--- PASS: TestCase15 (0.00s)
+=== RUN   TestCase16
+--- PASS: TestCase16 (0.00s)
+=== RUN   TestCase17
+--- PASS: TestCase17 (0.00s)
+=== RUN   TestCase18
+--- PASS: TestCase18 (0.00s)
+=== RUN   TestCase19
+--- PASS: TestCase19 (0.00s)
+=== RUN   TestCase20
+--- PASS: TestCase20 (0.00s)
+=== RUN   TestCase21
+--- PASS: TestCase21 (0.00s)
+=== RUN   TestCase22
+--- PASS: TestCase22 (0.00s)
+=== RUN   TestCase23
+--- PASS: TestCase23 (0.00s)
+=== RUN   TestCase24
+--- PASS: TestCase24 (0.00s)
+=== RUN   TestCase25
+--- PASS: TestCase25 (0.00s)
+=== RUN   TestCase26
+--- PASS: TestCase26 (0.00s)
+=== RUN   TestCase27
+--- PASS: TestCase27 (0.00s)
+=== RUN   TestCase28
+--- PASS: TestCase28 (0.00s)
+=== RUN   TestCase29
+--- PASS: TestCase29 (0.00s)
+=== RUN   TestCase30
+--- PASS: TestCase30 (0.00s)
+=== RUN   TestCase31
+--- PASS: TestCase31 (0.00s)
+=== RUN   TestCase32
+--- PASS: TestCase32 (0.00s)
+=== RUN   TestCase33
+--- PASS: TestCase33 (0.00s)
+=== RUN   TestCase34
+--- PASS: TestCase34 (0.00s)
+=== RUN   TestCase35
+--- PASS: TestCase35 (0.00s)
+=== RUN   TestCase36
+--- PASS: TestCase36 (0.00s)
+=== RUN   TestCase37
+--- PASS: TestCase37 (0.00s)
+=== RUN   TestCase38
+--- PASS: TestCase38 (0.00s)
+=== RUN   TestCase39
+--- PASS: TestCase39 (0.00s)
+=== RUN   TestCase40
+--- PASS: TestCase40 (0.00s)
+=== RUN   TestCase41
+--- PASS: TestCase41 (0.00s)
+=== RUN   TestCase42
+--- PASS: TestCase42 (0.00s)
+=== RUN   TestCase43
+--- PASS: TestCase43 (0.00s)
+=== RUN   TestCase44
+--- PASS: TestCase44 (0.00s)
+=== RUN   TestCase45
+--- PASS: TestCase45 (0.00s)
+=== RUN   TestCase46
+--- PASS: TestCase46 (0.00s)
+=== RUN   TestCase47
+--- PASS: TestCase47 (0.00s)
+=== RUN   TestCase48
+--- PASS: TestCase48 (0.00s)
+=== RUN   TestCase49
+--- PASS: TestCase49 (0.00s)
+=== RUN   TestCase50
+--- PASS: TestCase50 (0.00s)
+=== RUN   TestCase51
+--- PASS: TestCase51 (0.00s)
+=== RUN   TestCase52
+--- PASS: TestCase52 (0.00s)
+=== RUN   TestCase53
+--- PASS: TestCase53 (0.00s)
+=== RUN   TestCase54
+--- PASS: TestCase54 (0.00s)
+=== RUN   TestCase55
+--- PASS: TestCase55 (0.00s)
+=== RUN   TestCase56
+--- PASS: TestCase56 (0.00s)
+=== RUN   TestCase57
+--- PASS: TestCase57 (0.00s)
+=== RUN   TestCase58
+--- PASS: TestCase58 (0.00s)
+=== RUN   TestCase59
+--- PASS: TestCase59 (0.00s)
+=== RUN   TestCase60
+--- PASS: TestCase60 (0.00s)
+=== RUN   TestCase61
+--- PASS: TestCase61 (0.00s)
+=== RUN   TestCase62
+--- PASS: TestCase62 (0.00s)
+=== RUN   TestCase63
+--- PASS: TestCase63 (0.00s)
+=== RUN   TestCase64
+--- PASS: TestCase64 (0.00s)
+=== RUN   TestCase65
+--- PASS: TestCase65 (0.00s)
+=== RUN   TestCase66
+--- PASS: TestCase66 (0.00s)
+=== RUN   TestCase67
+--- PASS: TestCase67 (0.00s)
+=== RUN   TestCase68
+--- PASS: TestCase68 (0.00s)
+=== RUN   TestCase69
+--- PASS: TestCase69 (0.00s)
+=== RUN   TestCase70
+--- PASS: TestCase70 (0.00s)
+=== RUN   TestCase71
+--- PASS: TestCase71 (0.00s)
+=== RUN   TestCase72
+--- PASS: TestCase72 (0.00s)
+=== RUN   TestCase73
+--- PASS: TestCase73 (0.00s)
+=== RUN   TestCase74
+--- PASS: TestCase74 (0.00s)
+=== RUN   TestCase75
+--- PASS: TestCase75 (0.00s)
+=== RUN   TestCase76
+--- PASS: TestCase76 (0.00s)
+=== RUN   TestCase77
+--- PASS: TestCase77 (0.00s)
+=== RUN   TestCase78
+--- PASS: TestCase78 (0.00s)
+=== RUN   TestCase79
+--- PASS: TestCase79 (0.00s)
+=== RUN   TestCase80
+--- PASS: TestCase80 (0.00s)
+=== RUN   TestCase81
+--- PASS: TestCase81 (0.00s)
+=== RUN   TestCase82
+--- PASS: TestCase82 (0.00s)
+=== RUN   TestCase83
+--- PASS: TestCase83 (0.00s)
+=== RUN   TestCase84
+--- PASS: TestCase84 (0.00s)
+=== RUN   TestCase85
+--- PASS: TestCase85 (0.00s)
+=== RUN   TestCase86
+--- PASS: TestCase86 (0.00s)
+=== RUN   TestCase87
+--- PASS: TestCase87 (0.00s)
+=== RUN   TestCase88
+--- PASS: TestCase88 (0.00s)
+=== RUN   TestCase89
+--- PASS: TestCase89 (0.00s)
+=== RUN   TestCase90
+--- PASS: TestCase90 (0.00s)
+=== RUN   TestCase91
+--- PASS: TestCase91 (0.00s)
+=== RUN   TestCase92
+--- PASS: TestCase92 (0.00s)
+=== RUN   TestCase93
+--- PASS: TestCase93 (0.00s)
+=== RUN   TestCase94
+--- PASS: TestCase94 (0.00s)
+=== RUN   TestCase95
+--- PASS: TestCase95 (0.00s)
+=== RUN   TestCase96
+--- PASS: TestCase96 (0.00s)
+=== RUN   TestCase97
+--- PASS: TestCase97 (0.00s)
+=== RUN   TestCase98
+--- PASS: TestCase98 (0.00s)
+=== RUN   TestCase99
+--- PASS: TestCase99 (0.00s)
+=== RUN   TestCase100
+--- PASS: TestCase100 (0.00s)
+=== RUN   TestCase101
+--- PASS: TestCase101 (0.00s)
+=== RUN   TestCase102
+--- PASS: TestCase102 (0.00s)
+=== RUN   TestCase103
+--- PASS: TestCase103 (0.00s)
+=== RUN   TestCase104
+--- PASS: TestCase104 (0.00s)
+=== RUN   TestCase105
+--- PASS: TestCase105 (0.00s)
+=== RUN   TestCase106
+--- PASS: TestCase106 (0.00s)
+=== RUN   TestCase107
+--- PASS: TestCase107 (0.00s)
+=== RUN   TestCase108
+--- PASS: TestCase108 (0.00s)
+=== RUN   TestCase109
+--- PASS: TestCase109 (0.00s)
+=== RUN   TestCase110
+--- PASS: TestCase110 (0.00s)
+=== RUN   TestCase111
+--- PASS: TestCase111 (0.00s)
+=== RUN   TestCase112
+--- PASS: TestCase112 (0.00s)
+=== RUN   TestCase113
+--- PASS: TestCase113 (0.00s)
+=== RUN   TestCase114
+--- PASS: TestCase114 (0.00s)
+=== RUN   TestCase115
+--- PASS: TestCase115 (0.00s)
+=== RUN   TestCase116
+--- PASS: TestCase116 (0.00s)
+=== RUN   TestCase117
+--- PASS: TestCase117 (0.00s)
+=== RUN   TestCase118
+--- PASS: TestCase118 (0.00s)
+=== RUN   TestCase119
+--- PASS: TestCase119 (0.00s)
+=== RUN   TestTotalWithTax
+    cart_test.go:42: total with tax = 36.3000, want 36.30
+--- FAIL: TestTotalWithTax (0.00s)
+=== RUN   TestDiscountNeverNegative
+    cart_test.go:77: total = -4, want >= 0
+--- FAIL: TestDiscountNeverNegative (0.00s)
+FAIL
+FAIL	example.com/shop/cart	0.415s
+ok  	example.com/shop/pricing	0.230s
+FAIL

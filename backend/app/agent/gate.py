@@ -17,6 +17,7 @@ from typing import Any
 import anyio
 
 from app.agent.attachment_tools import find_attachment
+from app.agent.call_notes import blocked_note, guard_note, masking_note, record_note
 from app.agent.document_tools import deliver_document_changes, with_document
 from app.agent.guard import excerpts, note_outside
 from app.agent.outputs import STORE_ABOVE, WHOLE_TOOLS, shortened
@@ -26,10 +27,11 @@ from app.agent.tool_context import in_runner, in_sandbox, on_target, target_labe
 from app.agent.toolkit import Tool, ToolError, ToolOutput, truncate, with_text
 from app.agent.tools import find_tool
 from app.checkpoints.service import CHANGING_TOOLS, call_key
-from app.core.outgoing_checks import OutgoingRules, text_refusal
+from app.core.outgoing_checks import OutgoingRules, text_block
+from app.core.why import Why
 from app.git.service import GitError
 from app.learning.signals import step_signal
-from app.secrets.service import mask
+from app.secrets.service import mask, masked_names
 from app.targets.base import TargetError
 from app.targets.container import CONTAINER
 from app.tracing.recorder import ApprovalOutcome, ToolStep, argument_summary
@@ -50,6 +52,9 @@ class CallNote:
     output_ref: int | None = None
     # Why the user declined the call, when they said so.
     declined_reason: str | None = None
+    # The rule behind a call that asked or was refused, and the key of the call.
+    why: Why | None = None
+    call_key: str | None = None
 
 
 async def call_tool(
@@ -77,6 +82,8 @@ async def call_tool(
             note.output_ref,
             signal.kind if signal else None,
             signal.note if signal else None,
+            note.why,
+            note.call_key,
         )
         await trace.record(run_id, step)
     return output, is_error
@@ -109,16 +116,20 @@ async def gate_call(
         )
         output = with_text(output, str(output) + warning)
     if run.secrets:
+        found = masked_names(str(output), run.secrets)
+        if found:
+            await record_note(run, masking_note(name, found))
         output = with_text(output, mask(str(output), run.secrets))
     output = await deliver_document_changes(run, name, arguments, keep_long_output(run, name, output, note))
     output = deliver_steering(run, name, arguments, output)
     # The output goes back to the model, so it leaves YAAP too: a listed pattern blocks it (secrets are masked above).
-    blocked = text_refusal(str(output), OutgoingRules(patterns=run.model_policy.patterns))
+    blocked = text_block(str(output), OutgoingRules(patterns=run.model_policy.patterns))
     if blocked is not None:
+        await record_note(run, blocked_note(name, blocked))
         if run.state.steering_item_ids and run.services.steering is not None and run.state.record_id is not None:
             run.services.steering.restore(run.state.record_id)
             run.state.steering_item_ids = []
-        return ToolOutput(f"The output of {name} was not passed on. {blocked}"), True
+        return ToolOutput(f"The output of {name} was not passed on. {blocked.message}"), True
     if run.state.steering_item_ids and run.services.steering is not None and run.state.record_id is not None:
         run.services.steering.acknowledge(run.state.record_id, run.state.steering_item_ids)
         run.state.steering_item_ids = []
@@ -211,7 +222,10 @@ async def approved(
     suspicion = None
     if decision.outside_content is not None and run.injection_check is not None:
         suspicion = await run.injection_check(decision.summary, detail, excerpts(run))
-    return await registry.request_approval(run, name, decision.summary, detail, decision.outside_content, suspicion)
+        await record_note(run, guard_note(name, suspicion))
+    return await registry.request_approval(
+        run, name, decision.summary, detail, decision.outside_content, suspicion, decision.why
+    )
 
 
 async def take_checkpoint(run: AgentRun, tool: Tool, name: str, arguments: dict[str, Any]) -> None:
@@ -260,6 +274,11 @@ async def gated_call(
     """Decide on the call (app.agent.permissions), ask the user when it says so, then run the tool."""
     note = note if note is not None else CallNote()
     decision = decide(tool_facts(run, tool, name, arguments), arguments, run_facts(run))
+    # A case-approved call passed the injection guard, which the trace should show.
+    if decision.verdict != "allow" or decision.reason == "case_approved":
+        note.why, note.call_key = decision.why, call_key(name, arguments)
+    if decision.verdict == "allow" and decision.reason == "case_approved":
+        note.approval = "case_approved"
     if decision.verdict == "refuse":
         # A call that would have asked, in a run without the user, is counted apart: an eval case reports it.
         note.approval = "asked" if decision.reason == "unattended" else "refused"

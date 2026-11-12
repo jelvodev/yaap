@@ -128,6 +128,10 @@ class Conversation(Base):
     context_limit: Mapped[int | None] = mapped_column(Integer)
     # An imported Claude Code or Codex session: the tool, the file and what it held; None otherwise.
     imported_from: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    # The conversation this one continues from a summary; None otherwise.
+    continued_from_id: Mapped[int | None] = mapped_column(
+        ForeignKey("conversations.id", ondelete="SET NULL"), index=True
+    )
 
 
 class Message(Base):
@@ -220,6 +224,8 @@ class ModelPreset(Base):
     # to a role of this preset; kept while routing is off, so turning it on again restores the assignment.
     routing: Mapped[bool] = mapped_column(Boolean, default=False)
     routes: Mapped[dict[str, str] | None] = mapped_column(JSON)
+    # How the lead model hands work to workers: free, or by brief with a check (presets/delegation.py).
+    delegation: Mapped[str] = mapped_column(String(10), default="free", server_default="free")
 
 
 class AgentRunRecord(Base):
@@ -260,7 +266,7 @@ class RunStep(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     run_id: Mapped[int] = mapped_column(ForeignKey("agent_runs.id"), index=True)
     position: Mapped[int] = mapped_column(Integer)
-    # "model" or "tool"
+    # "model", "tool" or "note"
     kind: Mapped[str] = mapped_column(String(10))
     started_at: Mapped[datetime] = mapped_column(UtcDateTime())
     duration_ms: Mapped[int] = mapped_column(Integer, default=0)
@@ -283,6 +289,8 @@ class RunStep(Base):
     # (the user's reason, the test command, the Blueprint item that already held what was searched for).
     signal: Mapped[str | None] = mapped_column(String(20))
     signal_note: Mapped[str | None] = mapped_column(String(500))
+    # A note's kind, text, reason and cost; for a tool call that asked or was refused, its reason and call key.
+    detail: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
 
 class EvalRun(Base):
@@ -306,6 +314,9 @@ class EvalRun(Base):
     # For the variant side of a comparison: the run of the normal setup started with it.
     baseline_run_id: Mapped[int | None] = mapped_column(Integer)
     scheduled_run_id: Mapped[int | None] = mapped_column(Integer)
+    # The queued /eval this run was started from. No foreign key: the queue row is deleted in the transaction that
+    # creates the run, and the unique value is what lets a second consumer of the same item find the run.
+    queue_item_id: Mapped[int | None] = mapped_column(Integer, unique=True)
     summary: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utc_now)
     finished_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
@@ -387,6 +398,8 @@ class QueuedMessage(Base):
     """A message written while a reply ran, sent when it ends."""
 
     __tablename__ = "queued_messages"
+    # Ids are never reused: an eval run remembers the id of the queue item it came from.
+    __table_args__ = {"sqlite_autoincrement": True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     conversation_id: Mapped[int] = mapped_column(ForeignKey("conversations.id"), index=True)

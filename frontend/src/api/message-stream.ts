@@ -1,4 +1,4 @@
-import { type ConversationSummary, type Message, errorMessage } from "./client";
+import { type ConversationSummary, type Message, type RouteStopOut, type Why, errorMessage } from "./client";
 import type { UtilitySkip } from "./utility-skips";
 
 export interface ToolCallStart {
@@ -23,6 +23,8 @@ export interface ApprovalRequest {
   reason?: string | null;
   // What the optional utility-model check found suspicious.
   suspicion?: string | null;
+  // The rule behind the question, when a rule decided it.
+  why?: Why | null;
 }
 
 export type ApprovalDecision = "approve" | "deny";
@@ -64,6 +66,10 @@ export interface MessageStreamHandlers {
   onEvalStarted?: (runId: number, projectId: number, detail: string) => void;
   // The model policy skipped a utility task of this exchange (the title, routing, a check of outside content).
   onUtilitySkipped?: (skip: UtilitySkip) => void;
+  // A stop of the reply's route was reached or changed (the same id replaces the earlier stop).
+  onStage?: (stop: RouteStopOut) => void;
+  // A live stop is gone again.
+  onStageRemoved?: (id: string) => void;
 }
 
 function dispatchEvent(chunk: string, handlers: MessageStreamHandlers): void {
@@ -123,6 +129,12 @@ function dispatchEvent(chunk: string, handlers: MessageStreamHandlers): void {
       break;
     case "utility_skipped":
       handlers.onUtilitySkipped?.(payload as UtilitySkip);
+      break;
+    case "stage":
+      handlers.onStage?.(payload as RouteStopOut);
+      break;
+    case "stage_removed":
+      handlers.onStageRemoved?.(String(payload.id ?? ""));
       break;
     case "compact_failed":
       handlers.onCompactFailed?.(String(payload.detail ?? "The conversation could not be compacted."));

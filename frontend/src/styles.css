@@ -1081,6 +1081,7 @@ kbd {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .pp-task-runs li {
@@ -1397,6 +1398,12 @@ kbd {
 
 .composer {
   container-type: inline-size;
+}
+
+@container (max-width: 900px) {
+  .composer-hint-extra {
+    display: none;
+  }
 }
 
 @container (max-width: 600px) {
@@ -3423,35 +3430,6 @@ button.context-meter[aria-expanded="true"] {
   font-size: 13px;
 }
 
-.context-parts {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.context-parts td {
-  padding: 3px 0;
-  color: var(--text);
-}
-
-.context-parts td.mono {
-  padding-left: 8px;
-  color: var(--muted);
-  text-align: right;
-}
-
-.context-bar-cell {
-  width: 35%;
-  padding-left: 8px !important;
-}
-
-.context-bar {
-  display: block;
-  height: 6px;
-  min-width: 2px;
-  border-radius: 3px;
-  background: var(--accent);
-}
-
 .context-summary {
   display: flex;
   flex-direction: column;
@@ -4104,4 +4082,10 @@ button.context-meter[aria-expanded="true"] {
 .update-notes {
   max-height: 24rem;
   overflow-y: auto;
+}
+
+.return-notice-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
 }

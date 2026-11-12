@@ -8,6 +8,10 @@ and dates, LF line endings, no executable bits, and git run with YAAP's own sett
 same files always give the same hashes, which the case files name and a test checks.
 
 Commits: the start (the project without its eval cases), one commit per history patch, then the eval cases.
+
+`evals/savings/` is a second set in the same layout on *Freight*, a small Python project with a long pytest suite
+and a long module, for cases where context savings can act (long test output, repeated reads). Its runner needs
+pytest.
 """
 
 from dataclasses import dataclass
@@ -15,7 +19,9 @@ from pathlib import Path
 
 from app.git.service import GitError, Repository, folder_of, run_git
 
-BASELINE_DIR = Path(__file__).resolve().parents[3] / "evals" / "baseline"
+EVALS_DIR = Path(__file__).resolve().parents[3] / "evals"
+BASELINE_DIR = EVALS_DIR / "baseline"
+SAVINGS_DIR = EVALS_DIR / "savings"
 CASES_FOLDER = Path(".blueprint") / "evals"
 SKIPPED_PARTS = frozenset({"__pycache__", "node_modules", ".git"})
 SKIPPED_SUFFIXES = (".pyc", ".tmp")
@@ -23,6 +29,8 @@ AUTHOR = ("Stockroom Team", "team@stockroom.example")
 FIRST_COMMIT_TIME = 1_793_613_600  # 2026-11-02 10:00 UTC; each later commit is an hour later.
 GIT_CONFIG = ("core.autocrlf=false", "core.eol=lf", "core.filemode=false", "commit.gpgsign=false")
 START_MESSAGE = "Stockroom 0.4.0"
+# The first commit's message per eval set, by the set's folder name.
+START_MESSAGES = {"baseline": START_MESSAGE, "savings": "Freight 1.0.0"}
 CASES_MESSAGE = "Add the baseline eval cases"
 PATCH_FILE = ".yaap-baseline.patch"
 
@@ -134,7 +142,7 @@ def build_project(target: Repository, source: Path = BASELINE_DIR) -> BaselineCo
             key, value = entry.split("=", 1)
             run_git(["config", key, value], target)
         copy_files(project, folder, project_files(project, include_cases=False))
-        start = commit_all(target, START_MESSAGE, 0)
+        start = commit_all(target, START_MESSAGES.get(source.name, START_MESSAGE), 0)
         history = []
         for index, patch in enumerate(sorted((source / "history").glob("*.patch")), start=1):
             apply_patch(target, patch)

@@ -28,6 +28,7 @@ from app.checkpoints.service import CheckpointStore
 from app.core.goals import GoalHandle
 from app.core.model_policy import ModelPolicy
 from app.core.search import RunSearch
+from app.core.why import Why
 from app.targets.ssh import SshTarget
 from app.tracing.recorder import TraceRecorder
 from app.websearch.service import SearchProvider
@@ -206,6 +207,11 @@ class RunState:
     joined_tools: set[str] = field(default_factory=set)
     # How often each test command failed in this run (app/learning signals).
     failed_tests: dict[str, int] = field(default_factory=dict)
+    # The context_savings setting, read once when the run starts (app/core/context_savings.py).
+    context_savings: bool = False
+    # Full reads of read_file in this run: (path, first line, last line) -> hash of the result and the read's number.
+    read_ranges: dict[tuple[str, int, int], tuple[str, int]] = field(default_factory=dict)
+    reads: int = 0
 
     def for_child(self, record_id: int | None) -> "RunState":
         """A sub-run shares the injection guard's state with its parent, both ways, and starts with the tools its
@@ -215,6 +221,7 @@ class RunState:
             outside_sources=self.outside_sources,
             outside_files=self.outside_files,
             joined_tools=set(self.joined_tools),
+            context_savings=self.context_savings,
         )
 
 
@@ -462,8 +469,9 @@ class RunRegistry:
         detail: str,
         reason: str | None = None,
         suspicion: str | None = None,
+        why: Why | None = None,
     ) -> ApprovalAnswer:
-        return await ask_approval_answer(run, tool, summary, detail, reason, suspicion)
+        return await ask_approval_answer(run, tool, summary, detail, reason, suspicion, why)
 
     def decide(self, approval_id: str, decision: Decision, reason: str | None = None) -> bool:
         """The user's decision, with the reason they gave (kept on the tool's step as a learning signal)."""
@@ -488,7 +496,13 @@ async def ask_approval(
 
 
 async def ask_approval_answer(
-    run: AgentRun, tool: str, summary: str, detail: str, reason: str | None = None, suspicion: str | None = None
+    run: AgentRun,
+    tool: str,
+    summary: str,
+    detail: str,
+    reason: str | None = None,
+    suspicion: str | None = None,
+    why: Why | None = None,
 ) -> ApprovalAnswer:
     """ask_approval with the reason the user gave for their decision."""
     if run.unattended:
@@ -515,6 +529,7 @@ async def ask_approval_answer(
             "detail": detail,
             "reason": reason,
             "suspicion": suspicion,
+            "why": why.stored() if why else None,
         }
     )
     try:

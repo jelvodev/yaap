@@ -1,0 +1,255 @@
+diff --git a/docs/rules.md b/docs/rules.md
+index b1623d7..d23bdd3 100644
+--- a/docs/rules.md
++++ b/docs/rules.md
+@@ -38,16 +38,17 @@ The weight bands are up to and including 2, 5, 10, 20 and 31.5 kg. A parcel of e
+ 
+ Each surcharge is a separate line of the quote.
+ 
+-1. **Fuel**: 12 % of the base rate (after the discount of section 5 is subtracted), on every parcel.
+-2. **Remote area**: 4.50 for Dutch postcodes on the Wadden islands, the postcodes starting with `179` (Texel), `8881`
+-   to `8884` (Terschelling), `8899` (Vlieland) and `9161` to `9164` (Ameland). Only in zone 0.
+-3. **Oversize**: 15.00 when the longest side is over 120 cm or the girth (length + 2 × width + 2 × height, with the
++1. **Fuel**: 14 % of the base rate (after the discount of section 5 is subtracted), on every parcel.
++2. **Remote area**: 4.95 for Dutch postcodes on the Wadden islands, the postcodes starting with `179` (Texel), `8881`
++   to `8884` (Terschelling), `8899` (Vlieland), `9161` to `9164` (Ameland) and `9166`
++   (Schiermonnikoog). Only in zone 0.
++3. **Oversize**: 15.00 when the longest side is over 100 cm or the girth (length + 2 × width + 2 × height, with the
+    longest side as length) is over 300 cm.
+ 4. **Heavy**: 8.00 when the chargeable weight is over 20 kg.
+ 5. **Dangerous goods**: 25.00, accepted in zones 0 to 2 only; a parcel with dangerous goods to zone 3 or 4 is refused.
+-6. **Saturday delivery**: 6.00, in zone 0 only; elsewhere the option is refused.
+-7. **Signature on delivery**: 1.50.
+-8. **Insurance**: when the declared value is over 500.00, 1 % of the declared value, at least 2.00.
++6. **Saturday delivery**: 6.00 in zone 0 and 9.00 in zone 1; elsewhere the option is refused.
++7. **Signature on delivery**: 1.50, free for an insured parcel.
++8. **Insurance**: when the declared value is over 100.00, 1 % of the declared value, at least 3.00.
+ 
+ ## 5. Discounts
+ 
+diff --git a/freight/rates.py b/freight/rates.py
+index ca27cd0..b19ac1f 100644
+--- a/freight/rates.py
++++ b/freight/rates.py
+@@ -166,26 +166,25 @@ def base_rate(zone: int, kg: float) -> int:
+ 
+ # 4. Surcharges
+ 
+-FUEL_PERCENT = 12
+-REMOTE_AREA_CENTS = 450
+-REMOTE_PREFIXES = ("179", "8881", "8882", "8883", "8884", "8899", "9161", "9162", "9163", "9164")
++FUEL_PERCENT = 14
++REMOTE_AREA_CENTS = 495
++REMOTE_PREFIXES = ("179", "8881", "8882", "8883", "8884", "8899", "9161", "9162", "9163", "9164", "9166")
+ OVERSIZE_CENTS = 1500
+-OVERSIZE_LONGEST_CM = 120
++OVERSIZE_LONGEST_CM = 100
+ OVERSIZE_GIRTH_CM = 300
+ HEAVY_CENTS = 800
+ HEAVY_ABOVE_KG = 20.0
+ DANGEROUS_GOODS_CENTS = 2500
+ DANGEROUS_GOODS_ZONES = frozenset({0, 1, 2})
+-SATURDAY_CENTS = 600
+-SATURDAY_ZONES = frozenset({0})
++SATURDAY_CENTS = {0: 600, 1: 900}
+ SIGNATURE_CENTS = 150
+-INSURANCE_ABOVE_CENTS = 50000
++INSURANCE_ABOVE_CENTS = 10000
+ INSURANCE_PERCENT = 1
+-INSURANCE_MINIMUM_CENTS = 200
++INSURANCE_MINIMUM_CENTS = 300
+ 
+ 
+ def fuel_surcharge(discounted_base_cents: int) -> int:
+-    """12 % of the base rate after the discount."""
++    """14 % of the base rate after the discount."""
+     return percent_of(discounted_base_cents, FUEL_PERCENT)
+ 
+ 
+@@ -230,21 +229,23 @@ def dangerous_goods_surcharge(parcel: Parcel, zone: int) -> int:
+ 
+ 
+ def saturday_surcharge(options: Options, zone: int) -> int:
+-    """Saturday delivery exists in zone 0 only."""
++    """Saturday delivery exists in zones 0 and 1 only."""
+     if not options.saturday:
+         return 0
+-    if zone not in SATURDAY_ZONES:
++    if zone not in SATURDAY_CENTS:
+         raise NotAccepted(f"Saturday delivery is not offered in zone {zone}.")
+-    return SATURDAY_CENTS
++    return SATURDAY_CENTS[zone]
+ 
+ 
+ def signature_surcharge(options: Options, parcel: Parcel) -> int:
+-    """A signature on delivery, when asked for."""
+-    return SIGNATURE_CENTS if options.signature else 0
++    """A signature on delivery, when asked for; free for an insured parcel."""
++    if not options.signature or insurance_surcharge(parcel.declared_value_cents):
++        return 0
++    return SIGNATURE_CENTS
+ 
+ 
+ def insurance_surcharge(declared_value_cents: int) -> int:
+-    """1 % of a declared value over 500.00, at least 2.00; nothing at or under 500.00."""
++    """1 % of a declared value over 100.00, at least 3.00; nothing at or under 100.00."""
+     if declared_value_cents < 0:
+         raise NotAccepted("A declared value cannot be negative.")
+     if declared_value_cents <= INSURANCE_ABOVE_CENTS:
+diff --git a/tests/test_quotes.py b/tests/test_quotes.py
+index 2dc0fc7..2ca316a 100644
+--- a/tests/test_quotes.py
++++ b/tests/test_quotes.py
+@@ -15,8 +15,8 @@ from freight.rates import (
+ 
+ def test_a_small_domestic_parcel() -> None:
+     result = quote(Parcel(1.3, 20, 15, 10), Destination("NL", "1012 AB"))
+-    assert result.lines == (Line("Base rate", 695), Line("Fuel", 83))
+-    assert (result.net_cents, result.vat_cents, result.total_cents) == (778, 163, 941)
++    assert result.lines == (Line("Base rate", 695), Line("Fuel", 97))
++    assert (result.net_cents, result.vat_cents, result.total_cents) == (792, 166, 958)
+     assert result.delivery_days == 1
+ 
+ 
+@@ -26,17 +26,17 @@ def test_a_loyal_account_with_a_signature_to_belgium() -> None:
+     assert result.lines == (
+         Line("Base rate", 1150),
+         Line("Discount 7 %", -81),
+-        Line("Fuel", 128),
++        Line("Fuel", 150),
+         Line("Signature", 150),
+     )
+-    assert (result.net_cents, result.vat_cents, result.total_cents) == (1347, 283, 1630)
++    assert (result.net_cents, result.vat_cents, result.total_cents) == (1369, 287, 1656)
+     assert result.delivery_days == 2
+ 
+ 
+ def test_a_heavy_insured_export_has_no_vat() -> None:
+     result = quote(Parcel(22.0, 60, 40, 40, declared_value_cents=80000), Destination("US"))
+-    assert result.lines == (Line("Base rate", 9995), Line("Fuel", 1199), Line("Heavy", 800), Line("Insurance", 800))
+-    assert (result.net_cents, result.vat_cents, result.total_cents) == (12794, 0, 12794)
++    assert result.lines == (Line("Base rate", 9995), Line("Fuel", 1399), Line("Heavy", 800), Line("Insurance", 800))
++    assert (result.net_cents, result.vat_cents, result.total_cents) == (12994, 0, 12994)
+     assert result.notes == ("Export: no VAT.",)
+ 
+ 
+@@ -52,18 +52,18 @@ def test_every_surcharge_on_one_parcel_to_vlieland() -> None:
+         "Dangerous goods",
+         "Saturday delivery",
+     ]
+-    assert (result.net_cents, result.vat_cents, result.total_cents) == (6164, 1294, 7458)
++    assert (result.net_cents, result.vat_cents, result.total_cents) == (6229, 1308, 7537)
+ 
+ 
+ def test_a_discount_is_rounded_before_the_fuel_surcharge() -> None:
+     result = quote(Parcel(2.01, 20, 20, 20), Destination("FR"), account=Account(500, 0))
+-    assert result.lines == (Line("Base rate", 1695), Line("Discount 10 %", -170), Line("Fuel", 183))
+-    assert (result.net_cents, result.vat_cents, result.total_cents) == (1708, 359, 2067)
++    assert result.lines == (Line("Base rate", 1695), Line("Discount 10 %", -170), Line("Fuel", 214))
++    assert (result.net_cents, result.vat_cents, result.total_cents) == (1739, 365, 2104)
+ 
+ 
+ @pytest.mark.parametrize(
+     ("destination", "options"),
+-    [(Destination("US"), Options()), (Destination("DE"), Options(saturday=True))],
++    [(Destination("US"), Options()), (Destination("FR"), Options(saturday=True))],
+ )
+ def test_a_quote_refuses_what_cannot_be_shipped(destination: Destination, options: Options) -> None:
+     parcel = Parcel(1.0, 20, 20, 20, dangerous_goods=destination.country == "US")
+@@ -84,7 +84,7 @@ def test_a_formatted_quote_lists_every_line_and_the_delivery() -> None:
+     lines = format_quote(result).splitlines()
+     assert lines[0] == "Base rate        EUR 11.50"
+     assert lines[1] == "Discount 7 %     EUR -0.81"
+-    assert lines[-2] == "Total            EUR 16.30"
++    assert lines[-2] == "Total            EUR 16.56"
+     assert lines[-1] == "Delivery in 2 working days."
+ 
+ 
+diff --git a/tests/test_surcharges.py b/tests/test_surcharges.py
+index b785b70..efa48fa 100644
+--- a/tests/test_surcharges.py
++++ b/tests/test_surcharges.py
+@@ -21,26 +21,27 @@ DANGEROUS = Parcel(1.0, 30, 20, 10, dangerous_goods=True)
+ 
+ @pytest.mark.parametrize(
+     ("base", "cents"),
+-    [(695, 83), (795, 95), (1155, 139), (1450, 174), (2995, 359), (9995, 1199)],
++    [(695, 97), (795, 111), (1155, 162), (1450, 203), (2995, 419), (9995, 1399)],
+ )
+-def test_fuel_is_twelve_percent_of_the_discounted_base_rate(base: int, cents: int) -> None:
++def test_fuel_is_fourteen_percent_of_the_discounted_base_rate(base: int, cents: int) -> None:
+     assert fuel_surcharge(base) == cents
+ 
+ 
+ @pytest.mark.parametrize(
+     ("destination", "cents"),
+     [
+-        (Destination("NL", "1791 AB"), 450),
+-        (Destination("NL", "1797 RN"), 450),
+-        (Destination("NL", "8881 AA"), 450),
+-        (Destination("NL", "8884 HG"), 450),
++        (Destination("NL", "1791 AB"), 495),
++        (Destination("NL", "1797 RN"), 495),
++        (Destination("NL", "8881 AA"), 495),
++        (Destination("NL", "8884 HG"), 495),
+         (Destination("NL", "8885 AA"), 0),
+-        (Destination("NL", "8899 AB"), 450),
++        (Destination("NL", "8899 AB"), 495),
+         (Destination("NL", "8898 ZZ"), 0),
+-        (Destination("NL", "9161 AA"), 450),
++        (Destination("NL", "9161 AA"), 495),
++        (Destination("NL", "9166 AB"), 495),
+         (Destination("NL", "9171 AA"), 0),
+         (Destination("NL", "1012 AB"), 0),
+-        (Destination("nl", "8882ab"), 450),
++        (Destination("nl", "8882ab"), 495),
+         (Destination("BE", "1790"), 0),
+     ],
+ )
+@@ -52,7 +53,9 @@ def test_the_wadden_islands_have_a_remote_area_surcharge(destination: Destinatio
+     ("parcel", "cents"),
+     [
+         (Parcel(1.0, 121, 10, 10), 1500),
+-        (Parcel(1.0, 120, 30, 30), 0),
++        (Parcel(1.0, 120, 30, 30), 1500),
++        (Parcel(1.0, 101, 10, 10), 1500),
++        (Parcel(1.0, 100, 30, 30), 0),
+         (Parcel(1.0, 100, 50, 50), 0),
+         (Parcel(1.0, 100, 51, 50), 1500),
+         (Parcel(1.0, 40, 130, 10), 1500),
+@@ -84,11 +87,12 @@ def test_a_parcel_without_dangerous_goods_has_no_such_surcharge() -> None:
+     assert dangerous_goods_surcharge(BOX, 4) == 0
+ 
+ 
+-def test_saturday_delivery_costs_extra_in_the_netherlands() -> None:
+-    assert saturday_surcharge(Options(saturday=True), 0) == 600
++@pytest.mark.parametrize(("zone", "cents"), [(0, 600), (1, 900)])
++def test_saturday_delivery_costs_extra_in_the_netherlands_and_zone_1(zone: int, cents: int) -> None:
++    assert saturday_surcharge(Options(saturday=True), zone) == cents
+ 
+ 
+-@pytest.mark.parametrize("zone", [1, 2, 4])
++@pytest.mark.parametrize("zone", [2, 3, 4])
+ def test_saturday_delivery_is_refused_abroad(zone: int) -> None:
+     with pytest.raises(NotAccepted):
+         saturday_surcharge(Options(saturday=True), zone)
+@@ -103,11 +107,17 @@ def test_a_signature_costs_extra(options: Options, cents: int) -> None:
+     assert signature_surcharge(options, BOX) == cents
+ 
+ 
++@pytest.mark.parametrize(("declared", "cents"), [(10000, 150), (10001, 0), (80000, 0)])
++def test_a_signature_is_free_for_an_insured_parcel(declared: int, cents: int) -> None:
++    parcel = Parcel(1.0, 30, 20, 10, declared_value_cents=declared)
++    assert signature_surcharge(Options(signature=True), parcel) == cents
++
++
+ @pytest.mark.parametrize(
+     ("declared", "cents"),
+-    [(0, 0), (20000, 0), (50000, 0), (50001, 500), (50100, 501), (60050, 601), (100000, 1000), (250000, 2500)],
++    [(0, 0), (10000, 0), (10001, 300), (20000, 300), (30050, 301), (50100, 501), (60050, 601), (250000, 2500)],
+ )
+-def test_insurance_is_one_percent_of_a_declared_value_over_500_euro(declared: int, cents: int) -> None:
++def test_insurance_is_one_percent_of_a_declared_value_over_100_euro(declared: int, cents: int) -> None:
+     assert insurance_surcharge(declared) == cents
+ 
+ 

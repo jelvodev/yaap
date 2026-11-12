@@ -7,7 +7,6 @@ import anyio
 import asyncssh
 import pytest
 
-from app.git import remote as git_remote
 from app.git import service
 from app.git.common import GitResult
 from app.git.place import GitPlace, git_place, git_place_kind
@@ -76,6 +75,7 @@ class FakeRuntime:
         self.provided = executor
         self.error = error
         self.roots: list[str] = []
+        self.environment_dir = Path("environment")
 
     def executor(self, root: str) -> FakeExecutor:
         self.roots.append(root)
@@ -103,6 +103,7 @@ def test_git_place_in_the_workspace_uses_the_executor_of_the_runner(
     place = git_place(1, folder, runners)
 
     assert place.folder == folder and place.executor is executor
+    assert place.environment_dir == runtime.environment_dir
     assert runtime.roots == [str(folder)]
 
 
@@ -224,84 +225,6 @@ def test_archive_through_an_executor_reports_the_error_of_git(tmp_path: Path) ->
 
     with pytest.raises(GitError, match="git archive failed: fatal: not a valid object name"):
         in_worker(archive, GitPlace(tmp_path, executor), "abc1234", [])
-
-
-class Calls:
-    """Stands in for run_git in the remote module and records where each command ran."""
-
-    def __init__(self) -> None:
-        self.calls: list[tuple[list[str], object]] = []
-
-    def __call__(self, arguments: list[str], repository: object, **_options: object) -> GitResult:
-        self.calls.append((list(arguments), repository))
-        if arguments[:2] == ["remote", "get-url"]:
-            return GitResult("https://github.com/acme/site.git\n", "")
-        if arguments[:2] == ["rev-parse", "--verify"]:
-            return GitResult("", "", 0)
-        if arguments[:1] == ["symbolic-ref"]:
-            return GitResult("main\n", "")
-        return GitResult("", "")
-
-
-def test_pull_on_a_place_fetches_in_yaap_and_merges_on_the_executor(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    calls = Calls()
-    monkeypatch.setattr(git_remote, "run_git", calls)
-    place = GitPlace(tmp_path, FakeExecutor())
-
-    git_remote.pull(place, "token")
-
-    where = {arguments[0]: repository for arguments, repository in calls.calls}
-    assert where["remote"] is place
-    assert where["fetch"] == tmp_path
-    assert where["merge"] is place
-
-
-def test_push_on_a_place_reads_the_state_on_the_executor_and_pushes_in_yaap(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    calls = Calls()
-    place = GitPlace(tmp_path, FakeExecutor())
-    monkeypatch.setattr(git_remote, "run_git", calls)
-    monkeypatch.setattr(
-        git_remote,
-        "repository_status",
-        lambda repository: service.parse_repository_status("# branch.oid abc\n# branch.head main\n"),
-    )
-
-    git_remote.push(place, "token")
-
-    pushes = [repository for arguments, repository in calls.calls if arguments[0] == "push"]
-    assert pushes == [tmp_path]
-    assert [repository for arguments, repository in calls.calls if arguments[0] == "remote"] == [place]
-
-
-def test_clone_with_a_checkout_place_clones_without_files_and_checks_out_on_the_place(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    calls = Calls()
-    monkeypatch.setattr(git_remote, "run_git", calls)
-    target = tmp_path / "site"
-    place = GitPlace(target, FakeExecutor())
-
-    git_remote.clone_repository("https://github.com/acme/site.git", target, "token", place)
-
-    (clone, clone_where), *after = calls.calls
-    assert "--no-checkout" in clone and clone_where == tmp_path
-    assert all(repository is place for _arguments, repository in after)
-    assert after[-1][0] == ["checkout", "--force", "main"]
-
-
-def test_clone_without_a_checkout_place_checks_out_in_the_clone(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    calls = Calls()
-    monkeypatch.setattr(git_remote, "run_git", calls)
-
-    git_remote.clone_repository("https://github.com/acme/site.git", tmp_path / "site", None)
-
-    assert len(calls.calls) == 1 and "--no-checkout" not in calls.calls[0][0]
 
 
 def test_clone_with_no_checkout_then_a_forced_checkout_writes_the_files(tmp_path: Path) -> None:

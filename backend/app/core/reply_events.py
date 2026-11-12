@@ -5,6 +5,7 @@ queued, the summary and memory checks start, the search index takes in the new m
 """
 
 import asyncio
+import json
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
@@ -14,15 +15,19 @@ import anyio
 
 from app.agent.runs import AgentRun
 from app.core.background import BackgroundWork
+from app.core.chat_events import merge_events, server_sent_event
 from app.core.goals import ACTIVE, open_goal
 from app.core.message_queue import queue_undelivered_steering
 from app.core.reply_services import ReplyServices
 from app.core.summaries import start_background_summary, summarise_if_needed
+from app.core.builtin_prompts import utility_instructions
 from app.core.utility import propose_title
 from app.projects.consolidation import start_tidy_after_reply
 from app.projects.service import project_path
 from app.projects.suggestions import due, suggest, suggest_with_title
 from app.storage.models import Conversation, Project
+from app.tracing.route_feed import RemovedStop, StageFeed
+from app.tracing.route_schema import RouteStopOut
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +44,56 @@ class TitleRequest:
 
 # Background work started after replies.
 BACKGROUND_WORK: BackgroundWork[None] = BackgroundWork()
+
+
+ENDING_EVENTS = ("event: done", "event: error")
+
+
+async def with_stage_events(feed: StageFeed, events: AsyncIterator[str]) -> AsyncIterator[str]:
+    """The reply's events with the route's stops (event "stage") as they are drawn, also while the reply waits.
+    The approval request and its answer pass through here, so the feed learns of a waiting call without the agent
+    knowing of the route."""
+    queue = feed.open()
+    async for item in merge_events(stops_before_the_end(queue, events), queue):
+        if isinstance(item, str):
+            tell_feed(feed, item)
+            yield item
+        else:
+            yield stage_event(item)
+
+
+async def stops_before_the_end(
+    queue: "asyncio.Queue[RouteStopOut | RemovedStop]", events: AsyncIterator[str]
+) -> AsyncIterator[str]:
+    """The reply's events; stops still queued when the reply ends go out just before its end event, so the drawing is
+    whole when the end arrives. Done here, ahead of the merge, because the merge cannot put them before an event it
+    already holds."""
+    async for event in events:
+        if event.startswith(ENDING_EVENTS):
+            while not queue.empty():
+                yield stage_event(queue.get_nowait())
+        yield event
+
+
+def stage_event(item: RouteStopOut | RemovedStop) -> str:
+    if isinstance(item, RemovedStop):
+        return server_sent_event("stage_removed", {"id": item.id})
+    return server_sent_event("stage", item.model_dump(mode="json"))
+
+
+def tell_feed(feed: StageFeed, event: str) -> None:
+    head, _, data = event.partition("\ndata: ")
+    if head == "event: approval_resolved":
+        feed.answered()
+    elif head == "event: approval_request":
+        try:
+            request = json.loads(data)
+        except ValueError:
+            return
+        summary = request.get("summary")
+        # A helper's request names who asks in brackets; its stop is not the reply's own.
+        if isinstance(summary, str) and not summary.startswith("["):
+            feed.waiting(str(request.get("tool", "tool")), summary)
 
 
 async def with_steering_fallback(
@@ -106,8 +161,15 @@ async def first_title(services: ReplyServices, conversation: TitleRequest, reply
         title = await suggest_with_title(context, conversation_id, folder, language)
         if title is not None:
             return title
+    title_instructions = utility_instructions(context, conversation.environment_id, "memory-keeper", "Title")
     return await propose_title(
-        context, conversation.environment_id, conversation_id, conversation.title_text, reply_text, language
+        context,
+        conversation.environment_id,
+        conversation_id,
+        conversation.title_text,
+        reply_text,
+        language,
+        title_instructions,
     )
 
 

@@ -17,7 +17,9 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.blueprint.builtin import render, shipped_instructions
 from app.core.background import BackgroundWork
+from app.core.builtin_prompts import utility_instructions
 from app.core.settings import resolve_languages
 from app.core.utility import UtilityContext, run_utility
 from app.projects.memory import (
@@ -41,22 +43,19 @@ MAX_MERGES = 10
 MAX_LIST_CHARS = 80_000
 OPEN = "open"
 
-PROMPT = """You keep the memory of a software project tidy. Below are its entries, numbered, each with its section.
-Find entries that say the same thing, or overlap so much that one entry would serve better, and propose merges.
+# The answer format that parse_merges() reads; the instructions before it may be replaced.
+TIDY_ANSWER = (
+    "Answer with a JSON array only, no other text. Each item: "
+    '{"entries": [the numbers of the entries it replaces],\n"text": "the merged entry"}. '
+    "Answer [] when nothing should be merged."
+)
 
-Rules:
-- A merge combines two or more entries into one entry that keeps every fact, decision and reason of the entries it
-  replaces. Leave nothing out and add nothing new.
-- Only merge entries about the same subject; entries that merely share a topic stay apart.
-- Each entry appears in at most one merge. Propose at most {limit} merges, the clearest first.
-- Write each merged entry in {language}, as one to three sentences of at most {max_chars} characters.
 
-Answer with a JSON array only, no other text. Each item: {{"entries": [the numbers of the entries it replaces],
-"text": "the merged entry"}}. Answer [] when nothing should be merged.
-
-<entries>
-{entries}
-</entries>"""
+def tidy_prompt(candidates: list[Entry], language: str, instructions: str | None = None) -> str:
+    """What the utility model is asked: the instructions, which the user may replace, then the answer format."""
+    template = instructions if instructions is not None else shipped_instructions("memory-keeper", "Tidy")
+    lead = render(template, {"limit": str(MAX_MERGES), "language": language, "max_chars": str(MAX_ENTRY_CHARS)})
+    return f"{lead}\n\n{TIDY_ANSWER}\n\n<entries>\n{numbered(candidates)}\n</entries>"
 
 
 @dataclass(frozen=True)
@@ -167,7 +166,8 @@ async def tidy(context: UtilityContext, project_id: int, folder: Path) -> list[M
             session.commit()
             return []
     candidates = [entry for entry in entries if entry not in taken]
-    prompt = PROMPT.format(limit=MAX_MERGES, language=language, max_chars=MAX_ENTRY_CHARS, entries=numbered(candidates))
+    instructions = utility_instructions(context, environment_id, "memory-keeper", "Tidy")
+    prompt = tidy_prompt(candidates, language, instructions)
     answer = await run_utility(
         context, environment_id, prompt, None, max_tokens=4000, task="memory_tidy", project_id=project_id
     )
@@ -230,7 +230,9 @@ async def tidy_if_due(context: UtilityContext, project_id: int, folder: Path) ->
 
 def app_context(app: Any) -> UtilityContext:
     state = app.state
-    return UtilityContext(state.session_factory, state.cipher, state.credential_types, state.providers)
+    return UtilityContext(
+        state.session_factory, state.cipher, state.credential_types, state.providers, state.blueprint_dir
+    )
 
 
 # Background tidy checks, started after replies.

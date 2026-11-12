@@ -74,7 +74,7 @@ class FakeEvals:
         self.refuse = refuse
         monkeypatch.setattr(client.app.state.evals, "start_from_chat", self.start_from_chat)
 
-    def start_from_chat(self, _conversation, case_name):  # type: ignore[no-untyped-def]
+    def start_from_chat(self, _conversation, case_name, queue_item_id=None):  # type: ignore[no-untyped-def]
         if self.refuse:
             raise CommandRefused("No eval cases yet.")
         self.started.append(case_name)
@@ -297,11 +297,11 @@ def test_stopping_a_reply_with_a_pending_send_now_still_sends_the_message_once(c
     conversation_id = start_conversation(client)
     queue = queue_url(conversation_id)
     item = client.post(queue, json={"text": "Send me after the stop"}).json()
-    fake.responses.append(ScriptedResponse(text="Handed over."))
 
     with ThreadPoolExecutor(max_workers=1) as pool:
         first = start_slow_reply(client, fake, pool, conversation_id)
-        fake.responses.reverse()  # The slow reply is read first, the handed-over reply second.
+        # Added only now: added before, the running reply could read it instead of the slow one.
+        fake.responses.append(ScriptedResponse(text="Handed over."))
         assert client.post(f"{queue}/send-now", json={"item_id": item["id"]}).status_code == 202
         client.post(f"/api/v1/conversations/{conversation_id}/reply/stop")
         assert first.result(timeout=10).status_code == 200

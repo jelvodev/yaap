@@ -972,12 +972,52 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Context Breakdown
-         * @description Where the context goes: each part of the system prompt, the conversation, and the last reply.
+         * Context
+         * @description What the conversation's context holds now, by category, with the exact total of the last reply.
          */
-        get: operations["context_breakdown_api_v1_conversations__conversation_id__context_get"];
+        get: operations["context_api_v1_conversations__conversation_id__context_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/continuation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Continuation
+         * @description The conversation this one continues, and the ones that continue it.
+         */
+        get: operations["get_continuation_api_v1_conversations__conversation_id__continuation_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/continue-from-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Continue Conversation From Summary
+         * @description Start a new conversation from a summary of this one, with the same settings; returns the new one.
+         */
+        post: operations["continue_conversation_from_summary_api_v1_conversations__conversation_id__continue_from_summary_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1175,6 +1215,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/behind": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Behind
+         * @description The labels behind a reply (model, memory, helpers, approvals, checks, cache) with the reason of each.
+         */
+        get: operations["read_behind_api_v1_conversations__conversation_id__messages__message_id__behind_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/conversations/{conversation_id}/messages/{message_id}/regenerate": {
         parameters: {
             query?: never;
@@ -1209,6 +1269,26 @@ export interface paths {
          * @description Retry a reply start against its existing latest user message, without storing the message twice.
          */
         post: operations["retry_message_api_v1_conversations__conversation_id__messages__message_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/route": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Route
+         * @description The route of a reply: message, route, context, model calls, tools, helpers, answer and what came after.
+         */
+        get: operations["read_route_api_v1_conversations__conversation_id__messages__message_id__route_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1595,6 +1675,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/conversations/{conversation_id}/return-notice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Return Notice
+         * @description What continuing costs after a pause long enough for the prompt cache to expire; none while a reply runs.
+         */
+        get: operations["get_return_notice_api_v1_conversations__conversation_id__return_notice_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/conversations/{conversation_id}/runs/{run_id}/trace": {
         parameters: {
             query?: never;
@@ -1731,6 +1831,28 @@ export interface paths {
          *     as /compact does.
          */
         post: operations["summarise_now_api_v1_conversations__conversation_id__summary_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/token-usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Token Usage
+         * @description Where the tokens of the conversation went, per reply, with the hints on where the session lost some.
+         *
+         *     Thinking is counted inside the output tokens: no separate thinking count is stored.
+         */
+        get: operations["token_usage_api_v1_conversations__conversation_id__token_usage_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1902,6 +2024,40 @@ export interface paths {
          * @description Every row matching the filter, as CSV or JSON; like the log itself, it holds no content and no secret values.
          */
         get: operations["export_environment_audit_log_api_v1_environments__environment_id__audit_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/environments/{environment_id}/background-tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Environment Background Tasks */
+        get: operations["environment_background_tasks_api_v1_environments__environment_id__background_tasks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/environments/{environment_id}/blueprint/builtin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Environment Builtin Items */
+        get: operations["environment_builtin_items_api_v1_environments__environment_id__blueprint_builtin_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5077,6 +5233,55 @@ export interface components {
             /** Signed In */
             signed_in: boolean;
         };
+        /** BackgroundRunOut */
+        BackgroundRunOut: {
+            /** Conversation Id */
+            conversation_id: number | null;
+            /** Cost */
+            cost: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Model */
+            model: string;
+            /** Summary */
+            summary: string | null;
+        };
+        /** BackgroundTaskOut */
+        BackgroundTaskOut: {
+            /** Builtin Item */
+            builtin_item: string | null;
+            /** Cost */
+            cost: number;
+            /** Enabled */
+            enabled: boolean;
+            /** Label */
+            label: string;
+            /** Last Runs */
+            last_runs: components["schemas"]["BackgroundRunOut"][];
+            /** Model */
+            model: string | null;
+            /** Runs */
+            runs: number;
+            /**
+             * Started By
+             * @enum {string}
+             */
+            started_by: "yaap" | "user";
+            /** Switchable */
+            switchable: boolean;
+            /** Task */
+            task: string;
+        };
+        /** BackgroundTasksOut */
+        BackgroundTasksOut: {
+            /** Scheduled */
+            scheduled: components["schemas"]["ScheduledWorkOut"][];
+            /** Tasks */
+            tasks: components["schemas"]["BackgroundTaskOut"][];
+        };
         /** BackupOut */
         BackupOut: {
             /**
@@ -5122,6 +5327,36 @@ export interface components {
             next_at: string | null;
             /** Running */
             running: boolean;
+        };
+        /** BehindLabelOut */
+        BehindLabelOut: {
+            /** Cost */
+            cost: number | null;
+            /** Detail */
+            detail: string | null;
+            /** Items */
+            items: string[];
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "route" | "memory" | "workers" | "approvals" | "guard" | "secrets" | "outgoing" | "trim" | "summary" | "cache";
+            /** Run Id */
+            run_id: number | null;
+            /** Step Id */
+            step_id: number | null;
+            /** Text */
+            text: string;
+            /** Tokens */
+            tokens: number | null;
+            why: components["schemas"]["WhyOut"] | null;
+        };
+        /** BehindOut */
+        BehindOut: {
+            /** Calls */
+            calls: components["schemas"]["CallWhyOut"][];
+            /** Labels */
+            labels: components["schemas"]["BehindLabelOut"][];
         };
         /** BlueprintFileOut */
         BlueprintFileOut: {
@@ -5324,6 +5559,54 @@ export interface components {
             scope: "environment" | "total";
             /** Spent */
             spent: number;
+        };
+        /** BuiltinItemOut */
+        BuiltinItemOut: {
+            /** Can Override */
+            can_override: boolean;
+            /** Cost */
+            cost: number | null;
+            /** Description */
+            description: string;
+            /** Instructions */
+            instructions: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "agent" | "skill";
+            /** Model */
+            model: string | null;
+            /** Model Note */
+            model_note: string | null;
+            /** Name */
+            name: string;
+            overridden_by: components["schemas"]["OverriddenByOut"] | null;
+            /** Path */
+            path: string;
+            /** Role */
+            role: ("worker" | "explorer") | null;
+            /** Runs */
+            runs: number | null;
+            /** Tasks */
+            tasks: string[];
+            /** When */
+            when: string;
+        };
+        /** BuiltinItemsOut */
+        BuiltinItemsOut: {
+            /** Items */
+            items: components["schemas"]["BuiltinItemOut"][];
+        };
+        /** CallWhyOut */
+        CallWhyOut: {
+            /** Approval */
+            approval: ("approved" | "declined" | "refused" | "asked" | "case_approved") | null;
+            /** Call Key */
+            call_key: string | null;
+            /** Tool */
+            tool: string | null;
+            why: components["schemas"]["WhyOut"];
         };
         /** CaseComparisonOut */
         CaseComparisonOut: {
@@ -5528,28 +5811,71 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "text" | "reasoning" | "tool_call" | "attachment" | "command" | "skill" | "skill_removed" | "goal" | "summary" | "trim" | "steering" | "note";
+            type: "text" | "reasoning" | "tool_call" | "attachment" | "command" | "skill" | "skill_removed" | "goal" | "summary" | "trim" | "steering" | "note" | "repo_map";
         };
         /** ContextBreakdownOut */
         ContextBreakdownOut: {
+            /**
+             * Basis
+             * @enum {string}
+             */
+            basis: "snapshot" | "assembly";
             /**
              * Can Summarise
              * @default false
              */
             can_summarise: boolean;
+            /** Categories */
+            categories: components["schemas"]["ContextCategoryOut"][];
+            /** Compact At Tokens */
+            compact_at_tokens: number | null;
             /** Context Tokens */
             context_tokens: number | null;
             /** Context Window */
             context_window: number | null;
+            /** Deferred Tools */
+            deferred_tools: number;
+            /** Estimated */
+            estimated: boolean;
             last_reply: components["schemas"]["LastReplyOut"] | null;
+            /** Limit Tokens */
+            limit_tokens: number | null;
             memory?: components["schemas"]["MemoryRecallOut"] | null;
-            /** Parts */
-            parts: components["schemas"]["app__api__activity__ContextPartOut"][];
+            /** Snapshot Gone */
+            snapshot_gone: boolean;
+            /** Step Id */
+            step_id: number | null;
             /**
              * Summarised Messages
              * @default 0
              */
             summarised_messages: number;
+            /** Total Tokens */
+            total_tokens: number;
+            /**
+             * Trimmed Tool Tokens
+             * @default 0
+             */
+            trimmed_tool_tokens: number;
+        };
+        /** ContextCategoryOut */
+        ContextCategoryOut: {
+            /**
+             * Group
+             * @enum {string}
+             */
+            group: "system" | "blueprint" | "tools" | "messages" | "cli" | "space";
+            /** Items */
+            items: components["schemas"]["ContextItemOut"][];
+            /**
+             * Key
+             * @enum {string}
+             */
+            key: "system_base" | "system_project" | "system_repo_map" | "system_mcp_servers" | "system_other" | "blueprint_rules" | "blueprint_standards" | "blueprint_skills" | "tools_yaap" | "tools_joined" | "messages_user" | "messages_answers" | "messages_thinking" | "messages_tool_calls" | "messages_tool_results" | "messages_summary" | "messages_attachments" | "cli_remainder" | "buffer" | "free";
+            /** Label */
+            label: string;
+            /** Tokens */
+            tokens: number;
         };
         /**
          * ContextControlOut
@@ -5589,9 +5915,20 @@ export interface components {
             /** Chars */
             chars: number;
             /** Parts */
-            parts: components["schemas"]["app__api__traces__ContextPartOut"][];
+            parts: components["schemas"]["ContextPartOut"][];
             /** Source */
             source: string;
+        };
+        /** ContextItemOut */
+        ContextItemOut: {
+            /** Label */
+            label: string;
+            /** Run Id */
+            run_id: number | null;
+            /** Step Id */
+            step_id: number | null;
+            /** Tokens */
+            tokens: number;
         };
         /** ContextPartContentOut */
         ContextPartContentOut: {
@@ -5599,6 +5936,21 @@ export interface components {
             content: string;
             /** Key */
             key: string;
+        };
+        /** ContextPartOut */
+        ContextPartOut: {
+            /** Chars */
+            chars: number | null;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+        };
+        /** ContinuationOut */
+        ContinuationOut: {
+            continued_from: components["schemas"]["LinkedConversationOut"] | null;
+            /** Continued In */
+            continued_in: components["schemas"]["LinkedConversationOut"][];
         };
         /** ContradictionOut */
         ContradictionOut: {
@@ -6547,6 +6899,21 @@ export interface components {
              */
             status: "ok";
         };
+        /** HintOut */
+        HintOut: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "repeated_read" | "cold_cache" | "tool_results_heavy" | "mcp_share";
+            /** Remedy */
+            remedy: string;
+            /** Roadmap Item */
+            roadmap_item: number;
+            /** Text */
+            text: string;
+            why?: components["schemas"]["WhyOut"] | null;
+        };
         /** HostKeyIn */
         HostKeyIn: {
             /** Fingerprint */
@@ -6827,6 +7194,13 @@ export interface components {
             target: string;
             /** Text */
             text: string;
+        };
+        /** LinkedConversationOut */
+        LinkedConversationOut: {
+            /** Id */
+            id: number;
+            /** Title */
+            title: string;
         };
         /** LocalModelOut */
         LocalModelOut: {
@@ -7153,6 +7527,16 @@ export interface components {
             /** Tool */
             tool: string;
         };
+        /** OverriddenByOut */
+        OverriddenByOut: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "global" | "environment" | "project";
+            /** Label */
+            label: string;
+        };
         /** PackageAcceptIn */
         PackageAcceptIn: {
             /** Commit */
@@ -7387,6 +7771,8 @@ export interface components {
         };
         /** PresetCreate */
         PresetCreate: {
+            /** Delegation */
+            delegation?: ("free" | "brief") | null;
             /** Effort */
             effort: string;
             /** Max Output Tokens */
@@ -7406,6 +7792,12 @@ export interface components {
         };
         /** PresetOut */
         PresetOut: {
+            /**
+             * Delegation
+             * @default free
+             * @enum {string}
+             */
+            delegation: "free" | "brief";
             /** Effort */
             effort: string;
             /** Environment Id */
@@ -7461,6 +7853,8 @@ export interface components {
         };
         /** PresetUpdate */
         PresetUpdate: {
+            /** Delegation */
+            delegation?: ("free" | "brief") | null;
             /** Effort */
             effort?: string | null;
             /** Is Default */
@@ -8010,6 +8404,14 @@ export interface components {
              */
             role: "main" | "worker" | "utility";
         };
+        /** ReplyTokensOut */
+        ReplyTokensOut: {
+            reply: components["schemas"]["TokenRowOut"];
+            /** Utility */
+            utility: components["schemas"]["TokenRowOut"][];
+            /** Workers */
+            workers: components["schemas"]["TokenRowOut"][];
+        };
         /** RepositoryCreateIn */
         RepositoryCreateIn: {
             /**
@@ -8100,6 +8502,36 @@ export interface components {
         RestoreIn: {
             /** Confirm */
             confirm: string;
+        };
+        /** ReturnNoticeBodyOut */
+        ReturnNoticeBodyOut: {
+            /**
+             * Billing
+             * @enum {string}
+             */
+            billing: "metered" | "subscription";
+            /** Cache Lifetime Minutes */
+            cache_lifetime_minutes: number;
+            /**
+             * Cache Ttl
+             * @enum {string}
+             */
+            cache_ttl: "5m" | "1h";
+            /** Can Summarise */
+            can_summarise: boolean;
+            /** Context Tokens */
+            context_tokens: number;
+            /** Cost */
+            cost: number | null;
+            /**
+             * Idle Since
+             * Format: date-time
+             */
+            idle_since: string;
+        };
+        /** ReturnNoticeOut */
+        ReturnNoticeOut: {
+            notice: components["schemas"]["ReturnNoticeBodyOut"] | null;
         };
         /** ReviewOut */
         ReviewOut: {
@@ -8221,6 +8653,102 @@ export interface components {
             status: "running" | "done" | "skipped" | "failed";
             /** Writer Vendors */
             writer_vendors: string[];
+        };
+        /** RouteCheckOut */
+        RouteCheckOut: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "permission" | "approval" | "guard" | "outgoing" | "secrets" | "output_stored" | "memory" | "cache" | "trim" | "note";
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "ran" | "skipped" | "failed" | "waiting";
+            /** Text */
+            text: string;
+            /** Waited Ms */
+            waited_ms?: number | null;
+            why?: components["schemas"]["WhyOut"] | null;
+        };
+        /** RouteOut */
+        RouteOut: {
+            /** Cost */
+            cost?: number | null;
+            /** Duration Ms */
+            duration_ms?: number | null;
+            /** Stops */
+            stops: components["schemas"]["RouteStopOut"][];
+        };
+        /** RouteStopOut */
+        RouteStopOut: {
+            /**
+             * Checks
+             * @default []
+             */
+            checks: components["schemas"]["RouteCheckOut"][];
+            /** Cost */
+            cost?: number | null;
+            /**
+             * Count
+             * @default 1
+             */
+            count: number;
+            /** Detail */
+            detail?: string | null;
+            /** Duration Ms */
+            duration_ms?: number | null;
+            /** Id */
+            id: string;
+            /**
+             * Items
+             * @default []
+             */
+            items: string[];
+            /** Label */
+            label: string;
+            /**
+             * Lane
+             * @enum {string}
+             */
+            lane: "main" | "tools" | "worker" | "afterwards";
+            /** Line */
+            line?: string | null;
+            /** Parent */
+            parent?: string | null;
+            /** Reason */
+            reason?: string | null;
+            /** Run Id */
+            run_id?: number | null;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "message" | "route" | "context" | "model" | "tool" | "worker" | "answer" | "afterwards" | "note";
+            /** Started At */
+            started_at?: string | null;
+            /**
+             * State
+             * @default ran
+             * @enum {string}
+             */
+            state: "ran" | "skipped" | "failed" | "waiting";
+            /** Step Id */
+            step_id?: number | null;
+            tokens?: components["schemas"]["RouteTokensOut"] | null;
+            why?: components["schemas"]["WhyOut"] | null;
+        };
+        /** RouteTokensOut */
+        RouteTokensOut: {
+            /** Cache Read */
+            cache_read: number;
+            /** Cache Write */
+            cache_write: number;
+            /** New */
+            new: number;
+            /** Output */
+            output: number;
         };
         /** RubricCheckIO */
         RubricCheckIO: {
@@ -8375,6 +8903,19 @@ export interface components {
             state: string;
             /** Stops At */
             stops_at?: string | null;
+        };
+        /** ScheduledWorkOut */
+        ScheduledWorkOut: {
+            /** Description */
+            description: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Name */
+            name: string;
+            /** Schedule */
+            schedule: string;
+            /** Setting Key */
+            setting_key: string | null;
         };
         /**
          * SearchHitOut
@@ -9149,6 +9690,50 @@ export interface components {
              */
             scopes: string[];
         };
+        /** TokenRowOut */
+        TokenRowOut: {
+            /** Cache Read Tokens */
+            cache_read_tokens: number;
+            /** Cache Write Tokens */
+            cache_write_tokens: number;
+            /** Cost */
+            cost: number | null;
+            /** Input Tokens */
+            input_tokens: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "reply" | "worker" | "utility" | "session";
+            /** Label */
+            label: string;
+            /** Message Id */
+            message_id: number | null;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Run Id */
+            run_id: number | null;
+            /** Started At */
+            started_at: string | null;
+        };
+        /**
+         * TokenUsageOut
+         * @description Where the tokens of a conversation went. Thinking is counted inside the output tokens, because no separate
+         *     thinking count is stored.
+         */
+        TokenUsageOut: {
+            /** Cache Hit Rate */
+            cache_hit_rate: number | null;
+            /** Hints */
+            hints: components["schemas"]["HintOut"][];
+            /** Other Utility */
+            other_utility: components["schemas"]["TokenRowOut"][];
+            /** Replies */
+            replies: components["schemas"]["ReplyTokensOut"][];
+            /** Top Tool Results */
+            top_tool_results: components["schemas"]["ToolResultTokensOut"][];
+            totals: components["schemas"]["TokenRowOut"];
+        };
         /** ToolPermissionOut */
         ToolPermissionOut: {
             /** Default */
@@ -9157,6 +9742,21 @@ export interface components {
             label: string;
             /** Name */
             name: string;
+        };
+        /** ToolResultTokensOut */
+        ToolResultTokensOut: {
+            /** Message Id */
+            message_id: number | null;
+            /** Run Id */
+            run_id: number;
+            /** Step Id */
+            step_id: number;
+            /** Summary */
+            summary: string | null;
+            /** Tokens */
+            tokens: number;
+            /** Tool */
+            tool: string;
         };
         /** TraceOut */
         TraceOut: {
@@ -9203,7 +9803,7 @@ export interface components {
         /** TraceStepOut */
         TraceStepOut: {
             /** Approval */
-            approval: ("approved" | "declined" | "refused" | "asked") | null;
+            approval: ("approved" | "declined" | "refused" | "asked" | "case_approved") | null;
             /** Cache Read Tokens */
             cache_read_tokens: number;
             /** Cache Write Tokens */
@@ -9589,6 +10189,20 @@ export interface components {
             /** Tool */
             tool: string;
         };
+        /** WhyOut */
+        WhyOut: {
+            /** Layer */
+            layer: ("global" | "environment" | "project" | "conversation") | null;
+            /** Rule */
+            rule: string;
+            /** Setting */
+            setting: string | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "permission" | "route" | "model_policy" | "cache" | "trim" | "summary" | "memory" | "budget" | "outgoing" | "guard" | "hint" | "delegation";
+        };
         /**
          * WorkerOut
          * @description Who `delegate` can hand a task to: a preset's worker model or a coding agent CLI.
@@ -9631,13 +10245,6 @@ export interface components {
             /** Unavailable Reason */
             unavailable_reason?: string | null;
         };
-        /** ContextPartOut */
-        app__api__activity__ContextPartOut: {
-            /** Label */
-            label: string;
-            /** Tokens */
-            tokens: number;
-        };
         /** RestoreOut */
         app__api__backups__RestoreOut: {
             /** Restarting */
@@ -9649,15 +10256,6 @@ export interface components {
         app__api__checkpoints__RestoreOut: {
             /** Before Id */
             before_id: number;
-        };
-        /** ContextPartOut */
-        app__api__traces__ContextPartOut: {
-            /** Chars */
-            chars: number | null;
-            /** Key */
-            key: string;
-            /** Label */
-            label: string;
         };
     };
     responses: never;
@@ -11403,7 +12001,7 @@ export interface operations {
             };
         };
     };
-    context_breakdown_api_v1_conversations__conversation_id__context_get: {
+    context_api_v1_conversations__conversation_id__context_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -11421,6 +12019,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ContextBreakdownOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_continuation_api_v1_conversations__conversation_id__continuation_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContinuationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    continue_conversation_from_summary_api_v1_conversations__conversation_id__continue_from_summary_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationSummaryOut"];
                 };
             };
             /** @description Validation Error */
@@ -11831,6 +12491,38 @@ export interface operations {
             };
         };
     };
+    read_behind_api_v1_conversations__conversation_id__messages__message_id__behind_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                message_id: number;
+                conversation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BehindOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     regenerate_reply_api_v1_conversations__conversation_id__messages__message_id__regenerate_post: {
         parameters: {
             query?: never;
@@ -11882,6 +12574,38 @@ export interface operations {
                 };
                 content: {
                     "text/event-stream": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_route_api_v1_conversations__conversation_id__messages__message_id__route_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                message_id: number;
+                conversation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RouteOut"];
                 };
             };
             /** @description Validation Error */
@@ -12592,6 +13316,37 @@ export interface operations {
             };
         };
     };
+    get_return_notice_api_v1_conversations__conversation_id__return_notice_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReturnNoticeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     read_run_trace_api_v1_conversations__conversation_id__runs__run_id__trace_get: {
         parameters: {
             query?: never;
@@ -12813,6 +13568,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SummaryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    token_usage_api_v1_conversations__conversation_id__token_usage_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenUsageOut"];
                 };
             };
             /** @description Validation Error */
@@ -13143,6 +13929,68 @@ export interface operations {
                 content: {
                     "application/json": unknown;
                     "text/csv": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    environment_background_tasks_api_v1_environments__environment_id__background_tasks_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                environment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackgroundTasksOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    environment_builtin_items_api_v1_environments__environment_id__blueprint_builtin_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                environment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BuiltinItemsOut"];
                 };
             };
             /** @description Validation Error */

@@ -1,5 +1,8 @@
+import pytest
 from sqlalchemy import select
 
+from app.presets.delegation import delegation_mode
+from app.presets.service import delegation_of
 from app.providers.fake_provider import ScriptedResponse
 from app.storage.models import UsageRecord
 from tests.conftest import VALID_KEY, parse_events
@@ -135,3 +138,50 @@ def test_the_conversation_preset_chooses_the_utility_model(client, fake):
     fake.responses.extend([ScriptedResponse(text="Hoi."), ScriptedResponse(text="Groet")])
     client.post(f"/api/v1/conversations/{conversation_id}/messages", json={"text": "hallo"})
     assert (fake.requests[1].model, fake.requests[1].effort) == ("claude-sonnet-5-5", "low")
+
+
+def test_presets_delegate_freely_until_switched_to_brief(client):
+    assert {preset["delegation"] for preset in presets(client)} == {"free"}
+    added = client.post(
+        "/api/v1/environments/1/presets",
+        json={"name": "Briefed", "model": "claude-opus-5-5", "effort": "low", "delegation": "brief"},
+    )
+    assert added.status_code == 201 and added.json()["delegation"] == "brief"
+    changed = client.patch(f"/api/v1/presets/{added.json()['id']}", json={"delegation": "free"})
+    assert changed.json()["delegation"] == "free"
+    untouched = client.patch(f"/api/v1/presets/{added.json()['id']}", json={"effort": "high"})
+    assert untouched.json()["delegation"] == "free"
+
+
+def test_an_unknown_delegation_mode_is_rejected(client):
+    created = client.post(
+        "/api/v1/environments/1/presets",
+        json={"name": "Odd", "model": "claude-opus-5-5", "effort": "low", "delegation": "sometimes"},
+    )
+    assert created.status_code == 422
+    preset_id = presets(client)[0]["id"]
+    assert client.patch(f"/api/v1/presets/{preset_id}", json={"delegation": "sometimes"}).status_code == 422
+
+
+@pytest.mark.parametrize(
+    ("named", "default_mode", "named_mode", "expected"),
+    [
+        (None, "brief", "free", "brief"),
+        ("Fast", "brief", "free", "free"),
+        ("Fast", "free", "brief", "brief"),
+        ("Missing", "brief", "free", "brief"),
+        ("Missing", "free", "brief", "free"),
+    ],
+)
+def test_delegation_of_uses_the_named_preset_else_the_default(client, named, default_mode, named_mode, expected):
+    by_name = {preset["name"]: preset["id"] for preset in presets(client)}
+    client.patch(f"/api/v1/presets/{by_name['Balanced']}", json={"delegation": default_mode})
+    client.patch(f"/api/v1/presets/{by_name['Fast']}", json={"delegation": named_mode})
+    with client.app.state.session_factory() as session:
+        assert delegation_of(session, 1, named) == expected
+
+
+@pytest.mark.parametrize(("stored", "expected"), [("brief", "brief"), ("free", "free"), ("other", "free"), (None, "free")])
+def test_delegation_mode_maps_unknown_values_to_free(stored, expected):
+    assert delegation_mode(stored) == expected
+

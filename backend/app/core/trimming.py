@@ -8,17 +8,23 @@ stays the same until the next trim and the prompt cache holds. Not for Claude Co
 
 from typing import Any
 
+from app.agent.file_tools import DEFAULT_READ_LINES
 from app.core.chat_history import is_part_of_history
-from app.core.context_control import resolve_context_control
+from app.core.context_control import ContextControl, resolve_context_control
+from app.core.context_savings import context_savings_on
+from app.core.reply_notes import TRIM_TEXT, note_on_reply
 from app.core.summaries import KEEP_TURNS, latest_summary
+from app.core.why import Why, WhySource
 from app.providers.anthropic_provider import TURNS_BLOCK_TYPE
 from app.providers.base import HistoryMessage
 from app.providers.openai_provider import ITEMS_BLOCK_TYPE
 from app.providers.registry import ProviderRegistry
 from app.storage.models import Conversation, Message
+from app.tracing.notes import Note
 
 LONG_OUTPUT = 2000
 KEEP_CHARS = 600
+WRITE_TOOLS = frozenset({"write_file", "edit_file"})
 
 
 def trim_block(message: Message) -> dict[str, Any] | None:
@@ -47,47 +53,64 @@ def shorten_result_content(content: Any) -> Any:
     return content
 
 
-def shrink_raw(raw: list[dict[str, Any]] | None) -> list[dict[str, Any]] | None:
-    """The stored reply with its long tool results shortened, for both provider formats."""
+def stub_content(original: Any, stub: str) -> Any:
+    """The stub in the shape the result had: a string stays a string, a list of parts becomes one text part."""
+    return [{"type": "text", "text": stub}] if isinstance(original, list) else stub
+
+
+def shrink_anthropic_turns(block: dict[str, Any], stubs: dict[str, str]) -> dict[str, Any]:
+    def result(part: dict[str, Any]) -> dict[str, Any]:
+        stub = stubs.get(part.get("tool_use_id"))
+        content = stub_content(part.get("content"), stub) if stub else shorten_result_content(part.get("content"))
+        return {**part, "content": content}
+
+    messages = []
+    for turn in block["messages"]:
+        if turn.get("role") == "user" and isinstance(turn.get("content"), list):
+            parts = [result(part) if part.get("type") == "tool_result" else part for part in turn["content"]]
+            turn = {**turn, "content": parts}
+        messages.append(turn)
+    return {**block, "messages": messages}
+
+
+def shrink_chat_messages(block: dict[str, Any], stubs: dict[str, str]) -> dict[str, Any]:
+    return {
+        **block,
+        "messages": [
+            {**item, "content": stubs.get(item.get("tool_call_id")) or shorten(item["content"])}
+            if item.get("role") == "tool" and isinstance(item.get("content"), str)
+            else item
+            for item in block["messages"]
+        ],
+    }
+
+
+def shrink_openai_items(block: dict[str, Any], stubs: dict[str, str]) -> dict[str, Any]:
+    return {
+        **block,
+        "items": [
+            {**item, "output": stubs.get(item.get("call_id")) or shorten(item["output"])}
+            if item.get("type") == "function_call_output" and isinstance(item.get("output"), str)
+            else item
+            for item in block["items"]
+        ],
+    }
+
+
+def shrink_raw(raw: list[dict[str, Any]] | None, stubs: dict[str, str] | None = None) -> list[dict[str, Any]] | None:
+    """The stored reply with its long tool results shortened, for all provider formats. A result whose tool-use id
+    is in `stubs` becomes that text instead."""
     if not raw:
         return raw
+    stubs = stubs or {}
     shrunk = []
     for block in raw:
         if block.get("type") == TURNS_BLOCK_TYPE:
-            messages = []
-            for turn in block["messages"]:
-                if turn.get("role") == "user" and isinstance(turn.get("content"), list):
-                    turn = {
-                        **turn,
-                        "content": [
-                            {**part, "content": shorten_result_content(part.get("content"))}
-                            if part.get("type") == "tool_result"
-                            else part
-                            for part in turn["content"]
-                        ],
-                    }
-                messages.append(turn)
-            block = {**block, "messages": messages}
+            block = shrink_anthropic_turns(block, stubs)
         elif block.get("type") == "chat_messages":
-            block = {
-                **block,
-                "messages": [
-                    {**item, "content": shorten(item["content"])}
-                    if item.get("role") == "tool" and isinstance(item.get("content"), str)
-                    else item
-                    for item in block["messages"]
-                ],
-            }
+            block = shrink_chat_messages(block, stubs)
         elif block.get("type") == ITEMS_BLOCK_TYPE:
-            block = {
-                **block,
-                "items": [
-                    {**item, "output": shorten(item["output"])}
-                    if item.get("type") == "function_call_output" and isinstance(item.get("output"), str)
-                    else item
-                    for item in block["items"]
-                ],
-            }
+            block = shrink_openai_items(block, stubs)
         shrunk.append(block)
     return shrunk
 
@@ -102,8 +125,9 @@ def apply_trim(branch: list[Message], history: list[HistoryMessage]) -> list[His
     if len(in_history) != len(history):
         return history
     trimmed_ids = {id(message) for message in branch[: index + 1]}
+    stubs = stale_stubs(branch, set(trim_block(branch[index]).get("stale") or []))
     return [
-        HistoryMessage(role=item.role, content=item.content, provider_raw=shrink_raw(item.provider_raw))
+        HistoryMessage(role=item.role, content=item.content, provider_raw=shrink_raw(item.provider_raw, stubs))
         if id(message) in trimmed_ids and item.role == "assistant"
         else item
         for message, item in zip(in_history, history, strict=True)
@@ -132,16 +156,94 @@ def trim_point(branch: list[Message]) -> int | None:
     return point
 
 
-def mark_trim(session: Any, branch: list[Message]) -> bool:
+def normal_path(path: Any) -> str:
+    text = str(path or "").replace("\\", "/")
+    while text.startswith("./"):
+        text = text[2:]
+    return text
+
+
+def tool_calls(branch: list[Message]) -> list[dict[str, Any]]:
+    return [block for message in branch for block in message.content if block.get("type") == "tool_call"]
+
+
+def stale_reads(branch: list[Message]) -> set[str]:
+    """The ids of `read_file` calls whose file a later successful `write_file` or `edit_file` changed."""
+    stale: set[str] = set()
+    reads: dict[str, list[str]] = {}
+    for call in tool_calls(branch):
+        path = normal_path((call.get("input") or {}).get("path"))
+        if call.get("name") == "read_file" and call.get("id"):
+            reads.setdefault(path, []).append(call["id"])
+        elif call.get("name") in WRITE_TOOLS and not call.get("is_error"):
+            stale.update(reads.pop(path, []))
+    return stale
+
+
+def stale_stub(call: dict[str, Any]) -> str:
+    arguments = call.get("input") or {}
+    path = arguments.get("path")
+    if arguments.get("outline"):
+        return f"Outline of {path}, left out: the file changed since; read it again."
+    first = int(arguments.get("offset") or 1)
+    last = first + int(arguments.get("limit") or DEFAULT_READ_LINES) - 1
+    return f"Read of {path} lines {first}–{last}, left out: the file changed since; read it again."
+
+
+def stale_stubs(branch: list[Message], stale: set[str]) -> dict[str, str]:
+    """The stub text per stale tool-use id, from the arguments stored in the branch."""
+    if not stale:
+        return {}
+    return {call["id"]: stale_stub(call) for call in tool_calls(branch) if call.get("id") in stale}
+
+
+def context_savings_for(session: Any, branch: list[Message]) -> bool:
+    conversation_id = branch[0].conversation_id if branch else None
+    conversation = session.get(Conversation, conversation_id) if conversation_id is not None else None
+    return conversation is not None and context_savings_on(session, conversation.environment_id)
+
+
+def mark_trim(session: Any, branch: list[Message], why: Why | None = None) -> bool:
     point = trim_point(branch)
     if point is None:
         return False
     message = branch[point]
-    message.content = [*(block for block in message.content if block.get("type") != "trim"), {"type": "trim"}]
+    block: dict[str, Any] = {"type": "trim"}
+    if context_savings_for(session, branch):
+        reads_up_to_point = {call["id"] for call in tool_calls(branch[: point + 1]) if call.get("name") == "read_file"}
+        block["stale"] = sorted(stale_reads(branch) & reads_up_to_point)
+    message.content = [*(item for item in message.content if item.get("type") != "trim"), block]
     session.commit()
+    note_on_reply(session, message.conversation_id, branch[-1].id, Note("trim", TRIM_TEXT, why))
     return True
 
 
-def needs_trim(session: Any, providers: ProviderRegistry, conversation: Conversation, used: int) -> bool:
-    """Whether the last reply filled trim_at percent of the context limit, with auto_compact on."""
-    return resolve_context_control(session, providers, conversation).needs_trim(used)
+def reached_why(control: ContextControl, used: int | None, percent: int, setting: str, source: WhySource) -> Why:
+    """The rule for a context that reached percent of the limit, naming the percentage, the limit and the threshold."""
+    limit = control.limit or 0
+    share = round(used * 100 / limit) if used is not None and limit else 0
+    action = "old tool output is shortened" if source == "trim" else "the earlier messages are summarised"
+    rule = (
+        f"The context reached {share}% of the {limit:,}-token limit, past the {percent}% threshold, "
+        f"so {action}."
+    )
+    return Why(rule, source, setting)
+
+
+def trim_why(control: ContextControl, used: int | None) -> Why | None:
+    """Why old tool output is shortened now, or None when the context has not reached trim_at."""
+    if not control.needs_trim(used):
+        return None
+    return reached_why(control, used, control.trim_at, "trim_at", "trim")
+
+
+def summary_why(control: ContextControl, used: int | None) -> Why | None:
+    """Why the earlier messages are summarised now, or None when the context has not reached compact_at."""
+    if not control.needs_summary(used):
+        return None
+    return reached_why(control, used, control.compact_at, "compact_at", "summary")
+
+
+def needs_trim(session: Any, providers: ProviderRegistry, conversation: Conversation, used: int) -> Why | None:
+    """The reason the last reply filled trim_at percent of the context limit (auto_compact on), or None."""
+    return trim_why(resolve_context_control(session, providers, conversation), used)

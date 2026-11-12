@@ -1,6 +1,6 @@
 import { Fragment, type RefObject } from "react";
 
-import type { Conversation, Project } from "../../api/client";
+import type { Conversation, Project, RouteStopOut } from "../../api/client";
 import { Logo } from "../../components/Logo";
 import { CheckpointContext, type CheckpointLinks, OutputContext } from "../../components/message/contexts";
 import type { MessageActions } from "../../components/message/MessageActions";
@@ -9,12 +9,15 @@ import type { ReplyBlock } from "../../components/message/replyBlock";
 import MessageView from "../../components/MessageView";
 import OutsideApprovals from "../../components/OutsideApprovals";
 import { UtilityLine, utilityEventsAfter } from "../../components/PreferencesMenu";
+import RouteStrip from "../../components/route/RouteStrip";
 import { usePreferences } from "../../preferences/PreferencesProvider";
 
 interface MessageListProps {
   conversation: Conversation | null;
   /** The reply streaming in, or null while none is followed. */
   streaming: ReplyBlock[] | null;
+  /** The stops of the streaming reply's route so far. */
+  routeStops: readonly RouteStopOut[];
   focusMessageId: number | null;
   actions: MessageActions;
   checkpointLinks: CheckpointLinks | null;
@@ -48,6 +51,7 @@ export default function MessageList(props: MessageListProps) {
             <div className="message-assistant">
               <div className="avatar" aria-hidden="true" />
               <div className="assistant-body">
+                <RouteStrip stops={props.routeStops} />
                 <ReplyBody blocks={streaming} streaming />
               </div>
             </div>

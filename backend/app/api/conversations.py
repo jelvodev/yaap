@@ -1,9 +1,8 @@
-import json
 import logging
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
 import anyio
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -42,6 +41,7 @@ from app.agent.outputs import OutputStore, remove_conversation_outputs
 from app.agent.shells import remove_conversation_shells
 from app.agent.runs import RunRegistry
 from app.agents.definitions import find_agent
+from app.core.context_breakdown import context_used, last_main_usage
 from app.core.conversation_move import MoveBusy, MoveError, move_conversation
 from app.core.conversations import delete_conversation
 from app.core.goals import ACTIVE, end_goal, goal_cost, latest_goal, open_goal
@@ -53,9 +53,10 @@ from app.core.reply_services import ReplyServices
 from app.core.context_control import ContextControl, check_conversation_limit, resolve_context_control
 from app.core.summaries import MAX_FOCUS_CHARS, SummaryError, summarise, yaap_compacts
 from app.core.message_parts import MessagePartError, active_of_kind, check_skills
-from app.core.settings import SETTING_DEFINITIONS, resolve_languages, resolve_setting
-from app.core.utility import UtilityContext, UtilitySkipped, run_utility_or_skip
-from app.blueprint.layers import Layer, active_items
+from app.core.rule_proposal import RuleProposalError, draft_rule
+from app.core.settings import SETTING_DEFINITIONS, resolve_setting
+from app.core.utility import UtilityContext
+from app.blueprint.layers import Layer
 from app.blueprint.levels import layers_for
 from app.mcp_client.runs import server_place
 from app.browser.service import remove_conversation_browser, shots_dir
@@ -286,9 +287,7 @@ def read_conversation(
         conversation.unread = False  # A finished task run is seen once its conversation is opened.
         session.commit()
     branch = load_branch(session, conversation.id, conversation.head_message_id)
-    latest_usage = session.scalar(
-        select(UsageRecord).where(UsageRecord.conversation_id == conversation.id).order_by(UsageRecord.id.desc())
-    )
+    latest_usage = last_main_usage(session, conversation.id)
     model = providers.find_model(conversation.model)
     versions: dict[tuple[int | None, str], list[int]] = {}
     for message_id, parent_id, role in session.execute(
@@ -305,17 +304,8 @@ def read_conversation(
             message_to_out(message, versions.get((message.parent_id, message.role), [message.id]))
             for message in branch
         ],
-        # Everything of the last turn is in the context of the next one.
-        context_tokens=(
-            None
-            if latest_usage is None
-            else latest_usage.context_tokens
-            if latest_usage.context_tokens is not None
-            else latest_usage.input_tokens
-            + latest_usage.cache_read_tokens
-            + latest_usage.cache_write_tokens
-            + latest_usage.output_tokens
-        ),
+        # Everything of the last main reply is in the context of the next one; a small helper call (a title) is not.
+        context_tokens=context_used(latest_usage),
         context_window=model.context_window if model else None,
         context_control=context_control_out(resolve_context_control(session, providers, conversation)),
         utility_events=[
@@ -474,7 +464,9 @@ def pin_skills(
 
 def utility_context(request: Request) -> UtilityContext:
     state = request.app.state
-    return UtilityContext(state.session_factory, state.cipher, state.credential_types, state.providers)
+    return UtilityContext(
+        state.session_factory, state.cipher, state.credential_types, state.providers, state.blueprint_dir
+    )
 
 
 @router.post(
@@ -656,23 +648,6 @@ def change_goal(
 
 # --- Remember as rule ------------------------------------------------------------------------------
 
-RULE_PROMPT = """The user corrected an AI assistant in a conversation. Turn the correction into one lasting rule for \
-the assistant's standards, so the mistake does not happen again.
-
-Answer with JSON only: {{"rule": "...", "level": "global" | "environment" | "project", "path": "..." or null}}
-- rule: one short imperative sentence in {language}, general enough to apply next time, without details of this task.
-- level: project when the rule is about this project only ({project}), environment when it is about this way of \
-working ({environment}), global when it should hold everywhere.
-- path: an existing standard from the list below that the rule clearly belongs to, or null.
-
-Standards: {standards}
-
-The assistant's reply that was corrected:
-{reply}
-
-The user's correction:
-{correction}"""
-
 
 class RuleProposalOut(BaseModel):
     rule: str
@@ -682,19 +657,6 @@ class RuleProposalOut(BaseModel):
     from_model: bool
     # Why no model drafted it, when the model policy skipped the task.
     skipped: str | None = None
-
-
-def parse_rule_proposal(answer: str | None) -> dict[str, Any] | None:
-    if not answer:
-        return None
-    start, end = answer.find("{"), answer.rfind("}")
-    if start == -1 or end <= start:
-        return None
-    try:
-        value = json.loads(answer[start : end + 1])
-    except json.JSONDecodeError:
-        return None
-    return value if isinstance(value, dict) and isinstance(value.get("rule"), str) and value["rule"].strip() else None
 
 
 @router.post("/conversations/{conversation_id}/messages/{message_id}/rule-proposal", response_model=RuleProposalOut)
@@ -707,49 +669,15 @@ async def propose_rule(
     workspace_dir: WorkspaceDirDependency,
 ) -> RuleProposalOut:
     """A rule proposed from one of the user's messages; the user reviews it before anything is written."""
-    message = session.get(Message, message_id)
-    if message is None or message.conversation_id != conversation.id or message.role != "user":
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Only your own messages can become a rule.")
-    correction = " ".join(block.get("text", "") for block in message.content if block.get("type") == "text").strip()
-    if not correction:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "This message has no text to turn into a rule.")
-    parent = session.get(Message, message.parent_id) if message.parent_id else None
-    reply = (
-        " ".join(block.get("text", "") for block in parent.content if block.get("type") == "text").strip()
-        if parent is not None and parent.role == "assistant"
-        else ""
-    )
-    environment = session.get_one(Environment, conversation.environment_id)
-    project = session.get(Project, conversation.project_id) if conversation.project_id else None
-    layers = layers_for(blueprint_dir, workspace_dir, environment, project)
-    standards = [
-        f"{item.path} ({item.summary})" if item.summary else item.path
-        for item in active_items(layers)
-        if item.kind in ("standard", "engineering")
-    ]
-    prompt = RULE_PROMPT.format(
-        language=resolve_languages(session, environment.id, project.id if project else None).work,
-        project=project.name if project else "none",
-        environment=environment.name,
-        standards="; ".join(standards) or "none",
-        reply=reply[:3000] or "(none)",
-        correction=correction[:3000],
-    )
-    answer = await run_utility_or_skip(
-        utility_context(request), conversation.environment_id, prompt, conversation.id, max_tokens=300, task="rule"
-    )
-    skipped = answer.message if isinstance(answer, UtilitySkipped) else None
-    proposal = parse_rule_proposal(answer if isinstance(answer, str) else None)
-    fallback_level = "project" if project else "environment"
-    if proposal is None:
-        return RuleProposalOut(
-            rule=correction[:500], level=fallback_level, path=None, from_model=False, skipped=skipped
+    try:
+        draft = await draft_rule(
+            utility_context(request), session, conversation, message_id, blueprint_dir, workspace_dir
         )
-    level = proposal.get("level") if proposal.get("level") in ("global", "environment", "project") else fallback_level
-    if level == "project" and project is None:
-        level = "environment"
-    path = proposal.get("path") if isinstance(proposal.get("path"), str) and proposal.get("path") else None
-    return RuleProposalOut(rule=" ".join(proposal["rule"].split())[:500], level=level, path=path, from_model=True)
+    except RuleProposalError as error:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
+    return RuleProposalOut(
+        rule=draft.rule, level=draft.level, path=draft.path, from_model=draft.from_model, skipped=draft.skipped
+    )
 
 
 class CompactIn(BaseModel):

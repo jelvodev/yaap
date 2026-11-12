@@ -9,7 +9,7 @@ import anyio
 import pytest
 
 from app.api.git import Repository
-from app.git import branches, discard, remote, service
+from app.git import branches, discard, service
 from app.git.place import GitPlace
 from app.projects.service import create_cloned_project
 from app.storage.models import Environment
@@ -80,7 +80,7 @@ OPERATIONS: list[tuple[str, Callable[[GitPlace], object], str]] = [
     ("branch create", lambda place: branches.create_branch(place, "feature"), "feature"),
     ("branch switch", lambda place: branches.switch_branch(place, "feature"), "feature"),
     ("branch delete", lambda place: branches.delete_branch(place, "feature"), "feature"),
-    ("pull merge", lambda place: remote.pull(place, None), "merge --ff-only"),
+    ("pull merge half", lambda place: service.run_git(["merge", "--ff-only", "@{upstream}"], place), "merge --ff-only"),
     ("discard", lambda place: discard.discard_changes(place, None), "status"),
 ]
 
@@ -97,16 +97,6 @@ def test_panel_operation_runs_on_the_executor_and_starts_no_local_git(
 
     assert any(expected in command for command in executor.commands), executor.commands
     assert all(any(word in command for word in NETWORK) for command in local_git.started)
-
-
-def test_clone_checks_out_on_the_place(tmp_path: Path, local_git: LocalGit) -> None:
-    executor = RecordingExecutor()
-    target = tmp_path / "site"
-
-    in_worker(lambda: remote.clone_repository("https://github.com/example/site.git", target, None, GitPlace(target, executor)))
-
-    assert any("checkout --force main" in command for command in executor.commands)
-    assert len(local_git.started) == 1 and "clone" in local_git.started[0]
 
 
 def test_new_cloned_project_gets_a_checkout_place_for_its_folder(

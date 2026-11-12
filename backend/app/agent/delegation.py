@@ -23,24 +23,32 @@ from typing import Any, Literal
 import anyio
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.agent.exploring import EXPLORE_INSTRUCTIONS, capped_report, explore_only
+from app.agent.brief import Brief, brief_message
+from app.agent.brief_delegation import delegate_by_brief, delegate_unchecked
+from app.agent.escalation import Role, sub_run_role
+from app.agent.exploring import capped_report, explore_only
 from app.agent.runs import AgentRun, RunRegistry
 from app.agent.tool_catalog import with_listing
-from app.agents.definitions import agent_part, find_agent
+from app.agents.definitions import AgentDefinition, agent_part, find_agent
 from app.core.audit import NO_PROJECT_DATA, ProjectData, record_request, sub_run_entry, with_refusal
 from app.core.context_control import output_tokens
 from app.core.model_choice import ForSubRun, ModelChoice, ModelChoiceError, PolicyForbids, read_key, resolve_provider
-from app.core.outgoing_checks import checked_provider, outgoing_rules, request_refusal
+from app.core.outgoing_checks import OutgoingRules, checked_provider, outgoing_rules, request_refusal
 from app.core.prompts import Languages
 from app.core.stopped_usage import StoppedRun, stopped_usage
 from app.credentials.crypto import CredentialCipher
 from app.credentials.types import CredentialType
+from app.blueprint.builtin import BuiltinName
+from app.blueprint.builtin import instructions as builtin_instructions
 from app.blueprint.context import build_system_parts
 from app.blueprint.layers import Layer
+from app.presets.delegation import DelegationMode
+from app.presets.service import delegation_of
 from app.providers.base import (
     AgentRequest,
     Completed,
     HistoryMessage,
+    ModelProvider,
     ProviderError,
     SystemPart,
     TextDelta,
@@ -61,12 +69,7 @@ Mode = Literal["work", "explore"]
 MAX_SUB_RUN_MODEL_CALLS = 40
 SUB_RUN_TIMEOUT_SECONDS = 30 * 60
 MAX_TRANSCRIPT_OUTPUT = 2000
-WORKER_INSTRUCTIONS = (
-    "# Delegated task\n\n"
-    "Another agent handed you the task below. You do not see its conversation: everything you need is in the task "
-    "and in the project. Work on it with the tools, then end with a short report for that agent: what you did, what "
-    "you found, and anything left open. Do not ask questions back; when something blocks you, say so in the report."
-)
+MAX_READERS = 3
 
 
 class DelegationError(Exception):
@@ -86,6 +89,35 @@ class SubRunResult:
     changed_files: list[str]
     record_id: int | None
     mode: Mode = "work"
+    # The report as the sub-run wrote it, not capped; the brief flow reads its labelled lines.
+    full_report: str = ""
+
+
+@dataclass
+class SubRunStart:
+    """What is decided and stored before a sub-run runs."""
+
+    choice: ModelChoice
+    api_key: str | None
+    label: str
+    record_id: int
+    max_tokens: int
+    outgoing: OutgoingRules
+    messages: list[HistoryMessage]
+
+
+@dataclass
+class StreamOutcome:
+    """How a sub-run's event stream ended."""
+
+    status: str = "complete"
+    texts: list[str] = field(default_factory=list)
+    transcript: list[dict[str, Any]] = field(default_factory=list)
+    completed: Completed | None = None
+    stopped: asyncio.CancelledError | None = None
+
+    def end(self, status: str, report: str) -> None:
+        self.status, self.texts = status, [report]
 
 
 @dataclass
@@ -109,33 +141,90 @@ class Delegator:
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     # What of the project the sub-run's system prompt and tools carry, for the audit log.
     project_data: ProjectData = NO_PROJECT_DATA
+    # At most MAX_READERS exploring sub-runs at once when delegating by brief.
+    readers: asyncio.Semaphore = field(default_factory=lambda: asyncio.Semaphore(MAX_READERS))
+    # The preset's delegation mode, read on first use (by_brief).
+    delegation: DelegationMode | None = None
+
+    def by_brief(self, environment_id: int) -> bool:
+        """Whether the conversation's preset delegates by brief; read once, as a preset does not change mid-run."""
+        if self.delegation is None:
+            with self.session_factory() as session:
+                self.delegation = delegation_of(session, environment_id, self.preset)
+        return self.delegation == "brief"
 
     async def delegate(
         self,
         parent: AgentRun,
-        task: str,
+        brief: Brief,
         agent_name: str | None,
-        role: str,
+        role: Role | None,
         worker: str | None = None,
         mode: Mode = "work",
-    ) -> SubRunResult:
+    ) -> str:
+        """Hand the brief to a sub-run and return what the lead model gets back."""
         if parent.parent_token is not None:
             raise DelegationError("A delegated task cannot delegate further; do the work yourself.")
+        message = brief_message(brief)
+        if not self.by_brief(parent.environment_id):
+            async with self.lock:
+                result = await self.run_sub_run(parent, message, agent_name, role or "worker", worker, mode)
+            return report_text(result)
+        chosen = sub_run_role(mode, brief.check is not None, role, True)
+        if mode == "explore":
+            # Reading changes nothing, so a few explorations may overlap; the work below goes one at a time.
+            async with self.readers:
+                result = await self.run_sub_run(parent, message, agent_name, chosen, worker, mode)
+            return report_text(result)
         async with self.lock:
-            return await self.run_sub_run(parent, task, agent_name, role, worker, mode)
+            if brief.check is None:
+                return await delegate_unchecked(self, parent, brief, agent_name, chosen, worker)
+            return await delegate_by_brief(self, parent, brief, agent_name, chosen, worker)
 
     async def run_sub_run(
         self,
         parent: AgentRun,
-        task: str,
+        message: str,
         agent_name: str | None,
-        role: str,
+        role: Role,
         worker: str | None = None,
         mode: Mode = "work",
+        instructions: BuiltinName | None = None,
     ) -> SubRunResult:
+        """Run one sub-run on `message`. `instructions` names the built-in item that briefs it: the explorer when
+        exploring, else the worker."""
         agent = find_agent(self.layers, agent_name) if agent_name else None
         if agent_name and agent is None:
             raise DelegationError(f"No agent named '{agent_name}'.")
+        start = self.start_record(parent, message, agent, role, worker, mode)
+        allowed_tools = agent.tools if agent is not None else None
+        child = self.runs.child(parent, start.label, start.record_id, agent.name if agent else None, allowed_tools)
+        if mode == "explore":
+            explore_only(child)
+        built_in: BuiltinName = instructions or ("explorer" if mode == "explore" else "worker")
+        request = self.build_request(child, start, agent, built_in)
+        entry = sub_run_entry(start.choice, request, self.project_data, parent.project_id, parent.conversation_id)
+        record_request(self.session_factory, with_refusal(entry, request_refusal(request, start.outgoing)))
+        spec = start.choice.spec
+        provider = traced_provider(
+            checked_provider(spec.create(start.api_key), start.outgoing), self.trace(child, spec.metered)
+        )
+        stream = await self.stream_sub_run(parent, child, start.label, start.record_id, provider, request)
+        report = "".join(stream.texts).strip() or "(The sub-run ended without a report.)"
+        stream.transcript.append({"type": "text", "text": report})
+        changed = sorted(child.state.changed_files)
+        self.store(parent, start.record_id, spec, stream.completed, stream.status, stream.transcript, child)
+        if stream.stopped is not None:
+            raise stream.stopped
+        # The record keeps the whole report; an exploring sub-run's goes back to its parent capped.
+        shown = capped_report(report) if mode == "explore" else report
+        model, record_id = start.choice.model, start.record_id
+        return SubRunResult(stream.status, model, start.label, shown, changed, record_id, mode, report)
+
+    def start_record(
+        self, parent: AgentRun, message: str, agent: AgentDefinition | None, role: Role, worker: str | None, mode: Mode
+    ) -> SubRunStart:
+        """Choose the sub-run's model and key and store its record, before anything runs."""
         request = ForSubRun(
             preset=self.preset,
             model=self.model,
@@ -146,13 +235,12 @@ class Delegator:
             agent_role=agent.role if agent is not None else None,
             project_id=parent.project_id,
         )
-        task_messages = [HistoryMessage(role="user", content=[{"type": "text", "text": task}])]
+        messages = [HistoryMessage(role="user", content=[{"type": "text", "text": message}])]
         with self.session_factory() as session:
-            choice, api_key = self.choose(session, parent, request, task_messages)
-            spec, effort, worker_label = choice.spec, choice.effort, choice.worker_label
-            label = worker_label or ("worker" if role == "worker" else "main")
+            choice, api_key = self.choose(session, parent, request, messages)
+            label = choice.worker_label or ("worker" if role == "worker" else "main")
             if agent is not None:
-                label = f"{agent.name} on {worker_label}" if worker_label else agent.name
+                label = f"{agent.name} on {choice.worker_label}" if choice.worker_label else agent.name
             if mode == "explore":
                 label = f"{label}, exploring"
             record = AgentRunRecord(
@@ -164,7 +252,7 @@ class Delegator:
                 status="running",
                 approvals=[],
                 parent_run_id=parent.state.record_id,
-                task=task,
+                task=message,
                 worker=choice.worker,
                 started_at=datetime.now(UTC),
             )
@@ -176,73 +264,78 @@ class Delegator:
             outgoing = outgoing_rules(
                 session, self.cipher, parent.environment_id, parent.project_id, parent.model_policy
             )
+        return SubRunStart(choice, api_key, label, record_id, max_tokens, outgoing, messages)
 
-        child = self.runs.child(
-            parent, label, record_id, agent.name if agent else None, agent.tools if agent is not None else None
-        )
-        if mode == "explore":
-            explore_only(child)
+    def build_request(
+        self, child: AgentRun, start: SubRunStart, agent: AgentDefinition | None, instructions: BuiltinName
+    ) -> AgentRequest:
         from app.agent.toolbox import RunToolBox  # Imported here: the toolbox imports the tools, which import this.
 
         system = build_system_parts(
             self.layers, self.project_text, agent_part(agent, self.layers) if agent else None, self.languages
         )
-        instructions = EXPLORE_INSTRUCTIONS if mode == "explore" else WORKER_INSTRUCTIONS
-        request = AgentRequest(
-            model=choice.model,
-            effort=effort,
-            system=[*with_listing(system, child.catalog), SystemPart(instructions, source="delegation")],
-            messages=task_messages,
+        return AgentRequest(
+            model=start.choice.model,
+            effort=start.choice.effort,
+            system=[
+                *with_listing(system, child.catalog),
+                SystemPart(builtin_instructions(instructions, self.layers), source="delegation"),
+            ],
+            messages=start.messages,
             working_folder=self.working_folder,
             tool_server=ToolServer(url=f"{self.internal_url}/mcp", token=child.token),
             tool_box=RunToolBox(self.runs, child),
             max_model_calls=MAX_SUB_RUN_MODEL_CALLS,
-            max_tokens=max_tokens,
+            max_tokens=start.max_tokens,
         )
-        entry = sub_run_entry(choice, request, self.project_data, parent.project_id, parent.conversation_id)
-        record_request(self.session_factory, with_refusal(entry, request_refusal(request, outgoing)))
-        provider = traced_provider(checked_provider(spec.create(api_key), outgoing), self.trace(child, spec.metered))
-        transcript: list[dict[str, Any]] = []
-        texts: list[str] = []
-        completed: Completed | None = None
-        status = "complete"
+
+    async def stream_sub_run(
+        self,
+        parent: AgentRun,
+        child: AgentRun,
+        label: str,
+        record_id: int,
+        provider: ModelProvider,
+        request: AgentRequest,
+    ) -> StreamOutcome:
+        """Consume the sub-run's events under the time limit; how it ended becomes its status."""
+        outcome = StreamOutcome()
 
         async def progress(step: str) -> None:
             await parent.events.put({"event": "delegate_progress", "run_id": record_id, "label": label, "step": step})
 
         async def consume() -> None:
-            nonlocal completed
             calls: dict[str, dict[str, Any]] = {}
             async for event in provider.stream(request):
                 if self.runs.find(parent.token) is None:
                     raise ParentEnded("The run that started this task has ended.")
                 if isinstance(event, TextDelta):
-                    texts.append(event.text)
+                    outcome.texts.append(event.text)
                 elif isinstance(event, ToolCallStarted):
-                    texts.clear()  # The report is the text after the last tool call.
+                    outcome.texts.clear()  # The report is the text after the last tool call.
                     calls[event.id] = {"type": "tool_call", "name": event.name, "input": event.input}
-                    transcript.append(calls[event.id])
+                    outcome.transcript.append(calls[event.id])
                     await progress(event.name)
                 elif isinstance(event, ToolCallFinished) and event.id in calls:
                     calls[event.id]["output"] = event.output[:MAX_TRANSCRIPT_OUTPUT]
                     calls[event.id]["is_error"] = event.is_error
                 elif isinstance(event, Completed):
-                    completed = event
+                    outcome.completed = event
 
         await progress("started")
-        stopped: asyncio.CancelledError | None = None
         try:
             await asyncio.wait_for(consume(), timeout=SUB_RUN_TIMEOUT_SECONDS)
         except TimeoutError:
-            status, texts = "incomplete", [f"The task was stopped after {SUB_RUN_TIMEOUT_SECONDS // 60} minutes."]
+            outcome.end("incomplete", f"The task was stopped after {SUB_RUN_TIMEOUT_SECONDS // 60} minutes.")
         except ParentEnded as error:
-            status, texts = "incomplete", [str(error)]
+            outcome.end("incomplete", str(error))
         except (ProviderError, DelegationError) as error:
-            status, texts = "error", [getattr(error, "message", None) or str(error)]
+            outcome.end("error", getattr(error, "message", None) or str(error))
         except asyncio.CancelledError as error:
-            # The reply that delegated was stopped: the sub-run ends with it, its record and usage stored below
-            # before the stop goes on.
-            status, texts, stopped = "incomplete", ["The task was stopped with the reply that started it."], error
+            # The reply that delegated was stopped: the sub-run ends with it, its record and usage stored by the
+            # caller before the stop goes on.
+            outcome.end("incomplete", "The task was stopped with the reply that started it.")
+            outcome.stopped = error
         finally:
             self.runs.finish(child)
             # Shielded: a stopped reply's scope keeps cancelling every await until the reply has ended.
@@ -251,15 +344,7 @@ class Delegator:
                     await provider.close()
                 except Exception:  # noqa: BLE001 - closing must not hide the outcome
                     logger.warning("Closing the sub-run's provider failed.", exc_info=True)
-        report = "".join(texts).strip() or "(The sub-run ended without a report.)"
-        transcript.append({"type": "text", "text": report})
-        changed = sorted(child.state.changed_files)
-        self.store(parent, record_id, spec, completed, status, transcript, child)
-        if stopped is not None:
-            raise stopped
-        # The record keeps the whole report; an exploring sub-run's goes back to its parent capped.
-        shown = capped_report(report) if mode == "explore" else report
-        return SubRunResult(status, choice.model, label, shown, changed, record_id, mode)
+        return outcome
 
     def trace(self, child: AgentRun, metered: bool) -> ModelTrace | None:
         """The sub-run's model calls are steps of the sub-run, in the recorder it shares with its parent."""

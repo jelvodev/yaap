@@ -12,6 +12,7 @@ from sqlalchemy import select
 from app.core.model_choice import ForUtility
 from app.core.other_vendor import NoOtherVendor, other_vendor_choice, other_vendor_models
 from app.core.settings import SETTING_DEFINITIONS, store_setting
+from app.core.utility import SWITCHED_OFF_REASON
 from app.credentials.store import save_credential
 from app.credentials.types import CredentialTestResult
 from app.providers.base import AgentRequest
@@ -339,3 +340,16 @@ def test_a_goal_that_changed_code_is_reviewed_and_one_that_changed_nothing_is_no
     assert review["reviewer_provider"] == "openai" and review["findings_count"] == 2
     assert "add a greeting" in reviewer.requests[0].messages[0].content[0]["text"]
     assert len(goal_reviews(client)) == 1
+
+
+def test_a_review_the_user_switched_off_is_skipped_without_asking_a_model(client, fake, reviewer):
+    add_keys(client, "openai_api_key")
+    project, conversation_id = project_conversation(client)
+    write_in_conversation(client, fake, conversation_id, "print('hi')\n")
+    set_setting(client, "utility_tasks_off", ["review"])
+
+    client.post(f"/api/v1/projects/{project['id']}/reviews", json={"conversation_id": conversation_id})
+    review = wait_for_review(client, project["id"])
+
+    assert review["status"] == "skipped" and review["reason"] == SWITCHED_OFF_REASON
+    assert reviewer.requests == []

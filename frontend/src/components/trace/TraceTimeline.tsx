@@ -1,4 +1,6 @@
-import { RUN_STATUS_LABELS, WORKER_LABELS } from "./runLabels";
+import { useEffect, useRef } from "react";
+
+import { approvalLabel, RUN_STATUS_LABELS, WORKER_LABELS } from "./runLabels";
 import { barOf, formatCost, formatDuration, timeSpan, timelineRows, type TraceRun, type TraceStep } from "./traceOrder";
 
 interface TraceTimelineProps {
@@ -10,8 +12,13 @@ interface TraceTimelineProps {
 /** The runs and steps in the order they happened, each step with its place in time, duration and cost. */
 export default function TraceTimeline({ root, selectedStepId, onSelect }: TraceTimelineProps) {
   const span = timeSpan(root);
+  const list = useRef<HTMLOListElement | null>(null);
+  // A step chosen from elsewhere (a chip, a link) may be off screen.
+  useEffect(() => {
+    list.current?.querySelector('[aria-pressed="true"]')?.scrollIntoView({ block: "nearest" });
+  }, [selectedStepId]);
   return (
-    <ol className="trace-timeline" aria-label="Steps">
+    <ol className="trace-timeline" aria-label="Steps" ref={list}>
       {timelineRows(root).map((row) =>
         row.kind === "run" ? (
           <li key={row.key} className="trace-run" style={{ paddingLeft: `${row.depth * 18 + 8}px` }}>
@@ -79,7 +86,7 @@ function StepLine({ step }: { step: TraceStep }) {
   return (
     <span className={`trace-step-label${step.is_error ? " form-error" : ""}`}>
       <span className="trace-kind">tool</span> <span className="mono">{step.tool}</span>
-      {step.approval && <span className="faint small"> · {step.approval}</span>}
+      {step.approval && <span className="faint small"> · {approvalLabel(step.approval)}</span>}
       {step.summary && <span className="faint small"> {step.summary}</span>}
     </span>
   );

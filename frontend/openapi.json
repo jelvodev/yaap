@@ -818,6 +818,164 @@
         "title": "AuthStateOut",
         "type": "object"
       },
+      "BackgroundRunOut": {
+        "properties": {
+          "conversation_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          }
+        },
+        "required": [
+          "created_at",
+          "model",
+          "cost",
+          "summary",
+          "conversation_id"
+        ],
+        "title": "BackgroundRunOut",
+        "type": "object"
+      },
+      "BackgroundTaskOut": {
+        "properties": {
+          "builtin_item": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Builtin Item"
+          },
+          "cost": {
+            "title": "Cost",
+            "type": "number"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "last_runs": {
+            "items": {
+              "$ref": "#/components/schemas/BackgroundRunOut"
+            },
+            "title": "Last Runs",
+            "type": "array"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "runs": {
+            "title": "Runs",
+            "type": "integer"
+          },
+          "started_by": {
+            "enum": [
+              "yaap",
+              "user"
+            ],
+            "title": "Started By",
+            "type": "string"
+          },
+          "switchable": {
+            "title": "Switchable",
+            "type": "boolean"
+          },
+          "task": {
+            "title": "Task",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task",
+          "label",
+          "switchable",
+          "enabled",
+          "started_by",
+          "model",
+          "runs",
+          "cost",
+          "last_runs",
+          "builtin_item"
+        ],
+        "title": "BackgroundTaskOut",
+        "type": "object"
+      },
+      "BackgroundTasksOut": {
+        "properties": {
+          "scheduled": {
+            "items": {
+              "$ref": "#/components/schemas/ScheduledWorkOut"
+            },
+            "title": "Scheduled",
+            "type": "array"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/BackgroundTaskOut"
+            },
+            "title": "Tasks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tasks",
+          "scheduled"
+        ],
+        "title": "BackgroundTasksOut",
+        "type": "object"
+      },
       "BackupOut": {
         "properties": {
           "created_at": {
@@ -964,6 +1122,139 @@
           "failed"
         ],
         "title": "BackupStatusOut",
+        "type": "object"
+      },
+      "BehindLabelOut": {
+        "properties": {
+          "cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "kind": {
+            "enum": [
+              "route",
+              "memory",
+              "workers",
+              "approvals",
+              "guard",
+              "secrets",
+              "outgoing",
+              "trim",
+              "summary",
+              "cache"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "step_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Id"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens"
+          },
+          "why": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WhyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "text",
+          "detail",
+          "why",
+          "cost",
+          "tokens",
+          "items",
+          "run_id",
+          "step_id"
+        ],
+        "title": "BehindLabelOut",
+        "type": "object"
+      },
+      "BehindOut": {
+        "properties": {
+          "calls": {
+            "items": {
+              "$ref": "#/components/schemas/CallWhyOut"
+            },
+            "title": "Calls",
+            "type": "array"
+          },
+          "labels": {
+            "items": {
+              "$ref": "#/components/schemas/BehindLabelOut"
+            },
+            "title": "Labels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "labels",
+          "calls"
+        ],
+        "title": "BehindOut",
         "type": "object"
       },
       "BlueprintFileOut": {
@@ -1562,6 +1853,207 @@
           "spent"
         ],
         "title": "BudgetOut",
+        "type": "object"
+      },
+      "BuiltinItemOut": {
+        "properties": {
+          "can_override": {
+            "title": "Can Override",
+            "type": "boolean"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "instructions": {
+            "title": "Instructions",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "agent",
+              "skill"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "model_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Note"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "overridden_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OverriddenByOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "enum": [
+                  "worker",
+                  "explorer"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "runs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runs"
+          },
+          "tasks": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tasks",
+            "type": "array"
+          },
+          "when": {
+            "title": "When",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "path",
+          "description",
+          "when",
+          "role",
+          "tasks",
+          "instructions",
+          "can_override",
+          "overridden_by",
+          "model",
+          "model_note",
+          "runs",
+          "cost"
+        ],
+        "title": "BuiltinItemOut",
+        "type": "object"
+      },
+      "BuiltinItemsOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BuiltinItemOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "BuiltinItemsOut",
+        "type": "object"
+      },
+      "CallWhyOut": {
+        "properties": {
+          "approval": {
+            "anyOf": [
+              {
+                "enum": [
+                  "approved",
+                  "declined",
+                  "refused",
+                  "asked",
+                  "case_approved"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          },
+          "call_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Call Key"
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool"
+          },
+          "why": {
+            "$ref": "#/components/schemas/WhyOut"
+          }
+        },
+        "required": [
+          "call_key",
+          "tool",
+          "approval",
+          "why"
+        ],
+        "title": "CallWhyOut",
         "type": "object"
       },
       "CaseComparisonOut": {
@@ -2220,7 +2712,8 @@
               "summary",
               "trim",
               "steering",
-              "note"
+              "note",
+              "repo_map"
             ],
             "title": "Type",
             "type": "string"
@@ -2234,10 +2727,36 @@
       },
       "ContextBreakdownOut": {
         "properties": {
+          "basis": {
+            "enum": [
+              "snapshot",
+              "assembly"
+            ],
+            "title": "Basis",
+            "type": "string"
+          },
           "can_summarise": {
             "default": false,
             "title": "Can Summarise",
             "type": "boolean"
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/ContextCategoryOut"
+            },
+            "title": "Categories",
+            "type": "array"
+          },
+          "compact_at_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compact At Tokens"
           },
           "context_tokens": {
             "anyOf": [
@@ -2261,6 +2780,14 @@
             ],
             "title": "Context Window"
           },
+          "deferred_tools": {
+            "title": "Deferred Tools",
+            "type": "integer"
+          },
+          "estimated": {
+            "title": "Estimated",
+            "type": "boolean"
+          },
           "last_reply": {
             "anyOf": [
               {
@@ -2270,6 +2797,17 @@
                 "type": "null"
               }
             ]
+          },
+          "limit_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit Tokens"
           },
           "memory": {
             "anyOf": [
@@ -2281,26 +2819,117 @@
               }
             ]
           },
-          "parts": {
-            "items": {
-              "$ref": "#/components/schemas/app__api__activity__ContextPartOut"
-            },
-            "title": "Parts",
-            "type": "array"
+          "snapshot_gone": {
+            "title": "Snapshot Gone",
+            "type": "boolean"
+          },
+          "step_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Id"
           },
           "summarised_messages": {
             "default": 0,
             "title": "Summarised Messages",
             "type": "integer"
+          },
+          "total_tokens": {
+            "title": "Total Tokens",
+            "type": "integer"
+          },
+          "trimmed_tool_tokens": {
+            "default": 0,
+            "title": "Trimmed Tool Tokens",
+            "type": "integer"
           }
         },
         "required": [
-          "parts",
+          "categories",
+          "total_tokens",
+          "estimated",
+          "basis",
+          "snapshot_gone",
+          "step_id",
+          "deferred_tools",
+          "limit_tokens",
+          "compact_at_tokens",
           "context_tokens",
           "context_window",
           "last_reply"
         ],
         "title": "ContextBreakdownOut",
+        "type": "object"
+      },
+      "ContextCategoryOut": {
+        "properties": {
+          "group": {
+            "enum": [
+              "system",
+              "blueprint",
+              "tools",
+              "messages",
+              "cli",
+              "space"
+            ],
+            "title": "Group",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ContextItemOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "key": {
+            "enum": [
+              "system_base",
+              "system_project",
+              "system_repo_map",
+              "system_mcp_servers",
+              "system_other",
+              "blueprint_rules",
+              "blueprint_standards",
+              "blueprint_skills",
+              "tools_yaap",
+              "tools_joined",
+              "messages_user",
+              "messages_answers",
+              "messages_thinking",
+              "messages_tool_calls",
+              "messages_tool_results",
+              "messages_summary",
+              "messages_attachments",
+              "cli_remainder",
+              "buffer",
+              "free"
+            ],
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "tokens": {
+            "title": "Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "group",
+          "label",
+          "tokens",
+          "items"
+        ],
+        "title": "ContextCategoryOut",
         "type": "object"
       },
       "ContextControlOut": {
@@ -2364,7 +2993,7 @@
           },
           "parts": {
             "items": {
-              "$ref": "#/components/schemas/app__api__traces__ContextPartOut"
+              "$ref": "#/components/schemas/ContextPartOut"
             },
             "title": "Parts",
             "type": "array"
@@ -2380,6 +3009,48 @@
           "parts"
         ],
         "title": "ContextGroupOut",
+        "type": "object"
+      },
+      "ContextItemOut": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "step_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Id"
+          },
+          "tokens": {
+            "title": "Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "label",
+          "tokens",
+          "step_id",
+          "run_id"
+        ],
+        "title": "ContextItemOut",
         "type": "object"
       },
       "ContextPartContentOut": {
@@ -2398,6 +3069,63 @@
           "content"
         ],
         "title": "ContextPartContentOut",
+        "type": "object"
+      },
+      "ContextPartOut": {
+        "properties": {
+          "chars": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chars"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "chars"
+        ],
+        "title": "ContextPartOut",
+        "type": "object"
+      },
+      "ContinuationOut": {
+        "properties": {
+          "continued_from": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LinkedConversationOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "continued_in": {
+            "items": {
+              "$ref": "#/components/schemas/LinkedConversationOut"
+            },
+            "title": "Continued In",
+            "type": "array"
+          }
+        },
+        "required": [
+          "continued_from",
+          "continued_in"
+        ],
+        "title": "ContinuationOut",
         "type": "object"
       },
       "ContradictionOut": {
@@ -5364,6 +6092,50 @@
         "title": "HealthOut",
         "type": "object"
       },
+      "HintOut": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "repeated_read",
+              "cold_cache",
+              "tool_results_heavy",
+              "mcp_share"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "remedy": {
+            "title": "Remedy",
+            "type": "string"
+          },
+          "roadmap_item": {
+            "title": "Roadmap Item",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "why": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WhyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "text",
+          "remedy",
+          "roadmap_item"
+        ],
+        "title": "HintOut",
+        "type": "object"
+      },
       "HostKeyIn": {
         "properties": {
           "fingerprint": {
@@ -6139,6 +6911,24 @@
           "created_at"
         ],
         "title": "LearningProposalOut",
+        "type": "object"
+      },
+      "LinkedConversationOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "LinkedConversationOut",
         "type": "object"
       },
       "LocalModelOut": {
@@ -7048,6 +7838,29 @@
         "title": "OutsideApprovalOut",
         "type": "object"
       },
+      "OverriddenByOut": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "global",
+              "environment",
+              "project"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "label"
+        ],
+        "title": "OverriddenByOut",
+        "type": "object"
+      },
       "PackageAcceptIn": {
         "properties": {
           "commit": {
@@ -7746,6 +8559,21 @@
       },
       "PresetCreate": {
         "properties": {
+          "delegation": {
+            "anyOf": [
+              {
+                "enum": [
+                  "free",
+                  "brief"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delegation"
+          },
           "effort": {
             "title": "Effort",
             "type": "string"
@@ -7826,6 +8654,15 @@
       },
       "PresetOut": {
         "properties": {
+          "delegation": {
+            "default": "free",
+            "enum": [
+              "free",
+              "brief"
+            ],
+            "title": "Delegation",
+            "type": "string"
+          },
           "effort": {
             "title": "Effort",
             "type": "string"
@@ -7971,6 +8808,21 @@
       },
       "PresetUpdate": {
         "properties": {
+          "delegation": {
+            "anyOf": [
+              {
+                "enum": [
+                  "free",
+                  "brief"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delegation"
+          },
           "effort": {
             "anyOf": [
               {
@@ -9711,6 +10563,34 @@
         "title": "ReplyRouteOut",
         "type": "object"
       },
+      "ReplyTokensOut": {
+        "properties": {
+          "reply": {
+            "$ref": "#/components/schemas/TokenRowOut"
+          },
+          "utility": {
+            "items": {
+              "$ref": "#/components/schemas/TokenRowOut"
+            },
+            "title": "Utility",
+            "type": "array"
+          },
+          "workers": {
+            "items": {
+              "$ref": "#/components/schemas/TokenRowOut"
+            },
+            "title": "Workers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "reply",
+          "workers",
+          "utility"
+        ],
+        "title": "ReplyTokensOut",
+        "type": "object"
+      },
       "RepositoryCreateIn": {
         "properties": {
           "description": {
@@ -9966,6 +10846,84 @@
           "confirm"
         ],
         "title": "RestoreIn",
+        "type": "object"
+      },
+      "ReturnNoticeBodyOut": {
+        "properties": {
+          "billing": {
+            "enum": [
+              "metered",
+              "subscription"
+            ],
+            "title": "Billing",
+            "type": "string"
+          },
+          "cache_lifetime_minutes": {
+            "title": "Cache Lifetime Minutes",
+            "type": "integer"
+          },
+          "cache_ttl": {
+            "enum": [
+              "5m",
+              "1h"
+            ],
+            "title": "Cache Ttl",
+            "type": "string"
+          },
+          "can_summarise": {
+            "title": "Can Summarise",
+            "type": "boolean"
+          },
+          "context_tokens": {
+            "title": "Context Tokens",
+            "type": "integer"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "idle_since": {
+            "format": "date-time",
+            "title": "Idle Since",
+            "type": "string"
+          }
+        },
+        "required": [
+          "idle_since",
+          "cache_lifetime_minutes",
+          "context_tokens",
+          "billing",
+          "cache_ttl",
+          "cost",
+          "can_summarise"
+        ],
+        "title": "ReturnNoticeBodyOut",
+        "type": "object"
+      },
+      "ReturnNoticeOut": {
+        "properties": {
+          "notice": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReturnNoticeBodyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "notice"
+        ],
+        "title": "ReturnNoticeOut",
         "type": "object"
       },
       "ReviewOut": {
@@ -10450,6 +11408,331 @@
         "title": "ReviewSummaryOut",
         "type": "object"
       },
+      "RouteCheckOut": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "permission",
+              "approval",
+              "guard",
+              "outgoing",
+              "secrets",
+              "output_stored",
+              "memory",
+              "cache",
+              "trim",
+              "note"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "ran",
+              "skipped",
+              "failed",
+              "waiting"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "waited_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waited Ms"
+          },
+          "why": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WhyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "state",
+          "text"
+        ],
+        "title": "RouteCheckOut",
+        "type": "object"
+      },
+      "RouteOut": {
+        "properties": {
+          "cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "stops": {
+            "items": {
+              "$ref": "#/components/schemas/RouteStopOut"
+            },
+            "title": "Stops",
+            "type": "array"
+          }
+        },
+        "required": [
+          "stops"
+        ],
+        "title": "RouteOut",
+        "type": "object"
+      },
+      "RouteStopOut": {
+        "properties": {
+          "checks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RouteCheckOut"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "count": {
+            "default": 1,
+            "title": "Count",
+            "type": "integer"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "items": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "lane": {
+            "enum": [
+              "main",
+              "tools",
+              "worker",
+              "afterwards"
+            ],
+            "title": "Lane",
+            "type": "string"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "stage": {
+            "enum": [
+              "message",
+              "route",
+              "context",
+              "model",
+              "tool",
+              "worker",
+              "answer",
+              "afterwards",
+              "note"
+            ],
+            "title": "Stage",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "state": {
+            "default": "ran",
+            "enum": [
+              "ran",
+              "skipped",
+              "failed",
+              "waiting"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "step_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Id"
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RouteTokensOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "why": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WhyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "stage",
+          "lane",
+          "label"
+        ],
+        "title": "RouteStopOut",
+        "type": "object"
+      },
+      "RouteTokensOut": {
+        "properties": {
+          "cache_read": {
+            "title": "Cache Read",
+            "type": "integer"
+          },
+          "cache_write": {
+            "title": "Cache Write",
+            "type": "integer"
+          },
+          "new": {
+            "title": "New",
+            "type": "integer"
+          },
+          "output": {
+            "title": "Output",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "new",
+          "cache_read",
+          "cache_write",
+          "output"
+        ],
+        "title": "RouteTokensOut",
+        "type": "object"
+      },
       "RubricCheckIO": {
         "properties": {
           "files": {
@@ -10914,6 +12197,46 @@
           "state"
         ],
         "title": "SandboxOut",
+        "type": "object"
+      },
+      "ScheduledWorkOut": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "schedule": {
+            "title": "Schedule",
+            "type": "string"
+          },
+          "setting_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Setting Key"
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "schedule",
+          "enabled",
+          "setting_key"
+        ],
+        "title": "ScheduledWorkOut",
         "type": "object"
       },
       "SearchHitOut": {
@@ -13079,6 +14402,156 @@
         "title": "TokenCheckOut",
         "type": "object"
       },
+      "TokenRowOut": {
+        "properties": {
+          "cache_read_tokens": {
+            "title": "Cache Read Tokens",
+            "type": "integer"
+          },
+          "cache_write_tokens": {
+            "title": "Cache Write Tokens",
+            "type": "integer"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "input_tokens": {
+            "title": "Input Tokens",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "reply",
+              "worker",
+              "utility",
+              "session"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "message_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message Id"
+          },
+          "output_tokens": {
+            "title": "Output Tokens",
+            "type": "integer"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          }
+        },
+        "required": [
+          "kind",
+          "label",
+          "message_id",
+          "run_id",
+          "started_at",
+          "cache_read_tokens",
+          "cache_write_tokens",
+          "input_tokens",
+          "output_tokens",
+          "cost"
+        ],
+        "title": "TokenRowOut",
+        "type": "object"
+      },
+      "TokenUsageOut": {
+        "description": "Where the tokens of a conversation went. Thinking is counted inside the output tokens, because no separate\nthinking count is stored.",
+        "properties": {
+          "cache_hit_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cache Hit Rate"
+          },
+          "hints": {
+            "items": {
+              "$ref": "#/components/schemas/HintOut"
+            },
+            "title": "Hints",
+            "type": "array"
+          },
+          "other_utility": {
+            "items": {
+              "$ref": "#/components/schemas/TokenRowOut"
+            },
+            "title": "Other Utility",
+            "type": "array"
+          },
+          "replies": {
+            "items": {
+              "$ref": "#/components/schemas/ReplyTokensOut"
+            },
+            "title": "Replies",
+            "type": "array"
+          },
+          "top_tool_results": {
+            "items": {
+              "$ref": "#/components/schemas/ToolResultTokensOut"
+            },
+            "title": "Top Tool Results",
+            "type": "array"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/TokenRowOut"
+          }
+        },
+        "required": [
+          "replies",
+          "other_utility",
+          "top_tool_results",
+          "cache_hit_rate",
+          "totals",
+          "hints"
+        ],
+        "title": "TokenUsageOut",
+        "type": "object"
+      },
       "ToolPermissionOut": {
         "properties": {
           "default": {
@@ -13100,6 +14573,58 @@
           "default"
         ],
         "title": "ToolPermissionOut",
+        "type": "object"
+      },
+      "ToolResultTokensOut": {
+        "properties": {
+          "message_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message Id"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "integer"
+          },
+          "step_id": {
+            "title": "Step Id",
+            "type": "integer"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "tokens": {
+            "title": "Tokens",
+            "type": "integer"
+          },
+          "tool": {
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "step_id",
+          "run_id",
+          "message_id",
+          "tool",
+          "summary",
+          "tokens"
+        ],
+        "title": "ToolResultTokensOut",
         "type": "object"
       },
       "TraceOut": {
@@ -13282,7 +14807,8 @@
                   "approved",
                   "declined",
                   "refused",
-                  "asked"
+                  "asked",
+                  "case_approved"
                 ],
                 "type": "string"
               },
@@ -14509,6 +16035,68 @@
         "title": "WaitingApprovalOut",
         "type": "object"
       },
+      "WhyOut": {
+        "properties": {
+          "layer": {
+            "anyOf": [
+              {
+                "enum": [
+                  "global",
+                  "environment",
+                  "project",
+                  "conversation"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Layer"
+          },
+          "rule": {
+            "title": "Rule",
+            "type": "string"
+          },
+          "setting": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Setting"
+          },
+          "source": {
+            "enum": [
+              "permission",
+              "route",
+              "model_policy",
+              "cache",
+              "trim",
+              "summary",
+              "memory",
+              "budget",
+              "outgoing",
+              "guard",
+              "hint",
+              "delegation"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rule",
+          "source",
+          "setting",
+          "layer"
+        ],
+        "title": "WhyOut",
+        "type": "object"
+      },
       "WorkerOut": {
         "description": "Who `delegate` can hand a task to: a preset's worker model or a coding agent CLI.",
         "properties": {
@@ -14592,24 +16180,6 @@
         "title": "WorkerOut",
         "type": "object"
       },
-      "app__api__activity__ContextPartOut": {
-        "properties": {
-          "label": {
-            "title": "Label",
-            "type": "string"
-          },
-          "tokens": {
-            "title": "Tokens",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "label",
-          "tokens"
-        ],
-        "title": "ContextPartOut",
-        "type": "object"
-      },
       "app__api__backups__RestoreOut": {
         "properties": {
           "restarting": {
@@ -14639,36 +16209,6 @@
           "before_id"
         ],
         "title": "RestoreOut",
-        "type": "object"
-      },
-      "app__api__traces__ContextPartOut": {
-        "properties": {
-          "chars": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Chars"
-          },
-          "key": {
-            "title": "Key",
-            "type": "string"
-          },
-          "label": {
-            "title": "Label",
-            "type": "string"
-          }
-        },
-        "required": [
-          "key",
-          "label",
-          "chars"
-        ],
-        "title": "ContextPartOut",
         "type": "object"
       }
     }
@@ -17515,8 +19055,8 @@
     },
     "/api/v1/conversations/{conversation_id}/context": {
       "get": {
-        "description": "Where the context goes: each part of the system prompt, the conversation, and the last reply.",
-        "operationId": "context_breakdown_api_v1_conversations__conversation_id__context_get",
+        "description": "What the conversation's context holds now, by category, with the exact total of the last reply.",
+        "operationId": "context_api_v1_conversations__conversation_id__context_get",
         "parameters": [
           {
             "in": "path",
@@ -17550,9 +19090,95 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Context Breakdown",
+        "summary": "Context",
         "tags": [
-          "activity"
+          "tokens"
+        ]
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/continuation": {
+      "get": {
+        "description": "The conversation this one continues, and the ones that continue it.",
+        "operationId": "get_continuation_api_v1_conversations__conversation_id__continuation_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContinuationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Continuation",
+        "tags": [
+          "conversations"
+        ]
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/continue-from-summary": {
+      "post": {
+        "description": "Start a new conversation from a summary of this one, with the same settings; returns the new one.",
+        "operationId": "continue_conversation_from_summary_api_v1_conversations__conversation_id__continue_from_summary_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationSummaryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Continue Conversation From Summary",
+        "tags": [
+          "conversations"
         ]
       }
     },
@@ -18147,6 +19773,58 @@
         ]
       }
     },
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/behind": {
+      "get": {
+        "description": "The labels behind a reply (model, memory, helpers, approvals, checks, cache) with the reason of each.",
+        "operationId": "read_behind_api_v1_conversations__conversation_id__messages__message_id__behind_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "title": "Message Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BehindOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Behind",
+        "tags": [
+          "tracing"
+        ]
+      }
+    },
     "/api/v1/conversations/{conversation_id}/messages/{message_id}/regenerate": {
       "post": {
         "description": "A new version of a reply: the same question answered again, next to the earlier answer.",
@@ -18240,6 +19918,58 @@
         "summary": "Retry Message",
         "tags": [
           "conversations"
+        ]
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/route": {
+      "get": {
+        "description": "The route of a reply: message, route, context, model calls, tools, helpers, answer and what came after.",
+        "operationId": "read_route_api_v1_conversations__conversation_id__messages__message_id__route_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "title": "Message Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Route",
+        "tags": [
+          "tracing"
         ]
       }
     },
@@ -19296,6 +21026,49 @@
         ]
       }
     },
+    "/api/v1/conversations/{conversation_id}/return-notice": {
+      "get": {
+        "description": "What continuing costs after a pause long enough for the prompt cache to expire; none while a reply runs.",
+        "operationId": "get_return_notice_api_v1_conversations__conversation_id__return_notice_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReturnNoticeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Return Notice",
+        "tags": [
+          "conversations"
+        ]
+      }
+    },
     "/api/v1/conversations/{conversation_id}/runs/{run_id}/trace": {
       "get": {
         "description": "The trace of one run of the conversation (a reply's run or a sub-run), with its sub-runs and steps.",
@@ -19680,6 +21453,49 @@
         "summary": "Summarise Now",
         "tags": [
           "conversations"
+        ]
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/token-usage": {
+      "get": {
+        "description": "Where the tokens of the conversation went, per reply, with the hints on where the session lost some.\n\nThinking is counted inside the output tokens: no separate thinking count is stored.",
+        "operationId": "token_usage_api_v1_conversations__conversation_id__token_usage_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenUsageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Token Usage",
+        "tags": [
+          "tokens"
         ]
       }
     },
@@ -20403,6 +22219,91 @@
         "summary": "Export Environment Audit Log",
         "tags": [
           "audit"
+        ]
+      }
+    },
+    "/api/v1/environments/{environment_id}/background-tasks": {
+      "get": {
+        "operationId": "environment_background_tasks_api_v1_environments__environment_id__background_tasks_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "environment_id",
+            "required": true,
+            "schema": {
+              "title": "Environment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackgroundTasksOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Environment Background Tasks",
+        "tags": [
+          "background-tasks"
+        ]
+      }
+    },
+    "/api/v1/environments/{environment_id}/blueprint/builtin": {
+      "get": {
+        "operationId": "environment_builtin_items_api_v1_environments__environment_id__blueprint_builtin_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "environment_id",
+            "required": true,
+            "schema": {
+              "title": "Environment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuiltinItemsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Environment Builtin Items",
+        "tags": [
+          "background-tasks",
+          "blueprint"
         ]
       }
     },

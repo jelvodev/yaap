@@ -25,12 +25,21 @@ from app.blueprint.layers import active_items
 from app.blueprint.levels import layers_for
 from app.checkpoints.service import CheckpointStore
 from app.core.background import BackgroundWork
+from app.core.builtin_prompts import utility_instructions
 from app.core.goals import OPEN_STATUSES, latest_goal
 from app.core.model_choice import ForUtility, ModelChoiceError, read_key
 from app.core.other_vendor import other_vendor_choice
 from app.core.outgoing_checks import outgoing_rules, request_refusal
 from app.core.reply_services import ReplyServices
-from app.core.utility import UtilityAnswer, UtilityCall, ask_utility_model, utility_request
+from app.core.settings import SETTING_DEFINITIONS, resolve_setting
+from app.core.utility import (
+    SWITCHED_OFF_REASON,
+    UtilityAnswer,
+    UtilityCall,
+    ask_utility_model,
+    utility_request,
+)
+from app.core.utility_tasks import OFF_SETTING_KEY, task_enabled
 from app.git.service import MAX_DIFF_CHARS
 from app.reviews.report import (
     Finding,
@@ -186,6 +195,10 @@ class ReviewService:
             review = session.get_one(Review, review_id)
             project = session.get_one(Project, review.project_id)
             conversation = session.get(Conversation, review.conversation_id) if review.conversation_id else None
+            off = resolve_setting(session, SETTING_DEFINITIONS[OFF_SETTING_KEY], review.environment_id).value
+            if not task_enabled(REVIEW_TASK, off):
+                self.end_in(session, review, "skipped", SWITCHED_OFF_REASON)
+                return None
             request = ForUtility(conversation.preset if conversation else None, "utility", project.id, REVIEW_TASK)
             vendors = set(review.writer_vendors)
             try:
@@ -201,7 +214,8 @@ class ReviewService:
             review.notes = [*review.notes, *parts.notes]
             session.commit()
             call = UtilityCall(choice, api_key, outgoing, REVIEW_TASK, project.id, review.conversation_id)
-            return PreparedReview(review_id, call, prompts_for(review.objective, rules, parts))
+            lead = utility_instructions(services.utility, review.environment_id, "reviewer")
+            return PreparedReview(review_id, call, prompts_for(review.objective, rules, parts, lead))
 
     def project_rules(self, session: Session, project: Project) -> str | None:
         environment = session.get_one(Environment, project.environment_id)
@@ -252,9 +266,14 @@ class ReviewService:
         session.commit()
 
 
-def prompts_for(objective: str | None, rules: str, parts: ReviewParts) -> tuple[str, ...]:
+def prompts_for(
+    objective: str | None, rules: str, parts: ReviewParts, instructions: str | None = None
+) -> tuple[str, ...]:
     count = len(parts.parts)
-    return tuple(review_prompt(objective, rules, files, number, count) for number, files in enumerate(parts.parts, 1))
+    return tuple(
+        review_prompt(objective, rules, files, number, count, instructions)
+        for number, files in enumerate(parts.parts, 1)
+    )
 
 
 def add_usage(outcome: ReviewOutcome, answer: UtilityAnswer) -> None:

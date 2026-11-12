@@ -28,6 +28,24 @@
 
 ---
 
+## See it work
+
+<p align="center"><img src="docs/brand/screenshot-chat-approval.png" alt="A conversation in YAAP waiting for approval of a file edit" width="860"></p>
+
+*A risky action waits for your approval: you see exactly what the agent wants to change before it happens.*
+
+<p align="center"><img src="docs/brand/route-strip-reply.webp" alt="The route strip filling step by step during a reply" width="700"></p>
+
+*Every reply draws its own route: the message, the model call and each tool call, as it happens.*
+
+<p align="center"><img src="docs/brand/screenshot-trace-route.png" alt="The trace of a reply on its Route tab" width="860"></p>
+
+*Afterwards the trace shows the route of a finished reply, step by step, with the model, the time and the tokens.*
+
+<p align="center"><img src="docs/brand/screenshot-blueprint.png" alt="The Blueprint page with the levels a rule is inherited through" width="860"></p>
+
+*The Blueprint holds your instructions, standards and skills, and shows which level each one comes from.*
+
 ## Why YAAP
 
 Most AI coding tools tie you to one vendor, one editor or one way of working. YAAP is one place for all of it, on your own machine:

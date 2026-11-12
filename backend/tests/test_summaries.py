@@ -57,7 +57,7 @@ def test_summarise_now_replaces_the_earlier_messages_for_the_model(client, fake)
 
     breakdown = client.get(f"/api/v1/conversations/{conversation_id}/context").json()
     assert breakdown["summarised_messages"] == 6
-    assert any(part["label"] == "Summary of 6 earlier messages" for part in breakdown["parts"])
+    assert any(c["key"] == "messages_summary" for c in breakdown["categories"])
     with client.app.state.session_factory() as session:
         record = session.scalar(select(UsageRecord).where(UsageRecord.task == "summary"))
         assert record is not None and record.purpose == "utility"

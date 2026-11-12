@@ -7,6 +7,8 @@ rubric is scored by a model behind the RubricScorer interface (rubric.py). Every
 from dataclasses import dataclass, field
 from typing import Literal
 
+from app.agent.policy import CaseApprovals
+
 CheckKind = Literal["command", "file", "rubric", "budget"]
 CheckStatus = Literal["passed", "failed", "error"]
 CaseStatus = Literal["passed", "failed", "error"]
@@ -82,6 +84,8 @@ class EvalCase:
     preset: str | None = None
     # Tools that run without asking in an eval run; any other call that would ask is refused. None: no extra tools.
     allowed_tools: tuple[str, ...] | None = None
+    # Calls the play approves when the injection guard (after outside content) would ask; None: none.
+    approve: CaseApprovals | None = None
     budget: Budget | None = None
 
 

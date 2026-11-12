@@ -9,10 +9,10 @@ export type StepContext = components["schemas"]["StepContextOut"];
 
 /**
  * Which trace to show: a reply's, from the chat, or a run's, from an agent's runs in the Blueprint. A reply's trace
- * can open at the step of one of its tool calls.
+ * can open at the step of one of its tool calls, or at a given step such as a helper call.
  */
 export type TraceTarget =
-  | { conversationId: number; messageId: number; toolCall?: ToolCallRef }
+  | { conversationId: number; messageId: number; toolCall?: ToolCallRef; tab?: "route"; stepId?: number }
   | { conversationId: number; runId: number };
 
 async function fetchTrace(target: TraceTarget) {

@@ -13,6 +13,8 @@ import {
 } from "../../api/message-stream";
 import type { Goal } from "../../components/GoalStrip";
 import type { QueuedMessage } from "../../components/QueueStrip";
+import { forgetRoute } from "../../components/route/useRoute";
+import type { RouteStages } from "../../components/route/useRouteStages";
 import { notifyIfHidden } from "../../notifications";
 import { readAloud, readsEveryReply } from "../../speech/readAloud";
 import { watchFileChanges } from "./fileChanges";
@@ -30,6 +32,8 @@ export interface ConversationStreamOptions {
   reply: ReplyBlocks;
   queue: MessageQueue;
   running: RunningReplies;
+  /** The stops of the route of the reply that streams in. */
+  stages: RouteStages;
   loadGoal: (conversationId: number) => Promise<Goal | null>;
   onSummary: (summary: ConversationSummary) => void;
   onDocument: (event: DocumentEvent) => void;
@@ -74,7 +78,7 @@ function detach({ refs, reply }: StreamContext) {
 }
 
 function streamHandlers(context: StreamContext): MessageStreamHandlers {
-  const { reply, active, onDocument, onSummary, onFileChanged, onEvalStarted, onUtilitySkipped } = context;
+  const { reply, active, stages, onDocument, onSummary, onFileChanged, onEvalStarted, onUtilitySkipped } = context;
   const files = watchFileChanges(() => onFileChanged?.());
   return {
     ...reply.handlers,
@@ -97,6 +101,8 @@ function streamHandlers(context: StreamContext): MessageStreamHandlers {
     },
     onDocument,
     onUtilitySkipped,
+    onStage: stages.upsert,
+    onStageRemoved: stages.remove,
     onTitle: (summary) => {
       active.applyTitle(summary);
       onSummary(summary);
@@ -104,6 +110,7 @@ function streamHandlers(context: StreamContext): MessageStreamHandlers {
     onDone: (message, summary) => {
       // The reply is complete; a title may still follow, but the composer is free again.
       reply.clear();
+      forgetRoute(message.id);
       active.appendMessage(message);
       if (readsEveryReply() && message.status === "complete") void readAloud(message.id);
       active.applySummary(summary);
@@ -253,12 +260,17 @@ async function sendQueuedNow(context: StreamContext, item: QueuedMessage, all: b
   const { refs, active } = context;
   if (!active.conversation) return;
   const id = active.conversation.id;
+  const selection: QueueSelection = all ? { all: true } : { item_id: item.id };
+  const restore = context.queue.withdraw(selection);
   if (refs.following.current === id) {
-    const accepted = await context.queue.sendNow(id, all ? { all: true } : { item_id: item.id });
-    if (!accepted) return;
+    const accepted = await context.queue.sendNow(id, selection);
+    if (!accepted) {
+      restore();
+      return;
+    }
     refs.stopIntent.current = "send-now";
   } else {
-    await sendQueued(context, id, all ? { all: true } : { item_id: item.id });
+    await sendQueued(context, id, selection);
   }
 }
 

@@ -68,6 +68,7 @@ BROWSER_TOOLS = frozenset(
 )
 READ_ONLY = frozenset({"browser_snapshot", "browser_take_screenshot", "browser_console_messages", "browser_tabs", "browser_wait_for"})
 TYPING = frozenset({"browser_type", "browser_fill_form"})
+FILENAME_TOOLS = frozenset({"browser_take_screenshot", "browser_snapshot", "browser_console_messages"})
 LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "0.0.0.0"})
 PAGE_URL = re.compile(r"Page URL:\s*(\S+)")
 NAVIGATE_NOTE = (
@@ -147,6 +148,15 @@ def save_shots(data_dir: Path, conversation_id: int, images: tuple[tuple[str, st
     return numbers
 
 
+def forwarded_arguments(tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    """The arguments sent on to the browser. A `filename` is dropped: Playwright MCP resolves it against its working
+    directory (outside the conversation's output folder) and then returns no image, so the model would not see the
+    shot and the chat could not show it. Without it the file lands in the output folder and the image comes back."""
+    if tool in FILENAME_TOOLS and "filename" in arguments:
+        return {key: value for key, value in arguments.items() if key != "filename"}
+    return arguments
+
+
 def fill_secrets(value: Any, secrets: dict[str, str]) -> Any:
     if isinstance(value, str):
         return fill_in(value, secrets)
@@ -174,6 +184,7 @@ def browser_tool(manager: McpManager, ref: McpTool, data_dir: Path, conversation
         return not (is_local(url) or url_allowed(url, run.policy.domains))
 
     async def handler(run: AgentRun, arguments: dict[str, Any]) -> str:
+        arguments = forwarded_arguments(short, arguments)
         sent = fill_secrets(arguments, run.secrets) if short in TYPING else arguments
         if sent is not arguments and run.on_secret_use is not None:
             used = placeholder_names(json.dumps(arguments))

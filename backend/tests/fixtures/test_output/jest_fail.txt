@@ -1,0 +1,80 @@
+PASS src/components/Widget1.test.js
+PASS src/components/Widget2.test.js
+PASS src/components/Widget3.test.js
+PASS src/components/Widget4.test.js
+PASS src/components/Widget5.test.js
+PASS src/components/Widget6.test.js
+PASS src/components/Widget7.test.js
+PASS src/components/Widget8.test.js
+PASS src/components/Widget9.test.js
+PASS src/components/Widget10.test.js
+PASS src/components/Widget11.test.js
+PASS src/components/Widget12.test.js
+PASS src/components/Widget13.test.js
+PASS src/components/Widget14.test.js
+PASS src/components/Widget15.test.js
+PASS src/components/Widget16.test.js
+PASS src/components/Widget17.test.js
+PASS src/components/Widget18.test.js
+PASS src/components/Widget19.test.js
+PASS src/components/Widget20.test.js
+PASS src/components/Widget21.test.js
+PASS src/components/Widget22.test.js
+PASS src/components/Widget23.test.js
+PASS src/components/Widget24.test.js
+FAIL src/lib/format.test.js
+  ● formatAmount › formats a negative amount
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "€ -4,00"
+    Received: "-€ 4,00"
+
+      15 |   it("formats a negative amount", () => {
+      16 |     const result = formatAmount(-4);
+    > 17 |     expect(result).toBe("€ -4,00");
+         |                    ^
+      18 |   });
+      19 | });
+
+      at Object.toBe (src/lib/format.test.js:17:20)
+
+  ● formatAmount › rounds half up
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "€ 1,01"
+    Received: "€ 1,00"
+
+      21 |   it("rounds half up", () => {
+    > 22 |     expect(formatAmount(1.005)).toBe("€ 1,01");
+         |                                 ^
+      23 |   });
+
+      at Object.toBe (src/lib/format.test.js:22:33)
+
+Summary of all failing tests
+FAIL src/lib/format.test.js
+  ● formatAmount › formats a negative amount
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "€ -4,00"
+    Received: "-€ 4,00"
+
+      at Object.toBe (src/lib/format.test.js:17:20)
+
+  ● formatAmount › rounds half up
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "€ 1,01"
+    Received: "€ 1,00"
+
+      at Object.toBe (src/lib/format.test.js:22:33)
+
+Test Suites: 1 failed, 24 passed, 25 total
+Tests:       2 failed, 325 passed, 327 total
+Snapshots:   3 passed, 3 total
+Time:        4.502 s
+Ran all test suites.

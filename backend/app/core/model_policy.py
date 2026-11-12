@@ -23,6 +23,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
+from app.core.why import LayerKind, Why
 from app.providers.registry import ProviderRegistry, ProviderSpec
 
 LOCAL_ONLY = "local"
@@ -219,13 +220,34 @@ def level_refusal(level: LevelPolicy, target: PolicyTarget) -> str | None:
     return None
 
 
-def model_refusal(policy: ModelPolicy, target: PolicyTarget) -> str | None:
-    """Why the policy refuses a model request, naming the policy and the level that set the rule, or None."""
+@dataclass(frozen=True)
+class PolicyRefusal:
+    """A refused model request: the text for the user or model, and the rule behind it."""
+
+    text: str
+    why: Why
+
+
+def policy_layer(source: PolicySource) -> LayerKind:
+    """The settings layer a policy level lives in; its kind is one of the layers."""
+    return source.kind
+
+
+def model_refusal_why(policy: ModelPolicy, target: PolicyTarget) -> PolicyRefusal | None:
+    """The refusal of a model request with its reason, naming the policy and the level that set the rule, or None."""
     for source, level in policy.levels:
         broken = level_refusal(level, target)
         if broken is not None:
-            return f"Refused by the model policy of {source.label}: {broken}. Change it in {WHERE_TO_CHANGE}."
+            text = f"Refused by the model policy of {source.label}: {broken}. Change it in {WHERE_TO_CHANGE}."
+            rule = f"The model policy of {source.label} refuses this request: {broken}."
+            return PolicyRefusal(text, Why(rule, "model_policy", "model_policy", policy_layer(source)))
     return None
+
+
+def model_refusal(policy: ModelPolicy, target: PolicyTarget) -> str | None:
+    """Why the policy refuses a model request, naming the policy and the level that set the rule, or None."""
+    refusal = model_refusal_why(policy, target)
+    return refusal.text if refusal else None
 
 
 def agent_refusal(policy: ModelPolicy, agent: str) -> str | None:

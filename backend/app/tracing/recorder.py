@@ -13,25 +13,23 @@ import json
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 
 import anyio
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.core.why import Why
 from app.providers.base import CacheTtl, TokenUsage
 from app.secrets.service import mask
 from app.storage.models import RunStep
+from app.tracing.notes import ApprovalOutcome, Note, note_row
 from app.tracing.snapshots import ContextSnapshot, SnapshotStore
 
 logger = logging.getLogger(__name__)
 
-StepKind = Literal["model", "tool"]
-# What happened to a call that needed a decision: the user approved or declined it, the policy refused it, or it
-# would have asked in an unattended run (a scheduled task, an eval case), where nobody can approve, and was refused.
-# A call that ran without asking has none.
-ApprovalOutcome = Literal["approved", "declined", "refused", "asked"]
+StepKind = Literal["model", "tool", "note"]
 # What a tool step tells about the work, for learning proposals (app/learning): the user declined it, a test command
 # failed for the second time in the run, or it searched for what the Blueprint or the memory already held.
 SignalKind = Literal["declined", "test_failed_twice", "known_search"]
@@ -70,6 +68,16 @@ class ToolStep:
     signal: SignalKind | None = None
     # The user's reason for declining, the failed test command, or the Blueprint item that held what was searched.
     signal_note: str | None = None
+    # Why the call asked or was refused, and the key of the call it belongs to.
+    why: Why | None = None
+    call_key: str | None = None
+
+
+@dataclass(frozen=True)
+class NoteStep:
+    position: int
+    started_at: datetime
+    note: Note
 
 
 def argument_summary(description: str | None, arguments: dict[str, object], secret_values: dict[str, str]) -> str:
@@ -88,7 +96,9 @@ def cache_note(ttl: CacheTtl, usage: TokenUsage) -> str | None:
     return f"{CACHE_HOUR_NOTE}; {usage.cache_write_1h_tokens} tokens written for an hour"
 
 
-def step_row(run_id: int, step: ModelStep | ToolStep) -> RunStep:
+def step_row(run_id: int, step: ModelStep | ToolStep | NoteStep) -> RunStep:
+    if isinstance(step, NoteStep):
+        return note_row(run_id, step.position, step.started_at, step.note)
     row = RunStep(
         run_id=run_id,
         position=step.position,
@@ -120,12 +130,14 @@ def step_row(run_id: int, step: ModelStep | ToolStep) -> RunStep:
         row.output_ref = step.output_ref
         row.signal = step.signal
         row.signal_note = step.signal_note[:SIGNAL_NOTE_CHARS] if step.signal_note else None
+        if step.why is not None:
+            row.detail = {"why": step.why.stored(), "call_key": step.call_key}
     return row
 
 
-# Told about every step as it is recorded (run record id, step), on the event loop: an eval run watches its budget
-# this way. It must not block.
-StepListener = Callable[[int, ModelStep | ToolStep], None]
+# Told about every step and note as it is recorded (run record id, step), on the event loop: an eval run watches its
+# budget and the live route is drawn this way. It must not block, and one that counts calls ignores notes.
+StepListener = Callable[[int, ModelStep | ToolStep | NoteStep], None]
 
 
 class TraceRecorder:
@@ -146,14 +158,29 @@ class TraceRecorder:
         self._positions[run_id] = position
         return position
 
-    def write(self, run_id: int, step: ModelStep | ToolStep) -> None:
+    def write(self, run_id: int, step: ModelStep | ToolStep | NoteStep) -> None:
         with self.session_factory() as session:
             session.add(step_row(run_id, step))
             session.commit()
 
-    async def record(self, run_id: int, step: ModelStep | ToolStep) -> None:
+    async def record(self, run_id: int, step: ModelStep | ToolStep | NoteStep) -> None:
         try:
             await anyio.to_thread.run_sync(self.write, run_id, step)
+        except SQLAlchemyError:
+            logger.warning("Recording a step of run %s failed.", run_id, exc_info=True)
+        if self.listener is not None:
+            self.listener(run_id, step)
+
+    async def note(self, run_id: int, note: Note) -> None:
+        """Record a note at the next position of the run."""
+        await self.record(run_id, NoteStep(self.reserve(run_id), datetime.now(UTC), note))
+
+    def note_now(self, run_id: int, note: Note) -> None:
+        """Record a note from a worker thread before the run streams. Nothing else reserves positions of this run
+        at that moment (its steps start with the stream), so the plain dict update is safe off the event loop."""
+        step = NoteStep(self.reserve(run_id), datetime.now(UTC), note)
+        try:
+            self.write(run_id, step)
         except SQLAlchemyError:
             logger.warning("Recording a step of run %s failed.", run_id, exc_info=True)
         if self.listener is not None:

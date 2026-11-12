@@ -7,6 +7,7 @@ import re
 from typing import Any
 
 from app.agent.guard import note_outside, refuse_if_changed, remember_file
+from app.agent.repeated_reads import repeat_note, text_digest
 from app.agent.runs import AgentRun
 from app.agent.tool_context import files
 from app.agent.toolkit import MAX_OUTPUT_CHARS, STRING, Tool, ToolError, schema, text_argument, truncate
@@ -69,23 +70,48 @@ async def read_file(run: AgentRun, arguments: dict[str, Any]) -> str:
         return truncate(render_outline(path, len(text.splitlines()), await outliner.outline(path, text)))
     offset = max(int(arguments.get("offset") or 1), 1)
     limit = min(max(int(arguments.get("limit") or DEFAULT_READ_LINES), 1), MAX_READ_LINES)
-    return numbered_window(text.splitlines(), offset, limit)
+    lines = text.splitlines()
+    window = numbered_window(lines, offset, limit)
+    if not run.state.context_savings:
+        return window
+    shown = shown_range(lines, offset, limit)
+    if shown is None:
+        return window
+    key = (path, *shown)
+    digest = text_digest(window)
+    note = repeat_note(run.state.read_ranges.get(key), path, shown[0], shown[1], digest)
+    if note is not None:
+        return note
+    run.state.reads += 1
+    run.state.read_ranges[key] = (digest, run.state.reads)
+    return window
+
+
+def shown_range(lines: list[str], offset: int, limit: int) -> tuple[int, int] | None:
+    """First and last line number numbered_window shows for this request; None when it shows no line."""
+    rows = window_rows(lines, offset, limit)
+    return (offset, offset + len(rows) - 1) if rows else None
 
 
 def numbered_window(lines: list[str], offset: int, limit: int) -> str:
     """Lines offset to offset + limit - 1 with their numbers, as many as fit in one output, and a note about the rest."""
-    selected = lines[offset - 1 : offset - 1 + limit]
-    if not selected:
+    rows = window_rows(lines, offset, limit)
+    if not rows:
         return "The file is empty." if not lines else f"The file has only {len(lines)} lines."
+    return "\n".join(rows) + window_note(offset, offset + len(rows) - 1, len(lines))
+
+
+def window_rows(lines: list[str], offset: int, limit: int) -> list[str]:
+    """The numbered rows of a window, cut where one output is full."""
     rows: list[str] = []
     size = 0
-    for index, line in enumerate(selected):
+    for index, line in enumerate(lines[offset - 1 : offset - 1 + limit]):
         row = f"{offset + index:>6}\t{cut_line(line)}"
         if rows and size + len(row) > MAX_OUTPUT_CHARS - 500:
             break
         rows.append(row)
         size += len(row) + 1
-    return "\n".join(rows) + window_note(offset, offset + len(rows) - 1, len(lines))
+    return rows
 
 
 def window_note(first: int, last: int, total: int) -> str:

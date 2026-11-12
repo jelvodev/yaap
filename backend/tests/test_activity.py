@@ -218,7 +218,7 @@ def test_no_approvals_wait_without_runs(client):
     assert client.get("/api/v1/environments/1/approvals").json() == []
 
 
-def test_the_context_breakdown_lists_parts_and_the_last_reply(client, fake):
+def test_the_context_breakdown_lists_categories_and_the_last_reply(client, fake):
     add_key(client)
     conversation_id = start_conversation(client)
     fake.responses.append(
@@ -227,8 +227,39 @@ def test_the_context_breakdown_lists_parts_and_the_last_reply(client, fake):
     send(client, conversation_id, "Hi")
 
     breakdown = client.get(f"/api/v1/conversations/{conversation_id}/context").json()
-    labels = [part["label"] for part in breakdown["parts"]]
-    assert labels[0] == "Base prompt" and labels[-1] == "Conversation so far"
-    assert all(part["tokens"] > 0 for part in breakdown["parts"])
+    categories = {category["key"]: category for category in breakdown["categories"]}
+    assert {"system_base", "tools_yaap", "messages_user"} <= set(categories)
+    assert breakdown["basis"] == "snapshot" and breakdown["step_id"] is not None and not breakdown["snapshot_gone"]
+    assert all(category["tokens"] > 0 for category in breakdown["categories"] if category["group"] != "space")
     assert breakdown["last_reply"]["cache_share"] == 0.75
     assert breakdown["context_tokens"] == 420 and breakdown["context_window"] == 1_000_000
+    assert breakdown["total_tokens"] == 420 and breakdown["estimated"] is True
+    shown = [c["tokens"] for c in breakdown["categories"] if c["group"] not in ("space", "cli")]
+    assert sum(shown) == 420
+
+
+def test_the_context_breakdown_is_refused_outside_its_conversation(client, fake):
+    add_key(client)
+    conversation_id = start_conversation(client)
+
+    assert client.get("/api/v1/conversations/999/context").status_code == 404
+    assert client.get(f"/api/v1/conversations/{conversation_id}/context").status_code == 200
+
+    client.cookies.clear()
+    assert client.get(f"/api/v1/conversations/{conversation_id}/context").status_code in (401, 403)
+
+
+def test_the_token_usage_is_refused_outside_its_conversation_and_lists_replies_and_hints(client, fake):
+    add_key(client)
+    conversation_id = start_conversation(client)
+    fake.responses.append(ScriptedResponse(text="Hello there", usage=TokenUsage(input_tokens=100, output_tokens=20)))
+    send(client, conversation_id, "Hi")
+
+    assert client.get("/api/v1/conversations/999/token-usage").status_code == 404
+    response = client.get(f"/api/v1/conversations/{conversation_id}/token-usage")
+    assert response.status_code == 200, response.text
+    usage = response.json()
+    assert {"replies", "hints"} <= set(usage)
+    assert len(usage["replies"]) == 1 and usage["replies"][0]["reply"]["input_tokens"] == 100
+    assert usage["totals"]["kind"] == "session"
+

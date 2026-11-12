@@ -1,0 +1,291 @@
+/* The route of an answer: the map, the live strip, the chip and the trace's Route tab. */
+
+.route-map {
+  --route-main: var(--accent);
+  --route-worker: #c792ea;
+  --route-tools: #f2a970;
+  --route-afterwards: var(--faint);
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.route-map svg {
+  display: block;
+}
+
+.route-line {
+  fill: none;
+  stroke-width: 3;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  stroke: var(--route-main);
+}
+
+.route-map-full .route-line {
+  stroke-width: 5;
+}
+
+.route-line.lane-worker {
+  stroke: var(--route-worker);
+}
+
+.route-line.lane-tools {
+  stroke: var(--route-tools);
+}
+
+.route-line.lane-afterwards {
+  stroke: var(--route-afterwards);
+}
+
+.route-line.is-dashed {
+  stroke-dasharray: 5 4;
+}
+
+.route-stop {
+  --stop-color: var(--route-main);
+}
+
+.route-stop.lane-worker {
+  --stop-color: var(--route-worker);
+}
+
+.route-stop.lane-tools {
+  --stop-color: var(--route-tools);
+}
+
+.route-stop.lane-afterwards {
+  --stop-color: var(--route-afterwards);
+}
+
+.route-stop.state-failed {
+  --stop-color: var(--danger);
+}
+
+.route-stop.state-waiting {
+  --stop-color: var(--warning);
+}
+
+.route-ring {
+  fill: var(--panel, var(--surface));
+  stroke: var(--stop-color);
+  stroke-width: 2.5;
+}
+
+.route-map-full .route-ring {
+  stroke-width: 3;
+}
+
+.route-dot {
+  fill: var(--stop-color);
+}
+
+.route-stop.state-skipped .route-ring {
+  stroke-dasharray: 3 3;
+}
+
+.route-stop text {
+  fill: var(--muted);
+  font-size: 12px;
+  /* A line of the route may run behind a label: the outline keeps it readable. */
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.route-stop.state-waiting text {
+  fill: var(--warning);
+}
+
+.route-stop[role="button"] {
+  cursor: pointer;
+}
+
+.route-stop[role="button"]:hover text,
+.route-stop.is-selected text {
+  fill: var(--text-strong);
+}
+
+.route-stop.is-selected .route-ring {
+  stroke-width: 4;
+}
+
+.route-stop:focus-visible {
+  outline: none;
+}
+
+.route-stop:focus-visible .route-ring {
+  stroke: var(--text-strong);
+}
+
+.route-halo {
+  fill: var(--warning);
+  opacity: 0.35;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .route-halo {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: route-pulse 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes route-pulse {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: scale(0.8);
+  }
+
+  50% {
+    opacity: 0.65;
+    transform: scale(1.25);
+  }
+}
+
+/* The live strip above the streaming answer. */
+
+.route-strip {
+  min-width: 0;
+  max-width: 100%;
+  margin-bottom: 10px;
+  padding: 8px 10px 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.route-strip-status {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.route-strip-waiting {
+  color: var(--warning);
+  font-weight: 500;
+}
+
+/* The chip in the row of behind-the-scenes chips. */
+
+.route-chip {
+  gap: 6px;
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border-strong));
+}
+
+.route-chip svg {
+  flex: none;
+}
+
+/* The trace's Route tab: the map beside the drawer of the chosen stop. */
+
+.route-tab {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  flex: 1;
+  min-height: 0;
+}
+
+.route-canvas {
+  min-width: 0;
+  padding: 16px;
+  overflow: auto;
+}
+
+.route-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 8px;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.route-legend i {
+  display: inline-block;
+  width: 16px;
+  height: 4px;
+  margin-right: 4px;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+
+.route-drawer {
+  padding: 14px 16px;
+  overflow-y: auto;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 13px;
+}
+
+.route-drawer h3 {
+  margin: 0 0 2px;
+  font-size: 15px;
+}
+
+.route-drawer-kind {
+  margin-bottom: 12px;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.route-facts {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 6px 10px;
+  margin: 0 0 12px;
+}
+
+.route-facts dt {
+  color: var(--faint);
+}
+
+.route-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.route-checks,
+.route-items {
+  margin: 0 0 12px;
+  padding-left: 18px;
+}
+
+.route-check-state {
+  color: var(--faint);
+}
+
+.route-check-state.is-failed {
+  color: var(--danger);
+}
+
+.route-check-state.is-waiting {
+  color: var(--warning);
+}
+
+.route-why {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--raised);
+  color: var(--muted);
+}
+
+@media (max-width: 760px) {
+  .route-tab {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    overflow-y: auto;
+  }
+
+  .route-drawer {
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+}

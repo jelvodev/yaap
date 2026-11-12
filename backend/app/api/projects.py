@@ -284,7 +284,10 @@ async def suggest_memory(
     project_id, conversation_id, folder = project.id, conversation.id, project_path(workspace_dir, project)
     session.close()
     state = request.app.state
-    await suggest(UtilityContext(state.session_factory, state.cipher, state.credential_types, state.providers), conversation_id, folder)
+    context = UtilityContext(
+        state.session_factory, state.cipher, state.credential_types, state.providers, state.blueprint_dir
+    )
+    await suggest(context, conversation_id, folder)
     with state.session_factory() as fresh:
         return [suggestion_out(item) for item in open_suggestions(fresh, project_id)]
 

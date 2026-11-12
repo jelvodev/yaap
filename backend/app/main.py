@@ -83,6 +83,10 @@ from app.auth.gate import AuthGate
 from app.api import outside as outside_api
 from app.api import plugins as plugins_api
 from app.api import preview as preview_api
+from app.api import return_notice as return_notice_api
+from app.api import token_views as token_views_api
+from app.api import behind as behind_api
+from app.api import route as route_api
 from app.api import traces as traces_api
 from app.api import telemetry as telemetry_api
 from app.api import evals as evals_api
@@ -91,6 +95,7 @@ from app.api import learning as learning_api
 from app.api import blueprint_import as blueprint_import_api
 from app.api import blueprint_starter as blueprint_starter_api
 from app.api import first_run as first_run_api
+from app.api import background_tasks as background_tasks_api
 from app.core.first_run import FirstRunService
 from app.plugins.host import PLUGINS_FOLDER, PluginHost
 from app.preview.proxy import start_listener as start_preview_listener
@@ -379,6 +384,10 @@ def create_app(
     api.include_router(updates.router)
     api.include_router(approvals.router)
     api.include_router(activity.router)
+    api.include_router(return_notice_api.router)
+    api.include_router(token_views_api.router)
+    api.include_router(behind_api.router)
+    api.include_router(route_api.router)
     api.include_router(checkpoints.router)
     api.include_router(secrets.router)
     api.include_router(vault_api.router)
@@ -409,6 +418,7 @@ def create_app(
     api.include_router(blueprint_import_api.router)
     api.include_router(blueprint_starter_api.router)
     api.include_router(first_run_api.router)
+    api.include_router(background_tasks_api.router)
     app.include_router(api)
     app.include_router(plugins_api.sdk_router)
     app.include_router(mcp_server.router)

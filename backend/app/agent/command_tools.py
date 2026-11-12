@@ -4,8 +4,10 @@ import re
 import time
 from typing import Any
 
+from app.agent.outputs import STORE_ABOVE, full_output_note
 from app.agent.runs import AgentRun
 from app.agent.shells import CONTAINER_PLACE, ShellSessions, check_name
+from app.agent.test_output import essentials, recognise_runner
 from app.agent.tool_context import commands_remote, executor, on_target
 from app.agent.toolkit import STRING, Tool, ToolError, schema, text_argument
 from app.checkpoints.service import call_key
@@ -93,7 +95,28 @@ async def run_command(run: AgentRun, arguments: dict[str, Any]) -> str:
     live.flush()
     if result.timed_out:
         return f"{stopped_note(result, timeout, silence)}\nOutput so far:\n{result.output}".rstrip()
-    return f"Exit code {result.exit_code}\n{result.output}".rstrip()
+    shortened = shortened_test_output(run, command, result)
+    return shortened or f"Exit code {result.exit_code}\n{result.output}".rstrip()
+
+
+def shortened_test_output(run: AgentRun, command: str, result: CommandResult) -> str | None:
+    """A long output of a known test runner as its failures and summary, with the whole output stored (secrets
+    masked, as the gate would); None when the output stays as it is."""
+    output = result.output.rstrip()
+    outputs = run.outputs
+    if not (run.state.context_savings and outputs and len(output) > STORE_ABOVE and "read_output" in run.tool_names):
+        return None
+    runner = recognise_runner(command)
+    kept = essentials(runner, output, result.exit_code) if runner else None
+    if kept is None:
+        return None
+    whole = f"Exit code {result.exit_code}\n{output}"
+    whole = mask(whole, run.secrets) if run.secrets else whole
+    kept = mask(kept, run.secrets) if run.secrets else kept
+    return (
+        f"Exit code {result.exit_code}\n[Test output shortened to the failures and the summary.]\n{kept}\n\n"
+        + full_output_note(whole, outputs.save(whole))
+    )
 
 
 def shell_state(run: AgentRun, name: str, save: bool) -> ShellState | None:

@@ -1,0 +1,115 @@
+.context-stack {
+  display: flex;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 5px;
+  background: var(--raised);
+}
+
+.context-seg {
+  min-width: 0;
+  flex: none;
+  background: var(--faint);
+}
+
+.context-seg-system {
+  background: var(--accent);
+}
+
+.context-seg-blueprint {
+  background: var(--ok);
+}
+
+.context-seg-tools {
+  background: var(--warning-strong);
+}
+
+.context-seg-messages {
+  background: var(--diff-info);
+}
+
+.context-seg-cli {
+  background: var(--muted);
+}
+
+.context-seg-space {
+  background: transparent;
+  border: 1px dashed var(--line);
+  box-sizing: border-box;
+}
+
+.context-seg-free {
+  border: none;
+}
+
+.context-table {
+  width: 100%;
+  table-layout: fixed;
+  margin-top: 8px;
+  border-collapse: collapse;
+}
+
+.context-table td {
+  padding: 0;
+}
+
+.context-row {
+  display: grid;
+  grid-template-columns: 1fr auto 3.5em;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 0;
+  color: var(--text);
+  cursor: default;
+}
+
+summary.context-row {
+  cursor: pointer;
+}
+
+.context-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.context-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 2px;
+}
+
+.context-tokens {
+  color: var(--muted);
+  text-align: right;
+}
+
+.context-share {
+  color: var(--faint);
+  text-align: right;
+}
+
+.context-items {
+  margin: 2px 0 6px 14px;
+  padding: 0;
+  list-style: none;
+}
+
+.context-items li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: 12px;
+}
+
+.context-item-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-soft);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
