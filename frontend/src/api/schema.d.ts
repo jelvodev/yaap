@@ -3309,6 +3309,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/plans/{plan_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Plan */
+        get: operations["get_plan_api_v1_plans__plan_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit Plan
+         * @description Replace a draft plan; only a draft can be edited.
+         */
+        patch: operations["edit_plan_api_v1_plans__plan_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/plans/{plan_id}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Discard Plan */
+        post: operations["discard_plan_api_v1_plans__plan_id__discard_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/plugins": {
         parameters: {
             query?: never;
@@ -3483,6 +3521,27 @@ export interface paths {
          */
         get: operations["restore_preview_api_v1_projects__project_id__checkpoints__checkpoint_id__restore_preview_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/current-state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Current State */
+        get: operations["read_current_state_api_v1_projects__project_id__current_state_get"];
+        /**
+         * Save Current State
+         * @description Replace the block as edited by the user; the change is committed on its own in the project.
+         */
+        put: operations["save_current_state_api_v1_projects__project_id__current_state_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -5798,6 +5857,8 @@ export interface components {
             name?: string | null;
             /** Output */
             output?: string | null;
+            /** Plan Id */
+            plan_id?: number | null;
             /** Size */
             size?: number | null;
             /**
@@ -5811,7 +5872,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "text" | "reasoning" | "tool_call" | "attachment" | "command" | "skill" | "skill_removed" | "goal" | "summary" | "trim" | "steering" | "note" | "repo_map";
+            type: "text" | "reasoning" | "tool_call" | "attachment" | "command" | "skill" | "skill_removed" | "goal" | "summary" | "trim" | "steering" | "note" | "repo_map" | "plan";
         };
         /** ContextBreakdownOut */
         ContextBreakdownOut: {
@@ -6185,6 +6246,22 @@ export interface components {
             message: string;
             /** Ok */
             ok: boolean;
+        };
+        /** CurrentStateIn */
+        CurrentStateIn: {
+            /** Text */
+            text: string;
+        };
+        /** CurrentStateOut */
+        CurrentStateOut: {
+            /** Has Repository */
+            has_repository: boolean;
+            /** Max Chars */
+            max_chars: number;
+            /** Text */
+            text: string;
+            /** Updated At */
+            updated_at: string | null;
         };
         /** DefaultSkillsOut */
         DefaultSkillsOut: {
@@ -7725,6 +7802,95 @@ export interface components {
         PinnedSkillsIn: {
             /** Skills */
             skills: string[];
+        };
+        /** PlanEditIn */
+        PlanEditIn: {
+            /** Risks */
+            risks?: string[];
+            /** Steps */
+            steps: components["schemas"]["PlanStepIn"][];
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+            /** Title */
+            title: string;
+        };
+        /** PlanOut */
+        PlanOut: {
+            /** Approved At */
+            approved_at: string | null;
+            /** Card Id */
+            card_id: number | null;
+            /** Conversation Id */
+            conversation_id: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Failure */
+            failure: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /** Id */
+            id: number;
+            /** Project Id */
+            project_id: number;
+            /** Risks */
+            risks: string[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "approved" | "queued" | "building" | "interrupted" | "done" | "failed" | "cancelled";
+            /** Steps */
+            steps: components["schemas"]["PlanStepOut"][];
+            /** Summary */
+            summary: string;
+            /** Title */
+            title: string;
+            /** Warnings */
+            warnings: string[];
+        };
+        /** PlanStepIn */
+        PlanStepIn: {
+            /** Checks */
+            checks?: components["schemas"]["StepCheckIn"][];
+            /**
+             * Details
+             * @default
+             */
+            details: string;
+            /** Files */
+            files?: string[];
+            /** Title */
+            title: string;
+        };
+        /** PlanStepOut */
+        PlanStepOut: {
+            /** Attempts */
+            attempts: number;
+            /** Checks */
+            checks: components["schemas"]["StepCheckOut"][];
+            /** Commit */
+            commit: string | null;
+            /** Details */
+            details: string;
+            /** Files */
+            files: string[];
+            /** Note */
+            note: string;
+            /** Number */
+            number: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "working" | "done" | "failed" | "skipped";
+            /** Title */
+            title: string;
         };
         /** PluginOut */
         PluginOut: {
@@ -9353,6 +9519,20 @@ export interface components {
              * @constant
              */
             status: "waiting";
+        };
+        /** StepCheckIn */
+        StepCheckIn: {
+            /** Run */
+            run?: string | null;
+            /** Text */
+            text: string;
+        };
+        /** StepCheckOut */
+        StepCheckOut: {
+            /** Run */
+            run: string | null;
+            /** Text */
+            text: string;
         };
         /** StepContextOut */
         StepContextOut: {
@@ -16391,6 +16571,103 @@ export interface operations {
             };
         };
     };
+    get_plan_api_v1_plans__plan_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_plan_api_v1_plans__plan_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanEditIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    discard_plan_api_v1_plans__plan_id__discard_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_plugins_api_v1_plugins_get: {
         parameters: {
             query?: never;
@@ -16754,6 +17031,77 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    read_current_state_api_v1_projects__project_id__current_state_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentStateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_current_state_api_v1_projects__project_id__current_state_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CurrentStateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentStateOut"];
+                };
+            };
+            /** @description no_repository */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description state_invalid */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
