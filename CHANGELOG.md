@@ -30,6 +30,13 @@ yourself when you update; it says "None." when there is nothing.
 - A conversation started from a summary links to the earlier one in its heading, and the earlier one links to it.
 - An eval case can approve calls up front with `approve` (`tools` and plain `commands`): in that case's own play they pass the injection guard after the run has read outside content, such as an MCP server's output. Only file edits, renames, local commits and listed commands can be approved; ordinary conversations keep the guard as before, and the play's trace shows each call the case approved.
 - The baseline case tracker-csv-export approves its edits and the unit test command, so it can pass after reading its issue from the tracker.
+- Presets can delegate by brief (Settings › Models › Presets, *Delegation*; off by default): the agent hands checkable work to the cheaper worker with the files, known facts, when it is done and a check command.
+- With delegation by brief YAAP runs the worker's check itself, with the conversation's permissions, and gives the agent the worker's report, the check's result and the diff of the changed files.
+- A failed check goes back to the worker once; a second failure hands the task to the main model. The trace notes each step back or up, and each attempt shows with its cost.
+- With delegation by brief, up to three exploring workers run at the same time.
+- Every answer can be seen as a route: message, routing, context, each model call, the tool calls with their checks, helpers and the work done afterwards. While a reply runs, a strip above it grows stop by stop and pulses where it waits for you, such as an approval.
+- When a reply is done, a *Route* chip among the labels under it shows its time and cost and opens the trace on the new *Route* tab, where each stop opens a drawer with what happened, why, its time and its cost. Repeated calls of one tool are stacked into one stop.
+- The trace dialog's tabs are now Timeline, Route, Context and Tokens.
 
 ### Action needed
 
