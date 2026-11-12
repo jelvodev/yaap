@@ -30,7 +30,23 @@ function describe(placed: PlacedStop): string {
   return `${placed.label}${state}`;
 }
 
-function Stop({ placed, metrics, x, y, selected, onSelect }: StopProps) {
+// Branch stops share the width of one column, so their labels would touch: every other one sits a line lower.
+const LABEL_STAGGER = 14;
+
+function staggeredIds(stops: readonly PlacedStop[]): Set<string> {
+  const byRow = new Map<number, PlacedStop[]>();
+  for (const placed of stops) {
+    if (Number.isInteger(placed.col)) continue;
+    byRow.set(placed.row, [...(byRow.get(placed.row) ?? []), placed]);
+  }
+  const lower = new Set<string>();
+  for (const row of byRow.values()) {
+    row.sort((a, b) => a.col - b.col).forEach((placed, index) => index % 2 === 1 && lower.add(placed.stop.id));
+  }
+  return lower;
+}
+
+function Stop({ placed, metrics, x, y, selected, lower, onSelect }: StopProps) {
   const { stop } = placed;
   const { radius } = metrics;
   const press = (event: KeyboardEvent) => {
@@ -55,7 +71,7 @@ function Stop({ placed, metrics, x, y, selected, onSelect }: StopProps) {
       <circle className="route-ring" cx={x} cy={y} r={radius} />
       {stop.state !== "skipped" && <circle className="route-dot" cx={x} cy={y} r={radius / 2.6} />}
       {metrics.labels && (
-        <text x={x} y={above ? y - radius - 9 : y + radius + 17} textAnchor="middle">
+        <text x={x} y={above ? y - radius - 9 : y + radius + 17 + (lower ? LABEL_STAGGER : 0)} textAnchor="middle">
           {placed.label}
         </text>
       )}
@@ -69,6 +85,7 @@ interface StopProps {
   x: number;
   y: number;
   selected: boolean;
+  lower: boolean;
   onSelect?: (id: string) => void;
 }
 
@@ -76,6 +93,7 @@ interface StopProps {
 export default function RouteMap({ stops, mode, selectedId = null, onSelect }: RouteMapProps) {
   const metrics = METRICS[mode];
   const layout = layoutRoute(stops);
+  const lowered = staggeredIds(layout.stops);
   const box = useRef<HTMLDivElement | null>(null);
   const x = (col: number) => metrics.pad + col * metrics.stepX;
   const y = (row: number) => metrics.pad + (row - layout.minRow) * metrics.stepY;
@@ -105,6 +123,7 @@ export default function RouteMap({ stops, mode, selectedId = null, onSelect }: R
             x={x(placed.col)}
             y={y(placed.row)}
             selected={placed.stop.id === selectedId}
+            lower={metrics.labels && lowered.has(placed.stop.id)}
             onSelect={onSelect}
           />
         ))}
