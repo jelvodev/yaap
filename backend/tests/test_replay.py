@@ -54,8 +54,9 @@ def fixture_run(client, fake) -> tuple[dict, Path, int, dict]:
     return project, folder, conversation_id, trace
 
 
-def step_at(trace: dict, position: int) -> dict:
-    return next(step for step in trace["run"]["steps"] if step["position"] == position)
+def step_at(trace: dict, number: int) -> dict:
+    """The run's step with this number in order; notes share the run's positions, so a position is not the number."""
+    return trace["run"]["steps"][number - 1]
 
 
 def finished_replay(client, conversation_id: int, replay_id: int) -> dict:
@@ -95,7 +96,7 @@ def test_a_replay_from_step_3_starts_with_its_messages_and_files_and_leaves_the_
 
     replay = detail["replay"]
     assert replay["status"] == "done", replay
-    assert replay["step_position"] == 3 and replay["variant"]["label"] == "preset Balanced"
+    assert replay["step_position"] == step["position"] and replay["variant"]["label"] == "preset Balanced"
     # The same messages as step 3: the first message with its turn context, then what the reply had done.
     store = SnapshotStore(trace_dir(client.app.state.data_dir))
     with client.app.state.session_factory() as session:
