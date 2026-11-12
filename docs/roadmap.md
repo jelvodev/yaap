@@ -28,7 +28,7 @@ Plan, build and review the work of a project, steered from one board.
     repository. They never mix with the work on other branches.
 22. **Cards from the agent.** The agent adds what it notices to the Inbox, checks first for a similar card, and names
     where each card came from. GitHub issues can be imported as cards.
-23. **Building in parallel.** Each card is built in its own worktree or sandbox. Cards that touch the same files never
+23. **Building in parallel.** Each card is built in its own copy of the project. Cards that touch the same files never
     run at the same time. A review by an agent that did not write the code comes before you merge.
 55. **A review with evidence.** A card's review shows the diff, the acceptance criteria, the tests that ran, the trace
     and, with a preview, a screenshot before and after. Per criterion it shows what YAAP actually checked, with a link
