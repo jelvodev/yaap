@@ -8,6 +8,7 @@ and diff (agent/escalation.py decides who is next). Each step is noted on the le
 
 import logging
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
 import anyio
@@ -45,6 +46,21 @@ ESCALATION_WHY = Why(
     "delegation",
     "delegation",
 )
+
+
+@dataclass
+class BriefOutcome:
+    """How a brief's attempts ended: the last attempt, the last check YAAP ran (None without a check or when the
+    attempt was stopped), who tried on which model with what outcome, and every file the attempts wrote."""
+
+    last: "SubRunResult"
+    check: CheckResult | None
+    history: list[tuple[Role, str, AttemptOutcome]]
+    changed: list[str]
+
+    @property
+    def passed(self) -> bool:
+        return self.check is not None and self.check.outcome == "passed"
 
 
 async def run_check(runs: RunRegistry, parent: AgentRun, command: str) -> CheckResult:
@@ -115,13 +131,23 @@ def attempts_line(history: Sequence[tuple[Role, str, AttemptOutcome]]) -> str:
     return f"Attempts: {', '.join(parts)}."
 
 
+async def attempt_unchecked(
+    delegator: "Delegator", parent: AgentRun, brief: Brief, agent_name: str | None, role: Role, worker: str | None
+) -> BriefOutcome:
+    """Briefed work without a check: one attempt, with what it changed."""
+    result = await delegator.run_sub_run(
+        parent, brief_message(brief), agent_name, role, worker if role == "worker" else None, "work", "brief-worker"
+    )
+    outcome: AttemptOutcome = "stopped" if result.status == "incomplete" else "not_run"
+    return BriefOutcome(result, None, [(role, result.model, outcome)], list(result.changed_files))
+
+
 async def delegate_unchecked(
     delegator: "Delegator", parent: AgentRun, brief: Brief, agent_name: str | None, role: Role, worker: str | None
 ) -> str:
     """Briefed work without a check: one attempt, reported with the diff YAAP sees of the files it changed."""
-    result = await delegator.run_sub_run(
-        parent, brief_message(brief), agent_name, role, worker if role == "worker" else None, "work", "brief-worker"
-    )
+    outcome = await attempt_unchecked(delegator, parent, brief, agent_name, role, worker)
+    result = outcome.last
     diff = await changed_diff(parent, result.changed_files)
     body = lead_report(parse_report(result.full_report), result.full_report, None, diff, result.changed_files)
     return f"{sub_run_header(result)}\n\n{body}"
@@ -138,13 +164,13 @@ def attempt_message(
     return takeover_message(brief, last.full_report, diff, check.output)
 
 
-async def delegate_by_brief(
+async def attempt_by_brief(
     delegator: "Delegator", parent: AgentRun, brief: Brief, agent_name: str | None, first: Role, worker: str | None
-) -> str:
-    """Run the brief's attempts until the check passes or the escalation ends; the lead gets the last attempt."""
+) -> BriefOutcome:
+    """Run the brief's attempts until its check passes or the escalation ends. The brief must have a check."""
     command = brief.check
     if command is None:
-        return await delegate_unchecked(delegator, parent, brief, agent_name, first, worker)
+        raise ValueError("attempt_by_brief needs a brief with a check.")
     attempts: list[Attempt] = []
     history: list[tuple[Role, str, AttemptOutcome]] = []
     changed: set[str] = set()
@@ -181,6 +207,27 @@ async def delegate_by_brief(
         step = next_attempt(attempts, first)
     if last is None:  # Not reached: the first step is never "stop".
         raise RuntimeError("No attempt was made.")
-    diff = await changed_diff(parent, sorted(changed))
-    body = lead_report(parse_report(last.full_report), last.full_report, check, diff, sorted(changed))
-    return f"{sub_run_header(last)}\n\n{body}\n\n{attempts_line(history)}"
+    return BriefOutcome(last, check, history, sorted(changed))
+
+
+async def delegate_brief_once(
+    delegator: "Delegator", parent: AgentRun, brief: Brief, first: Role, worker: str | None = None
+) -> BriefOutcome:
+    """One brief through its attempts, for code that runs briefs itself (a build) rather than a model's delegate
+    call: with a check, the worker-retry-main escalation; without one, a single attempt by `first`."""
+    if brief.check is None:
+        return await attempt_unchecked(delegator, parent, brief, None, first, worker)
+    return await attempt_by_brief(delegator, parent, brief, None, first, worker)
+
+
+async def delegate_by_brief(
+    delegator: "Delegator", parent: AgentRun, brief: Brief, agent_name: str | None, first: Role, worker: str | None
+) -> str:
+    """Run the brief's attempts until the check passes or the escalation ends; the lead gets the last attempt."""
+    if brief.check is None:
+        return await delegate_unchecked(delegator, parent, brief, agent_name, first, worker)
+    outcome = await attempt_by_brief(delegator, parent, brief, agent_name, first, worker)
+    last = outcome.last
+    diff = await changed_diff(parent, outcome.changed)
+    body = lead_report(parse_report(last.full_report), last.full_report, outcome.check, diff, outcome.changed)
+    return f"{sub_run_header(last)}\n\n{body}\n\n{attempts_line(outcome.history)}"
