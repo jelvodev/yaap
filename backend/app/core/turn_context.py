@@ -11,6 +11,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from sqlalchemy.orm import Session
 
 from app.core.settings import resolve_text
+from app.projects.current_state import without_state
+from app.projects.memory import Recall
 from app.providers.base import HistoryMessage
 
 HEADING = "[Context for this message]"
@@ -50,9 +52,17 @@ LARGE_MEMORY_NOTE = (
 )
 
 
-def memory_parts(recalled) -> tuple[str, str | None]:  # type: ignore[no-untyped-def]
+STATE_LABEL = "### Where this project stands"
+
+
+def memory_parts(recalled: Recall) -> tuple[str, str | None]:
     """The memory for part 5 of the system prompt, and the recalled entries for the context block (None when the
-    memory goes into part 5 whole)."""
+    memory goes into part 5 whole). The Current state block leads part 5 on every turn, whatever the memory's size,
+    so it stays in the cached prefix."""
     if recalled.whole:
-        return recalled.text, None
-    return LARGE_MEMORY_NOTE, recalled.text
+        memory, recalled_text = without_state(recalled.text), None
+    else:
+        memory, recalled_text = LARGE_MEMORY_NOTE, recalled.text
+    if not recalled.state:
+        return memory, recalled_text
+    return f"{STATE_LABEL}\n\n{recalled.state}\n\n{memory.strip()}".strip(), recalled_text
