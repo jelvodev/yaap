@@ -17,6 +17,17 @@ yourself when you update; it says "None." when there is nothing.
 - The token footprint script and the screen count with the same division.
 - A setting `context_savings` (off by default) to send less of what the model already has: a repeated read of unchanged lines in the same reply becomes one line; long output of a known test runner (pytest, vitest, jest, go test, cargo test, dotnet test) keeps the failures and the summary, with the whole output readable through `read_output`; when old tool output is shortened, reads of files that changed since are left out with a note to read them again; and a conversation keeps its repository map until it is shortened or summarised. What is left out always says how to get it back.
 - The token footprint measures a longer project reply with these savings off and on.
+- Small labels under each reply show what happened behind it: the model the route chose, the project memory that went along, helpers, approvals, the injection check, secret values replaced in tool output, output the outgoing check blocked, older output shortened or summarised, and the prompt cache with its hit rate. Each label opens to its reason and cost. Replies made before this version show no labels.
+- A "why" popover shows the rule and the setting behind a decision: on the approval card, on a tool call that was refused or asked, on the labels under a reply and on the token hints.
+- The trace keeps step notes (memory recalled, cache lifetime, trim and summary, masked secrets by name only, blocked output, the injection check's verdict); they do not count as steps in eval budgets or the OpenTelemetry export.
+- New endpoint `GET /api/v1/conversations/{id}/messages/{message_id}/behind`; the `approval_request` stream event and token hints carry a `why`.
+- YAAP's own helpers (explorer, worker, reviewer, router, guard, summariser, memory keeper, learner) show in the Blueprint as a read-only Built-in layer, with their instructions, model and cost this month.
+- An item of the same name in Global or an environment replaces a helper's instructions (the worker and the explorer also in a project); *Change in my layer* copies one to Global. The guard that checks outside content cannot be replaced.
+- Settings › Models › Background tasks lists every task YAAP runs by itself with its model, runs and cost this month and its last runs, and the work it starts on a schedule.
+- Background tasks can be switched off one by one (setting `utility_tasks_off`): titles, memory suggestions, memory tidying, reply routing, learning and code reviews. The check of outside content and the tasks you start yourself cannot be switched off.
+- The context savings switch is on the Context tab in Settings.
+- Coming back to a long conversation after its prompt cache has expired shows, before the next send, what continuing costs (estimated; tokens on a subscription), with *Summarise first* (YAAP's own loop), *New conversation from a summary* (every connection) and *Just send*. Nothing happens by itself.
+- A conversation started from a summary links to the earlier one in its heading, and the earlier one links to it.
 
 ### Action needed
 
