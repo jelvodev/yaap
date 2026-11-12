@@ -7,6 +7,7 @@ names. `named_paths` finds those files, `answer_prompt` fits everything into one
 
 import json
 import re
+from fnmatch import fnmatch
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -38,6 +39,26 @@ KNOWN_EXTENSIONS = frozenset(
 )
 # Names that sit in a sentence like a file but name a product or a website.
 NOT_FILES = frozenset({"node.js", "next.js", "vue.js", "express.js", "d3.js", "three.js"})
+
+
+# Files that hold secrets by their name or place; an answer check never reads them.
+SENSITIVE_NAMES = (
+    "*.pem", "*.key", "*.p12", "*.pfx", "*.kdbx", "id_rsa*", "id_ed25519*", "id_ecdsa*", "credentials*", "secrets*"
+)
+SENSITIVE_FILES = frozenset({".npmrc", ".pypirc", ".netrc"})
+SENSITIVE_FOLDERS = frozenset({".git", ".ssh", ".aws"})
+
+
+def sensitive_path(path: str) -> bool:
+    """Whether a relative path may hold secrets: environment files, keys, credentials and the folders of git, ssh
+    and the cloud tools."""
+    parts = path.lower().split("/")
+    name = parts[-1]
+    if SENSITIVE_FOLDERS & set(parts[:-1]) or parts[-2:] == [".docker", "config.json"]:
+        return True
+    return name == ".env" or name.startswith(".env.") or name in SENSITIVE_FILES or any(
+        fnmatch(name, pattern) for pattern in SENSITIVE_NAMES
+    )
 
 
 @dataclass(frozen=True)

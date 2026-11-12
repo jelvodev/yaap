@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 import anyio
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.model_choice import ForUtility, ModelChoice, ModelChoiceError, read_key
@@ -170,6 +171,9 @@ class SecondOpinions:
                 raise SecondOpinionRefused(
                     f"{plan.reviewer.reason} Only a model of the same vendor can give it; confirm that to go on."
                 )
+            running = select(Review.id).where(Review.message_id == message_id, Review.status == "running")
+            if session.scalar(running) is not None:
+                raise SecondOpinionRefused("A second opinion of this reply is already running.")
             review_id = self.reviews.create(session, plan.scope)
             review = session.get_one(Review, review_id)
             review.reviewer_provider, review.reviewer_model = choice.spec.name, choice.model

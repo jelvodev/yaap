@@ -4,6 +4,7 @@ estimate, and the API from the access check to the stored report."""
 import time
 from pathlib import Path
 
+import anyio
 import pytest
 from sqlalchemy import select
 
@@ -11,11 +12,20 @@ from app.checkpoints.service import CheckpointStore
 from app.core.model_choice import ForUtility
 from app.providers.catalog import ANTHROPIC_MODELS, OPENAI_MODELS, ModelPricing, PriceTier
 from app.providers.fake_provider import ScriptedResponse
-from app.reviews.answer import FileMaterial, answer_prompt, named_paths, parse_answer_report
+from app.reviews.answer import (
+    MAX_FILE_BYTES,
+    FileMaterial,
+    answer_prompt,
+    named_paths,
+    parse_answer_report,
+    sensitive_path,
+)
+from app.reviews.answer_files import read_named_files
 from app.reviews.report import ReportError
 from app.reviews.reply_scope import reply_scope
 from app.reviews.reviewer import estimate_cost, same_vendor_order, second_opinion_reviewer
 from app.storage.models import AgentRunRecord, Conversation, Message, Review, UsageRecord
+from app.targets.base import FileEntry
 from tests.test_delegation import project_conversation
 from tests.test_reviews import (
     CHEAPEST_OPENAI,
@@ -429,3 +439,108 @@ def test_a_second_opinion_is_only_for_an_assistant_reply_of_the_same_conversatio
         assert client.post(opinion_url(conversation, message), json={}).status_code == 404
     assert client.get("/api/v1/conversations/99999/second-opinions").status_code == 404
     assert client.get(f"/api/v1/conversations/{other_id}/second-opinions").json() == []
+
+
+# --- Files an answer check never reads ------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("path", "sensitive"),
+    [
+        (".env", True),
+        ("app/.env.local", True),
+        ("certs/server.PEM", True),
+        ("keys/tls.key", True),
+        ("store.p12", True),
+        ("store.pfx", True),
+        ("vault.kdbx", True),
+        ("home/id_rsa", True),
+        ("id_ed25519.pub", True),
+        ("id_ecdsa", True),
+        (".git/config", True),
+        ("sub/.ssh/known_hosts", True),
+        (".aws/credentials", True),
+        (".docker/config.json", True),
+        (".npmrc", True),
+        (".pypirc", True),
+        (".netrc", True),
+        ("config/credentials.json", True),
+        ("secrets.yaml", True),
+        ("app/main.py", False),
+        ("envs.md", False),
+        ("docs/keys.md", False),
+        ("config.json", False),
+        (".github/workflows/ci.yml", False),
+    ],
+)
+def test_files_that_may_hold_secrets_are_never_read(path, sensitive):
+    assert sensitive_path(path) is sensitive
+
+
+class FakeFiles:
+    def __init__(self, files: dict[str, bytes], reported_size: int | None = None) -> None:
+        self.files, self.reported_size, self.reads = files, reported_size, []
+
+    def check(self, path: str, for_write: bool = False) -> str:
+        return path
+
+    async def stat(self, path: str):
+        if path not in self.files:
+            return None
+        size = len(self.files[path]) if self.reported_size is None else self.reported_size
+        return FileEntry(path, False, size)
+
+    async def read_bytes(self, path: str) -> bytes:
+        self.reads.append(path)
+        return self.files[path]
+
+
+def test_sensitive_and_oversized_files_are_left_out_with_a_note():
+    big = b"x" * (MAX_FILE_BYTES + 1)
+    files = FakeFiles({".env": b"TOKEN=1", "ok.py": b"print(1)", "grown.py": big}, reported_size=10)
+
+    found, notes = anyio.run(read_named_files, files, [".env", "ok.py", "grown.py"])
+
+    assert [file.path for file in found] == ["ok.py"] and ".env" not in files.reads
+    assert any(".env was left out: may hold secrets" in note for note in notes)
+    assert any("grown.py is larger" in note for note in notes)
+
+
+def test_a_file_holding_a_key_shaped_value_is_left_out():
+    token = "ghp_" + "a1B2" * 9
+    files = FakeFiles({"deploy.py": f'TOKEN = "{token}"\n'.encode(), "ok.py": b"print(1)"})
+
+    found, notes = anyio.run(read_named_files, files, ["deploy.py", "ok.py"])
+
+    assert [file.path for file in found] == ["ok.py"]
+    assert any("deploy.py was left out" in note for note in notes)
+    assert all(token not in note for note in notes)
+
+
+def test_a_second_start_is_refused_while_one_runs_for_the_reply(client, fake):
+    _, conversation_id = project_conversation(client)
+    client.app.state.providers = two_vendor_registry(fake, Backend())
+    fake.responses.append(ScriptedResponse(text="Plain answer."))
+    client.post(f"/api/v1/conversations/{conversation_id}/messages", json={"text": "Question"})
+    reply = last_reply(client, conversation_id)
+    with client.app.state.session_factory() as session:
+        session.add(
+            Review(
+                environment_id=1,
+                project_id=None,
+                conversation_id=conversation_id,
+                message_id=reply,
+                source="answer",
+                status="running",
+                writer_vendors=[],
+                diff="",
+                notes=[],
+                findings=[],
+            )
+        )
+        session.commit()
+
+    refused = client.post(opinion_url(conversation_id, reply), json={"allow_same_vendor": True})
+
+    assert refused.status_code == 409
+    assert refused.json()["detail"] == "A second opinion of this reply is already running."
