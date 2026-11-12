@@ -21,16 +21,18 @@ from app.tracing.route_parts import (
 )
 from app.tracing.route_schema import RouteCheckKind, RouteStopOut
 
-Where = Literal["context", "tool", "afterwards"]
+Where = Literal["context", "tool", "afterwards", "stop"]
 
 
 @dataclass(frozen=True)
 class Place:
     """Where a note kind shows on the route: a check on the context stop, a check on the tool stop it followed
-    (the context stop when no tool ran yet), or a stop after the answer."""
+    (the context stop when no tool ran yet), a stop after the answer, or a stop of its own where it happened."""
 
     where: Where
     check: RouteCheckKind = "note"
+    # The label of a stop of its own.
+    label: str | None = None
 
 
 # A kind missing here is drawn as a generic stop of its own.
@@ -42,6 +44,8 @@ NOTE_PLACES: dict[str, Place] = {
     "outgoing_blocked": Place("tool", "outgoing"),
     "summary": Place("afterwards"),
     "trim": Place("afterwards"),
+    # A helper's attempt failed its check: the lead hands the work back or takes it over.
+    "escalation": Place("stop", label="Escalation"),
 }
 # Why an answer did not come out whole, by the status of the reply's run.
 ANSWER_FAILURES = {
@@ -139,9 +143,10 @@ class MainLine:
         if step.note is None:
             return
         place = NOTE_PLACES.get(step.note.kind)
-        if place is None:
+        if place is None or place.where == "stop":
             self.stack = None
-            self.entries.append(generic_note_stop(step, "main", self.parent, None))
+            label = place.label if place is not None else None
+            self.entries.append(generic_note_stop(step, "main", self.parent, None, label))
         elif place.where == "afterwards":
             self.afterwards.append(step)
         else:
@@ -171,14 +176,16 @@ def run_lane_stops(facts: RouteFacts, main_stops: list[RouteStopOut]) -> list[Ro
         stop = worker_stop(worker, [s for s in steps if s.kind != "note"], parent, checks, waiting)
         stops.append(stop)
         for step in steps:
-            if step.note is not None and step.note.kind not in NOTE_PLACES:
-                stops.append(generic_note_stop(step, "worker", stop.id, stop.line))
+            place = NOTE_PLACES.get(step.note.kind) if step.note is not None else None
+            if step.note is not None and (place is None or place.where == "stop"):
+                label = place.label if place is not None else None
+                stops.append(generic_note_stop(step, "worker", stop.id, stop.line, label))
     return stops
 
 
 def is_check_note(step: RouteStep) -> bool:
     place = NOTE_PLACES.get(step.note.kind) if step.note else None
-    return place is not None and place.where != "afterwards"
+    return place is not None and place.where in ("context", "tool")
 
 
 def waiting_stops(facts: RouteFacts, line: MainLine) -> list[RouteStopOut]:
