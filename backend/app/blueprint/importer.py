@@ -5,21 +5,20 @@ a name, a summary and (for standards) the rules that must always hold. The user 
 anything is written. The document's own text becomes the body, unchanged.
 """
 
-import asyncio
 import json
 import re
-import shutil
-import tempfile
 from dataclasses import dataclass, field
-from pathlib import Path, PurePosixPath
-from typing import Any, BinaryIO
+from pathlib import PurePosixPath
+from typing import Any, Literal
 
 import yaml
 
-from app.attachments.files import AttachmentError, safe_filename, unpack_archive
+from app.blueprint.layers import BlueprintError, ItemKind, parse_document
+from app.blueprint.setup_layouts import Recognition, Tool
+from app.blueprint.setup_mapping import clean_extra
 from app.core.hidden_text import find_hidden, mark_hidden, warning_lines
 from app.core.utility import UtilityContext, run_utility
-from app.blueprint.layers import BlueprintError, ItemKind, parse_document
+from app.secrets.shapes import holds_key_shape, key_refusal, key_shaped_lines
 
 MAX_DOCUMENTS = 60
 MAX_IMPORT_BYTES = 20 * 1024 * 1024
@@ -31,8 +30,24 @@ RULE_KINDS = ("standard", "engineering")
 KIND_FOLDERS = {"standard": "standards", "engineering": "engineering", "command": "commands", "agent": "agents"}
 
 
+FRONT_MATTER_KEY_REASON = (
+    "The summary, a rule or a front matter value looks like a key or token; remove it from the source and import again."
+)
+
+
 class BlueprintImportError(Exception):
     """The upload cannot be imported; the message says why."""
+
+
+@dataclass
+class SkillFile:
+    """A file inside a skill's folder, as text."""
+
+    path: str
+    content: str
+    # A script is only written when the user ticks it.
+    script: bool = False
+    selected: bool = True
 
 
 @dataclass
@@ -40,6 +55,9 @@ class ImportDocument:
     source: str
     body: str
     front_matter: dict[str, Any] = field(default_factory=dict)
+    # Set when the path says what the document is (a file of another tool's setup).
+    recognition: Recognition | None = None
+    files: list[SkillFile] = field(default_factory=list)
 
 
 @dataclass
@@ -55,6 +73,14 @@ class Proposal:
     # Hidden characters in the document, and its body with them made visible.
     warnings: list[str] = field(default_factory=list)
     body_marked: str = ""
+    tool: Tool | None = None
+    # What was not carried over from the source, for the review.
+    notes: list[str] = field(default_factory=list)
+    selected: bool = True
+    # Why the item cannot be imported (a key-shaped value); the user fixes the source and imports again.
+    blocked: str | None = None
+    default_layer: Literal["level", "global"] = "level"
+    files: list[SkillFile] = field(default_factory=list)
 
 
 def slug(text: str) -> str:
@@ -71,42 +97,6 @@ def read_document(source: str, text: str) -> ImportDocument | None:
     if not parsed.body.strip():
         return None
     return ImportDocument(source, parsed.body.strip(), dict(parsed.front_matter))
-
-
-def collect_documents(upload: BinaryIO, filename: str) -> list[ImportDocument]:
-    """The Markdown documents in the upload: the file itself, or every .md file in a zip."""
-    name = safe_filename(filename)
-    with tempfile.TemporaryDirectory(prefix="yaap-import-") as folder:
-        target = Path(folder) / name
-        size = 0
-        with target.open("wb") as output:
-            while chunk := upload.read(1024 * 1024):
-                size += len(chunk)
-                if size > MAX_IMPORT_BYTES:
-                    raise BlueprintImportError("The upload is larger than 20 MB.")
-                output.write(chunk)
-        if name.lower().endswith(".zip"):
-            unpacked = Path(folder) / "unpacked"
-            try:
-                unpack_archive(target, unpacked)
-            except AttachmentError as error:
-                raise BlueprintImportError(str(error)) from error
-            files = sorted(
-                path for path in unpacked.rglob("*") if path.is_file() and path.suffix.lower() in (".md", ".markdown")
-            )
-            documents = [
-                read_document(path.relative_to(unpacked).as_posix(), path.read_text(encoding="utf-8", errors="replace"))
-                for path in files[:MAX_DOCUMENTS]
-            ]
-        elif name.lower().endswith((".md", ".markdown", ".txt")):
-            documents = [read_document(name, target.read_text(encoding="utf-8", errors="replace"))]
-        else:
-            raise BlueprintImportError("Import a Markdown file (.md) or a zip of Markdown files.")
-        shutil.rmtree(Path(folder) / "unpacked", ignore_errors=True)
-    found = [document for document in documents if document is not None]
-    if not found:
-        raise BlueprintImportError("No Markdown documents with content were found.")
-    return found
 
 
 def guess_kind(document: ImportDocument) -> ItemKind:
@@ -138,14 +128,18 @@ def guess_name(document: ImportDocument) -> str:
 def heuristic_proposal(document: ImportDocument) -> Proposal:
     front = document.front_matter
     rules = front.get("rules") if isinstance(front.get("rules"), list) else []
+    kind = guess_kind(document)
+    raw = {key: value for key, value in front.items() if key not in ("name", "summary", "description", "rules")}
+    extra, refused = clean_extra(kind, raw)
     return Proposal(
         source=document.source,
-        kind=guess_kind(document),
+        kind=kind,
         name=slug(str(front.get("name") or guess_name(document))),
         summary=str(front.get("summary") or front.get("description") or ""),
         rules=[str(rule) for rule in rules],
         body=document.body,
-        extra={key: value for key, value in front.items() if key not in ("name", "summary", "description", "rules")},
+        extra=extra,
+        notes=[f"{', '.join(refused)}: not imported; set it in YAAP after importing."] if refused else [],
     )
 
 
@@ -191,22 +185,9 @@ async def model_proposal(context: UtilityContext, environment_id: int, document:
         rules=[str(rule).strip() for rule in rules if str(rule).strip()][:10] if kind in RULE_KINDS else [],
         body=document.body,
         extra=proposal.extra,
+        notes=proposal.notes,
         proposed_by_model=True,
     )
-
-
-async def propose(
-    documents: list[ImportDocument], context: UtilityContext | None, environment_id: int | None
-) -> list[Proposal]:
-    if context is None or environment_id is None:
-        return [review_hidden(heuristic_proposal(document)) for document in documents]
-    limit = asyncio.Semaphore(CONCURRENT_PROPOSALS)
-
-    async def one(document: ImportDocument) -> Proposal:
-        async with limit:
-            return review_hidden(await model_proposal(context, environment_id, document))
-
-    return list(await asyncio.gather(*(one(document) for document in documents)))
 
 
 def review_hidden(proposal: Proposal) -> Proposal:
@@ -215,6 +196,23 @@ def review_hidden(proposal: Proposal) -> Proposal:
     proposal.body_marked = mark_hidden(proposal.body)
     if find_hidden("\n".join([proposal.summary, *proposal.rules])):
         proposal.warnings.append("The summary or the rules contain hidden characters.")
+    for file in proposal.files:
+        proposal.warnings.extend(f"{file.path}: {line}" for line in warning_lines(find_hidden(file.content)))
+    return review_keys(proposal)
+
+
+def review_keys(proposal: Proposal) -> Proposal:
+    """Block an item whose text, or any skill file, holds something shaped like a key or token."""
+    texts = [("", proposal.body), *((f"{file.path}: ", file.content) for file in proposal.files)]
+    for label, text in texts:
+        refusal = key_refusal(key_shaped_lines(text))
+        if refusal is not None:
+            proposal.blocked = label + refusal
+            break
+    if proposal.blocked is None and holds_key_shape([proposal.summary, proposal.rules, proposal.extra]):
+        proposal.blocked = FRONT_MATTER_KEY_REASON
+    if proposal.blocked is not None:
+        proposal.selected = False
     return proposal
 
 

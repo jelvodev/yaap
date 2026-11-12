@@ -87,6 +87,7 @@ from app.api import telemetry as telemetry_api
 from app.api import evals as evals_api
 from app.api import replays as replays_api
 from app.api import learning as learning_api
+from app.api import blueprint_import as blueprint_import_api
 from app.api import blueprint_starter as blueprint_starter_api
 from app.api import first_run as first_run_api
 from app.core.first_run import FirstRunService
@@ -403,6 +404,7 @@ def create_app(
     api.include_router(evals_api.router)
     api.include_router(replays_api.router)
     api.include_router(learning_api.router)
+    api.include_router(blueprint_import_api.router)
     api.include_router(blueprint_starter_api.router)
     api.include_router(first_run_api.router)
     app.include_router(api)

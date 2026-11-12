@@ -35,7 +35,7 @@ def test_documents_get_proposals_from_the_utility_model(client, fake):
     response = analyze(client, "api.md", STANDARD.encode(), utility_environment_id=1)
 
     assert response.status_code == 200, response.text
-    [proposal] = response.json()
+    [proposal] = response.json()["proposals"]
     assert proposal["kind"] == "standard" and proposal["name"] == "api-design"
     assert proposal["path"] == "standards/api-design.md" and proposal["exists"] is False
     assert proposal["rules"] == ["Use plural nouns for collections.", "Return problem details on errors."]
@@ -47,22 +47,23 @@ def test_a_zip_is_read_and_existing_front_matter_is_kept(client):
     data = zip_of(
         {
             "library/skills/code-review/SKILL.md": "---\ndescription: Review code\n---\n\nRead the diff first.\n",
-            "library/agents/planner.md": "---\ndescription: Plans work\npreset: Deep\n---\n\nPlan first.\n",
+            "library/agents/planner.md": "---\ndescription: Plans work\ntools: [read_file]\npreset: Deep\n---\n\nPlan first.\n",
             "library/notes.txt": "not markdown",
             "library/empty.md": "---\ntitle: x\n---\n",
         }
     )
-    proposals = {item["path"]: item for item in analyze(client, "library.zip", data).json()}
+    proposals = {item["path"]: item for item in analyze(client, "library.zip", data).json()["proposals"]}
 
     assert set(proposals) == {"skills/code-review/SKILL.md", "agents/planner.md"}
-    assert proposals["agents/planner.md"]["extra"] == {"preset": "Deep"}
+    assert proposals["agents/planner.md"]["extra"] == {"tools": ["read_file"]}  # a preset is chosen in YAAP
+    assert any("preset" in note for note in proposals["agents/planner.md"]["notes"])
     assert proposals["skills/code-review/SKILL.md"]["summary"] == "Review code"
 
 
 def test_reviewed_items_are_written_as_blueprint_files(client):
     items = [
         {"kind": "standard", "name": "api-design", "summary": "How APIs look.", "rules": ["Plural nouns."], "body": STANDARD},
-        {"kind": "agent", "name": "planner", "summary": "Plans work", "body": "Plan first.", "extra": {"preset": "Deep"}},
+        {"kind": "agent", "name": "planner", "summary": "Plans work", "body": "Plan first.", "extra": {"tools": ["read_file"]}},
     ]
     applied = client.post("/api/v1/blueprint/import/apply", params={"environment_id": 1}, json={"items": items})
     assert applied.status_code == 200, applied.text
@@ -73,12 +74,12 @@ def test_reviewed_items_are_written_as_blueprint_files(client):
     assert standard["summary"] == "How APIs look." and standard["rules"] == ["Plural nouns."]
     assert standard["content"].endswith("# API design\n\nUse plural nouns for collections.\nReturn problem details on errors.\n")
     agent = next(agent for agent in client.get("/api/v1/environments/1/agents").json() if agent["name"] == "planner")
-    assert agent["preset"] == "Deep" and agent["description"] == "Plans work"
+    assert agent["tools"] == ["read_file"] and agent["description"] == "Plans work"
 
 
 def test_hidden_characters_in_a_document_are_warned_about_and_shown(client):
     data = zip_of({"standards/safe.md": "# Safe\n\nNever log secrets\u200b.\n", "standards/clean.md": "# Clean\n\nText.\n"})
-    proposals = {proposal["source"]: proposal for proposal in analyze(client, "docs.zip", data).json()}
+    proposals = {proposal["source"]: proposal for proposal in analyze(client, "docs.zip", data).json()["proposals"]}
 
     assert any("invisible character" in warning for warning in proposals["standards/safe.md"]["warnings"])
     assert "\u27e6U+200B ZERO WIDTH SPACE\u27e7" in proposals["standards/safe.md"]["body_marked"]

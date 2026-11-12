@@ -3,10 +3,10 @@
 A level is global (no environment), an environment, or a project in an environment.
 """
 
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
 import anyio
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field
 
 from app.api.dependencies import CipherDependency, BlueprintDirDependency, SessionDependency, WorkspaceDirDependency
@@ -25,8 +25,6 @@ from app.blueprint.layers import (
 )
 from app.blueprint.mutations import MutationResult
 from app.blueprint.skill_install import GitHubSkills, read_origin
-from app.core.utility import UtilityContext
-from app.blueprint.importer import BlueprintImportError, collect_documents, item_path, propose, render, slug
 from app.blueprint.levels import layers_for
 from app.blueprint.rules import target_path, unified_diff, with_rule
 from app.github.token import github_token_for
@@ -287,105 +285,6 @@ def remove_file(layers: LayersDependency, path: Annotated[str, Query()]) -> Muta
     if record_result is not None:
         statuses.append(mutation_status("packages/*.json", record_result))
     return MutationStatusesOut(statuses=statuses)
-
-
-# --- Import --------------------------------------------------------------------------------------------------------
-
-
-class ImportProposalOut(BaseModel):
-    source: str
-    kind: Literal["instructions", "standard", "engineering", "skill", "command", "agent"]
-    name: str
-    summary: str
-    rules: list[str]
-    body: str
-    # The body with each hidden character shown as a mark such as ⟦U+200B ZERO WIDTH SPACE⟧.
-    body_marked: str
-    warnings: list[str]
-    # Front matter of the document that YAAP keeps as it is (for example preset or tools of an agent).
-    extra: dict[str, Any]
-    proposed_by_model: bool
-    # The path the item gets, and whether this level already has a file there.
-    path: str
-    exists: bool
-
-
-class ImportItemIn(BaseModel):
-    kind: Literal["instructions", "standard", "engineering", "skill", "command", "agent"]
-    name: str = Field(min_length=1, max_length=60)
-    summary: str = Field(default="", max_length=1000)
-    rules: list[str] = Field(default_factory=list, max_length=20)
-    body: str = Field(min_length=1, max_length=200_000)
-    extra: dict[str, Any] = Field(default_factory=dict)
-
-
-class ImportApplyIn(BaseModel):
-    items: list[ImportItemIn] = Field(min_length=1, max_length=60)
-
-
-class ImportApplyOut(BaseModel):
-    written: list[str]
-    commits: list[MutationStatusOut]
-
-
-@router.post("/import/analyze", response_model=list[ImportProposalOut])
-async def analyze_import(
-    request: Request,
-    file: UploadFile,
-    layers: LayersDependency,
-    utility_environment_id: Annotated[int | None, Query()] = None,
-) -> list[ImportProposalOut]:
-    """Proposals for the documents in a Markdown file or zip; nothing is written yet."""
-    try:
-        documents = await anyio.to_thread.run_sync(collect_documents, file.file, file.filename or "upload.md")
-    except BlueprintImportError as error:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
-    state = request.app.state
-    context = UtilityContext(state.session_factory, state.cipher, state.credential_types, state.providers)
-    proposals = await propose(documents, context if utility_environment_id else None, utility_environment_id)
-    own = layers[-1]
-    return [
-        ImportProposalOut(
-            source=proposal.source,
-            kind=proposal.kind,
-            name=proposal.name,
-            summary=proposal.summary,
-            rules=proposal.rules,
-            body=proposal.body,
-            body_marked=proposal.body_marked,
-            warnings=proposal.warnings,
-            extra=proposal.extra,
-            proposed_by_model=proposal.proposed_by_model,
-            path=item_path(proposal.kind, proposal.name),
-            exists=layer_has_file(own, item_path(proposal.kind, proposal.name)),
-        )
-        for proposal in proposals
-    ]
-
-
-@router.post("/import/apply", response_model=ImportApplyOut)
-def apply_import(payload: ImportApplyIn, layers: LayersDependency) -> ImportApplyOut:
-    """Write the reviewed items into this level; each file is committed on its own."""
-    own = layers[-1]
-    planned = [(item_path(item.kind, slug(item.name)), item) for item in payload.items]
-    paths = [path for path, _ in planned]
-    if len(set(paths)) != len(paths):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Two items would get the same path; rename one.")
-    written: list[str] = []
-    commits: list[MutationStatusOut] = []
-    for path, item in planned:
-        rules = [rule.strip() for rule in item.rules if rule.strip()]
-        content = render(item.kind, item.summary.strip(), rules, item.body, item.extra)
-        try:
-            result = write_file(own, validate_path(path), content, f"Import {path} ({own.label})")
-        except BlueprintError as error:
-            done = ", ".join(written) or "none"
-            raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_CONTENT, f"{path}: {error} Imported before it: {done}."
-            ) from error
-        written.append(path)
-        commits.append(mutation_status(path, result))
-    return ImportApplyOut(written=written, commits=commits)
 
 
 # --- Skills from GitHub --------------------------------------------------------------------
