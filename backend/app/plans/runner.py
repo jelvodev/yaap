@@ -112,10 +112,12 @@ class BuildRunner:
                 raise BuildRefused("copy_failed", str(error)) from error
             start = BuildStart(base.branch, base.commit, branch, copy_relative(plan_id), base.uncommitted)
             try:
-                return plans.approve_for_build(plan_id, start)
+                view = plans.approve_for_build(plan_id, start)
             except BaseException:
                 remove_build_copy(folder, plan_id)
                 raise
+        self.listeners.tell(plan_id, "approve")
+        return view
 
     def resume(self, plan_id: int) -> PlanView:
         """Mark an interrupted or failed build building again; its copy must still be there. Then `launch`."""

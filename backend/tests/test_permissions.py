@@ -497,6 +497,8 @@ READ_ONLY_OUTCOMES: dict[str, Verdict] = {
     "delegate": "allow",
     "finish_goal": "allow",
     "submit_plan": "allow",
+    "read_card": "allow",
+    "update_card": "refuse",
     "list_attachment": "allow",
     "read_attachment": "allow",
     "search_attachment": "allow",

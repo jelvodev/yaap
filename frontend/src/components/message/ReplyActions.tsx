@@ -4,6 +4,7 @@ import type { Message } from "../../api/client";
 import ReadAloudButton from "../../speech/ReadAloudButton";
 import { BranchIcon, CopyIcon, MoreIcon } from "../icons";
 import { useDismiss } from "../useDismiss";
+import MakeCardAction from "./MakeCardAction";
 import { SecondOpinionAction } from "./SecondOpinionAction";
 import { type MessageActions, VersionSwitch } from "./MessageActions";
 import { blocksFromMessage } from "./replyBlock";
@@ -99,6 +100,7 @@ export function ReplyActions({ message, actions }: { message: Message; actions: 
       <VersionSwitch message={message} actions={actions} />
       <CopyButton message={message} />
       {last?.actions}
+      <MakeCardAction messageId={message.id} target={actions.ruleTarget} />
       {message.status === "complete" && message.id > 0 && <SecondOpinionAction message={message} actions={actions} />}
       <button
         type="button"

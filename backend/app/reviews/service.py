@@ -51,7 +51,15 @@ from app.reviews.report import (
     review_prompt,
     split_files,
 )
-from app.reviews.scope import ReviewScope, changes_scope, conversation_scope, goal_scope
+from app.reviews.scope import (
+    BuildTarget,
+    NothingToReview,
+    ReviewScope,
+    branch_scope,
+    changes_scope,
+    conversation_scope,
+    goal_scope,
+)
 from app.secrets.service import mask, resolve_secrets
 from app.storage.models import Conversation, Environment, Goal, Project, Review
 
@@ -64,6 +72,7 @@ REVIEW_MAX_TOKENS = 4000
 REVIEWS: BackgroundWork[None] = BackgroundWork()
 # Two entry points can see the same goal end (the next-turn check and the scheduled run's end).
 GOAL_LOCK = threading.Lock()
+RESTARTED = "YAAP restarted during the review. Review again to run it."
 
 
 @dataclass(frozen=True)
@@ -109,6 +118,17 @@ class ReviewService:
         with self.services.session_factory() as session:
             conversation = session.get_one(Conversation, conversation_id)
             scope = conversation_scope(session, self.checkpoints, self.services.workspace_dir, conversation)
+            review_id = self.create(session, scope)
+        anyio.from_thread.run_sync(spawn, self.run(review_id))
+        return review_id
+
+    def start_for_branch(self, project_id: int, target: BuildTarget) -> int:
+        """Review a build branch since the commit it started from. In a worker thread; raises NothingToReview when
+        the branch changed nothing or cannot be read."""
+        with self.services.session_factory() as session:
+            scope = branch_scope(session, self.services.workspace_dir, session.get_one(Project, project_id), target)
+            if scope is None:
+                raise NothingToReview("The build branch has no changes since the build started.")
             review_id = self.create(session, scope)
         anyio.from_thread.run_sync(spawn, self.run(review_id))
         return review_id
@@ -170,6 +190,9 @@ class ReviewService:
             notes=notes,
             findings=[],
             created_at=datetime.now(UTC),
+            base_commit=scope.base_commit,
+            branch=scope.branch,
+            card_id=scope.card_id,
         )
         session.add(review)
         session.commit()
@@ -264,6 +287,15 @@ class ReviewService:
     def end_in(session: Session, review: Review, status: ReviewStatus, reason: str | None) -> None:
         review.status, review.reason, review.finished_at = status, reason, datetime.now(UTC)
         session.commit()
+
+
+def recover_reviews(session: Session) -> int:
+    """Reviews cut off by a restart end as failed, so they can be run again. Returns how many."""
+    running = list(session.scalars(select(Review).where(Review.status == "running")))
+    for review in running:
+        review.status, review.reason, review.finished_at = "failed", RESTARTED, datetime.now(UTC)
+    session.commit()
+    return len(running)
 
 
 def prompts_for(

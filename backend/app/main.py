@@ -69,7 +69,11 @@ from app.api import estimates as estimates_api
 from app.api import reviews as reviews_api
 from app.api import plans as plans_api
 from app.api import board as board_api
+from app.api import card_actions as card_actions_api
 from app.board.index import BoardIndexer
+from app.board.route import CardRoute
+from app.board.stage_conversation import ReplyStarter
+from app.reviews.service import recover_reviews
 from app.board.service import BoardService
 from app.board.storage import BranchStorage
 from app.api import second_opinion as second_opinion_api
@@ -212,6 +216,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         recover_replays(session, settings.workspace_dir, settings.data_dir)
         # Builds cut off by a restart are interrupted; Continue goes on with them.
         recover_builds(session)
+        # Reviews cut off by a restart failed; they can be run again.
+        recover_reviews(session)
     # A build that ends refreshes the project's current state; its copies are pruned once an hour.
     context = StateRefreshContext(ReplyServices.from_state(app.state).utility, settings.workspace_dir)
     sources = partial(build_state_source, app.state.session_factory)
@@ -231,6 +237,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         settings.blueprint_dir,
         settings.workspace_dir,
     )
+    # A card's route through its plan, build and review follows the plans' events.
+    reply_services = partial(ReplyServices.from_state, app.state)
+    app.state.card_route = CardRoute(
+        app.state.board, reply_services, app.state.builds, ReplyStarter(reply_services), asyncio.get_running_loop()
+    )
+    app.state.builds.listeners.add(app.state.card_route.on_plan_event)
     start_check = asyncio.create_task(check_at_start(app.state.updates)) if app.state.update_check_at_start else None
     # CLIs installed by an older release are installed again from this release's lock.
     app.state.cli_sign_ins.refresh_tools()
@@ -282,6 +294,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await LANGUAGE_SERVERS.stop_all()
     # Before the engine goes: work still running would keep a connection, and the database file, open.
     await app.state.builds.shutdown()
+    await app.state.card_route.work.stop()
     await stop_replies_and_their_work(app.state.replies, (app.state.evals.work, app.state.replay_service.work))
     app.state.plugins.unload_all()
     engine.dispose()
@@ -441,6 +454,7 @@ def create_app(
     api.include_router(reviews_api.router)
     api.include_router(plans_api.router)
     api.include_router(board_api.router)
+    api.include_router(card_actions_api.router)
     api.include_router(current_state_api.router)
     api.include_router(second_opinion_api.router)
     api.include_router(files_api.router)

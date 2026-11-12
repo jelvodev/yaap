@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import type { Message } from "../../api/client";
+import CardPart from "../card/CardPart";
 import AttachmentList from "./AttachmentList";
 import { type MessageActions, UserMessageActions } from "./MessageActions";
 
@@ -67,6 +68,8 @@ export default function UserMessage({
     .join("");
   const attachments = message.content.filter((block) => block.type === "attachment");
   const command = message.content.find((block) => block.type === "command");
+  const cardId = command?.name === "card" ? (command.card_id ?? null) : null;
+  const projectId = actions?.ruleTarget?.projectId ?? null;
   const goalTurn = message.content.find((block) => block.type === "goal");
   if (goalTurn && !text && (goalTurn.turn ?? 1) > 1) {
     // A turn YAAP sent by itself in goal mode: a marker, not a message of the user.
@@ -115,6 +118,7 @@ export default function UserMessage({
           </div>
         )
       )}
+      {cardId !== null && projectId !== null && <CardPart projectId={projectId} cardId={cardId} />}
       {actions && (
         <UserMessageActions
           message={message}
