@@ -22,7 +22,9 @@ from app.evals.models import ScorerCost
 from app.providers.registry import ProviderRegistry
 
 SCORER_TASK = "eval_rubric"
-SCORER_MAX_TOKENS = 600
+# Room for the verdict and its reasons: a CLI connection counts its own framing against the limit and stops at it,
+# which leaves a cut-off verdict that cannot be read.
+SCORER_MAX_TOKENS = 2_000
 MAX_REPLY_CHARS = 20_000
 VERDICT_OBJECT = re.compile(r"\{.*\}", re.DOTALL)
 
