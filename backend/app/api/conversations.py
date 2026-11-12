@@ -45,7 +45,7 @@ from app.agents.definitions import find_agent
 from app.core.conversation_move import MoveBusy, MoveError, move_conversation
 from app.core.conversations import delete_conversation
 from app.core.goals import ACTIVE, end_goal, goal_cost, latest_goal, open_goal
-from app.core.chat import DEFAULT_TITLE, load_branch
+from app.core.chat_history import DEFAULT_TITLE, load_branch
 from app.core.replies import ReplyRegistry
 from app.core.reply_errors import InvalidReplyRequest, ReplyBusy, ReplyConflict, ReplyError
 from app.core.reply_service import NewMessage, ReplyService

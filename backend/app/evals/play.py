@@ -24,7 +24,7 @@ from app.agents.definitions import agent_part, find_agent
 from app.blueprint.context import build_system_parts
 from app.blueprint.layers import Layer
 from app.core.background import BackgroundWork
-from app.core.chat import add_user_message
+from app.core.chat_history import add_user_message
 from app.core.replies import ReplyJob
 from app.core.reply_errors import ReplyError
 from app.core.reply_service import ReplyRequest, ReplyService

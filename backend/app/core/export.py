@@ -11,7 +11,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.chat import load_branch
+from app.core.chat_history import load_branch
 from app.storage.models import Conversation, Environment, Message, Project, UsageRecord
 
 TOOL_OUTPUT_LIMIT = 4000

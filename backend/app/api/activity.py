@@ -24,7 +24,7 @@ from app.api.dependencies import (
     SessionDependency,
     WorkspaceDirDependency,
 )
-from app.core.chat import load_branch
+from app.core.chat_history import load_branch
 from app.core.message_queue import (
     MAX_MESSAGE_ATTACHMENTS,
     MAX_MESSAGE_LENGTH,

@@ -34,7 +34,7 @@ from app.auth.tokens import TokenGrant, require_api_token
 from app.blueprint.levels import layers_for
 from app.checkpoints.service import CheckpointStore
 from app.core.api_conversations import Scope, ScopeError, in_scope, new_conversation, token_scope
-from app.core.chat import add_user_message
+from app.core.chat_history import add_user_message
 from app.core.github_token import read_github_token
 from app.core.model_policy_store import resolve_model_policy
 from app.core.search import RunSearch

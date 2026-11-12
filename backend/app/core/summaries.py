@@ -17,6 +17,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.background import BackgroundWork
+from app.core.chat_events import server_sent_event
+from app.core.chat_history import is_part_of_history, load_branch
 from app.core.utility import UtilityContext, UtilitySkipped, run_utility_or_skip
 from app.providers.base import HistoryMessage
 from app.providers.registry import ProviderRegistry
@@ -126,15 +128,12 @@ def carried_texts(covered: list[Message]) -> list[str]:
 
 
 def _in_history(message: Message) -> bool:
-    from app.core.chat import is_part_of_history
-
     return is_part_of_history(message)
 
 
 def cover_point(branch: list[Message]) -> int | None:
     """Index of the assistant message a new summary would cover up to: the end of the turn before the last
     KEEP_TURNS, and later than the current summary. None when there is too little to summarise."""
-    from app.core.chat import is_part_of_history
 
     turn_ends = [index for index, message in enumerate(branch) if message.role == "assistant" and is_part_of_history(message)]
     if len(turn_ends) < KEEP_TURNS + 1:
@@ -206,7 +205,6 @@ class SummaryResult:
 async def summarise(context: UtilityContext, conversation_id: int, focus: str | None = None) -> SummaryResult:
     """Summarise the conversation up to the turn before the last KEEP_TURNS; the summary is stored on the last
     message it covers. focus (from /compact) is an extra instruction for what the summary keeps."""
-    from app.core.chat import load_branch
 
     with context.session_factory() as session:
         conversation = session.get_one(Conversation, conversation_id)
@@ -272,8 +270,6 @@ async def summarise_if_needed(context: UtilityContext, conversation_id: int) -> 
     try:
         with context.session_factory() as session:
             conversation = session.get_one(Conversation, conversation_id)
-            from app.core.chat import load_branch
-
             from app.core.context_control import resolve_context_control
             from app.core.trimming import mark_trim
 
@@ -296,7 +292,6 @@ async def summarise_if_needed(context: UtilityContext, conversation_id: int) -> 
 
 async def compact_events(context: UtilityContext, conversation_id: int, focus: str | None) -> AsyncIterator[str]:
     """The event stream of /compact: `compacted` with where the summary is, or `compact_failed`."""
-    from app.core.chat import server_sent_event
 
     try:
         result = await summarise(context, conversation_id, focus or None)

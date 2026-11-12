@@ -106,7 +106,7 @@ def test_the_turn_limit_ends_the_goal_and_the_user_can_stop_it(client, fake):
 def test_a_late_follow_up_leaves_a_newer_goal_alone(client, fake):
     """The follow-up of a reply waits until the reply has left the registry; a scheduled task's next run can start a
     new goal in the same conversation in that moment. The late follow-up must not take that goal for its own."""
-    from app.core.chat import add_user_message
+    from app.core.chat_history import add_user_message
     from app.core.goals import create_goal, goal_block, start_text
     from app.core.reply_service import ReplyService
     from app.core.reply_services import ReplyServices

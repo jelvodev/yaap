@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.chat import add_user_message
+from app.core.chat_history import add_user_message
 from app.core.reply_errors import ReplyUnavailable
 from app.core.reply_service import ReplyService
 from app.core.message_queue import (

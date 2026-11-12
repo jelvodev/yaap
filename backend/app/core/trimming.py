@@ -8,6 +8,7 @@ stays the same until the next trim and the prompt cache holds. Not for Claude Co
 
 from typing import Any
 
+from app.core.chat_history import is_part_of_history
 from app.core.context_control import resolve_context_control
 from app.core.summaries import KEEP_TURNS, latest_summary
 from app.providers.anthropic_provider import TURNS_BLOCK_TYPE
@@ -93,7 +94,6 @@ def shrink_raw(raw: list[dict[str, Any]] | None) -> list[dict[str, Any]] | None:
 
 def apply_trim(branch: list[Message], history: list[HistoryMessage]) -> list[HistoryMessage]:
     """The history with the tool results of every message up to the latest trim point shortened."""
-    from app.core.chat import is_part_of_history
 
     index = latest_trim(branch)
     if index is None:
@@ -121,7 +121,6 @@ def has_long_output(messages: list[Message]) -> bool:
 def trim_point(branch: list[Message]) -> int | None:
     """The end of the turn before the last KEEP_TURNS, when it is later than the last trim and summary and there is
     long output to shorten in between."""
-    from app.core.chat import is_part_of_history
 
     turn_ends = [index for index, message in enumerate(branch) if message.role == "assistant" and is_part_of_history(message)]
     if len(turn_ends) < KEEP_TURNS + 1:

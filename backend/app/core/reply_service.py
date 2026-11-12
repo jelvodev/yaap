@@ -29,7 +29,8 @@ from app.blueprint.check import is_read_only_check
 from app.core.audit import record_request, reply_entry, with_refusal
 from app.core.cache_policy import reply_cache_ttl
 from app.core.budget_stop import both_listeners, reply_budget_guard, with_budget_stop
-from app.core.chat import add_user_message, build_request, load_branch, stream_reply
+from app.core.chat import build_request, stream_reply
+from app.core.chat_history import add_user_message, load_branch
 from app.core.context_control import output_tokens
 from app.core.goals import end_goal, goal_block, next_turn
 from app.core.message_parts import expand_command

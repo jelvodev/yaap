@@ -13,7 +13,7 @@ from pathlib import PurePosixPath
 
 from sqlalchemy.orm import Session
 
-from app.core.chat import DEFAULT_TITLE, make_title
+from app.core.chat_history import DEFAULT_TITLE, make_title
 from app.core.hidden_text import describe, find_hidden
 from app.credentials.crypto import CredentialCipher
 from app.imports.sessions import CLAUDE_CODE, CODEX, IMPORTED_BLOCK_TYPE, TOOL_NAMES, ImportedSession, SessionImportError

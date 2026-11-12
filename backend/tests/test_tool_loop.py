@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import httpx2
 import pytest
 
-from app.core.chat import ReplyContent
+from app.core.chat_events import ReplyContent
 from app.providers import tool_loop
 from app.providers.base import (
     CallRestarted,

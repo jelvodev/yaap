@@ -18,7 +18,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.core.audit import prune_audit
-from app.core.chat import add_user_message
+from app.core.chat_history import add_user_message
 from app.core.goals import ACTIVE, OPEN_STATUSES, create_goal, end_goal, goal_block, goal_cost, open_goal, start_text
 from app.core.reply_errors import ReplyBusy, ReplyError
 from app.core.reply_service import ReplyRequest, ReplyService

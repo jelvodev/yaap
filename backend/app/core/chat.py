@@ -1,142 +1,40 @@
 """Plain chat: one user message in, one streamed assistant reply out, stored as an append-only tree."""
 
-import asyncio
-import json
 import logging
-from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
-from dataclasses import dataclass
+from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import UTC, datetime
-from types import EllipsisType
 from typing import Any
 
 import anyio
-from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.agent.runs import AgentRun, RunRegistry
 from app.agents.records import finish_record, finish_run_record
-from app.attachments.service import AttachmentResolver, attachment_block
-from app.core.background import BackgroundWork
+from app.attachments.service import AttachmentResolver
+from app.core.chat_events import (
+    ReplyContent,
+    ReplyOutcome,
+    merge_events,
+    outcome_from_completion,
+    reply_event,
+    server_sent_event,
+)
+from app.core.chat_history import build_history
 from app.core.conversation_schemas import ConversationSummaryOut, message_to_out
-from app.core.message_parts import model_content
 from app.core.model_choice import Billing
 from app.core.prompts import base_system_parts
 from app.core.stopped_usage import StoppedRun, store_stopped_usage
 from app.core.summaries import apply_summary
 from app.core.trimming import apply_trim
 from app.core.utility_skips import skipped_since
-from app.imports.sessions import imported_model_content, is_imported
-from app.providers.base import (
-    AgentEvent,
-    AgentRequest,
-    CallRestarted,
-    Completed,
-    HistoryMessage,
-    ModelProvider,
-    ProviderError,
-    ReasoningDelta,
-    SystemPart,
-    TextDelta,
-    ToolCallFinished,
-    ToolCallStarted,
-)
+from app.providers.base import AgentRequest, Completed, ModelProvider, ProviderError, SystemPart
 from app.providers.catalog import calculate_cost
 from app.providers.registry import ProviderRegistry
-from app.storage.models import Attachment, Conversation, Message, UsageRecord
+from app.storage.models import Conversation, Message, UsageRecord
+
 
 logger = logging.getLogger(__name__)
-
-DEFAULT_TITLE = "New conversation"
-TITLE_LENGTH = 60
-
-
-def load_branch(session: Session, conversation_id: int, head_message_id: int | None) -> list[Message]:
-    """Messages from the root to the given head, following parent links."""
-    if head_message_id is None:
-        return []
-    messages = {
-        message.id: message
-        for message in session.scalars(select(Message).where(Message.conversation_id == conversation_id))
-    }
-    branch: list[Message] = []
-    current = messages.get(head_message_id)
-    while current is not None:
-        branch.append(current)
-        current = messages.get(current.parent_id) if current.parent_id is not None else None
-    branch.reverse()
-    return branch
-
-
-def is_part_of_history(message: Message) -> bool:
-    """Only turns the model actually completed are sent back; cancelled, failed and refused replies are not."""
-    if message.role == "user":
-        return True
-    return message.provider_raw is not None and message.status != "refused"
-
-
-def build_history(branch: list[Message], resolver: AttachmentResolver | None = None) -> list[HistoryMessage]:
-    """The branch as model input: commands filled in, skills as text, attachments as images, documents or text."""
-    history = []
-    for message in branch:
-        if not is_part_of_history(message):
-            continue
-        content = message.content
-        if message.role == "user":
-            content = model_content(content)
-            if resolver is not None:
-                content = resolver.expand(content)
-        elif is_imported(message.provider_raw):
-            # A turn of an imported Claude Code or Codex session: its tool calls go along as text.
-            content = imported_model_content(content, message.provider_raw[0].get("tool", ""))  # type: ignore[index]
-        history.append(HistoryMessage(role=message.role, content=content, provider_raw=message.provider_raw))  # type: ignore[arg-type]
-    return history
-
-
-def make_title(text: str) -> str:
-    first_line = " ".join(text.split())
-    return first_line if len(first_line) <= TITLE_LENGTH else first_line[: TITLE_LENGTH - 1].rstrip() + "…"
-
-
-def add_user_message(
-    session: Session,
-    conversation: Conversation,
-    text: str,
-    attachments: Sequence[Attachment] = (),
-    extra_blocks: Sequence[dict[str, Any]] = (),
-    parent_id: int | None | EllipsisType = ...,
-) -> Message:
-    """Store the user's message: skills first, then the typed text, its command expansion and attachments.
-
-    It follows the current head, unless parent_id says where it goes (a new version of an earlier message).
-    """
-    now = datetime.now(UTC)
-    skills = [block for block in extra_blocks if block["type"] in ("skill", "skill_removed")]
-    commands = [block for block in extra_blocks if block["type"] in ("command", "goal")]
-    content: list[dict[str, Any]] = [*skills]
-    content += [{"type": "text", "text": text}] if text else []
-    content += commands
-    content += [attachment_block(attachment) for attachment in attachments]
-    message = Message(
-        conversation_id=conversation.id,
-        parent_id=conversation.head_message_id if parent_id is ... else parent_id,
-        role="user",
-        content=content,
-        status="complete",
-        created_at=now,
-    )
-    session.add(message)
-    session.flush()
-    for attachment in attachments:
-        # A new version of a message shares its files; they stay with the message they came with.
-        if attachment.message_id is None:
-            attachment.message_id = message.id
-    conversation.head_message_id = message.id
-    conversation.updated_at = now
-    if conversation.title == DEFAULT_TITLE:
-        conversation.title = make_title(text or ", ".join(attachment.filename for attachment in attachments))
-    session.commit()
-    return message
 
 
 def build_request(
@@ -156,102 +54,6 @@ def build_request(
         # Old tool output shortened, then the summary.
         messages=apply_summary(branch, apply_trim(branch, build_history(branch, resolver))),
     )
-
-
-def server_sent_event(name: str, payload: dict[str, Any]) -> str:
-    return f"event: {name}\ndata: {json.dumps(payload)}\n\n"
-
-
-@dataclass
-class ReplyOutcome:
-    status: str
-    stop_reason: str | None
-    error: str | None
-
-
-def outcome_from_completion(completed: Completed) -> ReplyOutcome:
-    if completed.stop_reason == "refusal":
-        category = f" (category: {completed.refusal_category})" if completed.refusal_category else ""
-        return ReplyOutcome("refused", completed.stop_reason, f"The model declined this request{category}.")
-    if completed.stop_reason == "max_tokens":
-        return ReplyOutcome("incomplete", completed.stop_reason, "The reply reached the maximum length.")
-    if completed.stop_reason == "max_turns":
-        return ReplyOutcome("incomplete", completed.stop_reason, "The reply reached the limit of model calls in one run.")
-    return ReplyOutcome("complete", completed.stop_reason, None)
-
-
-MAX_STORED_TOOL_OUTPUT = 20_000
-
-
-class ReplyContent:
-    """The reply in the order it happened: reasoning, text and tool calls, as neutral content blocks."""
-
-    def __init__(self) -> None:
-        self.blocks: list[dict[str, Any]] = []
-
-    def add_text(self, kind: str, text: str) -> None:
-        if self.blocks and self.blocks[-1]["type"] == kind:
-            self.blocks[-1]["text"] += text
-        else:
-            self.blocks.append({"type": kind, "text": text})
-
-    def start_tool(self, event: ToolCallStarted) -> None:
-        self.blocks.append(
-            {"type": "tool_call", "id": event.id, "name": event.name, "input": event.input, "output": None, "is_error": False}
-        )
-
-    def drop_unfinished_call(self) -> None:
-        """Remove text and reasoning after the last tool call: a model call that broke off and starts again."""
-        while self.blocks and self.blocks[-1]["type"] in ("text", "reasoning"):
-            self.blocks.pop()
-
-    def finish_tool(self, event: ToolCallFinished) -> None:
-        for block in reversed(self.blocks):
-            if block["type"] == "tool_call" and block["id"] == event.id:
-                output = event.output
-                if len(output) > MAX_STORED_TOOL_OUTPUT:
-                    output = output[:MAX_STORED_TOOL_OUTPUT] + "\n[Output shortened for storage.]"
-                block.update(output=output, is_error=event.is_error)
-                return
-
-    def content(self) -> list[dict[str, Any]]:
-        blocks = [
-            {**block, "text": block["text"].strip()} if block["type"] == "reasoning" else block
-            for block in self.blocks
-            if block["type"] != "reasoning" or block["text"].strip()
-        ]
-        if not any(block["type"] == "text" for block in blocks):
-            blocks.append({"type": "text", "text": ""})
-        return blocks
-
-
-def reply_event(event: AgentEvent | dict[str, Any], reply: ReplyContent) -> tuple[str, dict[str, Any]] | None:
-    """Apply a model or run event to the reply and return the event sent to the browser."""
-    if isinstance(event, TextDelta):
-        reply.add_text("text", event.text)
-        return "text_delta", {"text": event.text}
-    if isinstance(event, ReasoningDelta):
-        reply.add_text("reasoning", event.text)
-        return "reasoning_delta", {"text": event.text}
-    if isinstance(event, ToolCallStarted):
-        reply.start_tool(event)
-        return "tool_call", {"id": event.id, "name": event.name, "input": event.input}
-    if isinstance(event, ToolCallFinished):
-        reply.finish_tool(event)
-        return "tool_result", {
-            "id": event.id,
-            "output": event.output[:MAX_STORED_TOOL_OUTPUT],
-            "is_error": event.is_error,
-        }
-    if isinstance(event, CallRestarted):
-        reply.drop_unfinished_call()
-        return "call_restarted", {"attempt": event.attempt, "reason": event.reason}
-    if isinstance(event, dict):
-        name = event.pop("event")
-        if name == "steering":
-            reply.blocks.append({"type": "steering", "text": event["text"]})
-        return name, event
-    return None
 
 
 def finish_reply(
@@ -307,52 +109,6 @@ def finish_reply(
     return reply_id, final_status
 
 
-async def merge_events(
-    provider_events: AsyncIterator[AgentEvent], run_events: "asyncio.Queue[dict[str, Any]] | None"
-) -> AsyncIterator[AgentEvent | dict[str, Any]]:
-    """The model's events, interleaved with the run's own events (approval requests) as they happen."""
-    if run_events is None:
-        async for event in provider_events:
-            yield event
-        return
-    queue: asyncio.Queue[tuple[str, Any]] = asyncio.Queue()
-
-    async def pump_provider() -> None:
-        try:
-            async for event in provider_events:
-                await queue.put(("event", event))
-            await queue.put(("done", None))
-        except Exception as error:  # noqa: BLE001 - handed to the consumer, which re-raises it
-            await queue.put(("error", error))
-
-    async def pump_run() -> None:
-        while True:
-            await queue.put(("event", await run_events.get()))
-
-    # The pumps run in cancel scopes of their own: stopping them waits for a worker thread that a tool of the
-    # provider's tool loop (inside pump_provider) is in.
-    pumps: BackgroundWork[None] = BackgroundWork()
-    pumps.start(pump_provider())
-    pumps.start(pump_run())
-    try:
-        while True:
-            kind, value = await queue.get()
-            if kind == "done":
-                # Run events that came with the provider's last steps (a steering marker, live output) still go out.
-                while not queue.empty():
-                    kind, value = queue.get_nowait()
-                    if kind == "event":
-                        yield value
-                while not run_events.empty():
-                    yield run_events.get_nowait()
-                return
-            if kind == "error":
-                raise value
-            yield value
-    finally:
-        # Shielded: a stopped reply's scope keeps cancelling every await until the reply has ended.
-        with anyio.CancelScope(shield=True):
-            await pumps.stop()
 
 
 def store_assistant_reply(

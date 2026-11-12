@@ -15,7 +15,8 @@ import anyio
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.blueprint.check import CheckError, check_block
-from app.core.chat import load_branch, server_sent_event
+from app.core.chat_events import server_sent_event
+from app.core.chat_history import load_branch
 from app.core.goals import GoalError, create_goal, goal_block, goal_objective, start_text
 from app.core.message_parts import expand_command, skill_blocks
 from app.core.queue_commands import claim_items, consume_items, release_items

@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session
 from app.blueprint.layers import PROJECT_LAYER_FOLDER
 from app.checkpoints.service import CheckpointStore
 from app.checkpoints.shadow import CheckpointError
-from app.core.chat import load_branch
+from app.core.chat_history import load_branch
 from app.core.search_index import message_text
 from app.evals.cases import workspace_path
 from app.evals.models import StartState

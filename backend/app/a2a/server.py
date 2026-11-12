@@ -23,7 +23,7 @@ from sqlalchemy import select
 from app.a2a.client import PROTOCOL_VERSION, parts_text
 from app.auth.tokens import TokenGrant, require_api_token
 from app.core.api_conversations import ScopeError, in_scope, new_conversation, token_scope
-from app.core.chat import add_user_message, make_title
+from app.core.chat_history import add_user_message, make_title
 from app.core.reply_errors import ReplyBusy, ReplyError
 from app.core.reply_service import ReplyRequest, ReplyService
 from app.core.reply_services import ReplyServices

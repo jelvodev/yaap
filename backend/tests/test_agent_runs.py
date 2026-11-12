@@ -2,7 +2,7 @@ import asyncio
 import json
 from pathlib import Path
 
-from app.core.chat import merge_events
+from app.core.chat_events import merge_events
 from app.providers.base import (
     AgentRequest,
     Completed,
