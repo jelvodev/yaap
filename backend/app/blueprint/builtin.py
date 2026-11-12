@@ -14,7 +14,9 @@ from typing import Literal, get_args
 
 from app.blueprint.layers import BlueprintError, Layer, active_items, parse_document
 
-BuiltinName = Literal["explorer", "worker", "reviewer", "router", "guard", "summariser", "memory-keeper", "learner"]
+BuiltinName = Literal[
+    "explorer", "worker", "brief-worker", "reviewer", "router", "guard", "summariser", "memory-keeper", "learner"
+]
 BuiltinKind = Literal["agent", "skill"]
 BuiltinRole = Literal["worker", "explorer"]
 
@@ -22,6 +24,7 @@ BUILTIN_DIR = Path(__file__).resolve().parent.parent / "builtin_blueprint"
 KIND_BY_NAME: dict[str, BuiltinKind] = {
     "explorer": "agent",
     "worker": "agent",
+    "brief-worker": "agent",
     "reviewer": "agent",
     "router": "agent",
     "guard": "agent",
