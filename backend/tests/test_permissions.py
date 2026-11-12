@@ -486,6 +486,7 @@ READ_ONLY_OUTCOMES: dict[str, Verdict] = {
     "load_standard": "allow",
     "load_skill": "allow",
     "update_memory": "refuse",
+    "update_current_state": "refuse",
     "search_project": "allow",
     "read_knowledge": "allow",
     "find_definition": "allow",
