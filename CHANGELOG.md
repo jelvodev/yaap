@@ -6,6 +6,12 @@ yourself when you update; it says "None." when there is nothing.
 
 ## Unreleased
 
+### Action needed
+
+None.
+
+## 0.7.0 (2026-11-12)
+
 - Fetch, push, pull and clone use the GitHub token only in a transport repository that YAAP alone writes, in the data folder; a process in the runner can no longer change how a token-carrying git command connects. Commits move between that repository and the project as git bundles, whose branch names and commits YAAP checks.
 - The git panel keeps its connection to the runner for a few minutes instead of making a new one (and a new vault use entry) on every request.
 - A queued `/eval` starts at most one eval run, also when it is sent twice or YAAP restarts in between; the run records the queue item it came from.
