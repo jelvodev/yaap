@@ -36,6 +36,7 @@ from app.runner.service import RUNNERS
 from app.sandbox.client import HelperClient
 from app.storage.models import Environment
 from app.targets.base import CapturedResult
+from app.targets.ssh import CONNECTIONS
 
 # Read before the test suite's own fixture switches the runner off for each test.
 RUNNER_SETTING_AT_IMPORT = os.environ.get("YAAP_RUNNER", "on").strip().lower()
@@ -362,6 +363,9 @@ def test_a_filter_planted_after_the_check_runs_in_the_runner_and_never_in_yaap(
     monkeypatch.setattr(RUNNERS, "enabled", True)
     monkeypatch.setattr(RUNNERS, "workspace_dir", Path(RACE_WORKSPACE))
     monkeypatch.setattr(RUNNERS.manager, "helper", HelperClient.from_environment())
+    # Each case runs on an event loop of its own (`in_worker`), and an SSH connection belongs to the loop that opened
+    # it, so a connection kept from the previous case cannot be reused.
+    monkeypatch.setattr(CONNECTIONS, "open", {})
     folder = Path(RACE_WORKSPACE) / slug / f"race-{operation}"
     canary = tmp_path / "canary.txt"
     make_repository(folder)
