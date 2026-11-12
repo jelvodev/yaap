@@ -1235,6 +1235,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/card": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make Card
+         * @description *Make a card*: the message's text becomes a card in Design, linked to the conversation.
+         */
+        post: operations["make_card_api_v1_conversations__conversation_id__messages__message_id__card_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/conversations/{conversation_id}/messages/{message_id}/regenerate": {
         parameters: {
             query?: never;
@@ -3570,6 +3590,26 @@ export interface paths {
          * @description Change a card's text and plain fields; its column changes only by a move.
          */
         patch: operations["update_card_api_v1_projects__project_id__board_cards__card_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/board/cards/{card_id}/actions/{action}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Card Action
+         * @description Run one of the card's stage actions; the card's next step says which one is due.
+         */
+        post: operations["card_action_api_v1_projects__project_id__board_cards__card_id__actions__action__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/projects/{project_id}/board/cards/{card_id}/answer": {
@@ -5972,6 +6012,14 @@ export interface components {
             tool: string | null;
             why: components["schemas"]["WhyOut"];
         };
+        /** CardActionOut */
+        CardActionOut: {
+            card: components["schemas"]["CardDetailOut"];
+            /** Conversation Id */
+            conversation_id?: number | null;
+            /** Review Id */
+            review_id?: number | null;
+        };
         /** CardAnswer */
         CardAnswer: {
             /** Index */
@@ -6347,6 +6395,8 @@ export interface components {
         ContentBlockOut: {
             /** Attachment Id */
             attachment_id?: number | null;
+            /** Card Id */
+            card_id?: number | null;
             /** Covered */
             covered?: number | null;
             /** Focus */
@@ -9370,7 +9420,7 @@ export interface components {
              * Source
              * @enum {string}
              */
-            source: "goal" | "task" | "changes" | "conversation" | "reply" | "answer";
+            source: "goal" | "task" | "changes" | "conversation" | "reply" | "answer" | "build";
             /**
              * Status
              * @enum {string}
@@ -9427,7 +9477,7 @@ export interface components {
              * Source
              * @enum {string}
              */
-            source: "goal" | "task" | "changes" | "conversation" | "reply" | "answer";
+            source: "goal" | "task" | "changes" | "conversation" | "reply" | "answer" | "build";
             /**
              * Status
              * @enum {string}
@@ -13317,6 +13367,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BehindOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    make_card_api_v1_conversations__conversation_id__messages__message_id__card_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: number;
+                message_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardDetailOut"];
                 };
             };
             /** @description Validation Error */
@@ -17826,6 +17908,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CardDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    card_action_api_v1_projects__project_id__board_cards__card_id__actions__action__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+                card_id: number;
+                action: "plan" | "build" | "continue" | "stop" | "review" | "mark_done";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardActionOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BuildRefusalOut"];
                 };
             };
             /** @description Validation Error */

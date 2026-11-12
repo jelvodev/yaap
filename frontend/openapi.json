@@ -2397,6 +2397,40 @@
         "title": "CallWhyOut",
         "type": "object"
       },
+      "CardActionOut": {
+        "properties": {
+          "card": {
+            "$ref": "#/components/schemas/CardDetailOut"
+          },
+          "conversation_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "review_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Id"
+          }
+        },
+        "required": [
+          "card"
+        ],
+        "title": "CardActionOut",
+        "type": "object"
+      },
       "CardAnswer": {
         "properties": {
           "index": {
@@ -3710,6 +3744,17 @@
               }
             ],
             "title": "Attachment Id"
+          },
+          "card_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Id"
           },
           "covered": {
             "anyOf": [
@@ -12926,7 +12971,8 @@
               "changes",
               "conversation",
               "reply",
-              "answer"
+              "answer",
+              "build"
             ],
             "title": "Source",
             "type": "string"
@@ -13161,7 +13207,8 @@
               "changes",
               "conversation",
               "reply",
-              "answer"
+              "answer",
+              "build"
             ],
             "title": "Source",
             "type": "string"
@@ -21732,6 +21779,58 @@
         ]
       }
     },
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/card": {
+      "post": {
+        "description": "*Make a card*: the message's text becomes a card in Design, linked to the conversation.",
+        "operationId": "make_card_api_v1_conversations__conversation_id__messages__message_id__card_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "title": "Message Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Make Card",
+        "tags": [
+          "board"
+        ]
+      }
+    },
     "/api/v1/conversations/{conversation_id}/messages/{message_id}/regenerate": {
       "post": {
         "description": "A new version of a reply: the same question answered again, next to the earlier answer.",
@@ -29089,6 +29188,85 @@
           }
         },
         "summary": "Update Card",
+        "tags": [
+          "board"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/board/cards/{card_id}/actions/{action}": {
+      "post": {
+        "description": "Run one of the card's stage actions; the card's next step says which one is due.",
+        "operationId": "card_action_api_v1_projects__project_id__board_cards__card_id__actions__action__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "card_id",
+            "required": true,
+            "schema": {
+              "title": "Card Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "action",
+            "required": true,
+            "schema": {
+              "enum": [
+                "plan",
+                "build",
+                "continue",
+                "stop",
+                "review",
+                "mark_done"
+              ],
+              "title": "Action",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardActionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildRefusalOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Card Action",
         "tags": [
           "board"
         ]
