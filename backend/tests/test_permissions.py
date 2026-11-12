@@ -6,6 +6,7 @@ from typing import Any, cast, get_args
 import pytest
 
 from app.agent import gate
+from app.agent.delegation import sub_run_access
 from app.agent.permissions import (
     PermissionDecision,
     Place,
@@ -433,3 +434,23 @@ async def test_the_gate_records_how_a_call_was_let_through(
     note = gate.CallNote()
     await gate.gated_call(cast(Any, None), cast(Any, None), echo, "echo", {}, note)
     assert note.approval == approval
+
+
+@pytest.mark.parametrize(
+    ("parent", "child", "expected"),
+    [
+        ("read_only", "read_only", "read_only"),
+        ("read_only", "default", "read_only"),
+        ("read_only", "full", "read_only"),
+        ("default", "read_only", "read_only"),
+        ("default", "default", "default"),
+        ("default", "full", "default"),
+        ("full", "read_only", "read_only"),
+        ("full", "default", "default"),
+        ("full", "full", "full"),
+    ],
+)
+def test_a_sub_run_never_gets_more_access_than_its_parent(
+    parent: AccessLevel, child: AccessLevel, expected: AccessLevel
+) -> None:
+    assert sub_run_access(parent, child) == expected
