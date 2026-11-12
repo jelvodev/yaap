@@ -84,6 +84,7 @@ from app.api import outside as outside_api
 from app.api import plugins as plugins_api
 from app.api import preview as preview_api
 from app.api import token_views as token_views_api
+from app.api import behind as behind_api
 from app.api import traces as traces_api
 from app.api import telemetry as telemetry_api
 from app.api import evals as evals_api
@@ -381,6 +382,7 @@ def create_app(
     api.include_router(approvals.router)
     api.include_router(activity.router)
     api.include_router(token_views_api.router)
+    api.include_router(behind_api.router)
     api.include_router(checkpoints.router)
     api.include_router(secrets.router)
     api.include_router(vault_api.router)
