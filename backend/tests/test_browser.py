@@ -3,6 +3,9 @@
 import sys
 from pathlib import Path
 
+import pytest
+
+from app.browser.service import forwarded_arguments
 from app.providers.fake_provider import ScriptedResponse
 from tests.test_chat import send
 from tests.test_delegation import project_conversation
@@ -95,3 +98,18 @@ def test_other_sites_ask_count_as_outside_content_and_take_secrets(tmp_path):
         await manager.shutdown()
 
     asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    ("tool", "arguments", "expected"),
+    [
+        ("browser_take_screenshot", {"fullPage": True, "filename": "a.png"}, {"fullPage": True}),
+        ("browser_take_screenshot", {"filename": "../../etc/x.png", "scale": "css"}, {"scale": "css"}),
+        ("browser_take_screenshot", {"fullPage": True}, {"fullPage": True}),
+        ("browser_snapshot", {"filename": "snap.md"}, {}),
+        ("browser_console_messages", {"level": "error", "filename": "log.txt"}, {"level": "error"}),
+        ("browser_click", {"element": "x", "filename": "kept"}, {"element": "x", "filename": "kept"}),
+    ],
+)
+def test_a_filename_is_not_forwarded_so_screenshots_come_back_as_images(tool, arguments, expected):
+    assert forwarded_arguments(tool, arguments) == expected
