@@ -95,9 +95,10 @@ class CardRoute:
     def on_plan_event(self, plan_id: int, event: PlanEvent) -> None:
         """A plan listener: the card's reaction runs in the background, on the event loop."""
         if event in FOLLOWED and self.loop is not None:
-            self.loop.call_soon_threadsafe(self.start_reaction, plan_id, event)
+            # A coroutine, not a plain callback: the background work needs a running task to open its cancel scope.
+            asyncio.run_coroutine_threadsafe(self.start_reaction(plan_id, event), self.loop)
 
-    def start_reaction(self, plan_id: int, event: PlanEvent) -> None:
+    async def start_reaction(self, plan_id: int, event: PlanEvent) -> None:
         self.work.start(self.react_later(plan_id, event), name=f"card-route-{plan_id}-{event}")
 
     async def react_later(self, plan_id: int, event: PlanEvent) -> None:
