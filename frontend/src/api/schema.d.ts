@@ -3451,6 +3451,140 @@ export interface paths {
         patch: operations["update_project_api_v1_projects__project_id__patch"];
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/board": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Board
+         * @description The board; with `since` equal to its head, only `unchanged` (cheap to poll).
+         */
+        get: operations["read_board_api_v1_projects__project_id__board_get"];
+        put?: never;
+        /** Start Board */
+        post: operations["start_board_api_v1_projects__project_id__board_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/board/cards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Card */
+        post: operations["create_card_api_v1_projects__project_id__board_cards_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/board/cards/{card_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Card */
+        get: operations["read_card_api_v1_projects__project_id__board_cards__card_id__get"];
+        put?: never;
+        post?: never;
+        /** Drop Card */
+        delete: operations["drop_card_api_v1_projects__project_id__board_cards__card_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Card
+         * @description Change a card's text and plain fields; its column changes only by a move.
+         */
+        patch: operations["update_card_api_v1_projects__project_id__board_cards__card_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/board/cards/{card_id}/answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Answer Question */
+        post: operations["answer_question_api_v1_projects__project_id__board_cards__card_id__answer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/board/cards/{card_id}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Move Card */
+        post: operations["move_card_api_v1_projects__project_id__board_cards__card_id__move_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/board/push": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Push Board
+         * @description Push the board's branch alone to the project's remote, after the user's confirmation for a public one.
+         */
+        post: operations["push_board_api_v1_projects__project_id__board_push_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/board/versions/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Version
+         * @description Make a version or change it; only the fields sent change.
+         */
+        put: operations["put_version_api_v1_projects__project_id__board_versions__name__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/checkpoints": {
         parameters: {
             query?: never;
@@ -5514,6 +5648,97 @@ export interface components {
             /** Summary */
             summary: string;
         };
+        /** BoardOut */
+        BoardOut: {
+            /** Broken */
+            broken: components["schemas"]["CardOut"][];
+            /** Columns */
+            columns: {
+                [key: string]: components["schemas"]["ColumnOut"];
+            } | null;
+            /** Current Version */
+            current_version: string | null;
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Enabled Source
+             * @enum {string}
+             */
+            enabled_source: "default" | "global" | "environment" | "project";
+            /** Head */
+            head: string | null;
+            /** Location */
+            location: string | null;
+            /** Message */
+            message: string | null;
+            push: components["schemas"]["BoardPushOut"] | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "off" | "not_started" | "ready" | "unavailable";
+            /** Storage */
+            storage: ("branch" | "repository") | null;
+            /** Unchanged */
+            unchanged: boolean;
+            /** Versions */
+            versions: components["schemas"]["BoardVersionOut"][];
+        };
+        /** BoardPush */
+        BoardPush: {
+            /**
+             * Acknowledge Public
+             * @default false
+             */
+            acknowledge_public: boolean;
+        };
+        /** BoardPushOut */
+        BoardPushOut: {
+            /** Allowed */
+            allowed: boolean;
+            /** Pushed */
+            pushed: boolean;
+        };
+        /** BoardStart */
+        BoardStart: {
+            /**
+             * Create Repository
+             * @default false
+             */
+            create_repository: boolean;
+            /**
+             * Storage
+             * @default branch
+             * @constant
+             */
+            storage: "branch";
+        };
+        /** BoardVersionOut */
+        BoardVersionOut: {
+            /** Acceptance Criteria */
+            acceptance_criteria: string;
+            /** Budget Usd */
+            budget_usd: number | null;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Done */
+            done: number;
+            /** Error */
+            error: string | null;
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "none" | "ok" | "warn" | "over";
+            /** Name */
+            name: string;
+            /** Notes */
+            notes: string;
+            /** State */
+            state: ("open" | "released") | null;
+            /** Total */
+            total: number;
+        };
         /** Body_analyze_import_api_v1_blueprint_import_analyze_post */
         Body_analyze_import_api_v1_blueprint_import_analyze_post: {
             /** File */
@@ -5667,6 +5892,202 @@ export interface components {
             tool: string | null;
             why: components["schemas"]["WhyOut"];
         };
+        /** CardAnswer */
+        CardAnswer: {
+            /** Index */
+            index: number;
+            /** Text */
+            text: string;
+        };
+        /** CardCreate */
+        CardCreate: {
+            /**
+             * Column
+             * @default idea
+             * @enum {string}
+             */
+            column: "inbox" | "idea";
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Kind
+             * @default feature
+             * @enum {string}
+             */
+            kind: "bug" | "feature" | "refactor" | "chore";
+            /** Title */
+            title: string;
+            /** Version */
+            version?: string | null;
+        };
+        /**
+         * CardDetailOut
+         * @description A card with its text. Card text can come from anyone who can write the branch: it is data, shown as such.
+         */
+        CardDetailOut: {
+            /** Blocked By */
+            blocked_by: number[];
+            /** Broken */
+            broken: boolean;
+            /** Broken Text */
+            broken_text: string | null;
+            /** Column */
+            column: ("inbox" | "idea" | "design" | "plan" | "build" | "review" | "done") | null;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Created */
+            created: string | null;
+            /** Definition Items */
+            definition_items: components["schemas"]["ChecklistItemOut"][];
+            /** Definition Of Done */
+            definition_of_done: string;
+            /** Description */
+            description: string;
+            /** Error */
+            error: string | null;
+            /** Evidence */
+            evidence: string;
+            /** Extra */
+            extra: {
+                [key: string]: unknown;
+            };
+            /** Id */
+            id: number;
+            /** Kind */
+            kind: ("bug" | "feature" | "refactor" | "chore") | null;
+            links: components["schemas"]["CardLinksOut"];
+            /** Location */
+            location: string;
+            next: components["schemas"]["NextOut"];
+            /** Open Questions */
+            open_questions: number;
+            origin: components["schemas"]["OriginOut"];
+            /** Path */
+            path: string;
+            plan: components["schemas"]["CardPlanOut"] | null;
+            /** Plan Markdown */
+            plan_markdown: string;
+            /** Questions */
+            questions: components["schemas"]["QuestionOut"][];
+            /**
+             * Review
+             * @enum {string}
+             */
+            review: "none" | "running" | "done";
+            /** Review Id */
+            review_id: number | null;
+            /** Specification */
+            specification: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "broken" | "working" | "failed" | "interrupted" | "waiting" | "idle";
+            /** Title */
+            title: string;
+            /** Updated */
+            updated: string | null;
+            /** Version */
+            version: string | null;
+            /** Waits For */
+            waits_for: number[];
+        };
+        /** CardLinksOut */
+        CardLinksOut: {
+            /** Branch */
+            branch: string | null;
+            /** Conversations */
+            conversations: components["schemas"]["ConversationLinkOut"][];
+            /** Plan Id */
+            plan_id: number | null;
+            /** Pull Request */
+            pull_request: number | null;
+            /** Review Id */
+            review_id: number | null;
+        };
+        /** CardMove */
+        CardMove: {
+            /**
+             * Column
+             * @enum {string}
+             */
+            column: "inbox" | "idea" | "design" | "plan" | "build" | "review" | "done";
+            /** Expected Updated */
+            expected_updated?: string | null;
+        };
+        /** CardOut */
+        CardOut: {
+            /** Blocked By */
+            blocked_by: number[];
+            /** Broken */
+            broken: boolean;
+            /** Column */
+            column: ("inbox" | "idea" | "design" | "plan" | "build" | "review" | "done") | null;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Error */
+            error: string | null;
+            /** Id */
+            id: number;
+            /** Kind */
+            kind: ("bug" | "feature" | "refactor" | "chore") | null;
+            next: components["schemas"]["NextOut"];
+            /** Open Questions */
+            open_questions: number;
+            origin: components["schemas"]["OriginOut"];
+            /** Path */
+            path: string;
+            plan: components["schemas"]["CardPlanOut"] | null;
+            /**
+             * Review
+             * @enum {string}
+             */
+            review: "none" | "running" | "done";
+            /** Review Id */
+            review_id: number | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "broken" | "working" | "failed" | "interrupted" | "waiting" | "idle";
+            /** Title */
+            title: string;
+            /** Updated */
+            updated: string | null;
+            /** Version */
+            version: string | null;
+            /** Waits For */
+            waits_for: number[];
+        };
+        /** CardPatch */
+        CardPatch: {
+            /** Definition Of Done */
+            definition_of_done?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Expected Updated */
+            expected_updated?: string | null;
+            /** Kind */
+            kind?: ("bug" | "feature" | "refactor" | "chore") | null;
+            /** Specification */
+            specification?: string | null;
+            /** Title */
+            title?: string | null;
+            /** Version */
+            version?: string | null;
+            /** Waits For */
+            waits_for?: number[] | null;
+        };
+        /** CardPlanOut */
+        CardPlanOut: {
+            /** Id */
+            id: number;
+            /** Status */
+            status: ("draft" | "approved" | "queued" | "building" | "interrupted" | "done" | "failed" | "cancelled") | null;
+        };
         /** CaseComparisonOut */
         CaseComparisonOut: {
             a: components["schemas"]["SideOut"];
@@ -5688,6 +6109,13 @@ export interface components {
             name: string;
             /** Status */
             status: string;
+        };
+        /** ChecklistItemOut */
+        ChecklistItemOut: {
+            /** Done */
+            done: boolean;
+            /** Text */
+            text: string;
         };
         /** CheckpointDiffOut */
         CheckpointDiffOut: {
@@ -5755,6 +6183,15 @@ export interface components {
             sign_in_command: string;
             /** Version */
             version: string | null;
+        };
+        /** ColumnOut */
+        ColumnOut: {
+            /** Cards */
+            cards: components["schemas"]["CardOut"][];
+            /** Count */
+            count: number;
+            /** Truncated */
+            truncated: boolean;
         };
         /** CommandCheckIO */
         CommandCheckIO: {
@@ -6054,6 +6491,18 @@ export interface components {
             /** Target Id */
             target_id?: number | null;
         };
+        /** ConversationLinkOut */
+        ConversationLinkOut: {
+            /** Id */
+            id: number;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "chat" | "specify" | "plan" | "build" | "review" | "other";
+            /** Title */
+            title: string;
+        };
         /** ConversationMove */
         ConversationMove: {
             /** Project Id */
@@ -6071,6 +6520,8 @@ export interface components {
             agent?: string | null;
             /** Archived At */
             archived_at?: string | null;
+            /** Card Id */
+            card_id?: number | null;
             context_control?: components["schemas"]["ContextControlOut"] | null;
             /** Context Limit */
             context_limit?: number | null;
@@ -7582,12 +8033,34 @@ export interface components {
             /** Statuses */
             statuses: components["schemas"]["MutationStatusOut"][];
         };
+        /** NextOut */
+        NextOut: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "accept" | "specify" | "plan" | "approve" | "build" | "continue" | "review" | "judge" | "answer" | "merge" | "none";
+            /** Label */
+            label: string;
+            /**
+             * Who
+             * @enum {string}
+             */
+            who: "you" | "yaap";
+        };
         /** NotImportedOut */
         NotImportedOut: {
             /** Path */
             path: string;
             /** Reason */
             reason: string;
+        };
+        /** OriginOut */
+        OriginOut: {
+            /** Ref */
+            ref: string | null;
+            /** Type */
+            type: ("user" | "chat" | "agent" | "trigger" | "issue" | "review" | "learning") | null;
         };
         /** OutsideApprovalOut */
         OutsideApprovalOut: {
@@ -8166,6 +8639,11 @@ export interface components {
         /** ProjectOut */
         ProjectOut: {
             /**
+             * Board Enabled
+             * @default true
+             */
+            board_enabled: boolean;
+            /**
              * Created At
              * Format: date-time
              */
@@ -8332,6 +8810,23 @@ export interface components {
             pulls: components["schemas"]["PullOut"][];
             /** Repository */
             repository: string | null;
+        };
+        /** PushedOut */
+        PushedOut: {
+            /** Pushed Commit */
+            pushed_commit: string;
+        };
+        /** QuestionOut */
+        QuestionOut: {
+            /** Answer */
+            answer: string | null;
+            /**
+             * Asked
+             * Format: date-time
+             */
+            asked: string;
+            /** Text */
+            text: string;
         };
         /** QueueSend */
         QueueSend: {
@@ -10357,6 +10852,17 @@ export interface components {
             commit: string;
             /** Version */
             version: string;
+        };
+        /** VersionPut */
+        VersionPut: {
+            /** Acceptance Criteria */
+            acceptance_criteria?: string | null;
+            /** Budget Usd */
+            budget_usd?: number | null;
+            /** Notes */
+            notes?: string | null;
+            /** State */
+            state?: ("open" | "released") | null;
         };
         /** WaitingApprovalOut */
         WaitingApprovalOut: {
@@ -16889,6 +17395,350 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_board_api_v1_projects__project_id__board_get: {
+        parameters: {
+            query?: {
+                since?: string | null;
+            };
+            header?: never;
+            path: {
+                project_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoardOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_board_api_v1_projects__project_id__board_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BoardStart"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoardOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_card_api_v1_projects__project_id__board_cards_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CardCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_card_api_v1_projects__project_id__board_cards__card_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+                card_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    drop_card_api_v1_projects__project_id__board_cards__card_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+                card_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_card_api_v1_projects__project_id__board_cards__card_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+                card_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CardPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    answer_question_api_v1_projects__project_id__board_cards__card_id__answer_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+                card_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CardAnswer"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    move_card_api_v1_projects__project_id__board_cards__card_id__move_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+                card_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CardMove"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    push_board_api_v1_projects__project_id__board_push_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BoardPush"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_version_api_v1_projects__project_id__board_versions__name__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VersionPut"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoardVersionOut"];
                 };
             };
             /** @description Validation Error */

@@ -1543,6 +1543,298 @@
         "title": "BlueprintItemOut",
         "type": "object"
       },
+      "BoardOut": {
+        "properties": {
+          "broken": {
+            "items": {
+              "$ref": "#/components/schemas/CardOut"
+            },
+            "title": "Broken",
+            "type": "array"
+          },
+          "columns": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/ColumnOut"
+                },
+                "propertyNames": {
+                  "enum": [
+                    "inbox",
+                    "idea",
+                    "design",
+                    "plan",
+                    "build",
+                    "review",
+                    "done"
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Columns"
+          },
+          "current_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Version"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "enabled_source": {
+            "enum": [
+              "default",
+              "global",
+              "environment",
+              "project"
+            ],
+            "title": "Enabled Source",
+            "type": "string"
+          },
+          "head": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Head"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "push": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BoardPushOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "enum": [
+              "off",
+              "not_started",
+              "ready",
+              "unavailable"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "storage": {
+            "anyOf": [
+              {
+                "enum": [
+                  "branch",
+                  "repository"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storage"
+          },
+          "unchanged": {
+            "title": "Unchanged",
+            "type": "boolean"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/BoardVersionOut"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "enabled",
+          "enabled_source",
+          "state",
+          "storage",
+          "location",
+          "head",
+          "unchanged",
+          "columns",
+          "broken",
+          "versions",
+          "current_version",
+          "push",
+          "message"
+        ],
+        "title": "BoardOut",
+        "type": "object"
+      },
+      "BoardPush": {
+        "properties": {
+          "acknowledge_public": {
+            "default": false,
+            "title": "Acknowledge Public",
+            "type": "boolean"
+          }
+        },
+        "title": "BoardPush",
+        "type": "object"
+      },
+      "BoardPushOut": {
+        "properties": {
+          "allowed": {
+            "title": "Allowed",
+            "type": "boolean"
+          },
+          "pushed": {
+            "title": "Pushed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "allowed",
+          "pushed"
+        ],
+        "title": "BoardPushOut",
+        "type": "object"
+      },
+      "BoardStart": {
+        "properties": {
+          "create_repository": {
+            "default": false,
+            "title": "Create Repository",
+            "type": "boolean"
+          },
+          "storage": {
+            "const": "branch",
+            "default": "branch",
+            "title": "Storage",
+            "type": "string"
+          }
+        },
+        "title": "BoardStart",
+        "type": "object"
+      },
+      "BoardVersionOut": {
+        "properties": {
+          "acceptance_criteria": {
+            "title": "Acceptance Criteria",
+            "type": "string"
+          },
+          "budget_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Usd"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "done": {
+            "title": "Done",
+            "type": "integer"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "level": {
+            "enum": [
+              "none",
+              "ok",
+              "warn",
+              "over"
+            ],
+            "title": "Level",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "title": "Notes",
+            "type": "string"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "enum": [
+                  "open",
+                  "released"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "state",
+          "budget_usd",
+          "notes",
+          "acceptance_criteria",
+          "done",
+          "total",
+          "cost_usd",
+          "level",
+          "error"
+        ],
+        "title": "BoardVersionOut",
+        "type": "object"
+      },
       "Body_analyze_import_api_v1_blueprint_import_analyze_post": {
         "properties": {
           "file": {
@@ -2056,6 +2348,776 @@
         "title": "CallWhyOut",
         "type": "object"
       },
+      "CardAnswer": {
+        "properties": {
+          "index": {
+            "maximum": 19.0,
+            "minimum": 0.0,
+            "title": "Index",
+            "type": "integer"
+          },
+          "text": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "index",
+          "text"
+        ],
+        "title": "CardAnswer",
+        "type": "object"
+      },
+      "CardCreate": {
+        "properties": {
+          "column": {
+            "default": "idea",
+            "enum": [
+              "inbox",
+              "idea"
+            ],
+            "title": "Column",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 50000,
+            "title": "Description",
+            "type": "string"
+          },
+          "kind": {
+            "default": "feature",
+            "enum": [
+              "bug",
+              "feature",
+              "refactor",
+              "chore"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "CardCreate",
+        "type": "object"
+      },
+      "CardDetailOut": {
+        "description": "A card with its text. Card text can come from anyone who can write the branch: it is data, shown as such.",
+        "properties": {
+          "blocked_by": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Blocked By",
+            "type": "array"
+          },
+          "broken": {
+            "title": "Broken",
+            "type": "boolean"
+          },
+          "broken_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Broken Text"
+          },
+          "column": {
+            "anyOf": [
+              {
+                "enum": [
+                  "inbox",
+                  "idea",
+                  "design",
+                  "plan",
+                  "build",
+                  "review",
+                  "done"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Column"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "created": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created"
+          },
+          "definition_items": {
+            "items": {
+              "$ref": "#/components/schemas/ChecklistItemOut"
+            },
+            "title": "Definition Items",
+            "type": "array"
+          },
+          "definition_of_done": {
+            "title": "Definition Of Done",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "evidence": {
+            "title": "Evidence",
+            "type": "string"
+          },
+          "extra": {
+            "additionalProperties": true,
+            "title": "Extra",
+            "type": "object"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "bug",
+                  "feature",
+                  "refactor",
+                  "chore"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "links": {
+            "$ref": "#/components/schemas/CardLinksOut"
+          },
+          "location": {
+            "title": "Location",
+            "type": "string"
+          },
+          "next": {
+            "$ref": "#/components/schemas/NextOut"
+          },
+          "open_questions": {
+            "title": "Open Questions",
+            "type": "integer"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/OriginOut"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardPlanOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "plan_markdown": {
+            "title": "Plan Markdown",
+            "type": "string"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/QuestionOut"
+            },
+            "title": "Questions",
+            "type": "array"
+          },
+          "review": {
+            "enum": [
+              "none",
+              "running",
+              "done"
+            ],
+            "title": "Review",
+            "type": "string"
+          },
+          "review_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Id"
+          },
+          "specification": {
+            "title": "Specification",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "broken",
+              "working",
+              "failed",
+              "interrupted",
+              "waiting",
+              "idle"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "waits_for": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Waits For",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "title",
+          "kind",
+          "column",
+          "version",
+          "origin",
+          "waits_for",
+          "blocked_by",
+          "open_questions",
+          "cost_usd",
+          "state",
+          "next",
+          "plan",
+          "review_id",
+          "review",
+          "broken",
+          "error",
+          "updated",
+          "description",
+          "definition_of_done",
+          "definition_items",
+          "specification",
+          "plan_markdown",
+          "evidence",
+          "questions",
+          "links",
+          "created",
+          "extra",
+          "broken_text",
+          "location"
+        ],
+        "title": "CardDetailOut",
+        "type": "object"
+      },
+      "CardLinksOut": {
+        "properties": {
+          "branch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch"
+          },
+          "conversations": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationLinkOut"
+            },
+            "title": "Conversations",
+            "type": "array"
+          },
+          "plan_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan Id"
+          },
+          "pull_request": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pull Request"
+          },
+          "review_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Id"
+          }
+        },
+        "required": [
+          "conversations",
+          "plan_id",
+          "review_id",
+          "branch",
+          "pull_request"
+        ],
+        "title": "CardLinksOut",
+        "type": "object"
+      },
+      "CardMove": {
+        "properties": {
+          "column": {
+            "enum": [
+              "inbox",
+              "idea",
+              "design",
+              "plan",
+              "build",
+              "review",
+              "done"
+            ],
+            "title": "Column",
+            "type": "string"
+          },
+          "expected_updated": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Updated"
+          }
+        },
+        "required": [
+          "column"
+        ],
+        "title": "CardMove",
+        "type": "object"
+      },
+      "CardOut": {
+        "properties": {
+          "blocked_by": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Blocked By",
+            "type": "array"
+          },
+          "broken": {
+            "title": "Broken",
+            "type": "boolean"
+          },
+          "column": {
+            "anyOf": [
+              {
+                "enum": [
+                  "inbox",
+                  "idea",
+                  "design",
+                  "plan",
+                  "build",
+                  "review",
+                  "done"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Column"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "bug",
+                  "feature",
+                  "refactor",
+                  "chore"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "next": {
+            "$ref": "#/components/schemas/NextOut"
+          },
+          "open_questions": {
+            "title": "Open Questions",
+            "type": "integer"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/OriginOut"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardPlanOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "review": {
+            "enum": [
+              "none",
+              "running",
+              "done"
+            ],
+            "title": "Review",
+            "type": "string"
+          },
+          "review_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Id"
+          },
+          "state": {
+            "enum": [
+              "broken",
+              "working",
+              "failed",
+              "interrupted",
+              "waiting",
+              "idle"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "waits_for": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Waits For",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "title",
+          "kind",
+          "column",
+          "version",
+          "origin",
+          "waits_for",
+          "blocked_by",
+          "open_questions",
+          "cost_usd",
+          "state",
+          "next",
+          "plan",
+          "review_id",
+          "review",
+          "broken",
+          "error",
+          "updated"
+        ],
+        "title": "CardOut",
+        "type": "object"
+      },
+      "CardPatch": {
+        "additionalProperties": false,
+        "properties": {
+          "definition_of_done": {
+            "anyOf": [
+              {
+                "maxLength": 50000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Definition Of Done"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 50000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "expected_updated": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Updated"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "bug",
+                  "feature",
+                  "refactor",
+                  "chore"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "specification": {
+            "anyOf": [
+              {
+                "maxLength": 50000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specification"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "waits_for": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "maxItems": 20,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waits For"
+          }
+        },
+        "title": "CardPatch",
+        "type": "object"
+      },
+      "CardPlanOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "draft",
+                  "approved",
+                  "queued",
+                  "building",
+                  "interrupted",
+                  "done",
+                  "failed",
+                  "cancelled"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ],
+        "title": "CardPlanOut",
+        "type": "object"
+      },
       "CaseComparisonOut": {
         "properties": {
           "a": {
@@ -2140,6 +3202,24 @@
           "status"
         ],
         "title": "CheckOut",
+        "type": "object"
+      },
+      "ChecklistItemOut": {
+        "properties": {
+          "done": {
+            "title": "Done",
+            "type": "boolean"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "done"
+        ],
+        "title": "ChecklistItemOut",
         "type": "object"
       },
       "CheckpointDiffOut": {
@@ -2354,6 +3434,32 @@
           "sign_in_command"
         ],
         "title": "CodexStatusOut",
+        "type": "object"
+      },
+      "ColumnOut": {
+        "properties": {
+          "cards": {
+            "items": {
+              "$ref": "#/components/schemas/CardOut"
+            },
+            "title": "Cards",
+            "type": "array"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "cards",
+          "count",
+          "truncated"
+        ],
+        "title": "ColumnOut",
         "type": "object"
       },
       "CommandCheckIO": {
@@ -3285,6 +4391,37 @@
         "title": "ConversationCreate",
         "type": "object"
       },
+      "ConversationLinkOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "role": {
+            "enum": [
+              "chat",
+              "specify",
+              "plan",
+              "build",
+              "review",
+              "other"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "role"
+        ],
+        "title": "ConversationLinkOut",
+        "type": "object"
+      },
       "ConversationMove": {
         "properties": {
           "project_id": {
@@ -3339,6 +4476,17 @@
               }
             ],
             "title": "Archived At"
+          },
+          "card_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Id"
           },
           "context_control": {
             "anyOf": [
@@ -7830,6 +8978,46 @@
         "title": "MutationStatusesOut",
         "type": "object"
       },
+      "NextOut": {
+        "properties": {
+          "action": {
+            "enum": [
+              "accept",
+              "specify",
+              "plan",
+              "approve",
+              "build",
+              "continue",
+              "review",
+              "judge",
+              "answer",
+              "merge",
+              "none"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "who": {
+            "enum": [
+              "you",
+              "yaap"
+            ],
+            "title": "Who",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "who",
+          "label"
+        ],
+        "title": "NextOut",
+        "type": "object"
+      },
       "NotImportedOut": {
         "properties": {
           "path": {
@@ -7846,6 +9034,47 @@
           "reason"
         ],
         "title": "NotImportedOut",
+        "type": "object"
+      },
+      "OriginOut": {
+        "properties": {
+          "ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "user",
+                  "chat",
+                  "agent",
+                  "trigger",
+                  "issue",
+                  "review",
+                  "learning"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
+          }
+        },
+        "required": [
+          "type",
+          "ref"
+        ],
+        "title": "OriginOut",
         "type": "object"
       },
       "OutsideApprovalOut": {
@@ -9654,6 +10883,11 @@
       },
       "ProjectOut": {
         "properties": {
+          "board_enabled": {
+            "default": true,
+            "title": "Board Enabled",
+            "type": "boolean"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -10161,6 +11395,50 @@
           "pulls"
         ],
         "title": "PullsOut",
+        "type": "object"
+      },
+      "PushedOut": {
+        "properties": {
+          "pushed_commit": {
+            "title": "Pushed Commit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pushed_commit"
+        ],
+        "title": "PushedOut",
+        "type": "object"
+      },
+      "QuestionOut": {
+        "properties": {
+          "answer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer"
+          },
+          "asked": {
+            "format": "date-time",
+            "title": "Asked",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "asked",
+          "text",
+          "answer"
+        ],
+        "title": "QuestionOut",
         "type": "object"
       },
       "QueueSend": {
@@ -16382,6 +17660,64 @@
           "channel"
         ],
         "title": "VersionOut",
+        "type": "object"
+      },
+      "VersionPut": {
+        "properties": {
+          "acceptance_criteria": {
+            "anyOf": [
+              {
+                "maxLength": 50000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acceptance Criteria"
+          },
+          "budget_usd": {
+            "anyOf": [
+              {
+                "maximum": 1000000.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Usd"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 50000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "enum": [
+                  "open",
+                  "released"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          }
+        },
+        "title": "VersionPut",
         "type": "object"
       },
       "WaitingApprovalOut": {
@@ -27104,6 +28440,558 @@
         "summary": "Update Project",
         "tags": [
           "projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/board": {
+      "get": {
+        "description": "The board; with `since` equal to its head, only `unchanged` (cheap to poll).",
+        "operationId": "read_board_api_v1_projects__project_id__board_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoardOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Board",
+        "tags": [
+          "board"
+        ]
+      },
+      "post": {
+        "operationId": "start_board_api_v1_projects__project_id__board_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BoardStart"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoardOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Board",
+        "tags": [
+          "board"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/board/cards": {
+      "post": {
+        "operationId": "create_card_api_v1_projects__project_id__board_cards_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Card",
+        "tags": [
+          "board"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/board/cards/{card_id}": {
+      "delete": {
+        "operationId": "drop_card_api_v1_projects__project_id__board_cards__card_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "card_id",
+            "required": true,
+            "schema": {
+              "title": "Card Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Drop Card",
+        "tags": [
+          "board"
+        ]
+      },
+      "get": {
+        "operationId": "read_card_api_v1_projects__project_id__board_cards__card_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "card_id",
+            "required": true,
+            "schema": {
+              "title": "Card Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Card",
+        "tags": [
+          "board"
+        ]
+      },
+      "patch": {
+        "description": "Change a card's text and plain fields; its column changes only by a move.",
+        "operationId": "update_card_api_v1_projects__project_id__board_cards__card_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "card_id",
+            "required": true,
+            "schema": {
+              "title": "Card Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Card",
+        "tags": [
+          "board"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/board/cards/{card_id}/answer": {
+      "post": {
+        "operationId": "answer_question_api_v1_projects__project_id__board_cards__card_id__answer_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "card_id",
+            "required": true,
+            "schema": {
+              "title": "Card Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardAnswer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Answer Question",
+        "tags": [
+          "board"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/board/cards/{card_id}/move": {
+      "post": {
+        "operationId": "move_card_api_v1_projects__project_id__board_cards__card_id__move_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "card_id",
+            "required": true,
+            "schema": {
+              "title": "Card Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardMove"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Move Card",
+        "tags": [
+          "board"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/board/push": {
+      "post": {
+        "description": "Push the board's branch alone to the project's remote, after the user's confirmation for a public one.",
+        "operationId": "push_board_api_v1_projects__project_id__board_push_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BoardPush"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Push Board",
+        "tags": [
+          "board"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/board/versions/{name}": {
+      "put": {
+        "description": "Make a version or change it; only the fields sent change.",
+        "operationId": "put_version_api_v1_projects__project_id__board_versions__name__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionPut"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoardVersionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Version",
+        "tags": [
+          "board"
         ]
       }
     },
