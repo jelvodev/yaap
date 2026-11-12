@@ -1,0 +1,232 @@
+/* The contents of the board's right-hand pane (`.board-detail` is styled by the board page) and the version dialog. */
+
+.card-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px 20px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.card-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-detail-head .button {
+  margin-left: auto;
+}
+
+.card-detail-tag {
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.card-detail-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.card-detail-title h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.35;
+  color: var(--text-strong);
+}
+
+.card-detail-stages {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.card-detail-stages .stage {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.card-detail-stages .stage-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+.card-detail-stages .done .stage-bar {
+  background: var(--ok);
+}
+
+.card-detail-stages .now .stage-bar {
+  background: var(--accent);
+}
+
+.card-detail-stages .stage-name {
+  font-size: 10px;
+  color: var(--faint);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-detail-stages .now .stage-name {
+  color: var(--text-strong);
+}
+
+.card-detail-state {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.card-detail-state-tag {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--raised);
+  color: var(--text-strong);
+}
+
+.card-detail-state-tag.waiting {
+  color: var(--warning);
+}
+
+.card-detail-state-tag.failed,
+.card-detail-state-tag.broken {
+  color: var(--danger);
+}
+
+.card-detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card-detail-section h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 8px 0 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.card-detail-section h3 .button {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.card-detail-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.card-detail-warning {
+  border-color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 10%, var(--surface));
+}
+
+.card-detail-answer {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.card-detail-raw {
+  margin: 0;
+  max-height: 260px;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 6px;
+  background: var(--panel);
+  font-family: var(--mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.card-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.card-detail-form,
+.version-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card-detail-form label,
+.version-dialog label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.version-dialog {
+  width: 460px;
+  padding: 20px;
+}
+
+.version-dialog h2 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-strong);
+}
+
+.card-detail-checklist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.card-detail-checklist li.done {
+  color: var(--muted);
+}
+
+.card-detail-checklist li.done span {
+  color: var(--ok);
+}
+
+.card-detail-links {
+  gap: 4px;
+}
+
+.card-detail-models {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 14px;
+}
+
+.card-detail-models > span:nth-child(odd) {
+  color: var(--muted);
+}
+
+.card-detail-footer {
+  margin: 8px 0 0;
+}
+
+.card-detail-footer code {
+  font-family: var(--mono);
+}

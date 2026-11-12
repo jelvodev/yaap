@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 
 import type { Environment } from "../api/client";
+import BoardPage from "./board/BoardPage";
 import ChatMain from "./chat/ChatMain";
 import ChatSidebar from "./chat/ChatSidebar";
 import ChatSidePanels from "./chat/ChatSidePanels";
@@ -28,7 +29,7 @@ const WATCH_RAIL_COUNTS = true;
  */
 export default function ChatPage({ environment }: { environment: Environment }) {
   const navigate = useNavigate();
-  const { selectedId, focusMessageId } = useChatAddress();
+  const { selectedId, focusMessageId, boardProjectId, cardId } = useChatAddress();
   const basics = useChatCatalog(environment.id);
   const usage = useUsage(environment.id);
   const list = useConversationList(environment.id);
@@ -110,7 +111,16 @@ export default function ChatPage({ environment }: { environment: Environment }) 
         importDefaults={{ model: draft.model, effort: draft.effort, preset: draft.presetName }}
         usage={usage.usage}
       />
-      <ChatMain
+      {boardProjectId !== null && (
+        <BoardPage
+          projectId={boardProjectId}
+          cardId={cardId}
+          projects={catalog.projects}
+          onScope={scope.choose}
+          onProjectChanged={catalog.replaceProject}
+        />
+      )}
+      {boardProjectId === null && <ChatMain
         environment={environment}
         catalog={catalog}
         active={active}
@@ -130,7 +140,7 @@ export default function ChatPage({ environment }: { environment: Environment }) 
           list.remember(continued);
           navigate(`/chat/${continued.id}`);
         }}
-      />
+      />}
       <ChatSidePanels
         conversation={conversation}
         panelProject={panelProject}
