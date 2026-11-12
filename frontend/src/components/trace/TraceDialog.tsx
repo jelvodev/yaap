@@ -10,7 +10,8 @@ import TraceTimeline from "./TraceTimeline";
 import { allRuns, formatCost, formatDuration } from "./traceOrder";
 import { useReplays } from "./useReplays";
 import type { Trace, TraceTarget } from "./useTrace";
-import { TRACE_TABS, useTraceTabs } from "./useTraceTabs";
+import RouteTab from "./RouteTab";
+import { tabsFor, useTraceTabs } from "./useTraceTabs";
 import "./trace.css";
 
 interface TraceDialogProps {
@@ -92,7 +93,7 @@ export default function TraceDialog({ target, onClose, headerActions, initialSte
           </button>
         </header>
         <div className="trace-tabs" role="tablist" aria-label="Trace views" onKeyDown={tabs.onTabKeyDown}>
-          {TRACE_TABS.map(({ id, label }) => (
+          {tabsFor(target).map(({ id, label }) => (
             <button
               key={id}
               type="button"
@@ -109,6 +110,9 @@ export default function TraceDialog({ target, onClose, headerActions, initialSte
           ))}
         </div>
         <div className="trace-panel" id="trace-panel" role="tabpanel" aria-labelledby={`trace-tab-${tabs.tab}`}>
+          {tabs.tab === "route" && "messageId" in target && (
+            <RouteTab conversationId={target.conversationId} messageId={target.messageId} onOpenStep={openStep} />
+          )}
           {tabs.tab === "context" && <ContextTab conversationId={target.conversationId} onOpenStep={openStep} />}
           {tabs.tab === "tokens" && <TokensTab conversationId={target.conversationId} onOpenStep={openStep} />}
           {tabs.tab === "timeline" && error && <p className="notice notice-error trace-pad">{error}</p>}

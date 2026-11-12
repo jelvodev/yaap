@@ -25,6 +25,8 @@ export type Why = components["schemas"]["WhyOut"];
 export type Behind = components["schemas"]["BehindOut"];
 export type BehindLabel = components["schemas"]["BehindLabelOut"];
 export type CallWhy = components["schemas"]["CallWhyOut"];
+export type RouteOut = components["schemas"]["RouteOut"];
+export type RouteStopOut = components["schemas"]["RouteStopOut"];
 
 /** Turn an error body from the API into one readable sentence. */
 export function errorMessage(error: unknown, fallback = "Something went wrong."): string {

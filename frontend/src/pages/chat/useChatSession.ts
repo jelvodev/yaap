@@ -1,4 +1,5 @@
 import type { Conversation } from "../../api/client";
+import { type RouteStages, useRouteStages } from "../../components/route/useRouteStages";
 import { useConversationDocument } from "../../components/document/useConversationDocument";
 import { type ComposerActions, composerActions } from "./composerActions";
 import type { ActiveConversation } from "./useActiveConversation";
@@ -39,6 +40,8 @@ export interface ChatSession {
   composer: ComposerActions;
   /** Utility tasks of the last exchange that the model policy skipped. */
   skips: UtilitySkips;
+  /** The route of the reply that streams in. */
+  stages: RouteStages;
 }
 
 /** Working in the open conversation: its reply, shared document, goal, queue, attachments and the composer. */
@@ -47,6 +50,7 @@ export function useChatSession(options: ChatSessionOptions): ChatSession {
   const conversationId = active.conversation?.id ?? null;
   const reply = useReplyBlocks();
   const busy = reply.blocks !== null;
+  const stages = useRouteStages(busy, conversationId);
   // The shared document beside the chat.
   const shared = useConversationDocument(conversationId, Boolean(active.conversation?.project_id), busy);
   const goal = useConversationGoal(conversationId, active.setError);
@@ -60,6 +64,7 @@ export function useChatSession(options: ChatSessionOptions): ChatSession {
     reply,
     queue,
     running,
+    stages,
     loadGoal: goal.load,
     onSummary: list.remember,
     onDocument: shared.onEvent,
@@ -75,5 +80,5 @@ export function useChatSession(options: ChatSessionOptions): ChatSession {
     queue,
     stream,
   });
-  return { reply, busy, shared, goal, queue, attachments, stream, composer, skips };
+  return { reply, busy, shared, goal, queue, attachments, stream, composer, skips, stages };
 }

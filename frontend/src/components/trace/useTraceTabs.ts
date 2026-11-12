@@ -3,10 +3,11 @@ import { type KeyboardEvent, useEffect, useState } from "react";
 import { type TraceTarget, useTrace } from "./useTrace";
 import { allRuns } from "./traceOrder";
 
-export type TraceTab = "timeline" | "context" | "tokens";
+export type TraceTab = "timeline" | "route" | "context" | "tokens";
 
 export const TRACE_TABS: readonly { id: TraceTab; label: string }[] = [
   { id: "timeline", label: "Timeline" },
+  { id: "route", label: "Route" },
   { id: "context", label: "Context" },
   { id: "tokens", label: "Tokens" },
 ];
@@ -15,6 +16,11 @@ export const TRACE_TABS: readonly { id: TraceTab; label: string }[] = [
 interface PendingStep {
   stepId: number;
   runId: number | null;
+}
+
+/** The tabs a target has: the route belongs to a reply, so a trace of a bare run has none. */
+export function tabsFor(target: TraceTarget): readonly { id: TraceTab; label: string }[] {
+  return "messageId" in target ? TRACE_TABS : TRACE_TABS.filter((entry) => entry.id !== "route");
 }
 
 function targetKey(target: TraceTarget): string {
@@ -28,7 +34,7 @@ function targetKey(target: TraceTarget): string {
  * that run was opened. A step asked for is chosen as soon as its trace has loaded.
  */
 export function useTraceTabs(target: TraceTarget, initialStepId?: number) {
-  const [tab, setTab] = useState<TraceTab>("timeline");
+  const [tab, setTab] = useState<TraceTab>("messageId" in target ? (target.tab ?? "timeline") : "timeline");
   const [override, setOverride] = useState<{
     key: string;
     target: TraceTarget;
@@ -66,8 +72,9 @@ export function useTraceTabs(target: TraceTarget, initialStepId?: number) {
     const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
     if (step === 0) return;
     event.preventDefault();
-    const index = TRACE_TABS.findIndex((entry) => entry.id === tab);
-    const next = TRACE_TABS[(index + step + TRACE_TABS.length) % TRACE_TABS.length].id;
+    const available = tabsFor(target);
+    const index = available.findIndex((entry) => entry.id === tab);
+    const next = available[(index + step + available.length) % available.length].id;
     setTab(next);
     document.getElementById(`trace-tab-${next}`)?.focus();
   };
