@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     # These modules use AgentRun themselves (their tools and handlers take a run), so they are imported for the
     # annotations only.
     from app.agent.delegation import Delegator
+    from app.board.linked_card import LinkedCard
     from app.agent.processes import ProcessManager
     from app.agent.shells import ShellSessions
     from app.agent.toolkit import Tool
@@ -178,11 +179,13 @@ class RunServices:
     code_intel: "CodeIntel | None" = None
     # Where submit_plan stores a plan; only a top-level run in a project has it.
     plans: PlanService | None = None
+    # The card the conversation belongs to, for the card tools; only a top-level run while the board is on has it.
+    card: "LinkedCard | None" = None
 
     def for_child(self) -> "RunServices":
-        """A sub-run uses its parent's services, but cannot delegate, end the conversation's goal or hand over a
-        plan."""
-        return replace(self, delegator=None, goal=None, plans=None)
+        """A sub-run uses its parent's services, but cannot delegate, end the conversation's goal, hand over a plan
+        or change the card."""
+        return replace(self, delegator=None, goal=None, plans=None, card=None)
 
 
 @dataclass
@@ -404,6 +407,10 @@ class AgentRun:
     @property
     def plans(self) -> PlanService | None:
         return self.services.plans
+
+    @property
+    def card(self) -> "LinkedCard | None":
+        return self.services.card
 
     @property
     def trace(self) -> TraceRecorder | None:
