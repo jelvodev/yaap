@@ -2220,7 +2220,8 @@
               "summary",
               "trim",
               "steering",
-              "note"
+              "note",
+              "repo_map"
             ],
             "title": "Type",
             "type": "string"
@@ -2234,10 +2235,36 @@
       },
       "ContextBreakdownOut": {
         "properties": {
+          "basis": {
+            "enum": [
+              "snapshot",
+              "assembly"
+            ],
+            "title": "Basis",
+            "type": "string"
+          },
           "can_summarise": {
             "default": false,
             "title": "Can Summarise",
             "type": "boolean"
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/ContextCategoryOut"
+            },
+            "title": "Categories",
+            "type": "array"
+          },
+          "compact_at_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compact At Tokens"
           },
           "context_tokens": {
             "anyOf": [
@@ -2261,6 +2288,14 @@
             ],
             "title": "Context Window"
           },
+          "deferred_tools": {
+            "title": "Deferred Tools",
+            "type": "integer"
+          },
+          "estimated": {
+            "title": "Estimated",
+            "type": "boolean"
+          },
           "last_reply": {
             "anyOf": [
               {
@@ -2270,6 +2305,17 @@
                 "type": "null"
               }
             ]
+          },
+          "limit_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit Tokens"
           },
           "memory": {
             "anyOf": [
@@ -2281,26 +2327,112 @@
               }
             ]
           },
-          "parts": {
-            "items": {
-              "$ref": "#/components/schemas/app__api__activity__ContextPartOut"
-            },
-            "title": "Parts",
-            "type": "array"
+          "snapshot_gone": {
+            "title": "Snapshot Gone",
+            "type": "boolean"
+          },
+          "step_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Id"
           },
           "summarised_messages": {
             "default": 0,
             "title": "Summarised Messages",
             "type": "integer"
+          },
+          "total_tokens": {
+            "title": "Total Tokens",
+            "type": "integer"
           }
         },
         "required": [
-          "parts",
+          "categories",
+          "total_tokens",
+          "estimated",
+          "basis",
+          "snapshot_gone",
+          "step_id",
+          "deferred_tools",
+          "limit_tokens",
+          "compact_at_tokens",
           "context_tokens",
           "context_window",
           "last_reply"
         ],
         "title": "ContextBreakdownOut",
+        "type": "object"
+      },
+      "ContextCategoryOut": {
+        "properties": {
+          "group": {
+            "enum": [
+              "system",
+              "blueprint",
+              "tools",
+              "messages",
+              "cli",
+              "space"
+            ],
+            "title": "Group",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ContextItemOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "key": {
+            "enum": [
+              "system_base",
+              "system_project",
+              "system_repo_map",
+              "system_mcp_servers",
+              "system_other",
+              "blueprint_rules",
+              "blueprint_standards",
+              "blueprint_skills",
+              "tools_yaap",
+              "tools_joined",
+              "messages_user",
+              "messages_answers",
+              "messages_thinking",
+              "messages_tool_calls",
+              "messages_tool_results",
+              "messages_summary",
+              "messages_attachments",
+              "cli_remainder",
+              "buffer",
+              "free"
+            ],
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "tokens": {
+            "title": "Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "group",
+          "label",
+          "tokens",
+          "items"
+        ],
+        "title": "ContextCategoryOut",
         "type": "object"
       },
       "ContextControlOut": {
@@ -2364,7 +2496,7 @@
           },
           "parts": {
             "items": {
-              "$ref": "#/components/schemas/app__api__traces__ContextPartOut"
+              "$ref": "#/components/schemas/ContextPartOut"
             },
             "title": "Parts",
             "type": "array"
@@ -2380,6 +2512,48 @@
           "parts"
         ],
         "title": "ContextGroupOut",
+        "type": "object"
+      },
+      "ContextItemOut": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "step_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Id"
+          },
+          "tokens": {
+            "title": "Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "label",
+          "tokens",
+          "step_id",
+          "run_id"
+        ],
+        "title": "ContextItemOut",
         "type": "object"
       },
       "ContextPartContentOut": {
@@ -2398,6 +2572,36 @@
           "content"
         ],
         "title": "ContextPartContentOut",
+        "type": "object"
+      },
+      "ContextPartOut": {
+        "properties": {
+          "chars": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chars"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "chars"
+        ],
+        "title": "ContextPartOut",
         "type": "object"
       },
       "ContradictionOut": {
@@ -5362,6 +5566,40 @@
           "status"
         ],
         "title": "HealthOut",
+        "type": "object"
+      },
+      "HintOut": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "repeated_read",
+              "cold_cache",
+              "tool_results_heavy",
+              "mcp_share"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "remedy": {
+            "title": "Remedy",
+            "type": "string"
+          },
+          "roadmap_item": {
+            "title": "Roadmap Item",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "text",
+          "remedy",
+          "roadmap_item"
+        ],
+        "title": "HintOut",
         "type": "object"
       },
       "HostKeyIn": {
@@ -9711,6 +9949,34 @@
         "title": "ReplyRouteOut",
         "type": "object"
       },
+      "ReplyTokensOut": {
+        "properties": {
+          "reply": {
+            "$ref": "#/components/schemas/TokenRowOut"
+          },
+          "utility": {
+            "items": {
+              "$ref": "#/components/schemas/TokenRowOut"
+            },
+            "title": "Utility",
+            "type": "array"
+          },
+          "workers": {
+            "items": {
+              "$ref": "#/components/schemas/TokenRowOut"
+            },
+            "title": "Workers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "reply",
+          "workers",
+          "utility"
+        ],
+        "title": "ReplyTokensOut",
+        "type": "object"
+      },
       "RepositoryCreateIn": {
         "properties": {
           "description": {
@@ -13079,6 +13345,156 @@
         "title": "TokenCheckOut",
         "type": "object"
       },
+      "TokenRowOut": {
+        "properties": {
+          "cache_read_tokens": {
+            "title": "Cache Read Tokens",
+            "type": "integer"
+          },
+          "cache_write_tokens": {
+            "title": "Cache Write Tokens",
+            "type": "integer"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "input_tokens": {
+            "title": "Input Tokens",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "reply",
+              "worker",
+              "utility",
+              "session"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "message_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message Id"
+          },
+          "output_tokens": {
+            "title": "Output Tokens",
+            "type": "integer"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          }
+        },
+        "required": [
+          "kind",
+          "label",
+          "message_id",
+          "run_id",
+          "started_at",
+          "cache_read_tokens",
+          "cache_write_tokens",
+          "input_tokens",
+          "output_tokens",
+          "cost"
+        ],
+        "title": "TokenRowOut",
+        "type": "object"
+      },
+      "TokenUsageOut": {
+        "description": "Where the tokens of a conversation went. Thinking is counted inside the output tokens, because no separate\nthinking count is stored.",
+        "properties": {
+          "cache_hit_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cache Hit Rate"
+          },
+          "hints": {
+            "items": {
+              "$ref": "#/components/schemas/HintOut"
+            },
+            "title": "Hints",
+            "type": "array"
+          },
+          "other_utility": {
+            "items": {
+              "$ref": "#/components/schemas/TokenRowOut"
+            },
+            "title": "Other Utility",
+            "type": "array"
+          },
+          "replies": {
+            "items": {
+              "$ref": "#/components/schemas/ReplyTokensOut"
+            },
+            "title": "Replies",
+            "type": "array"
+          },
+          "top_tool_results": {
+            "items": {
+              "$ref": "#/components/schemas/ToolResultTokensOut"
+            },
+            "title": "Top Tool Results",
+            "type": "array"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/TokenRowOut"
+          }
+        },
+        "required": [
+          "replies",
+          "other_utility",
+          "top_tool_results",
+          "cache_hit_rate",
+          "totals",
+          "hints"
+        ],
+        "title": "TokenUsageOut",
+        "type": "object"
+      },
       "ToolPermissionOut": {
         "properties": {
           "default": {
@@ -13100,6 +13516,58 @@
           "default"
         ],
         "title": "ToolPermissionOut",
+        "type": "object"
+      },
+      "ToolResultTokensOut": {
+        "properties": {
+          "message_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message Id"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "integer"
+          },
+          "step_id": {
+            "title": "Step Id",
+            "type": "integer"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "tokens": {
+            "title": "Tokens",
+            "type": "integer"
+          },
+          "tool": {
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "step_id",
+          "run_id",
+          "message_id",
+          "tool",
+          "summary",
+          "tokens"
+        ],
+        "title": "ToolResultTokensOut",
         "type": "object"
       },
       "TraceOut": {
@@ -14592,24 +15060,6 @@
         "title": "WorkerOut",
         "type": "object"
       },
-      "app__api__activity__ContextPartOut": {
-        "properties": {
-          "label": {
-            "title": "Label",
-            "type": "string"
-          },
-          "tokens": {
-            "title": "Tokens",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "label",
-          "tokens"
-        ],
-        "title": "ContextPartOut",
-        "type": "object"
-      },
       "app__api__backups__RestoreOut": {
         "properties": {
           "restarting": {
@@ -14639,36 +15089,6 @@
           "before_id"
         ],
         "title": "RestoreOut",
-        "type": "object"
-      },
-      "app__api__traces__ContextPartOut": {
-        "properties": {
-          "chars": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Chars"
-          },
-          "key": {
-            "title": "Key",
-            "type": "string"
-          },
-          "label": {
-            "title": "Label",
-            "type": "string"
-          }
-        },
-        "required": [
-          "key",
-          "label",
-          "chars"
-        ],
-        "title": "ContextPartOut",
         "type": "object"
       }
     }
@@ -17515,8 +17935,8 @@
     },
     "/api/v1/conversations/{conversation_id}/context": {
       "get": {
-        "description": "Where the context goes: each part of the system prompt, the conversation, and the last reply.",
-        "operationId": "context_breakdown_api_v1_conversations__conversation_id__context_get",
+        "description": "What the conversation's context holds now, by category, with the exact total of the last reply.",
+        "operationId": "context_api_v1_conversations__conversation_id__context_get",
         "parameters": [
           {
             "in": "path",
@@ -17550,9 +17970,9 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Context Breakdown",
+        "summary": "Context",
         "tags": [
-          "activity"
+          "tokens"
         ]
       }
     },
@@ -19680,6 +20100,49 @@
         "summary": "Summarise Now",
         "tags": [
           "conversations"
+        ]
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/token-usage": {
+      "get": {
+        "description": "Where the tokens of the conversation went, per reply, with the hints on where the session lost some.\n\nThinking is counted inside the output tokens: no separate thinking count is stored.",
+        "operationId": "token_usage_api_v1_conversations__conversation_id__token_usage_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenUsageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Token Usage",
+        "tags": [
+          "tokens"
         ]
       }
     },

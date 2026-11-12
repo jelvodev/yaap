@@ -972,10 +972,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Context Breakdown
-         * @description Where the context goes: each part of the system prompt, the conversation, and the last reply.
+         * Context
+         * @description What the conversation's context holds now, by category, with the exact total of the last reply.
          */
-        get: operations["context_breakdown_api_v1_conversations__conversation_id__context_get"];
+        get: operations["context_api_v1_conversations__conversation_id__context_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1731,6 +1731,28 @@ export interface paths {
          *     as /compact does.
          */
         post: operations["summarise_now_api_v1_conversations__conversation_id__summary_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/token-usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Token Usage
+         * @description Where the tokens of the conversation went, per reply, with the hints on where the session lost some.
+         *
+         *     Thinking is counted inside the output tokens: no separate thinking count is stored.
+         */
+        get: operations["token_usage_api_v1_conversations__conversation_id__token_usage_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5528,28 +5550,66 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "text" | "reasoning" | "tool_call" | "attachment" | "command" | "skill" | "skill_removed" | "goal" | "summary" | "trim" | "steering" | "note";
+            type: "text" | "reasoning" | "tool_call" | "attachment" | "command" | "skill" | "skill_removed" | "goal" | "summary" | "trim" | "steering" | "note" | "repo_map";
         };
         /** ContextBreakdownOut */
         ContextBreakdownOut: {
+            /**
+             * Basis
+             * @enum {string}
+             */
+            basis: "snapshot" | "assembly";
             /**
              * Can Summarise
              * @default false
              */
             can_summarise: boolean;
+            /** Categories */
+            categories: components["schemas"]["ContextCategoryOut"][];
+            /** Compact At Tokens */
+            compact_at_tokens: number | null;
             /** Context Tokens */
             context_tokens: number | null;
             /** Context Window */
             context_window: number | null;
+            /** Deferred Tools */
+            deferred_tools: number;
+            /** Estimated */
+            estimated: boolean;
             last_reply: components["schemas"]["LastReplyOut"] | null;
+            /** Limit Tokens */
+            limit_tokens: number | null;
             memory?: components["schemas"]["MemoryRecallOut"] | null;
-            /** Parts */
-            parts: components["schemas"]["app__api__activity__ContextPartOut"][];
+            /** Snapshot Gone */
+            snapshot_gone: boolean;
+            /** Step Id */
+            step_id: number | null;
             /**
              * Summarised Messages
              * @default 0
              */
             summarised_messages: number;
+            /** Total Tokens */
+            total_tokens: number;
+        };
+        /** ContextCategoryOut */
+        ContextCategoryOut: {
+            /**
+             * Group
+             * @enum {string}
+             */
+            group: "system" | "blueprint" | "tools" | "messages" | "cli" | "space";
+            /** Items */
+            items: components["schemas"]["ContextItemOut"][];
+            /**
+             * Key
+             * @enum {string}
+             */
+            key: "system_base" | "system_project" | "system_repo_map" | "system_mcp_servers" | "system_other" | "blueprint_rules" | "blueprint_standards" | "blueprint_skills" | "tools_yaap" | "tools_joined" | "messages_user" | "messages_answers" | "messages_thinking" | "messages_tool_calls" | "messages_tool_results" | "messages_summary" | "messages_attachments" | "cli_remainder" | "buffer" | "free";
+            /** Label */
+            label: string;
+            /** Tokens */
+            tokens: number;
         };
         /**
          * ContextControlOut
@@ -5589,9 +5649,20 @@ export interface components {
             /** Chars */
             chars: number;
             /** Parts */
-            parts: components["schemas"]["app__api__traces__ContextPartOut"][];
+            parts: components["schemas"]["ContextPartOut"][];
             /** Source */
             source: string;
+        };
+        /** ContextItemOut */
+        ContextItemOut: {
+            /** Label */
+            label: string;
+            /** Run Id */
+            run_id: number | null;
+            /** Step Id */
+            step_id: number | null;
+            /** Tokens */
+            tokens: number;
         };
         /** ContextPartContentOut */
         ContextPartContentOut: {
@@ -5599,6 +5670,15 @@ export interface components {
             content: string;
             /** Key */
             key: string;
+        };
+        /** ContextPartOut */
+        ContextPartOut: {
+            /** Chars */
+            chars: number | null;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
         };
         /** ContradictionOut */
         ContradictionOut: {
@@ -6546,6 +6626,20 @@ export interface components {
              * @constant
              */
             status: "ok";
+        };
+        /** HintOut */
+        HintOut: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "repeated_read" | "cold_cache" | "tool_results_heavy" | "mcp_share";
+            /** Remedy */
+            remedy: string;
+            /** Roadmap Item */
+            roadmap_item: number;
+            /** Text */
+            text: string;
         };
         /** HostKeyIn */
         HostKeyIn: {
@@ -8010,6 +8104,14 @@ export interface components {
              */
             role: "main" | "worker" | "utility";
         };
+        /** ReplyTokensOut */
+        ReplyTokensOut: {
+            reply: components["schemas"]["TokenRowOut"];
+            /** Utility */
+            utility: components["schemas"]["TokenRowOut"][];
+            /** Workers */
+            workers: components["schemas"]["TokenRowOut"][];
+        };
         /** RepositoryCreateIn */
         RepositoryCreateIn: {
             /**
@@ -9149,6 +9251,50 @@ export interface components {
              */
             scopes: string[];
         };
+        /** TokenRowOut */
+        TokenRowOut: {
+            /** Cache Read Tokens */
+            cache_read_tokens: number;
+            /** Cache Write Tokens */
+            cache_write_tokens: number;
+            /** Cost */
+            cost: number | null;
+            /** Input Tokens */
+            input_tokens: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "reply" | "worker" | "utility" | "session";
+            /** Label */
+            label: string;
+            /** Message Id */
+            message_id: number | null;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Run Id */
+            run_id: number | null;
+            /** Started At */
+            started_at: string | null;
+        };
+        /**
+         * TokenUsageOut
+         * @description Where the tokens of a conversation went. Thinking is counted inside the output tokens, because no separate
+         *     thinking count is stored.
+         */
+        TokenUsageOut: {
+            /** Cache Hit Rate */
+            cache_hit_rate: number | null;
+            /** Hints */
+            hints: components["schemas"]["HintOut"][];
+            /** Other Utility */
+            other_utility: components["schemas"]["TokenRowOut"][];
+            /** Replies */
+            replies: components["schemas"]["ReplyTokensOut"][];
+            /** Top Tool Results */
+            top_tool_results: components["schemas"]["ToolResultTokensOut"][];
+            totals: components["schemas"]["TokenRowOut"];
+        };
         /** ToolPermissionOut */
         ToolPermissionOut: {
             /** Default */
@@ -9157,6 +9303,21 @@ export interface components {
             label: string;
             /** Name */
             name: string;
+        };
+        /** ToolResultTokensOut */
+        ToolResultTokensOut: {
+            /** Message Id */
+            message_id: number | null;
+            /** Run Id */
+            run_id: number;
+            /** Step Id */
+            step_id: number;
+            /** Summary */
+            summary: string | null;
+            /** Tokens */
+            tokens: number;
+            /** Tool */
+            tool: string;
         };
         /** TraceOut */
         TraceOut: {
@@ -9631,13 +9792,6 @@ export interface components {
             /** Unavailable Reason */
             unavailable_reason?: string | null;
         };
-        /** ContextPartOut */
-        app__api__activity__ContextPartOut: {
-            /** Label */
-            label: string;
-            /** Tokens */
-            tokens: number;
-        };
         /** RestoreOut */
         app__api__backups__RestoreOut: {
             /** Restarting */
@@ -9649,15 +9803,6 @@ export interface components {
         app__api__checkpoints__RestoreOut: {
             /** Before Id */
             before_id: number;
-        };
-        /** ContextPartOut */
-        app__api__traces__ContextPartOut: {
-            /** Chars */
-            chars: number | null;
-            /** Key */
-            key: string;
-            /** Label */
-            label: string;
         };
     };
     responses: never;
@@ -11403,7 +11548,7 @@ export interface operations {
             };
         };
     };
-    context_breakdown_api_v1_conversations__conversation_id__context_get: {
+    context_api_v1_conversations__conversation_id__context_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -12813,6 +12958,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SummaryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    token_usage_api_v1_conversations__conversation_id__token_usage_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenUsageOut"];
                 };
             };
             /** @description Validation Error */
