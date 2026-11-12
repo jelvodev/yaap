@@ -3570,6 +3570,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/board/cards/from-finding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Card From Finding
+         * @description *Make a card* on a review's finding that the change did not fix: a card in Inbox with origin `review`.
+         */
+        post: operations["card_from_finding_api_v1_projects__project_id__board_cards_from_finding_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/board/cards/{card_id}": {
         parameters: {
             query?: never;
@@ -3640,6 +3660,26 @@ export interface paths {
         put?: never;
         /** Move Card */
         post: operations["move_card_api_v1_projects__project_id__board_cards__card_id__move_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/board/import-issues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Issues
+         * @description Import GitHub issues of the project's repository into Inbox, one way; issues imported before are skipped.
+         */
+        post: operations["import_issues_api_v1_projects__project_id__board_import_issues_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7400,6 +7440,16 @@ export interface components {
             /** Output */
             output: string;
         };
+        /**
+         * FindingCard
+         * @description *Make a card* on a review's finding: the review and the finding's place in its list.
+         */
+        FindingCard: {
+            /** Finding */
+            finding: number;
+            /** Review Id */
+            review_id: number;
+        };
         /** FindingOut */
         FindingOut: {
             /** Explanation */
@@ -7745,6 +7795,15 @@ export interface components {
             /** Turns */
             turns: number;
         };
+        /** ImportedIssueOut */
+        ImportedIssueOut: {
+            /** Card Id */
+            card_id: number;
+            /** Number */
+            number: number;
+            /** Title */
+            title: string;
+        };
         /** InstalledPackageOut */
         InstalledPackageOut: {
             /** Description */
@@ -7773,6 +7832,25 @@ export interface components {
             commits: components["schemas"]["MutationStatusOut"][];
             /** Skills */
             skills: components["schemas"]["InstalledSkillOut"][];
+        };
+        /**
+         * IssueImport
+         * @description Which issues to import: `numbers`, or the open issues with `label`; one of the two.
+         */
+        IssueImport: {
+            /** Label */
+            label?: string | null;
+            /** Numbers */
+            numbers?: number[];
+        };
+        /** IssueImportOut */
+        IssueImportOut: {
+            /** Added */
+            added: components["schemas"]["ImportedIssueOut"][];
+            /** Repository */
+            repository: string;
+            /** Skipped */
+            skipped: components["schemas"]["SkippedIssueOut"][];
         };
         /** KnowledgeDocumentOut */
         KnowledgeDocumentOut: {
@@ -10096,6 +10174,18 @@ export interface components {
             upstream_diff: string;
             /** Url */
             url: string;
+        };
+        /** SkippedIssueOut */
+        SkippedIssueOut: {
+            /** Card Id */
+            card_id?: number | null;
+            /** Number */
+            number: number;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "imported" | "pull_request" | "not_found" | "limit";
         };
         /** SpeechStatusOut */
         SpeechStatusOut: {
@@ -17823,6 +17913,41 @@ export interface operations {
             };
         };
     };
+    card_from_finding_api_v1_projects__project_id__board_cards_from_finding_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FindingCard"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     read_card_api_v1_projects__project_id__board_cards__card_id__get: {
         parameters: {
             query?: never;
@@ -18022,6 +18147,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CardDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_issues_api_v1_projects__project_id__board_import_issues_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueImport"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssueImportOut"];
                 };
             };
             /** @description Validation Error */

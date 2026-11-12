@@ -6950,6 +6950,27 @@
         "title": "FinalCheckOut",
         "type": "object"
       },
+      "FindingCard": {
+        "description": "*Make a card* on a review's finding: the review and the finding's place in its list.",
+        "properties": {
+          "finding": {
+            "minimum": 0.0,
+            "title": "Finding",
+            "type": "integer"
+          },
+          "review_id": {
+            "minimum": 1.0,
+            "title": "Review Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "review_id",
+          "finding"
+        ],
+        "title": "FindingCard",
+        "type": "object"
+      },
       "FindingOut": {
         "properties": {
           "explanation": {
@@ -7919,6 +7940,29 @@
         "title": "ImportedFromOut",
         "type": "object"
       },
+      "ImportedIssueOut": {
+        "properties": {
+          "card_id": {
+            "title": "Card Id",
+            "type": "integer"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "card_id",
+          "title"
+        ],
+        "title": "ImportedIssueOut",
+        "type": "object"
+      },
       "InstalledPackageOut": {
         "properties": {
           "description": {
@@ -8000,6 +8044,64 @@
           "commits"
         ],
         "title": "InstalledSkillsOut",
+        "type": "object"
+      },
+      "IssueImport": {
+        "description": "Which issues to import: `numbers`, or the open issues with `label`; one of the two.",
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "numbers": {
+            "items": {
+              "minimum": 1.0,
+              "type": "integer"
+            },
+            "maxItems": 50,
+            "title": "Numbers",
+            "type": "array"
+          }
+        },
+        "title": "IssueImport",
+        "type": "object"
+      },
+      "IssueImportOut": {
+        "properties": {
+          "added": {
+            "items": {
+              "$ref": "#/components/schemas/ImportedIssueOut"
+            },
+            "title": "Added",
+            "type": "array"
+          },
+          "repository": {
+            "title": "Repository",
+            "type": "string"
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/SkippedIssueOut"
+            },
+            "title": "Skipped",
+            "type": "array"
+          }
+        },
+        "required": [
+          "repository",
+          "added",
+          "skipped"
+        ],
+        "title": "IssueImportOut",
         "type": "object"
       },
       "KnowledgeDocumentOut": {
@@ -15098,6 +15200,41 @@
           "url"
         ],
         "title": "SkillUpdateOut",
+        "type": "object"
+      },
+      "SkippedIssueOut": {
+        "properties": {
+          "card_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Id"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "reason": {
+            "enum": [
+              "imported",
+              "pull_request",
+              "not_found",
+              "limit"
+            ],
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "reason"
+        ],
+        "title": "SkippedIssueOut",
         "type": "object"
       },
       "SpeechStatusOut": {
@@ -29040,6 +29177,59 @@
         ]
       }
     },
+    "/api/v1/projects/{project_id}/board/cards/from-finding": {
+      "post": {
+        "description": "*Make a card* on a review's finding that the change did not fix: a card in Inbox with origin `review`.",
+        "operationId": "card_from_finding_api_v1_projects__project_id__board_cards_from_finding_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FindingCard"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Card From Finding",
+        "tags": [
+          "board"
+        ]
+      }
+    },
     "/api/v1/projects/{project_id}/board/cards/{card_id}": {
       "delete": {
         "operationId": "drop_card_api_v1_projects__project_id__board_cards__card_id__delete",
@@ -29389,6 +29579,59 @@
           }
         },
         "summary": "Move Card",
+        "tags": [
+          "board"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/board/import-issues": {
+      "post": {
+        "description": "Import GitHub issues of the project's repository into Inbox, one way; issues imported before are skipped.",
+        "operationId": "import_issues_api_v1_projects__project_id__board_import_issues_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueImport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueImportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Issues",
         "tags": [
           "board"
         ]
