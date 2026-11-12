@@ -29,6 +29,8 @@ export default function ModelSetupButton({ active, draft, catalog, agents, busy,
   const conversation = active.conversation;
   const { models, presets } = catalog;
   const [open, setOpen] = useState(false);
+  // Opened by the ring: the context breakdown is already shown (a keyboard user has the toggle in the popover).
+  const [showBreakdown, setShowBreakdown] = useState(false);
   const box = useRef<HTMLDivElement | null>(null);
   const close = useCallback(() => setOpen(false), []);
   useDismiss(box, open, close);
@@ -57,9 +59,23 @@ export default function ModelSetupButton({ active, draft, catalog, agents, busy,
         aria-expanded={open}
         aria-haspopup="dialog"
         title={`Agent, model and context · context ${contextText(use)} (${share}%)`}
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => {
+          setShowBreakdown(false);
+          setOpen((value) => !value);
+        }}
       >
-        <ContextRing use={use} />
+        <span
+          className="model-setup-ring"
+          title={conversation ? "Where the context goes" : undefined}
+          onClick={(event) => {
+            if (!conversation) return;
+            event.stopPropagation();
+            setOpen(!(open && showBreakdown));
+            setShowBreakdown(true);
+          }}
+        >
+          <ContextRing use={use} />
+        </span>
         <span className="model-setup-label">{label}</span>
         <span className="model-setup-caret" aria-hidden="true">
           ▾
@@ -69,7 +85,9 @@ export default function ModelSetupButton({ active, draft, catalog, agents, busy,
         <div className="model-setup-popover" role="dialog" aria-label="Model setup">
           {conversation ? (
             <ConversationRows
+              key={showBreakdown ? "breakdown" : "rows"}
               conversation={conversation}
+              breakdownShown={showBreakdown}
               use={use}
               agents={agents}
               modelName={modelInfo?.display_name}
