@@ -67,6 +67,10 @@ from app.api import tasks as tasks_api
 from app.api import estimates as estimates_api
 from app.api import reviews as reviews_api
 from app.api import plans as plans_api
+from app.api import board as board_api
+from app.board.index import BoardIndexer
+from app.board.service import BoardService
+from app.board.storage import BranchStorage
 from app.api import second_opinion as second_opinion_api
 from app.api import github as github_api
 from app.api import targets as targets_api
@@ -207,6 +211,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         recover_backup_runs(session)
     scheduler = asyncio.create_task(run_scheduler(app)) if app.state.scheduler else None
     app.state.updates = UpdateService(app.state.session_factory, app.state.cipher)
+    # The project boards: their files on each project's yaap-board branch, indexed in the database.
+    app.state.board = BoardService(
+        app.state.session_factory,
+        BranchStorage(settings.workspace_dir),
+        BoardIndexer(app.state.session_factory),
+        settings.blueprint_dir,
+        settings.workspace_dir,
+    )
     start_check = asyncio.create_task(check_at_start(app.state.updates)) if app.state.update_check_at_start else None
     # CLIs installed by an older release are installed again from this release's lock.
     app.state.cli_sign_ins.refresh_tools()
@@ -401,6 +413,7 @@ def create_app(
     api.include_router(estimates_api.router)
     api.include_router(reviews_api.router)
     api.include_router(plans_api.router)
+    api.include_router(board_api.router)
     api.include_router(current_state_api.router)
     api.include_router(second_opinion_api.router)
     api.include_router(files_api.router)
