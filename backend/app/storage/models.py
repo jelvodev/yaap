@@ -477,6 +477,13 @@ class Review(Base):
     output_tokens: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utc_now)
     finished_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    # A build's review: the diff base_commit..branch in the project repository, and the card it belongs to (cards
+    # live in git, so no foreign key).
+    base_commit: Mapped[str | None] = mapped_column(String(40))
+    branch: Mapped[str | None] = mapped_column(String(255))
+    card_id: Mapped[int | None] = mapped_column(Integer)
+    # What YAAP checked per acceptance criterion and where it is shown.
+    evidence: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
 
 class ProcessRecord(Base):
