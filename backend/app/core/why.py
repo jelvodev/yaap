@@ -8,6 +8,8 @@ small "why" popover; step notes on the trace keep it with what happened.
 from dataclasses import dataclass
 from typing import Literal, get_args
 
+from pydantic import BaseModel
+
 # Which kind of decision the reason belongs to.
 WhySource = Literal[
     "permission",
@@ -56,3 +58,14 @@ def why_from(value: object) -> Why | None:
         return None
     found_layer = next((known for known in LAYER_KINDS if known == layer), None)
     return Why(rule, found_source, setting if isinstance(setting, str) and setting else None, found_layer)
+
+
+class WhyOut(BaseModel):
+    rule: str
+    source: WhySource
+    setting: str | None
+    layer: LayerKind | None
+
+
+def why_out(why: Why) -> WhyOut:
+    return WhyOut(rule=why.rule, source=why.source, setting=why.setting, layer=why.layer)

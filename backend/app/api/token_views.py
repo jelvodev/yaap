@@ -11,7 +11,6 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from app.agent.outputs import OutputStore
-from app.api.behind import WhyOut, why_out
 from app.api.conversations import ConversationDependency, conversation_layers
 from app.api.dependencies import (
     BlueprintDirDependency,
@@ -32,6 +31,7 @@ from app.core.context_categories import ContextCategory, ContextCategoryKey, Con
 from app.core.token_hints import Hint, HintKind
 from app.core.token_report import TokenReport, token_report
 from app.core.token_usage import ReplyTokens, TokenRow, TokenRowKind, ToolResultTokens
+from app.core.why import WhyOut, why_out
 from app.secrets.service import resolve_secrets
 
 router = APIRouter(tags=["tokens"])
