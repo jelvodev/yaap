@@ -64,6 +64,15 @@ function matchesFilter(item: BlueprintItem, filter: Filter): boolean {
   }
 }
 
+/** The value of ?builtin= while the Built-in layer is open without an item chosen. */
+const BUILTIN_LAYER = "all";
+
+/** The Built-in item named in ?builtin=, or null while only the layer is open. */
+function builtinItemOf(params: URLSearchParams): string | null {
+  const value = params.get("builtin");
+  return value && value !== BUILTIN_LAYER ? value : null;
+}
+
 /** The level a link asks for: ?level=global|environment|project with environment and project ids. */
 function levelFromParams(params: URLSearchParams): Level | null {
   const environmentId = Number(params.get("environment"));
@@ -142,7 +151,7 @@ export default function BlueprintPage() {
   // The environment whose layers, projects and agents surround the level; Global is seen from the active one.
   const environmentId = level.kind === "global" ? (active?.id ?? null) : level.environmentId;
   const environment = environments.find((entry) => entry.id === environmentId);
-  // The read-only Built-in layer is open while ?builtin= is present; Settings links to it with the item's name.
+  // The read-only Built-in layer is open while ?builtin= is present (`all` for the layer itself); Settings links to it with the item's name.
   const builtinOpen = params.has("builtin");
   const builtin = useBuiltinItems(builtinOpen ? environmentId : null);
   const currentName = nameOfLevel(level, environments, projects);
@@ -462,7 +471,7 @@ export default function BlueprintPage() {
       {KINDS.map((entry) => (
         <RailItem
           key={entry.kind}
-          active={entry.kind === kind}
+          active={!builtinOpen && entry.kind === kind}
           onClick={() => {
             setMain("item");
             setNewKind(null);
@@ -486,7 +495,7 @@ export default function BlueprintPage() {
       <RailHeading>Built-in · read-only</RailHeading>
       <RailItem
         active={builtinOpen}
-        onClick={() => update({ builtin: params.get("builtin") ?? "" })}
+        onClick={() => update({ builtin: params.get("builtin") || BUILTIN_LAYER })}
         count={builtin.items?.length}
         title="Agents and skills shipped with YAAP; change one by copying it to your own layer"
       >
@@ -624,7 +633,7 @@ export default function BlueprintPage() {
 
   let detail;
   if (builtinOpen) {
-    detail = <BuiltinDetail builtin={builtin} selected={params.get("builtin") || null} onOpenItem={openFromBuiltin} />;
+    detail = <BuiltinDetail builtin={builtin} selected={builtinItemOf(params)} onOpenItem={openFromBuiltin} />;
   } else if (view === "matrix") {
     detail = (
       <>
@@ -783,7 +792,7 @@ export default function BlueprintPage() {
   const builtinList = (
     <BuiltinList
       builtin={builtin}
-      selected={params.get("builtin") || null}
+      selected={builtinItemOf(params)}
       onSelect={(name) => update({ builtin: name })}
     />
   );
