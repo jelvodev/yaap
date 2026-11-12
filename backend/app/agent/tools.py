@@ -8,7 +8,7 @@ app.agent.gate.
 
 from app.agent.attachment_tools import ATTACHMENT_TOOLS
 from app.agent.blueprint_tools import BLUEPRINT_TOOLS
-from app.agent.board_tools import BOARD_TOOLS
+from app.agent.board_tools import BOARD_TOOLS, CARD_TOOLS, INTAKE_TOOLS
 from app.agent.code_tools import CODE_TOOLS
 from app.agent.command_tools import COMMAND_TOOLS
 from app.agent.delegation_tools import DELEGATION_TOOLS, delegate_tool_for
@@ -54,7 +54,8 @@ CONDITIONAL_TOOLS = {
     "delegate": "delegator",
     "finish_goal": "goal",
     "submit_plan": "plans",
-    **{tool.name: "card" for tool in BOARD_TOOLS},
+    **{tool.name: "card" for tool in CARD_TOOLS},
+    **{tool.name: "intake" for tool in INTAKE_TOOLS},
     "search_project": "searcher",
     "read_knowledge": "searcher",
     "web_search": "web_search",

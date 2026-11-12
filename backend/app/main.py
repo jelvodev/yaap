@@ -69,6 +69,7 @@ from app.api import estimates as estimates_api
 from app.api import reviews as reviews_api
 from app.api import plans as plans_api
 from app.api import board as board_api
+from app.api import board_intake as board_intake_api
 from app.api import card_actions as card_actions_api
 from app.board.index import BoardIndexer
 from app.board.route import CardRoute
@@ -454,6 +455,7 @@ def create_app(
     api.include_router(reviews_api.router)
     api.include_router(plans_api.router)
     api.include_router(board_api.router)
+    api.include_router(board_intake_api.router)
     api.include_router(card_actions_api.router)
     api.include_router(current_state_api.router)
     api.include_router(second_opinion_api.router)

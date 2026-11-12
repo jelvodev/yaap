@@ -237,3 +237,37 @@ class NoPlan(BoardError):
 class NothingToReviewOnCard(BoardError):
     code: ClassVar[BoardErrorCode] = "nothing_to_review"
     default_sentence: ClassVar[str] = "The build branch has no changes to review."
+
+
+class IntakeLimit(BoardError):
+    """A limit on cards that come from outside the user's hand (the agent, issues, findings) is reached."""
+
+    code: ClassVar[BoardErrorCode] = "intake_limit"
+    default_sentence: ClassVar[str] = "No more cards can be added to Inbox now."
+
+
+class AlreadyOnBoard(BoardError):
+    """The thing a card is asked for (a review's finding) is a card already."""
+
+    code: ClassVar[BoardErrorCode] = "already_on_board"
+
+    def __init__(self, card_id: int) -> None:
+        self.card_id = card_id
+        super().__init__(f"This is card #{card_id} already.")
+
+
+class FindingNotFound(BoardError):
+    code: ClassVar[BoardErrorCode] = "finding_not_found"
+    default_sentence: ClassVar[str] = "The review or its finding does not exist in this project."
+
+
+class NoGitHubRepository(BoardError):
+    code: ClassVar[BoardErrorCode] = "no_github_repository"
+    default_sentence: ClassVar[str] = "This project's repository is not on GitHub, so it has no issues to import."
+
+
+class GitHubFailed(BoardError):
+    """GitHub could not be asked or refused; the sentence is GitHub's own message, which holds no secret."""
+
+    code: ClassVar[BoardErrorCode] = "github_failed"
+    default_sentence: ClassVar[str] = "GitHub could not be asked for the issues."
