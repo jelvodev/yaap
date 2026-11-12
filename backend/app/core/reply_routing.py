@@ -13,6 +13,7 @@ import anyio
 from sqlalchemy.orm import Session
 
 from app.core.model_choice import ForReply, ModelChoiceError, resolve_provider
+from app.core.builtin_prompts import utility_instructions
 from app.core.reply_services import ReplyServices
 from app.core.routing import Route, RouteModel, RouteRole, decide_route, preset_routes, route_prompt
 from app.core.utility import SWITCHED_OFF_REASON, UtilityContext, UtilitySkipped, run_utility_or_skip
@@ -100,7 +101,8 @@ async def ask_kind(
 ) -> str | UtilitySkipped | None:
     """The utility model's answer to which kind the message is; None when it gives none in time."""
     with anyio.move_on_after(ROUTE_TIMEOUT_SECONDS):
+        prompt = route_prompt(text, utility_instructions(context, environment_id, "router"))
         return await run_utility_or_skip(
-            context, environment_id, route_prompt(text), conversation_id, max_tokens=ROUTE_MAX_TOKENS, task="route"
+            context, environment_id, prompt, conversation_id, max_tokens=ROUTE_MAX_TOKENS, task="route"
         )
     return None

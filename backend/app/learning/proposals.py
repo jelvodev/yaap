@@ -18,6 +18,7 @@ from typing import Any, Literal, cast
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.blueprint.builtin import render, shipped_instructions
 from app.blueprint.layers import Item, LayerKind
 from app.projects.memory import MAX_ENTRY_CHARS, SECTIONS
 from app.storage.models import AgentRunRecord, RunStep
@@ -33,38 +34,14 @@ MAX_TEXT_CHARS = 500
 MAX_SIGNALS = 40
 LESSONS = "Lessons learned"
 
-PROMPT = """You help the coding agent of a software project learn from its work. Below are signals from one
-conversation (calls the user declined, with their reason; test commands that failed twice in a run; searches for what
-the agent's instructions already said) and the conversation itself. Also look for places where the user corrected the
-agent.
-
-Propose at most {limit} lasting changes that would have avoided these problems next time, each at the right level:
-- "rule": a rule for a standard. "level" is "project" for this project only, "environment" for every project of
-  this environment, "global" for all work. Prefer the narrowest level that fits.
-- "memory": a line for the project memory, a fact about this project; "section" is one of {sections}.
-- "skill_step": a step missing from an existing skill; "skill" is one of: {skills}.
-Leave out what the rules, the memory or the skills already say, and what only mattered for this conversation.
-
-Answer with a JSON array only, no other text. Each item: {{"kind": "rule" | "memory" | "skill_step", "level":
-"global" | "environment" | "project", "section": "...", "skill": "...", "text": "the rule, line or step, one
-sentence in {language}", "rationale": "why, in one or two sentences", "signals": [numbers of the signals it rests
-on]}}. Answer [] when nothing is worth changing.
-
-<signals>
-{signals}
-</signals>
-
-<rules>
-{rules}
-</rules>
-
-<memory>
-{memory}
-</memory>
-
-<conversation>
-{conversation}
-</conversation>"""
+# The answer format that parse_drafts() reads; the instructions before it may be replaced.
+PROPOSALS_ANSWER = (
+    "Answer with a JSON array only, no other text. Each item: "
+    '{"kind": "rule" | "memory" | "skill_step", "level":\n"global" | "environment" | "project", '
+    '"section": "...", "skill": "...", "text": "the rule, line or step, one\nsentence in {language}", '
+    '"rationale": "why, in one or two sentences", "signals": [numbers of the signals it rests\non]}. '
+    "Answer [] when nothing is worth changing."
+)
 
 
 @dataclass(frozen=True)
@@ -156,19 +133,23 @@ def rule_views(items: list[Item]) -> list[RuleView]:
     ]
 
 
-def review_prompt(found: ReviewInput) -> str:
+def review_prompt(found: ReviewInput, instructions: str | None = None) -> str:
+    """What the utility model is asked: the instructions, which the user may replace, then the answer format and the
+    material."""
     signals = "\n".join(f"{number}. {signal.line()}" for number, signal in enumerate(found.signals, start=1))
     rules = "\n".join(f"- [{rule.level}] {rule.path}: {rule.rule}" for rule in found.rules)
     pending = "".join(f"\n- {text} (proposed, waiting)" for text in found.pending)
-    return PROMPT.format(
-        limit=MAX_PROPOSALS,
-        sections=", ".join(SECTIONS),
-        skills=", ".join(found.skills) or "(none)",
-        language=found.language,
-        signals=signals or "(none)",
-        rules=(rules + pending).strip() or "(none)",
-        memory=found.memory.strip() or "(empty)",
-        conversation=found.conversation or "(empty)",
+    template = instructions if instructions is not None else shipped_instructions("learner", "Proposals")
+    lead = render(
+        template,
+        {"limit": str(MAX_PROPOSALS), "sections": ", ".join(SECTIONS), "skills": ", ".join(found.skills) or "(none)"},
+    )
+    asked = render(PROPOSALS_ANSWER, {"language": found.language})
+    return (
+        f"{lead}\n\n{asked}\n\n<signals>\n{signals or '(none)'}\n</signals>\n\n"
+        f"<rules>\n{(rules + pending).strip() or '(none)'}\n</rules>\n\n"
+        f"<memory>\n{found.memory.strip() or '(empty)'}\n</memory>\n\n"
+        f"<conversation>\n{found.conversation or '(empty)'}\n</conversation>"
     )
 
 

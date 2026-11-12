@@ -6,11 +6,13 @@ Utility calls go through the environment's own connection, like the main work, a
 
 import logging
 from dataclasses import dataclass
-from typing import Literal
 from datetime import UTC, datetime
+from pathlib import Path
+from typing import Literal
 
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.blueprint.builtin import render, shipped_instructions
 from app.core.audit import record_request, utility_entry, with_refusal
 from app.core.model_choice import ForUtility, ModelChoice, ModelChoiceError, PolicyForbids, read_key, resolve_provider
 from app.core.outgoing_checks import OutgoingRules, checked_provider, outgoing_rules, request_refusal
@@ -40,6 +42,8 @@ class UtilityContext:
     cipher: CredentialCipher
     credential_types: dict[str, CredentialType]
     providers: ProviderRegistry
+    # Where the user's Blueprint lives; set where the prompts a Blueprint file may replace are used.
+    blueprint_dir: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -235,16 +239,19 @@ async def propose_title(
     user_text: str,
     reply_text: str,
     reply_language: str = "",
+    title_instructions: str | None = None,
 ) -> str | None:
-    prompt = f"Write {title_request(reply_language)}.\n\n{first_exchange(user_text, reply_text)}"
+    prompt = f"Write {title_request(reply_language, title_instructions)}.\n\n{first_exchange(user_text, reply_text)}"
     answer = await run_utility(context, environment_id, prompt, conversation_id, max_tokens=60, task="title")
     return clean_title(answer or "")
 
 
-def title_request(reply_language: str = "") -> str:
-    """What a title must be, for a prompt that asks for one, alone or with other work."""
+def title_request(reply_language: str = "", instructions: str | None = None) -> str:
+    """What a title must be, for a prompt that asks for one, alone or with other work. The instructions may be the
+    user's replacement; clean_title() does not depend on them."""
     language = reply_language or "the language of the user's message"
-    return f"a title of at most {TITLE_WORDS} words for this conversation, in {language}, with no punctuation at the end"
+    template = instructions if instructions is not None else shipped_instructions("memory-keeper", "Title")
+    return render(template, {"words": str(TITLE_WORDS), "language": language})
 
 
 def first_exchange(user_text: str, reply_text: str) -> str:
