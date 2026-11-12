@@ -128,6 +128,10 @@ class Conversation(Base):
     context_limit: Mapped[int | None] = mapped_column(Integer)
     # An imported Claude Code or Codex session: the tool, the file and what it held; None otherwise.
     imported_from: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    # The conversation this one continues from a summary; None otherwise.
+    continued_from_id: Mapped[int | None] = mapped_column(
+        ForeignKey("conversations.id", ondelete="SET NULL"), index=True
+    )
 
 
 class Message(Base):
