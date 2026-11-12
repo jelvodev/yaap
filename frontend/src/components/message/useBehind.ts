@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { api, type Behind, errorMessage } from "../../api/client";
 
-// A stored message's labels do not change, so remounts and re-renders reuse the first answer.
+// Remounts and re-renders reuse the first answer; a trim or summary noted just after the reply shows after a reload.
 const cache = new Map<number, Behind>();
 
 /** The labels and call reasons under a stored reply, fetched once per message. */
