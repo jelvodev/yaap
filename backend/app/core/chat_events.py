@@ -4,7 +4,7 @@ import asyncio
 import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TypeVar
 
 import anyio
 
@@ -18,6 +18,10 @@ from app.providers.base import (
     ToolCallFinished,
     ToolCallStarted,
 )
+
+
+ProviderEvent = TypeVar("ProviderEvent")
+RunEvent = TypeVar("RunEvent")
 
 
 def server_sent_event(name: str, payload: dict[str, Any]) -> str:
@@ -116,8 +120,8 @@ def reply_event(event: AgentEvent | dict[str, Any], reply: ReplyContent) -> tupl
     return None
 
 async def merge_events(
-    provider_events: AsyncIterator[AgentEvent], run_events: "asyncio.Queue[dict[str, Any]] | None"
-) -> AsyncIterator[AgentEvent | dict[str, Any]]:
+    provider_events: AsyncIterator[ProviderEvent], run_events: "asyncio.Queue[RunEvent] | None"
+) -> AsyncIterator[ProviderEvent | RunEvent]:
     """The model's events, interleaved with the run's own events (approval requests) as they happen."""
     if run_events is None:
         async for event in provider_events:

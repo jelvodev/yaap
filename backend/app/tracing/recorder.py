@@ -135,9 +135,9 @@ def step_row(run_id: int, step: ModelStep | ToolStep | NoteStep) -> RunStep:
     return row
 
 
-# Told about every step as it is recorded (run record id, step), on the event loop: an eval run watches its budget
-# this way. It must not block.
-StepListener = Callable[[int, ModelStep | ToolStep], None]
+# Told about every step and note as it is recorded (run record id, step), on the event loop: an eval run watches its
+# budget and the live route is drawn this way. It must not block, and one that counts calls ignores notes.
+StepListener = Callable[[int, ModelStep | ToolStep | NoteStep], None]
 
 
 class TraceRecorder:
@@ -168,8 +168,7 @@ class TraceRecorder:
             await anyio.to_thread.run_sync(self.write, run_id, step)
         except SQLAlchemyError:
             logger.warning("Recording a step of run %s failed.", run_id, exc_info=True)
-        # Notes are not model or tool calls: an eval budget counts steps through the listener.
-        if self.listener is not None and not isinstance(step, NoteStep):
+        if self.listener is not None:
             self.listener(run_id, step)
 
     async def note(self, run_id: int, note: Note) -> None:
@@ -184,6 +183,8 @@ class TraceRecorder:
             self.write(run_id, step)
         except SQLAlchemyError:
             logger.warning("Recording a step of run %s failed.", run_id, exc_info=True)
+        if self.listener is not None:
+            self.listener(run_id, step)
 
     async def snapshot(self, context: ContextSnapshot, secret_values: dict[str, str]) -> str | None:
         """Store what a model call saw; None without a store or when it cannot be written."""
