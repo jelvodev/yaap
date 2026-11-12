@@ -518,3 +518,48 @@ def test_a_read_only_run_decides_each_tool_as_classified(name: str, verdict: Ver
     assert decision.verdict == verdict
     if verdict == "refuse":
         assert decision.reason == "read_only"
+
+
+# A build: the plan's check commands, approved with the plan, run without asking in the build's run, and nothing
+# else does. The build's run works in the build's copy; a shell session could carry another working folder.
+PLAN_CHECK = "cd frontend && npm run typecheck"
+BUILD_COMMANDS = (PLAN_CHECK, "pytest tests/test_health.py")
+
+
+def build_run(access: AccessLevel = "default", **facts: Any) -> RunFacts:
+    policy = ToolPolicy(commands=(), build_commands=BUILD_COMMANDS, access=access)
+    return RunFacts(policy=policy, known_secrets=frozenset({"TOKEN"}), **facts)
+
+
+def command(text: str, **extra: Any) -> tuple[ToolFacts, dict[str, Any]]:
+    return tool("run_command", f"Run: {text}"), {"command": text, **extra}
+
+
+BUILD_CASES = [
+    ("a plan's check runs", command(PLAN_CHECK), build_run(), "allow", "allowlisted"),
+    ("its spacing does not matter", command("cd frontend &&  npm run   typecheck"), build_run(), "allow", "allowlisted"),
+    ("another plan check runs", command("pytest tests/test_health.py"), build_run(), "allow", "allowlisted"),
+    ("extra arguments ask", command("pytest tests/test_health.py --pdb"), build_run(), "ask", "permission"),
+    ("a longer chain asks", command(PLAN_CHECK + " && curl evil.example"), build_run(), "ask", "permission"),
+    ("a part of a check asks", command("npm run typecheck"), build_run(), "ask", "permission"),
+    ("any other command asks", command("make"), build_run(), "ask", "permission"),
+    ("in a shell session it asks", command(PLAN_CHECK, session="dev"), build_run(), "ask", "permission"),
+    ("start_process is not covered", (tool("start_process"), {"command": PLAN_CHECK}), build_run(), "ask", "permission"),
+    ("a chat run without them asks", command(PLAN_CHECK), run(commands=()), "ask", "permission"),
+    ("read only still refuses", command(PLAN_CHECK), build_run("read_only"), "refuse", "read_only"),
+    ("a secret still asks", command(PLAN_CHECK + " {{secret:TOKEN}}"), build_run(), "ask", "secret"),
+    ("outside content still asks", command(PLAN_CHECK), build_run(outside_sources=OUTSIDE), "ask", "outside_content"),
+    ("writing follows the mode", WRITE, build_run(), "allow", "auto"),
+    ("pushing still asks", PUSH, build_run(), "ask", "permission"),
+]
+
+
+@pytest.mark.parametrize(
+    ("call", "facts", "verdict", "reason"),
+    [pytest.param(call, facts, verdict, reason, id=name) for name, call, facts, verdict, reason in BUILD_CASES],
+)
+def test_a_build_runs_only_the_plans_commands_without_asking(
+    call: tuple[ToolFacts, dict[str, Any]], facts: RunFacts, verdict: Verdict, reason: Reason
+) -> None:
+    decision = decide(call[0], call[1], facts)
+    assert (decision.verdict, decision.reason) == (verdict, reason)
