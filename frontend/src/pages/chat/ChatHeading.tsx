@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import type { Conversation, Project } from "../../api/client";
 import { TOOL_LABELS } from "../../components/ImportSessionDialog";
+import ContinuationChip from "./ContinuationChip";
 import ConversationMenu, { type ConversationMenuProps } from "./ConversationMenu";
 import { changeChip, projectChipLabel } from "./headerChips";
 import "./chatHeading.css";
@@ -49,6 +50,7 @@ export default function ChatHeading(props: ChatHeadingProps) {
       <ProjectChip {...props} />
       {conversation?.imported && <ImportedChip imported={conversation.imported} />}
       {conversation?.archived_at && <span className="chip">Archived</span>}
+      {conversation && <ContinuationChip conversationId={conversation.id} />}
       <span className="chat-heading-end">
         <ChangeChip {...props} />
         {conversation && (

@@ -1,7 +1,9 @@
 import { Link } from "react-router-dom";
 
-import type { Conversation, Environment, ModelInfo } from "../../api/client";
+import type { Conversation, ConversationSummary, Environment, ModelInfo } from "../../api/client";
 import { modelState } from "../../components/modelState";
+import { returnNoticeText } from "./returnNoticeText";
+import { type ReturnNoticeState, useReturnNotice } from "./useReturnNotice";
 
 /** The model in use cannot be used here, and why: the model policy forbids it, or a key is missing. */
 export function ModelNotice({
@@ -58,4 +60,49 @@ export function ContextNotice({
       starts fresh and costs less per message.
     </div>
   );
+}
+
+/** The cost of continuing after a pause, and what to do about it; sending as usual is the default. */
+export function ReturnNotice({ state }: { state: ReturnNoticeState }) {
+  const { notice, pending } = state;
+  if (!notice) return null;
+  return (
+    <div className="notice notice-warning">
+      {returnNoticeText(notice)}{" "}
+      {pending ? (
+        "Writing the summary…"
+      ) : (
+        <span className="return-notice-actions">
+          {notice.can_summarise && (
+            <button type="button" className="link-button" onClick={() => void state.summarise()}>
+              Summarise first
+            </button>
+          )}
+          <button type="button" className="link-button" onClick={() => void state.continueFromSummary()}>
+            New conversation from a summary
+          </button>
+          <button type="button" className="link-button" onClick={state.dismiss}>
+            Just send
+          </button>
+        </span>
+      )}
+      {state.error && <p className="form-error small">{state.error}</p>}
+    </div>
+  );
+}
+
+/** The notice for the open conversation; it asks again after each reply and stays away while one runs. */
+export function ReturnNoticeFor({
+  conversation,
+  busy,
+  onChanged,
+  onContinued,
+}: {
+  conversation: Conversation;
+  busy: boolean;
+  onChanged: () => void;
+  onContinued: (conversation: ConversationSummary) => void;
+}) {
+  const state = useReturnNotice(conversation.id, conversation.messages.length, busy, { onChanged, onContinued });
+  return <ReturnNotice state={state} />;
 }

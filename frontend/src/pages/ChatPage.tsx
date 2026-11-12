@@ -126,6 +126,10 @@ export default function ChatPage({ environment }: { environment: Environment }) 
         checkpointLinks={checkpointLinks}
         endRef={endRef}
         onNewConversation={() => navigate("/chat")}
+        onContinued={(continued) => {
+          list.remember(continued);
+          navigate(`/chat/${continued.id}`);
+        }}
       />
       <ChatSidePanels
         conversation={conversation}
