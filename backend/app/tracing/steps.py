@@ -3,14 +3,14 @@
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import get_args
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.providers.base import TokenUsage
 from app.storage.models import AgentRunRecord, RunStep
-from app.tracing.recorder import ApprovalOutcome, StepKind
+from app.tracing.notes import NOTE_KIND, ApprovalOutcome, approval_outcome
+from app.tracing.recorder import StepKind
 
 
 @dataclass(frozen=True)
@@ -62,13 +62,6 @@ def step_kind(value: str) -> StepKind:
     return "tool" if value == "tool" else "model"
 
 
-def approval_outcome(value: str | None) -> ApprovalOutcome | None:
-    for outcome in get_args(ApprovalOutcome):
-        if value == outcome:
-            return outcome
-    return None
-
-
 def step_view(row: RunStep) -> StepView:
     return StepView(
         id=row.id,
@@ -92,7 +85,9 @@ def step_view(row: RunStep) -> StepView:
 
 def run_steps(session: Session, run_id: int) -> list[StepView]:
     """The steps of one run in the order they happened; a sub-run's steps are under the sub-run."""
-    rows = session.scalars(select(RunStep).where(RunStep.run_id == run_id).order_by(RunStep.position, RunStep.id))
+    rows = session.scalars(
+        select(RunStep).where(RunStep.run_id == run_id, RunStep.kind != NOTE_KIND).order_by(RunStep.position, RunStep.id)
+    )
     return [step_view(row) for row in rows]
 
 
@@ -103,7 +98,9 @@ def steps_of_runs(session: Session, run_ids: Iterable[int]) -> dict[int, list[St
     if not ids:
         return steps
     rows = session.scalars(
-        select(RunStep).where(RunStep.run_id.in_(ids)).order_by(RunStep.run_id, RunStep.position, RunStep.id)
+        select(RunStep)
+        .where(RunStep.run_id.in_(ids), RunStep.kind != NOTE_KIND)
+        .order_by(RunStep.run_id, RunStep.position, RunStep.id)
     )
     for row in rows:
         steps[row.run_id].append(step_view(row))
@@ -114,7 +111,7 @@ def find_step(session: Session, step_id: int) -> StepLocation | None:
     row = session.execute(
         select(RunStep, AgentRunRecord.conversation_id)
         .join(AgentRunRecord, AgentRunRecord.id == RunStep.run_id)
-        .where(RunStep.id == step_id)
+        .where(RunStep.id == step_id, RunStep.kind != NOTE_KIND)
     ).first()
     if row is None:
         return None

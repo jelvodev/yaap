@@ -83,7 +83,7 @@ def play_usage(session: Session, conversation_id: int, seconds: float) -> PlayUs
             func.coalesce(func.sum(STEP_TOKENS), 0),
             func.coalesce(func.sum(RunStep.cost), 0.0),
             func.coalesce(func.sum(case((RunStep.approval == "asked", 1), else_=0)), 0),
-        ).where(RunStep.run_id.in_(runs))
+        ).where(RunStep.run_id.in_(runs), RunStep.kind != "note")
     ).one()
     steps, tokens, cost, asked = row
     return PlayUsage(CaseUsage(int(steps), int(tokens), round(float(cost), 6), seconds), int(asked))
