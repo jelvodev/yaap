@@ -4,6 +4,7 @@ import type { RouteStopOut } from "../../api/client";
 import { formatCost } from "../trace/traceOrder";
 import RouteMap from "./RouteMap";
 import { formatClock } from "./routeLayout";
+import { waitingText } from "./routeStages";
 import "./route.css";
 
 /** The route so far while a reply streams: it grows stop by stop and says what the reply waits for. */
@@ -26,8 +27,7 @@ export default function RouteStrip({ stops }: { stops: readonly RouteStopOut[] }
       <div className="route-strip-status">
         {waiting ? (
           <span>
-            <span className="route-strip-waiting">Waiting for you</span> · {waiting.label}
-            {waiting.detail ? ` ${waiting.detail}` : ""}
+            <span className="route-strip-waiting">Waiting for you</span> · {waitingText(waiting.label, waiting.detail)}
           </span>
         ) : (
           <span>{latest.label}</span>

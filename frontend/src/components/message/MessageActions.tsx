@@ -13,7 +13,7 @@ export interface MessageActions {
   onShowVersion: (messageId: number) => void;
   // Open the trace of a reply: its steps, sub-runs and what each model call saw; at a tool call's step when given.
   // `tab` opens it on that view instead of the timeline.
-  onShowTrace?: (message: Message, toolCall?: ToolCallRef, tab?: "route") => void;
+  onShowTrace?: (message: Message, toolCall?: ToolCallRef, tab?: "route", stepId?: number) => void;
   // Where Remember as rule can save; absent when the conversation is not loaded.
   ruleTarget?: RuleTarget;
   // The conversation's second opinions and how to ask for one; absent when the conversation is not loaded.

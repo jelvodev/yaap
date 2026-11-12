@@ -26,7 +26,7 @@ function LabelPopover({ label, message, actions }: { label: BehindLabel; message
       {facts.length > 0 && <p className="behind-facts">{facts.join(" · ")}</p>}
       {label.why && <WhyText why={label.why} />}
       {showTrace && label.run_id !== null && (
-        <button type="button" className="link-button" onClick={() => showTrace(message)}>
+        <button type="button" className="link-button" onClick={() => showTrace(message, undefined, undefined, label.step_id ?? undefined)}>
           Show in trace
         </button>
       )}

@@ -16,6 +16,8 @@ export interface MessageQueue {
   refresh: (conversationId: number) => Promise<QueuedMessage[]>;
   /** Persist a send-now selection and let the server resume it after stopping the current reply. */
   sendNow: (conversationId: number, selection: QueueSelection) => Promise<boolean>;
+  /** Hide the selected messages at once; the returned function puts them back if sending fails. */
+  withdraw: (selection: QueueSelection) => () => void;
   remove: (item: QueuedMessage) => Promise<void>;
   /** Give a queued message to the running agent. */
   steer: (item: QueuedMessage) => Promise<void>;
@@ -52,6 +54,12 @@ export function useMessageQueue(conversationId: number | null, onError: (message
     return true;
   }
 
+  function withdraw(selection: QueueSelection): () => void {
+    const before = items;
+    setItems((current) => (selection.all ? [] : current.filter((entry) => entry.id !== selection.item_id)));
+    return () => setItems(before);
+  }
+
   async function remove(item: QueuedMessage) {
     if (!conversationId) return;
     await api.DELETE("/api/v1/conversations/{conversation_id}/queue/{item_id}", {
@@ -82,5 +90,5 @@ export function useMessageQueue(conversationId: number | null, onError: (message
     await load(conversationId);
   }
 
-  return { items, add, refresh: load, remove, sendNow, steer };
+  return { items, add, refresh: load, withdraw, remove, sendNow, steer };
 }

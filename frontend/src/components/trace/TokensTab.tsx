@@ -1,7 +1,7 @@
 import { formatTokens } from "../composer/modelSetup";
 import { WhyPopover } from "../why/WhyPopover";
 import TokenBar from "./TokenBar";
-import { TOKEN_KINDS, largestTotal, percent } from "./tokenBars";
+import { TOKEN_KINDS, largestTotal, numberedReply, percent } from "./tokenBars";
 import { formatCost } from "./traceOrder";
 import { useTokenUsage } from "./useTokenUsage";
 
@@ -40,7 +40,7 @@ export default function TokensTab({ conversationId, onOpenStep }: TokensTabProps
       {usage.replies.length === 0 && <p className="faint">Nothing has been used in this conversation yet.</p>}
       {usage.replies.map((entry, index) => (
         <div key={entry.reply.message_id ?? index} className="token-reply">
-          <TokenBar row={entry.reply} max={max} />
+          <TokenBar row={numberedReply(entry.reply, index)} max={max} />
           {[...entry.workers, ...entry.utility].map((row, rowIndex) => (
             <TokenBar key={`${row.run_id}-${rowIndex}`} row={row} max={max} indent />
           ))}
