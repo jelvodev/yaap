@@ -14,3 +14,11 @@ export function upsertStop(stops: readonly Stop[], stop: Stop): Stop[] {
 export function removeStop(stops: readonly Stop[], id: string): Stop[] {
   return stops.filter((entry) => entry.id !== id);
 }
+
+/** What a waiting stop says: its label and detail, without the detail repeating a tool name the label already gives. */
+export function waitingText(label: string, detail: string | null | undefined): string {
+  const rest = detail?.trim() ?? "";
+  if (!rest) return label;
+  if (rest === label) return label;
+  return rest.startsWith(`${label} `) ? rest : `${label} ${rest}`;
+}
