@@ -86,6 +86,11 @@
 .route-stop text {
   fill: var(--muted);
   font-size: 12px;
+  /* A line of the route may run behind a label: the outline keeps it readable. */
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 4px;
+  stroke-linejoin: round;
 }
 
 .route-stop.state-waiting text {
