@@ -5,6 +5,7 @@ Utility calls go through the environment's own connection, like the main work, a
 """
 
 import logging
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -259,8 +260,13 @@ def first_exchange(user_text: str, reply_text: str) -> str:
     return f"User:\n{user_text[:2000]}\n\nAssistant:\n{reply_text[:1500]}"
 
 
+# A label some models put before the title they were asked for, in the languages YAAP replies in.
+TITLE_LABEL = re.compile(r"^(?:conversation title|gesprekstitel|title|titel)\s*:\s*", re.IGNORECASE)
+
+
 def clean_title(text: str) -> str | None:
-    return clean_line(text, 80) or None
+    line = clean_line(text, 200)
+    return TITLE_LABEL.sub("", line).strip().strip("\"'`*").strip()[:80].strip() or None
 
 
 async def propose_commit_message(

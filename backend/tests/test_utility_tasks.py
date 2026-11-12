@@ -10,7 +10,7 @@ from sqlalchemy import select
 from app.agent.guard import utility_injection_check
 from app.core.model_choice import ForUtility, resolve_provider
 from app.core.settings import SETTING_DEFINITIONS, store_setting
-from app.core.utility import UtilityContext
+from app.core.utility import UtilityContext, clean_title
 from app.core.utility_tasks import ROUTABLE_TASKS, check_task_models, task_model
 from app.projects import suggestions
 from app.providers.fake_provider import ScriptedResponse
@@ -21,6 +21,23 @@ from tests.test_chat import send
 from tests.test_delegation import project_conversation
 
 CHEAP = "claude-sonnet-5-5"
+
+
+@pytest.mark.parametrize(
+    ("answer", "expected"),
+    [
+        ("Tea facts", "Tea facts"),
+        ('"Tea facts."', "Tea facts"),
+        ("Title: Tea facts", "Tea facts"),
+        ("Titel: Delegate-tool niet beschikbaar", "Delegate-tool niet beschikbaar"),
+        ("**Conversation title:** Find vat_rate_for", "Find vat_rate_for"),
+        ("Fix: the rounding bug", "Fix: the rounding bug"),
+        ("Title:", None),
+        ("", None),
+    ],
+)
+def test_title_loses_a_label_the_model_put_before_it(answer, expected):
+    assert clean_title(answer) == expected
 
 
 @pytest.mark.parametrize(
