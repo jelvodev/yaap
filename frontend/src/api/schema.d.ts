@@ -470,7 +470,7 @@ export interface paths {
         put?: never;
         /**
          * Analyze Import
-         * @description Proposals for the documents in a Markdown file or zip; nothing is written yet.
+         * @description Proposals for a Markdown file or a zip of a setup; nothing is written yet.
          */
         post: operations["analyze_import_api_v1_blueprint_import_analyze_post"];
         delete?: never;
@@ -490,9 +490,49 @@ export interface paths {
         put?: never;
         /**
          * Apply Import
-         * @description Write the reviewed items into this level; each file is committed on its own.
+         * @description Write the reviewed items into their layers; each file, or each skill folder, is committed on its own.
          */
         post: operations["apply_import_api_v1_blueprint_import_apply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/blueprint/import/project": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Analyze Project Setup
+         * @description Proposals for the setup files in a project's own folder; items default to the project's layer.
+         */
+        post: operations["analyze_project_setup_api_v1_blueprint_import_project_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/blueprint/import/project/found": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Found In Project
+         * @description How many setup items the project's folder holds, so the project panel offers the import only when it can.
+         */
+        get: operations["found_in_project_api_v1_blueprint_import_project_found_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1195,6 +1235,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/second-opinion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview Second Opinion
+         * @description Who would give a second opinion on the reply, on what, and the most it would cost.
+         */
+        get: operations["preview_second_opinion_api_v1_conversations__conversation_id__messages__message_id__second_opinion_get"];
+        put?: never;
+        /**
+         * Start Second Opinion
+         * @description Ask for a second opinion on the reply; refused with the reason when no model can give it.
+         */
+        post: operations["start_second_opinion_api_v1_conversations__conversation_id__messages__message_id__second_opinion_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/conversations/{conversation_id}/messages/{message_id}/trace": {
         parameters: {
             query?: never;
@@ -1543,6 +1607,26 @@ export interface paths {
          * @description The trace of one run of the conversation (a reply's run or a sub-run), with its sub-runs and steps.
          */
         get: operations["read_run_trace_api_v1_conversations__conversation_id__runs__run_id__trace_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/second-opinions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Second Opinions
+         * @description The second opinions given in this conversation, newest first.
+         */
+        get: operations["list_second_opinions_api_v1_conversations__conversation_id__second_opinions_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5882,6 +5966,15 @@ export interface components {
             /** Name */
             name?: string | null;
         };
+        /** EstimateOut */
+        EstimateOut: {
+            /** Input Tokens */
+            input_tokens: number;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Usd */
+            usd: number | null;
+        };
         /** EvalCaseIO */
         EvalCaseIO: {
             /** Agent */
@@ -6459,6 +6552,15 @@ export interface components {
             /** Fingerprint */
             fingerprint: string;
         };
+        /** ImportAnalysisOut */
+        ImportAnalysisOut: {
+            /** Not Imported */
+            not_imported: components["schemas"]["NotImportedOut"][];
+            /** Proposals */
+            proposals: components["schemas"]["ImportProposalOut"][];
+            /** Skipped */
+            skipped: number;
+        };
         /** ImportApplyIn */
         ImportApplyIn: {
             /** Items */
@@ -6471,6 +6573,32 @@ export interface components {
             /** Written */
             written: string[];
         };
+        /** ImportFileIn */
+        ImportFileIn: {
+            /** Content */
+            content: string;
+            /** Path */
+            path: string;
+        };
+        /**
+         * ImportFileOut
+         * @description A file inside a skill's folder.
+         */
+        ImportFileOut: {
+            /** Content */
+            content: string;
+            /** Path */
+            path: string;
+            /** Script */
+            script: boolean;
+            /** Selected */
+            selected: boolean;
+        };
+        /** ImportFoundOut */
+        ImportFoundOut: {
+            /** Count */
+            count: number;
+        };
         /** ImportItemIn */
         ImportItemIn: {
             /** Body */
@@ -6479,11 +6607,19 @@ export interface components {
             extra?: {
                 [key: string]: unknown;
             };
+            /** Files */
+            files?: components["schemas"]["ImportFileIn"][];
             /**
              * Kind
              * @enum {string}
              */
             kind: "instructions" | "standard" | "engineering" | "skill" | "command" | "agent";
+            /**
+             * Layer
+             * @default level
+             * @enum {string}
+             */
+            layer: "level" | "global";
             /** Name */
             name: string;
             /** Rules */
@@ -6496,16 +6632,29 @@ export interface components {
         };
         /** ImportProposalOut */
         ImportProposalOut: {
+            /** Blocked */
+            blocked: string | null;
             /** Body */
             body: string;
             /** Body Marked */
             body_marked: string;
+            /**
+             * Default Layer
+             * @enum {string}
+             */
+            default_layer: "level" | "global";
             /** Exists */
             exists: boolean;
+            /** Exists In Global */
+            exists_in_global: boolean;
+            /** Exists In Level */
+            exists_in_level: boolean;
             /** Extra */
             extra: {
                 [key: string]: unknown;
             };
+            /** Files */
+            files: components["schemas"]["ImportFileOut"][];
             /**
              * Kind
              * @enum {string}
@@ -6513,16 +6662,22 @@ export interface components {
             kind: "instructions" | "standard" | "engineering" | "skill" | "command" | "agent";
             /** Name */
             name: string;
+            /** Notes */
+            notes: string[];
             /** Path */
             path: string;
             /** Proposed By Model */
             proposed_by_model: boolean;
             /** Rules */
             rules: string[];
+            /** Selected */
+            selected: boolean;
             /** Source */
             source: string;
             /** Summary */
             summary: string;
+            /** Tool */
+            tool: ("claude_code" | "codex" | "cursor" | "copilot") | null;
             /** Warnings */
             warnings: string[];
         };
@@ -6975,6 +7130,13 @@ export interface components {
         MutationStatusesOut: {
             /** Statuses */
             statuses: components["schemas"]["MutationStatusOut"][];
+        };
+        /** NotImportedOut */
+        NotImportedOut: {
+            /** Path */
+            path: string;
+            /** Reason */
+            reason: string;
         };
         /** OutsideApprovalOut */
         OutsideApprovalOut: {
@@ -7941,6 +8103,10 @@ export interface components {
         };
         /** ReviewOut */
         ReviewOut: {
+            /** Agrees */
+            agrees: boolean | null;
+            /** Alternative */
+            alternative: string | null;
             /** Conversation Id */
             conversation_id: number | null;
             /** Conversation Title */
@@ -7968,6 +8134,8 @@ export interface components {
             id: number;
             /** Input Tokens */
             input_tokens: number;
+            /** Message Id */
+            message_id: number | null;
             /** Notes */
             notes: string[];
             /** Objective */
@@ -7975,18 +8143,20 @@ export interface components {
             /** Output Tokens */
             output_tokens: number;
             /** Project Id */
-            project_id: number;
+            project_id: number | null;
             /** Reason */
             reason: string | null;
             /** Reviewer Model */
             reviewer_model: string | null;
             /** Reviewer Provider */
             reviewer_provider: string | null;
+            /** Same Vendor */
+            same_vendor: boolean;
             /**
              * Source
              * @enum {string}
              */
-            source: "goal" | "task" | "changes" | "conversation";
+            source: "goal" | "task" | "changes" | "conversation" | "reply" | "answer";
             /**
              * Status
              * @enum {string}
@@ -8004,6 +8174,8 @@ export interface components {
         };
         /** ReviewSummaryOut */
         ReviewSummaryOut: {
+            /** Agrees */
+            agrees: boolean | null;
             /** Conversation Id */
             conversation_id: number | null;
             /** Conversation Title */
@@ -8025,19 +8197,23 @@ export interface components {
             high_count: number;
             /** Id */
             id: number;
+            /** Message Id */
+            message_id: number | null;
             /** Project Id */
-            project_id: number;
+            project_id: number | null;
             /** Reason */
             reason: string | null;
             /** Reviewer Model */
             reviewer_model: string | null;
             /** Reviewer Provider */
             reviewer_provider: string | null;
+            /** Same Vendor */
+            same_vendor: boolean;
             /**
              * Source
              * @enum {string}
              */
-            source: "goal" | "task" | "changes" | "conversation";
+            source: "goal" | "task" | "changes" | "conversation" | "reply" | "answer";
             /**
              * Status
              * @enum {string}
@@ -8244,6 +8420,35 @@ export interface components {
             model: string | null;
             /** Waiting Messages */
             waiting_messages: number;
+        };
+        /** SecondOpinionPreviewOut */
+        SecondOpinionPreviewOut: {
+            /** Available */
+            available: boolean;
+            estimate: components["schemas"]["EstimateOut"] | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "changes" | "answer";
+            /** Reason */
+            reason: string | null;
+            /** Reviewer Label */
+            reviewer_label: string | null;
+            /** Reviewer Model */
+            reviewer_model: string | null;
+            /** Reviewer Provider */
+            reviewer_provider: string | null;
+            /** Same Vendor */
+            same_vendor: boolean;
+        };
+        /** SecondOpinionStartIn */
+        SecondOpinionStartIn: {
+            /**
+             * Allow Same Vendor
+             * @default false
+             */
+            allow_same_vendor: boolean;
         };
         /** SecretIn */
         SecretIn: {
@@ -10258,6 +10463,8 @@ export interface operations {
         parameters: {
             query?: {
                 utility_environment_id?: number | null;
+                origin?: "home" | "project";
+                layout?: ("claude_code" | "codex" | "cursor" | "copilot") | null;
                 environment_id?: number | null;
                 project_id?: number | null;
             };
@@ -10277,7 +10484,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ImportProposalOut"][];
+                    "application/json": components["schemas"]["ImportAnalysisOut"];
                 };
             };
             /** @description Validation Error */
@@ -10314,6 +10521,71 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportApplyOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analyze_project_setup_api_v1_blueprint_import_project_post: {
+        parameters: {
+            query?: {
+                utility_environment_id?: number | null;
+                environment_id?: number | null;
+                project_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportAnalysisOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    found_in_project_api_v1_blueprint_import_project_found_get: {
+        parameters: {
+            query?: {
+                project_id?: number | null;
+                environment_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportFoundOut"];
                 };
             };
             /** @description Validation Error */
@@ -11655,6 +11927,74 @@ export interface operations {
             };
         };
     };
+    preview_second_opinion_api_v1_conversations__conversation_id__messages__message_id__second_opinion_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                message_id: number;
+                conversation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecondOpinionPreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_second_opinion_api_v1_conversations__conversation_id__messages__message_id__second_opinion_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                message_id: number;
+                conversation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SecondOpinionStartIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     read_reply_trace_api_v1_conversations__conversation_id__messages__message_id__trace_get: {
         parameters: {
             query?: never;
@@ -12271,6 +12611,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TraceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_second_opinions_api_v1_conversations__conversation_id__second_opinions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewOut"][];
                 };
             };
             /** @description Validation Error */

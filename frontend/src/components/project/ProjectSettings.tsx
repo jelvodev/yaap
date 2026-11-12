@@ -8,6 +8,7 @@ import ProjectContext from "./ProjectContext";
 import ProjectGitRemote from "./ProjectGitRemote";
 import ProjectLanguage from "./ProjectLanguage";
 import ProjectSandbox from "./ProjectSandbox";
+import ProjectSetupImport from "./ProjectSetupImport";
 import ProjectTarget from "./ProjectTarget";
 import type { ProjectRepository } from "./useProjectRepository";
 import ModelPolicyPanel from "../ModelPolicyPanel";
@@ -193,6 +194,8 @@ export default function ProjectSettings({
         <h3>Context</h3>
         <ProjectContext projectId={project.id} />
       </section>
+
+      <ProjectSetupImport project={project} />
 
       <section className="pp-section">
         <h3>Permissions</h3>

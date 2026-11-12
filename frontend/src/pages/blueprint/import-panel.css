@@ -1,0 +1,47 @@
+.import-sources {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.import-sources select {
+  max-width: 280px;
+}
+
+.import-tool {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--raised);
+  white-space: nowrap;
+}
+
+.import-files,
+.import-notes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.import-files label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.import-not {
+  margin-top: 14px;
+}
+
+.import-not ul {
+  margin: 6px 0;
+  padding-left: 18px;
+}
+
+.import-dialog {
+  width: min(820px, 94vw);
+  max-height: 88vh;
+  overflow: auto;
+}

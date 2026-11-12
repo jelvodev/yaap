@@ -3611,6 +3611,36 @@
         "title": "EnvironmentUpdate",
         "type": "object"
       },
+      "EstimateOut": {
+        "properties": {
+          "input_tokens": {
+            "title": "Input Tokens",
+            "type": "integer"
+          },
+          "output_tokens": {
+            "title": "Output Tokens",
+            "type": "integer"
+          },
+          "usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usd"
+          }
+        },
+        "required": [
+          "input_tokens",
+          "output_tokens",
+          "usd"
+        ],
+        "title": "EstimateOut",
+        "type": "object"
+      },
       "EvalCaseIO": {
         "properties": {
           "agent": {
@@ -5349,6 +5379,35 @@
         "title": "HostKeyIn",
         "type": "object"
       },
+      "ImportAnalysisOut": {
+        "properties": {
+          "not_imported": {
+            "items": {
+              "$ref": "#/components/schemas/NotImportedOut"
+            },
+            "title": "Not Imported",
+            "type": "array"
+          },
+          "proposals": {
+            "items": {
+              "$ref": "#/components/schemas/ImportProposalOut"
+            },
+            "title": "Proposals",
+            "type": "array"
+          },
+          "skipped": {
+            "title": "Skipped",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "proposals",
+          "not_imported",
+          "skipped"
+        ],
+        "title": "ImportAnalysisOut",
+        "type": "object"
+      },
       "ImportApplyIn": {
         "properties": {
           "items": {
@@ -5391,6 +5450,69 @@
         "title": "ImportApplyOut",
         "type": "object"
       },
+      "ImportFileIn": {
+        "properties": {
+          "content": {
+            "maxLength": 1000000,
+            "title": "Content",
+            "type": "string"
+          },
+          "path": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "content"
+        ],
+        "title": "ImportFileIn",
+        "type": "object"
+      },
+      "ImportFileOut": {
+        "description": "A file inside a skill's folder.",
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "script": {
+            "title": "Script",
+            "type": "boolean"
+          },
+          "selected": {
+            "title": "Selected",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "path",
+          "content",
+          "script",
+          "selected"
+        ],
+        "title": "ImportFileOut",
+        "type": "object"
+      },
+      "ImportFoundOut": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "title": "ImportFoundOut",
+        "type": "object"
+      },
       "ImportItemIn": {
         "properties": {
           "body": {
@@ -5404,6 +5526,14 @@
             "title": "Extra",
             "type": "object"
           },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/ImportFileIn"
+            },
+            "maxItems": 200,
+            "title": "Files",
+            "type": "array"
+          },
           "kind": {
             "enum": [
               "instructions",
@@ -5414,6 +5544,15 @@
               "agent"
             ],
             "title": "Kind",
+            "type": "string"
+          },
+          "layer": {
+            "default": "level",
+            "enum": [
+              "level",
+              "global"
+            ],
+            "title": "Layer",
             "type": "string"
           },
           "name": {
@@ -5447,6 +5586,17 @@
       },
       "ImportProposalOut": {
         "properties": {
+          "blocked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocked"
+          },
           "body": {
             "title": "Body",
             "type": "string"
@@ -5455,14 +5605,37 @@
             "title": "Body Marked",
             "type": "string"
           },
+          "default_layer": {
+            "enum": [
+              "level",
+              "global"
+            ],
+            "title": "Default Layer",
+            "type": "string"
+          },
           "exists": {
             "title": "Exists",
+            "type": "boolean"
+          },
+          "exists_in_global": {
+            "title": "Exists In Global",
+            "type": "boolean"
+          },
+          "exists_in_level": {
+            "title": "Exists In Level",
             "type": "boolean"
           },
           "extra": {
             "additionalProperties": true,
             "title": "Extra",
             "type": "object"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/ImportFileOut"
+            },
+            "title": "Files",
+            "type": "array"
           },
           "kind": {
             "enum": [
@@ -5480,6 +5653,13 @@
             "title": "Name",
             "type": "string"
           },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
           "path": {
             "title": "Path",
             "type": "string"
@@ -5495,6 +5675,10 @@
             "title": "Rules",
             "type": "array"
           },
+          "selected": {
+            "title": "Selected",
+            "type": "boolean"
+          },
           "source": {
             "title": "Source",
             "type": "string"
@@ -5502,6 +5686,23 @@
           "summary": {
             "title": "Summary",
             "type": "string"
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "enum": [
+                  "claude_code",
+                  "codex",
+                  "cursor",
+                  "copilot"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool"
           },
           "warnings": {
             "items": {
@@ -5523,7 +5724,15 @@
           "extra",
           "proposed_by_model",
           "path",
-          "exists"
+          "exists",
+          "exists_in_level",
+          "exists_in_global",
+          "tool",
+          "notes",
+          "selected",
+          "blocked",
+          "default_layer",
+          "files"
         ],
         "title": "ImportProposalOut",
         "type": "object"
@@ -6767,6 +6976,24 @@
           "statuses"
         ],
         "title": "MutationStatusesOut",
+        "type": "object"
+      },
+      "NotImportedOut": {
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "reason"
+        ],
+        "title": "NotImportedOut",
         "type": "object"
       },
       "OutsideApprovalOut": {
@@ -9743,6 +9970,28 @@
       },
       "ReviewOut": {
         "properties": {
+          "agrees": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agrees"
+          },
+          "alternative": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alternative"
+          },
           "conversation_id": {
             "anyOf": [
               {
@@ -9831,6 +10080,17 @@
             "title": "Input Tokens",
             "type": "integer"
           },
+          "message_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message Id"
+          },
           "notes": {
             "items": {
               "type": "string"
@@ -9854,8 +10114,15 @@
             "type": "integer"
           },
           "project_id": {
-            "title": "Project Id",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
           },
           "reason": {
             "anyOf": [
@@ -9890,12 +10157,18 @@
             ],
             "title": "Reviewer Provider"
           },
+          "same_vendor": {
+            "title": "Same Vendor",
+            "type": "boolean"
+          },
           "source": {
             "enum": [
               "goal",
               "task",
               "changes",
-              "conversation"
+              "conversation",
+              "reply",
+              "answer"
             ],
             "title": "Source",
             "type": "string"
@@ -9933,6 +10206,7 @@
           "id",
           "project_id",
           "conversation_id",
+          "message_id",
           "conversation_title",
           "goal_id",
           "source",
@@ -9941,6 +10215,8 @@
           "writer_vendors",
           "reviewer_provider",
           "reviewer_model",
+          "same_vendor",
+          "agrees",
           "findings_count",
           "high_count",
           "cost",
@@ -9948,6 +10224,7 @@
           "finished_at",
           "objective",
           "summary",
+          "alternative",
           "notes",
           "findings",
           "diff",
@@ -9976,6 +10253,17 @@
       },
       "ReviewSummaryOut": {
         "properties": {
+          "agrees": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agrees"
+          },
           "conversation_id": {
             "anyOf": [
               {
@@ -10049,9 +10337,27 @@
             "title": "Id",
             "type": "integer"
           },
+          "message_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message Id"
+          },
           "project_id": {
-            "title": "Project Id",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
           },
           "reason": {
             "anyOf": [
@@ -10086,12 +10392,18 @@
             ],
             "title": "Reviewer Provider"
           },
+          "same_vendor": {
+            "title": "Same Vendor",
+            "type": "boolean"
+          },
           "source": {
             "enum": [
               "goal",
               "task",
               "changes",
-              "conversation"
+              "conversation",
+              "reply",
+              "answer"
             ],
             "title": "Source",
             "type": "string"
@@ -10118,6 +10430,7 @@
           "id",
           "project_id",
           "conversation_id",
+          "message_id",
           "conversation_title",
           "goal_id",
           "source",
@@ -10126,6 +10439,8 @@
           "writer_vendors",
           "reviewer_provider",
           "reviewer_model",
+          "same_vendor",
+          "agrees",
           "findings_count",
           "high_count",
           "cost",
@@ -10758,6 +11073,103 @@
           "meaning"
         ],
         "title": "SearchIndexStatusOut",
+        "type": "object"
+      },
+      "SecondOpinionPreviewOut": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "estimate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EstimateOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "enum": [
+              "changes",
+              "answer"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "reviewer_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer Label"
+          },
+          "reviewer_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer Model"
+          },
+          "reviewer_provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer Provider"
+          },
+          "same_vendor": {
+            "title": "Same Vendor",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind",
+          "available",
+          "reviewer_provider",
+          "reviewer_model",
+          "reviewer_label",
+          "same_vendor",
+          "reason",
+          "estimate"
+        ],
+        "title": "SecondOpinionPreviewOut",
+        "type": "object"
+      },
+      "SecondOpinionStartIn": {
+        "properties": {
+          "allow_same_vendor": {
+            "default": false,
+            "title": "Allow Same Vendor",
+            "type": "boolean"
+          }
+        },
+        "title": "SecondOpinionStartIn",
         "type": "object"
       },
       "SecretIn": {
@@ -15358,7 +15770,7 @@
     },
     "/api/v1/blueprint/import/analyze": {
       "post": {
-        "description": "Proposals for the documents in a Markdown file or zip; nothing is written yet.",
+        "description": "Proposals for a Markdown file or a zip of a setup; nothing is written yet.",
         "operationId": "analyze_import_api_v1_blueprint_import_analyze_post",
         "parameters": [
           {
@@ -15375,6 +15787,42 @@
                 }
               ],
               "title": "Utility Environment Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "default": "project",
+              "enum": [
+                "home",
+                "project"
+              ],
+              "title": "Origin",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "layout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "claude_code",
+                    "codex",
+                    "cursor",
+                    "copilot"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Layout"
             }
           },
           {
@@ -15425,11 +15873,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/ImportProposalOut"
-                  },
-                  "title": "Response Analyze Import Api V1 Blueprint Import Analyze Post",
-                  "type": "array"
+                  "$ref": "#/components/schemas/ImportAnalysisOut"
                 }
               }
             },
@@ -15454,7 +15898,7 @@
     },
     "/api/v1/blueprint/import/apply": {
       "post": {
-        "description": "Write the reviewed items into this level; each file is committed on its own.",
+        "description": "Write the reviewed items into their layers; each file, or each skill folder, is committed on its own.",
         "operationId": "apply_import_api_v1_blueprint_import_apply_post",
         "parameters": [
           {
@@ -15523,6 +15967,154 @@
           }
         },
         "summary": "Apply Import",
+        "tags": [
+          "blueprint"
+        ]
+      }
+    },
+    "/api/v1/blueprint/import/project": {
+      "post": {
+        "description": "Proposals for the setup files in a project's own folder; items default to the project's layer.",
+        "operationId": "analyze_project_setup_api_v1_blueprint_import_project_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "utility_environment_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Utility Environment Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "environment_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Environment Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportAnalysisOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Analyze Project Setup",
+        "tags": [
+          "blueprint"
+        ]
+      }
+    },
+    "/api/v1/blueprint/import/project/found": {
+      "get": {
+        "description": "How many setup items the project's folder holds, so the project panel offers the import only when it can.",
+        "operationId": "found_in_project_api_v1_blueprint_import_project_found_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "environment_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Environment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportFoundOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Found In Project",
         "tags": [
           "blueprint"
         ]
@@ -17703,6 +18295,118 @@
         ]
       }
     },
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/second-opinion": {
+      "get": {
+        "description": "Who would give a second opinion on the reply, on what, and the most it would cost.",
+        "operationId": "preview_second_opinion_api_v1_conversations__conversation_id__messages__message_id__second_opinion_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "title": "Message Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecondOpinionPreviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Second Opinion",
+        "tags": [
+          "second opinion"
+        ]
+      },
+      "post": {
+        "description": "Ask for a second opinion on the reply; refused with the reason when no model can give it.",
+        "operationId": "start_second_opinion_api_v1_conversations__conversation_id__messages__message_id__second_opinion_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "title": "Message Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecondOpinionStartIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Second Opinion",
+        "tags": [
+          "second opinion"
+        ]
+      }
+    },
     "/api/v1/conversations/{conversation_id}/messages/{message_id}/trace": {
       "get": {
         "description": "The trace of a reply: the run that produced it, its sub-runs at any depth, and the steps of each.",
@@ -18641,6 +19345,53 @@
         "summary": "Read Run Trace",
         "tags": [
           "traces"
+        ]
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/second-opinions": {
+      "get": {
+        "description": "The second opinions given in this conversation, newest first.",
+        "operationId": "list_second_opinions_api_v1_conversations__conversation_id__second_opinions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReviewOut"
+                  },
+                  "title": "Response List Second Opinions Api V1 Conversations  Conversation Id  Second Opinions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Second Opinions",
+        "tags": [
+          "second opinion"
         ]
       }
     },
