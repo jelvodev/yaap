@@ -41,6 +41,7 @@ class ContextItemOut(BaseModel):
     tokens: int
     # The step of the trace that made this item; empty when it cannot be matched reliably.
     step_id: int | None
+    run_id: int | None
 
 
 class ContextCategoryOut(BaseModel):
@@ -159,7 +160,7 @@ class TokenUsageOut(BaseModel):
 
 
 def item_out(item: ContextItem) -> ContextItemOut:
-    return ContextItemOut(label=item.label, tokens=item.tokens, step_id=item.step_id)
+    return ContextItemOut(label=item.label, tokens=item.tokens, step_id=item.step_id, run_id=item.run_id)
 
 
 def category_out(category: ContextCategory) -> ContextCategoryOut:

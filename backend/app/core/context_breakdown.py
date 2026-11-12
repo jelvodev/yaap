@@ -20,6 +20,7 @@ from app.core.chat_history import is_part_of_history, load_branch
 from app.core.context_categories import (
     ContextCategory,
     Draft,
+    StepRef,
     finish_categories,
     remainder_category,
     space_categories,
@@ -213,7 +214,7 @@ def last_snapshot(session: Session, store: SnapshotStore, conversation_id: int) 
     return SnapshotLookup(row.id if parts else None, parts, parts is None)
 
 
-def tool_step_links(session: Session, conversation_id: int, branch: list[Message]) -> dict[str, int]:
+def tool_step_links(session: Session, conversation_id: int, branch: list[Message]) -> dict[str, StepRef]:
     """Tool call id -> the step of that call, for the replies of this conversation's branch.
 
     Linked only when a reply's tool steps are as many as its tool call blocks, so a step is never guessed.
@@ -237,14 +238,16 @@ def tool_step_links(session: Session, conversation_id: int, branch: list[Message
     ).all()
     for run_id, step_id in rows:
         steps.setdefault(run_id, []).append(step_id)
-    links: dict[str, int] = {}
+    links: dict[str, StepRef] = {}
     for message in branch:
         call_ids = [
             block.get("id") for block in message.content if block.get("type") == "tool_call" and block.get("id")
         ]
         run_steps = steps.get(runs.get(message.id, -1), [])
         if call_ids and len(call_ids) == len(run_steps):
-            links.update(zip(call_ids, run_steps, strict=True))
+            run_id = runs[message.id]
+            for call_id, step_id in zip(call_ids, run_steps, strict=True):
+                links[call_id] = StepRef(run_id, step_id)
     return links
 
 
@@ -338,7 +341,7 @@ def deferred_tool_count(parts: RequestParts) -> int:
 
 
 def categories_of(
-    parts: RequestParts, links: dict[str, int], total: int | None, control: ContextControl
+    parts: RequestParts, links: dict[str, StepRef], total: int | None, control: ContextControl
 ) -> tuple[list[ContextCategory], int]:
     """The categories, scaled to total (else to their own sum), with the CLI remainder or the buffer and free space."""
     drafts: list[Draft] = [

@@ -114,6 +114,14 @@ class ContextItem:
     # For a tool definition: where its tool comes from ("yaap", "browser", "mcp:<server>"), so a consumer need not
     # read it from the label.
     tool_group: str | None = None
+    # The run of that step, which a link into the trace needs besides the step.
+    run_id: int | None = None
+
+
+@dataclass(frozen=True)
+class StepRef:
+    run_id: int
+    step_id: int
 
 
 Entry = tuple[ContextCategoryKey, ContextItem]
@@ -217,20 +225,21 @@ def dump(value: Any) -> str:
     return value if isinstance(value, str) else json.dumps(value, ensure_ascii=False, sort_keys=True)
 
 
-def tool_entries(block: Mapping[str, Any], links: Mapping[str, int]) -> list[Entry]:
+def tool_entries(block: Mapping[str, Any], links: Mapping[str, StepRef]) -> list[Entry]:
     name = str(block.get("name") or "tool")
     label = f"{name} {input_summary(block.get('input'))}".strip()
     call_id = block.get("id")
-    step_id = links.get(call_id) if isinstance(call_id, str) else None
+    ref = links.get(call_id) if isinstance(call_id, str) else None
+    step_id, run_id = (ref.step_id, ref.run_id) if ref else (None, None)
     call = estimate_tokens(len(name) + len(dump(block.get("input"))))
     output = estimate_tokens(len(dump(block.get("output") or "")))
     return [
-        ("messages_tool_calls", ContextItem(label, call, step_id)),
-        ("messages_tool_results", ContextItem(label, output, step_id)),
+        ("messages_tool_calls", ContextItem(label, call, step_id, run_id=run_id)),
+        ("messages_tool_results", ContextItem(label, output, step_id, run_id=run_id)),
     ]
 
 
-def block_entries(role: str, block: Mapping[str, Any], links: Mapping[str, int]) -> list[Entry]:
+def block_entries(role: str, block: Mapping[str, Any], links: Mapping[str, StepRef]) -> list[Entry]:
     """The categories one stored content block counts for."""
     kind = block.get("type")
     text = str(block.get("text") or block.get("thinking") or "")
@@ -249,7 +258,7 @@ def block_entries(role: str, block: Mapping[str, Any], links: Mapping[str, int])
 
 
 def split_messages(
-    messages: Sequence[tuple[str, Sequence[Mapping[str, Any]]]], links: Mapping[str, int]
+    messages: Sequence[tuple[str, Sequence[Mapping[str, Any]]]], links: Mapping[str, StepRef]
 ) -> list[Draft]:
     """Messages as (role, stored content blocks); links maps a tool call's id to its step in the trace."""
     entries = [entry for role, blocks in messages for block in blocks for entry in block_entries(role, block, links)]
@@ -257,7 +266,10 @@ def split_messages(
 
 
 def scaled_items(items: list[ContextItem], factor: float) -> list[ContextItem]:
-    shown = [ContextItem(item.label, round(item.tokens * factor), item.step_id, item.tool_group) for item in items]
+    shown = [
+        ContextItem(item.label, round(item.tokens * factor), item.step_id, item.tool_group, item.run_id)
+        for item in items
+    ]
     return sorted(shown, key=lambda item: -item.tokens)[:MAX_ITEMS]
 
 

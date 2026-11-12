@@ -6,6 +6,7 @@ from app.agent.tool_catalog import searchable_tool_count
 from app.core.context_breakdown import RequestParts, categories_of, masked_blocks
 from app.core.context_categories import (
     ContextCategory,
+    StepRef,
     finish_categories,
     remainder_category,
     scale_to_total,
@@ -98,7 +99,7 @@ def test_messages_split_into_the_kinds_of_content_with_step_links():
         ),
     ]
 
-    drafts = {draft.key: draft for draft in split_messages(messages, {"c1": 17})}
+    drafts = {draft.key: draft for draft in split_messages(messages, {"c1": StepRef(3, 17)})}
 
     assert set(drafts) == {
         "messages_user",
@@ -108,7 +109,7 @@ def test_messages_split_into_the_kinds_of_content_with_step_links():
         "messages_tool_results",
     }
     (result,) = drafts["messages_tool_results"].items
-    assert result.label == "read_file src/api.py" and result.step_id == 17 and result.tokens == 100
+    assert (result.label, result.step_id, result.run_id, result.tokens) == ("read_file src/api.py", 17, 3, 100)
 
 
 def test_a_cli_connection_keeps_yaap_parts_unscaled_and_shows_the_rest_as_remainder():
