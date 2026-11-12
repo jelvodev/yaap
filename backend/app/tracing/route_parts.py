@@ -161,8 +161,11 @@ def note_check(note: Note, kind: RouteCheckKind) -> RouteCheckOut:
     return RouteCheckOut(kind=kind, state="ran", text=note.text, why=why_out(note.why) if note.why else None)
 
 
-def generic_note_stop(step: RouteStep, lane: RouteLane, parent: str | None, line: str | None) -> RouteStopOut:
-    """A note of a kind this builder has no place for: shown as a plain stop so nothing is lost."""
+def generic_note_stop(
+    step: RouteStep, lane: RouteLane, parent: str | None, line: str | None, label: str | None = None
+) -> RouteStopOut:
+    """A note shown as a stop of its own: a kind the builder's table gives a label, or a kind it has no place for, so
+    nothing is lost."""
     note = step.note
     return RouteStopOut(
         id=f"note:{step.run_id}:{step.position}",
@@ -170,7 +173,7 @@ def generic_note_stop(step: RouteStep, lane: RouteLane, parent: str | None, line
         lane=lane,
         line=line,
         parent=parent,
-        label=humanised(note.kind) if note else "Note",
+        label=label or (humanised(note.kind) if note else "Note"),
         detail=note.text if note else None,
         started_at=step.started_at,
         why=why_out(note.why) if note and note.why else None,

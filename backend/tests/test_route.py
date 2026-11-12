@@ -171,6 +171,21 @@ def test_an_unknown_note_kind_is_drawn_as_a_generic_stop_on_its_own_lane():
 
 
 @pytest.mark.parametrize(
+    ("steps", "stop_id", "lane", "parent"),
+    [
+        ([model(1), tool(2, "edit_file"), note(3, "escalation")], "note:1:3", "main", "model:1:1"),
+        ([model(1), note(2, "escalation", run_id=2)], "note:2:2", "worker", "worker:2"),
+    ],
+)
+def test_an_escalation_note_is_a_stop_of_its_own_where_the_lead_took_the_work_back(steps, stop_id, lane, parent):
+    stops = by_id(build_route(facts(steps, workers=[WorkerRun(2, "Worker")])))
+
+    stop = stops[stop_id]
+    assert (stop.stage, stop.lane, stop.parent, stop.label, stop.state) == ("note", lane, parent, "Escalation", "ran")
+    assert stop.items == ["a", "b"] and stop.why is not None and stop.checks == []
+
+
+@pytest.mark.parametrize(
     ("kind", "check_kind"),
     [("memory", "memory"), ("cache", "cache")],
 )
