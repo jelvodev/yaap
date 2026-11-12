@@ -9,6 +9,8 @@ import type { CardActionName } from "./cardLogic";
 export type CardDetail = components["schemas"]["CardDetailOut"];
 export type CardActionResult = components["schemas"]["CardActionOut"];
 export type ReviewDetail = components["schemas"]["ReviewOut"];
+/** What to send a card back with: a finding of its review (by index) or an unmet criterion (by number). */
+export type SendBackChoice = { finding: number } | { criterion: number };
 
 export interface CardState {
   card: CardDetail | null;
@@ -22,6 +24,8 @@ export interface CardState {
   act: (action: CardActionName) => Promise<CardActionResult | null>;
   /** Answer an approval the build waits for. */
   answer: (approvalId: string, decision: "approve" | "deny") => Promise<void>;
+  /** Send the card back to Design with one finding or unmet criterion in its description. */
+  sendBack: (choice: SendBackChoice) => Promise<void>;
 }
 
 const POLL_MS = 5000;
@@ -135,5 +139,23 @@ export function useCard(projectId: number, cardId: number): CardState {
     [refresh],
   );
 
-  return { card, ...parts, error, busy, act, answer };
+  const sendBack = useCallback(
+    async (choice: SendBackChoice): Promise<void> => {
+      setBusy(true);
+      const { data, error: failed } = await api.POST("/api/v1/projects/{project_id}/board/cards/{card_id}/send-back", {
+        params: { path: { project_id: projectId, card_id: cardId } },
+        body: choice,
+      });
+      if (data) {
+        setError(null);
+        await apply(data);
+      } else if (mounted.current) {
+        setError(errorMessage(failed, "The card could not be sent back."));
+      }
+      if (mounted.current) setBusy(false);
+    },
+    [projectId, cardId, apply],
+  );
+
+  return { card, ...parts, error, busy, act, answer, sendBack };
 }

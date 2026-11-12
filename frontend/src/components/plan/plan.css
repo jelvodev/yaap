@@ -312,3 +312,14 @@
     margin-left: 0;
   }
 }
+
+.plan-criteria-commands {
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+
+.plan-criteria-commands ul {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}

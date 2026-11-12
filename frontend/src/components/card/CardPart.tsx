@@ -42,7 +42,15 @@ export default function CardPart({ projectId, cardId }: { projectId: number; car
       {(card.column === "plan" || card.column === "build") && plan && (
         <PlanChecklist plan={plan} busy={state.busy} onAnswer={state.answer} />
       )}
-      {card.column === "review" && <CardReviewPart card={card} review={review} plan={plan} />}
+      {card.column === "review" && (
+        <CardReviewPart
+          card={card}
+          review={review}
+          plan={plan}
+          busy={state.busy}
+          onSendBack={(choice) => void state.sendBack(choice)}
+        />
+      )}
     </section>
   );
 }
