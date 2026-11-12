@@ -2010,7 +2010,8 @@
                   "approved",
                   "declined",
                   "refused",
-                  "asked"
+                  "asked",
+                  "case_approved"
                 ],
                 "type": "string"
               },
@@ -2840,6 +2841,11 @@
           },
           "total_tokens": {
             "title": "Total Tokens",
+            "type": "integer"
+          },
+          "trimmed_tool_tokens": {
+            "default": 0,
+            "title": "Trimmed Tool Tokens",
             "type": "integer"
           }
         },
@@ -14801,7 +14807,8 @@
                   "approved",
                   "declined",
                   "refused",
-                  "asked"
+                  "asked",
+                  "case_approved"
                 ],
                 "type": "string"
               },

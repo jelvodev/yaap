@@ -5601,7 +5601,7 @@ export interface components {
         /** CallWhyOut */
         CallWhyOut: {
             /** Approval */
-            approval: ("approved" | "declined" | "refused" | "asked") | null;
+            approval: ("approved" | "declined" | "refused" | "asked" | "case_approved") | null;
             /** Call Key */
             call_key: string | null;
             /** Tool */
@@ -5852,6 +5852,11 @@ export interface components {
             summarised_messages: number;
             /** Total Tokens */
             total_tokens: number;
+            /**
+             * Trimmed Tool Tokens
+             * @default 0
+             */
+            trimmed_tool_tokens: number;
         };
         /** ContextCategoryOut */
         ContextCategoryOut: {
@@ -9798,7 +9803,7 @@ export interface components {
         /** TraceStepOut */
         TraceStepOut: {
             /** Approval */
-            approval: ("approved" | "declined" | "refused" | "asked") | null;
+            approval: ("approved" | "declined" | "refused" | "asked" | "case_approved") | null;
             /** Cache Read Tokens */
             cache_read_tokens: number;
             /** Cache Write Tokens */

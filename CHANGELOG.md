@@ -37,6 +37,10 @@ yourself when you update; it says "None." when there is nothing.
 - Every answer can be seen as a route: message, routing, context, each model call, the tool calls with their checks, helpers and the work done afterwards. While a reply runs, a strip above it grows stop by stop and pulses where it waits for you, such as an approval.
 - When a reply is done, a *Route* chip among the labels under it shows its time and cost and opens the trace on the new *Route* tab, where each stop opens a drawer with what happened, why, its time and its cost. Repeated calls of one tool are stacked into one stop.
 - The trace dialog's tabs are now Timeline, Route, Context and Tokens.
+- The context breakdown shows again how many tokens shortening old tool output saved.
+- The trace shows when an eval case's approval let a call through ("approved by the eval case") instead of an empty approval field.
+- The summary that starts a continued conversation no longer shows try again, second opinion or versions.
+- A click on the context ring opens the model setup with the context breakdown already shown.
 
 ### Action needed
 
