@@ -1,4 +1,4 @@
-"""GitHub's REST API for repositories, templates and pull requests.
+"""GitHub's REST API for repositories, templates, issues and pull requests.
 
 One small client over httpx. Tests pass an httpx.MockTransport as a fake GitHub. Every error becomes a GitHubError
 with a message that can be shown; a 403 or 404 names what the token lacks when GitHub says so
@@ -7,6 +7,7 @@ with a message that can be shown; a 403 or 404 names what the token lacks when G
 
 import re
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import quote
@@ -58,6 +59,18 @@ class GitHubRepository:
     updated_at: str | None
 
 
+@dataclass(frozen=True)
+class Issue:
+    number: int
+    title: str
+    body: str
+    state: str
+    labels: tuple[str, ...]
+    html_url: str
+    author: str
+    updated_at: str | None
+
+
 @dataclass
 class PullRequest:
     number: int
@@ -103,6 +116,20 @@ def pull_of(item: dict[str, Any]) -> PullRequest:
         body=str(item.get("body") or ""),
         head_sha=str((item.get("head") or {}).get("sha", "")),
         mergeable=item.get("mergeable"),
+    )
+
+
+def issue_of(item: dict[str, Any]) -> Issue:
+    labels = [label.get("name") if isinstance(label, dict) else label for label in item.get("labels") or []]
+    return Issue(
+        number=int(item["number"]),
+        title=str(item.get("title") or ""),
+        body=str(item.get("body") or ""),
+        state=str(item.get("state") or "open"),
+        labels=tuple(str(label) for label in labels if isinstance(label, str) and label),
+        html_url=str(item.get("html_url") or ""),
+        author=str((item.get("user") or {}).get("login", "")),
+        updated_at=item.get("updated_at"),
     )
 
 
@@ -225,6 +252,37 @@ class GitHubClient:
 
     def set_template(self, full_name: str, is_template: bool) -> GitHubRepository:
         return repository_of(self.request("PATCH", f"/repos/{full_name}", json={"is_template": is_template}).json())
+
+    # --- Issues ------------------------------------------------------------------------------------------------
+
+    def issues(
+        self,
+        full_name: str,
+        state: str = "open",
+        labels: Sequence[str] = (),
+        since: str | None = None,
+        limit: int = 100,
+    ) -> list[Issue]:
+        """The repository's issues, newest updated first; pull requests (which GitHub lists as issues) are left out."""
+        params: dict[str, Any] = {"state": state, "per_page": 100, "sort": "updated", "direction": "desc"}
+        if labels:
+            params["labels"] = ",".join(labels)
+        if since:
+            params["since"] = since
+        found: list[Issue] = []
+        page = 1
+        while len(found) < limit:
+            items = self.request("GET", f"/repos/{full_name}/issues", params={**params, "page": page}).json()
+            found += [issue_of(item) for item in items if isinstance(item, dict) and "pull_request" not in item]
+            if len(items) < 100:
+                break
+            page += 1
+        return found[:limit]
+
+    def issue(self, full_name: str, number: int) -> Issue | None:
+        """One issue, or None when the number is a pull request."""
+        item = self.request("GET", f"/repos/{full_name}/issues/{number}").json()
+        return None if "pull_request" in item else issue_of(item)
 
     # --- Pull requests ------------------------------------------------------------------------------------------
 
