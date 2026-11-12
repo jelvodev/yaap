@@ -59,8 +59,8 @@ def test_the_anthropic_request_carries_the_ttl_on_the_cacheable_system_part(ttl,
     system = calls[0]["system"]
     assert system[0]["cache_control"] == control
     assert "cache_control" not in system[1]
-    # The automatic breakpoint on the conversation stays at five minutes, after the hour entry, as the API requires.
-    assert calls[0]["cache_control"] == {"type": "ephemeral"}
+    # The automatic breakpoint on the conversation follows the request's lifetime, so the history is kept as long.
+    assert calls[0]["cache_control"] == control
 
 
 def test_hour_writes_are_read_from_the_usage_and_priced_at_twice_the_input(monkeypatch):
