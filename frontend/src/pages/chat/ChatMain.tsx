@@ -70,8 +70,8 @@ export default function ChatMain(props: ChatMainProps) {
     `${goal?.id ?? ""}:${goal?.status ?? ""}`,
   );
   const lastReplyId = conversation ? lastReplyOf(conversation) : null;
-  const showTrace = (messageId: number, toolCall?: ToolCallRef, tab?: "route") =>
-    conversation && setTrace({ conversationId: conversation.id, messageId, toolCall, tab });
+  const showTrace = (messageId: number, toolCall?: ToolCallRef, tab?: "route", stepId?: number) =>
+    conversation && setTrace({ conversationId: conversation.id, messageId, toolCall, tab, stepId });
   const composerDraft = useComposerDraft(conversation?.id ?? null);
   const secondOpinions = useSecondOpinions(conversation?.id ?? null);
   const actions: MessageActions = {
@@ -79,7 +79,7 @@ export default function ChatMain(props: ChatMainProps) {
     secondOpinions: secondOpinions ?? undefined,
     onUseInConversation: composerDraft.fill,
     onOpenReview: props.rail.focusReview,
-    onShowTrace: (message, toolCall, tab) => showTrace(message.id, toolCall, tab),
+    onShowTrace: (message, toolCall, tab, stepId) => showTrace(message.id, toolCall, tab, stepId),
     lastReply:
       conversation && lastReplyId !== null ? lastReplyActions(conversation, lastReplyId, session.busy) : undefined,
   };

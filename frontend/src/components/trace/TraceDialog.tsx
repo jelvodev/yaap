@@ -28,7 +28,7 @@ interface TraceDialogProps {
  * chosen step its details and, for a model call, what it saw grouped by source.
  */
 export default function TraceDialog({ target, onClose, headerActions, initialStepId }: TraceDialogProps) {
-  const tabs = useTraceTabs(target, initialStepId);
+  const tabs = useTraceTabs(target, initialStepId ?? ("stepId" in target ? target.stepId : undefined));
   const { trace, error, selectedStepId, selectStep } = tabs;
   const replays = useReplays(target.conversationId);
   // The replay shown beside the original instead of the timeline.
