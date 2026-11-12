@@ -318,6 +318,18 @@ SETTING_DEFINITIONS: dict[str, SettingDefinition] = {
             options=(SettingOption("off", "Off"), SettingOption("on", "On")),
         ),
         SettingDefinition(
+            key="build_worker",
+            label="Build steps",
+            description=(
+                "Who takes a step of an approved plan first when the step has a check YAAP can run. Worker: the "
+                "preset's worker model, which gets the failure once more and then hands over to the main model. "
+                "Main: the main model. A step without such a check always goes to the main model."
+            ),
+            levels=frozenset({"global", "environment", "project"}),
+            default="worker",
+            options=(SettingOption("worker", "Worker"), SettingOption("main", "Main")),
+        ),
+        SettingDefinition(
             key="utility_model",
             label="Utility model",
             description=(

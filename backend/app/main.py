@@ -10,6 +10,7 @@ from functools import partial
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from sqlalchemy.orm import Session, sessionmaker
 from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -114,6 +115,10 @@ from app.runner.service import RUNNERS, runner_enabled
 from app.scheduling.service import recover_runs, run_periodically as run_scheduler
 from app.evals.runs import EvalService, recover_runs as recover_eval_runs
 from app.replays.service import ReplayService, recover_replays
+from app.plans.recover import prune_builds_periodically, recover_builds
+from app.plans.runner import BuildRunner
+from app.plans.service import PlanNotFound, PlanService
+from app.projects.state_refresh import RefreshSource, StateRefreshContext, plan_event_listener
 from app.core.reply_services import ReplyServices
 from app.core.message_queue import restore_interrupted_handoffs
 from app.core.search_index import SearchIndexer
@@ -205,6 +210,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         recover_eval_runs(session)
         # Replays too; their workspaces and pins go.
         recover_replays(session, settings.workspace_dir, settings.data_dir)
+        # Builds cut off by a restart are interrupted; Continue goes on with them.
+        recover_builds(session)
+    # A build that ends refreshes the project's current state; its copies are pruned once an hour.
+    context = StateRefreshContext(ReplyServices.from_state(app.state).utility, settings.workspace_dir)
+    sources = partial(build_state_source, app.state.session_factory)
+    app.state.builds.listeners.add(plan_event_listener(context, sources, app.state.builds.follow_ups.start))
+    build_prune = asyncio.create_task(prune_builds_periodically(app.state.session_factory, settings.workspace_dir))
     # Backups on a schedule: a backup cut off by a restart failed; a missed one runs once.
     app.state.backup_since = datetime.now(UTC)
     with app.state.session_factory() as session:
@@ -260,6 +272,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     idle_language_servers.cancel()
     if scheduler is not None:
         scheduler.cancel()
+    build_prune.cancel()
     if start_check is not None:
         start_check.cancel()
     app.state.outside_clients.close_all(app)
@@ -268,6 +281,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await app.state.cli_sign_ins.stop()
     await LANGUAGE_SERVERS.stop_all()
     # Before the engine goes: work still running would keep a connection, and the database file, open.
+    await app.state.builds.shutdown()
     await stop_replies_and_their_work(app.state.replies, (app.state.evals.work, app.state.replay_service.work))
     app.state.plugins.unload_all()
     engine.dispose()
@@ -302,6 +316,17 @@ def mount_frontend(app: FastAPI, static_dir: Path) -> None:
         if path and candidate.is_file() and candidate.is_relative_to(static_dir):
             return FileResponse(candidate, headers=REVALIDATE)
         return FileResponse(static_dir / "index.html", headers=REVALIDATE)
+
+
+def build_state_source(session_factory: sessionmaker[Session], plan_id: int) -> RefreshSource | None:
+    """What the current-state refresh after a build writes from: the plan, how it ended and its conversation."""
+    try:
+        view = PlanService(session_factory).get(plan_id)
+    except PlanNotFound:
+        return None
+    ended = "was built" if view.status == "done" else f"stopped: {view.failure or view.status}"
+    reason = f"Plan {view.id} ({view.plan.title}) {ended}"
+    return RefreshSource(view.project_id, reason, view.conversation_id, view.approved_at)
 
 
 def restart_soon() -> None:
@@ -354,6 +379,8 @@ def create_app(
     app.state.evals = EvalService(lambda: ReplyServices.from_state(app.state))
     # Replays of a reply from one of its model calls, unattended like eval plays.
     app.state.replay_service = ReplayService(lambda: ReplyServices.from_state(app.state))
+    # Builds of approved plans, step by step in a copy of the project.
+    app.state.builds = BuildRunner(lambda: ReplyServices.from_state(app.state))
     # Conversation titles from the utility model after the first reply (tests switch this off).
     app.state.utility_titles = True
     app.state.memory_suggestions = True

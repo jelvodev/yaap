@@ -79,3 +79,31 @@ export function moved<T>(items: readonly T[], index: number, offset: number): T[
   copy.splice(target, 0, item);
   return copy;
 }
+
+/** The attempts of one step as a line, consecutive equal roles grouped: "worker ×2 → main". Empty for none. */
+export function attemptsLabel(roles: readonly string[]): string {
+  const groups: { role: string; count: number }[] = [];
+  for (const role of roles) {
+    const last = groups[groups.length - 1];
+    if (last && last.role === role) last.count += 1;
+    else groups.push({ role, count: 1 });
+  }
+  return groups.map((group) => (group.count > 1 ? `${group.role} ×${group.count}` : group.role)).join(" → ");
+}
+
+/** The sentence about project changes that the build does not contain; empty when there are none. */
+export function uncommittedSentence(count: number): string {
+  if (count <= 0) return "";
+  return count === 1 ? "1 uncommitted change is not included." : `${count} uncommitted changes are not included.`;
+}
+
+/** "3 of 5 steps · $0.84": the cost has two decimals and is left out when unknown. */
+export function progressLine(done: number, total: number, cost: number | null): string {
+  const steps = `${done} of ${total} steps`;
+  return cost === null ? steps : `${steps} · $${cost.toFixed(2)}`;
+}
+
+/** The first seven characters of a commit. */
+export function shortCommit(sha: string): string {
+  return sha.slice(0, 7);
+}

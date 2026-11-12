@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { Markdown } from "../message/Markdown";
+import PlanChecklist from "./PlanChecklist";
 import PlanEditor from "./PlanEditor";
 import { isFolded, planProgress, statusLabel } from "./planProgress";
 import { type PlanEdit, type PlanOut, usePlan } from "./usePlan";
@@ -45,10 +46,10 @@ function PlanSteps({ plan }: { plan: PlanOut }) {
 
 /**
  * A plan the agent handed over with submit_plan, shown in the reply. A draft can be edited and discarded; approving
- * it starts a build once building ships. A discarded or replaced plan folds to one line.
+ * it builds it in a copy of the project. A discarded or replaced plan folds to one line.
  */
 export default function PlanCard({ planId }: { planId: number }) {
-  const { plan, error, invalid, busy, save, discard } = usePlan(planId);
+  const { plan, error, invalid, busy, save, discard, approve, continueBuild, stop, answer } = usePlan(planId);
   const [editing, setEditing] = useState(false);
   const [unfolded, setUnfolded] = useState(false);
 
@@ -57,6 +58,8 @@ export default function PlanCard({ planId }: { planId: number }) {
   }
   const { done, total } = planProgress(plan.steps);
   const draft = plan.status === "draft";
+  const tracked = ["building", "interrupted", "failed", "done"].includes(plan.status);
+  const hasRunCommand = plan.steps.some((step) => step.checks.some((check) => check.run));
 
   if (isFolded(plan.status) && !unfolded) {
     return (
@@ -94,7 +97,7 @@ export default function PlanCard({ planId }: { planId: number }) {
         <>
           <h3 className="plan-title">{plan.title}</h3>
           {plan.summary && <Markdown text={plan.summary} />}
-          <PlanSteps plan={plan} />
+          {tracked ? <PlanChecklist plan={plan} busy={busy} onAnswer={answer} /> : <PlanSteps plan={plan} />}
           {plan.risks.length > 0 && (
             <div className="plan-risks">
               <span className="plan-section-label">Risks</span>
@@ -110,23 +113,43 @@ export default function PlanCard({ planId }: { planId: number }) {
               {warning}
             </p>
           ))}
+          {plan.failure && <p className="plan-failure">{plan.failure}</p>}
           {draft && (
+            <>
+              <div className="plan-actions">
+                <button type="button" className="button button-primary" disabled={busy} onClick={() => void approve()}>
+                  Approve and build
+                </button>
+                <button type="button" className="button" disabled={busy} onClick={() => setEditing(true)}>
+                  Edit
+                </button>
+                <button type="button" className="button button-danger" disabled={busy} onClick={() => void discard()}>
+                  Discard
+                </button>
+              </div>
+              {hasRunCommand && (
+                <p className="plan-hint">
+                  Approving runs these check commands in a copy of the project without asking.
+                </p>
+              )}
+            </>
+          )}
+          {(plan.status === "building" || plan.status === "interrupted" || plan.status === "failed") && (
             <div className="plan-actions">
-              <button
-                type="button"
-                className="button button-primary"
-                disabled
-                title="Available when building ships"
-              >
-                Approve and build
-              </button>
-              <button type="button" className="button" disabled={busy} onClick={() => setEditing(true)}>
-                Edit
-              </button>
-              <button type="button" className="button button-danger" disabled={busy} onClick={() => void discard()}>
-                Discard
-              </button>
-              <span className="plan-hint">Available when building ships</span>
+              {plan.status === "building" ? (
+                <button type="button" className="button button-danger" disabled={busy} onClick={() => void stop()}>
+                  Stop
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="button button-primary"
+                  disabled={busy}
+                  onClick={() => void continueBuild()}
+                >
+                  Continue
+                </button>
+              )}
             </div>
           )}
         </>

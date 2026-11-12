@@ -271,7 +271,7 @@ def write_if_unchanged(folder: Path, environment_id: int, old: str | None, new: 
 PlanEventListener = Callable[[int, str], None]
 PlanSource = Callable[[int], RefreshSource | None]
 Starter = Callable[[Coroutine[Any, Any, bool]], object]
-PLAN_END_EVENTS = frozenset({"done", "failed"})
+PLAN_END_EVENTS = frozenset({"all_steps_done", "step_failed"})
 
 
 def plan_event_listener(context: StateRefreshContext, source_of: PlanSource, start: Starter) -> PlanEventListener:
