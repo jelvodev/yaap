@@ -33,7 +33,7 @@ from app.evals.play import CasePlayer, PlayRequest
 from app.evals.variants import Variant, VariantError, stored_variant, variant_layers
 from app.evals.workspace import KEEP_FAILED, WorkspaceError, remove_workspace
 from app.projects.service import project_path
-from app.storage.models import Conversation, Environment, EvalResult, EvalRun, Project
+from app.storage.models import Conversation, Environment, EvalResult, EvalRun, Project, QueuedMessage
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +56,8 @@ class RunStart:
     variant: Variant = Variant()
     baseline_run_id: int | None = None
     scheduled_run_id: int | None = None
+    # The queued /eval this run comes from; its row leaves the queue in the transaction that creates the run.
+    queue_item_id: int | None = None
 
 
 def project_cases(workspace_dir: Path, project: Project) -> dict[str, EvalCase]:
@@ -132,10 +134,13 @@ class EvalService:
             variant=start.variant.as_json(),
             baseline_run_id=start.baseline_run_id,
             scheduled_run_id=start.scheduled_run_id,
+            queue_item_id=start.queue_item_id,
             created_at=now,
         )
         session.add(run)
         session.flush()
+        if start.queue_item_id is not None:
+            session.execute(delete(QueuedMessage).where(QueuedMessage.id == start.queue_item_id))
         for repeat in range(1, start.repeats + 1):
             for name in names:
                 session.add(EvalResult(run_id=run.id, case_name=name, repeat=repeat, status="queued", checks=[]))
@@ -156,12 +161,14 @@ class EvalService:
         baseline = self.start(RunStart(project_id, "panel", case_name, repeats))
         return [baseline, self.start(RunStart(project_id, "panel", case_name, repeats, variant, baseline))]
 
-    def start_from_chat(self, conversation: Conversation, case_name: str | None) -> tuple[int, str]:
-        """/eval [case] in a project conversation."""
+    def start_from_chat(
+        self, conversation: Conversation, case_name: str | None, queue_item_id: int | None = None
+    ) -> tuple[int, str]:
+        """/eval [case] in a project conversation; from the queue, the item leaves it with the run's creation."""
         if conversation.project_id is None:
             raise CommandRefused("/eval runs the eval cases of a project; use it in a project conversation.")
         try:
-            run_id = self.start(RunStart(conversation.project_id, "command", case_name))
+            run_id = self.start(RunStart(conversation.project_id, "command", case_name, queue_item_id=queue_item_id))
         except EvalError as error:
             raise CommandRefused(str(error)) from error
         what = f"case {case_name}" if case_name else "every eval case"

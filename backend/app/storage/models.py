@@ -306,6 +306,9 @@ class EvalRun(Base):
     # For the variant side of a comparison: the run of the normal setup started with it.
     baseline_run_id: Mapped[int | None] = mapped_column(Integer)
     scheduled_run_id: Mapped[int | None] = mapped_column(Integer)
+    # The queued /eval this run was started from. No foreign key: the queue row is deleted in the transaction that
+    # creates the run, and the unique value is what lets a second consumer of the same item find the run.
+    queue_item_id: Mapped[int | None] = mapped_column(Integer, unique=True)
     summary: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utc_now)
     finished_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
@@ -387,6 +390,8 @@ class QueuedMessage(Base):
     """A message written while a reply ran, sent when it ends."""
 
     __tablename__ = "queued_messages"
+    # Ids are never reused: an eval run remembers the id of the queue item it came from.
+    __table_args__ = {"sqlite_autoincrement": True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     conversation_id: Mapped[int] = mapped_column(ForeignKey("conversations.id"), index=True)

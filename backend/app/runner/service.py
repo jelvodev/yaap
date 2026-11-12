@@ -20,6 +20,8 @@ process instead, for development without Docker and for the test suite.
 
 import socket
 import threading
+import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
@@ -146,6 +148,18 @@ class RunnerTarget(SandboxTarget):
         return SshExecutor(self, runner_path(self.environment_dir, root))
 
 
+GIT_RUNTIME_MAX_AGE = 300.0
+
+
+@dataclass
+class CachedRuntime:
+    """A runtime kept for the git panel, with what the runner looked like when it was built."""
+
+    runtime: RunnerTarget
+    fingerprint: tuple[object, ...]
+    built_at: float
+
+
 @dataclass
 class Runners:
     """The runners of this YAAP. Bound to the database, the vault and the workspace when YAAP starts (main.py)."""
@@ -156,6 +170,9 @@ class Runners:
     cipher: CredentialCipher | None = None
     workspace_dir: Path | None = None
     lock: threading.Lock = field(default_factory=threading.Lock)
+    clock: Callable[[], float] = time.monotonic
+    git_cache: dict[int, CachedRuntime] = field(default_factory=dict)
+    git_cache_lock: threading.Lock = field(default_factory=threading.Lock)
 
     def bind(self, session_factory: sessionmaker[Session], cipher: CredentialCipher, workspace_dir: Path) -> None:
         self.session_factory = session_factory
@@ -215,6 +232,62 @@ class Runners:
             raise RunnerUnavailable(UNAVAILABLE.format(reason="YAAP has not started its runners yet."))
         with self.session_factory() as session:
             return self.target(session, environment_id, used_by)[1]
+
+    def fingerprint(self, environment_id: int) -> tuple[object, ...] | None:
+        """What decides how YAAP connects to the runner, read from the database only (no vault access, so no use is
+        logged). None when the environment has no runner row yet."""
+        if self.session_factory is None:
+            return None
+        with self.session_factory() as session:
+            target = find_runner(session, environment_id)
+            environment = session.get(Environment, environment_id)
+            if target is None or environment is None:
+                return None
+            return (
+                target.id,
+                target.host,
+                target.port,
+                target.user,
+                target.host_key,
+                target.pending_host_key,
+                target.key_entry_id,
+                public_key(session, target),
+                runner_network(session, environment_id),
+                environment.slug,
+            )
+
+    def git_runtime(self, environment_id: int) -> RunnerTarget:
+        """The runtime for the git panel. Building one reads the SSH key from the vault, which is logged as a use, and
+        the panel asks for it per request, so it is kept for a few minutes while the runner row and the network
+        setting stay the same. The SSH connection itself is not part of it (it lives in CONNECTIONS by key)."""
+        fingerprint = self.fingerprint(environment_id)
+        now = self.clock()
+        with self.git_cache_lock:
+            cached = self.git_cache.get(environment_id)
+            if (
+                cached is not None
+                and fingerprint is not None
+                and cached.fingerprint == fingerprint
+                and 0 <= now - cached.built_at < GIT_RUNTIME_MAX_AGE
+            ):
+                return cached.runtime
+        runtime = self.runtime(environment_id, "git")
+        # Read again: the first build of a runner makes its row, and starting later pins the host key.
+        built = self.fingerprint(environment_id)
+        with self.git_cache_lock:
+            if built is None:
+                self.git_cache.pop(environment_id, None)
+            else:
+                self.git_cache[environment_id] = CachedRuntime(runtime, built, now)
+        return runtime
+
+    def forget(self, environment_id: int | None = None) -> None:
+        """Drop the kept git runtime of one environment, or of all."""
+        with self.git_cache_lock:
+            if environment_id is None:
+                self.git_cache.clear()
+            else:
+                self.git_cache.pop(environment_id, None)
 
     async def place(self, environment_id: int, used_by: str) -> RunnerTarget:
         """The runtime of the environment's runner, for MCP servers and the browser; built in a worker thread."""

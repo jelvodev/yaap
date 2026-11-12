@@ -31,6 +31,7 @@ from app.evals.models import CommandCheck, StartState
 from app.git import branches, discard, remote, service
 from app.git.common import GitError
 from app.git.place import GitPlace, git_place
+from app.git.transport import transport_path
 from app.learning.branches import write_branch
 from app.runner.service import RUNNERS
 from app.sandbox.client import HelperClient
@@ -315,27 +316,58 @@ def test_work_tree_git_goes_to_the_runner_and_the_planted_filter_never_runs_in_y
     assert not race.canary.exists()
 
 
-def test_pull_runs_only_its_network_half_in_yaap_and_the_merge_in_the_runner(
-    race: Race, monkeypatch: pytest.MonkeyPatch
+# --- Network: the token never meets a configuration the runner can write ------------------------------------------
+
+
+def test_a_proxy_planted_in_the_work_repository_after_the_check_is_never_read_by_a_command_with_the_token(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    started: list[list[str]] = []
+    """The runner could add `http.<url>.proxy` and `sslVerify=false` to the project's `.git/config` between YAAP's
+    check and git's read. The fetch with the token runs in YAAP's own transport repository, so it never reads it."""
+    token = "AUTHORIZATION: basic c2VjcmV0"
+    remote_folder = tmp_path / "remote.git"
+    git(tmp_path, "init", "--quiet", "--bare", "--initial-branch=main", str(remote_folder))
+    work = tmp_path / "project"
+    make_repository(work)
+    git(work, "add", "tracked.txt")
+    git(work, "commit", "--quiet", "-m", "Second")
+    git(work, "remote", "add", "origin", str(remote_folder))
+    git(work, "push", "--quiet", "origin", "main")
+    monkeypatch.setattr(remote, "validate_remote_url", lambda url: url)
+    monkeypatch.setattr(remote, "auth_config", lambda url, token_value: (("http.extraheader", token),))
+    monkeypatch.setattr(service, "remote_operation_variables", lambda: {"GIT_ALLOW_PROTOCOL": "https:file"})
+    monkeypatch.setattr(RUNNERS, "workspace_dir", tmp_path / "data" / "workspace")
+    planted = {"done": False}
+    real_check = service.check_repository
 
-    def network_only(command: list[str], **_keywords: object) -> subprocess.CompletedProcess[str]:
-        started.append(command)
-        if "fetch" not in command:
-            raise AssertionError(f"YAAP started a local work-tree git command: {command}")
-        return subprocess.CompletedProcess(command, 0, "", "")
+    def check_then_plant(checked: Path) -> None:
+        if checked != work:
+            real_check(checked)
+        elif not planted["done"]:
+            real_check(checked)
+            git(work, "config", "--local", "http.https://github.com/.proxy", "http://127.0.0.1:9")
+            git(work, "config", "--local", "http.https://github.com/.sslVerify", "false")
+            planted["done"] = True
 
-    # Planting after the fetch's own check would make the second check refuse; this test is about the merge.
-    monkeypatch.setattr(service, "check_repository", lambda _folder: None)
-    monkeypatch.setattr(service.subprocess, "run", network_only)
-    executor = RunnerStandIn()
+    monkeypatch.setattr(service, "check_repository", check_then_plant)
+    started: list[tuple[list[str], object, dict[str, str]]] = []
+    real_run = subprocess.run
 
-    in_worker(lambda: remote.pull(GitPlace(race.folder, executor), None))
+    def record(command: list[str], **keywords: object) -> subprocess.CompletedProcess[str]:
+        variables = dict(keywords.get("env") or {})  # type: ignore[call-overload]  # test double
+        started.append((list(command), keywords.get("cwd"), variables))
+        return real_run(command, **keywords)  # type: ignore[call-overload]  # forwards the caller's keywords
 
-    assert any("merge --ff-only" in command for command in executor.commands), executor.commands
-    assert len(started) == 1 and "fetch" in started[0]
-    assert not race.canary.exists()
+    monkeypatch.setattr(service.subprocess, "run", record)
+
+    remote.fetch(work, "secret")
+
+    assert planted["done"], "the proxy was not planted"
+    carrying = [call for call in started if token in call[2].values()]
+    assert carrying, "no command carried the token"
+    assert all(Path(str(cwd)) != work and env.get("GIT_DIR") != str(work / ".git") for _, cwd, env in carrying)
+    transport = transport_path(work)
+    assert "proxy" not in (transport / "config").read_text(encoding="utf-8")
 
 
 # --- Real runner (Docker) ------------------------------------------------------------------------------------------

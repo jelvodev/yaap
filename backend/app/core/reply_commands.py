@@ -6,12 +6,14 @@ reported. A command that is refused, or that is cut short, stays queued.
 """
 
 import uuid
+import weakref
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from functools import partial
 from typing import Any
 
 import anyio
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.blueprint.check import CheckError, check_block
@@ -19,9 +21,10 @@ from app.core.chat_events import server_sent_event
 from app.core.chat_history import load_branch
 from app.core.goals import GoalError, create_goal, goal_block, goal_objective, start_text
 from app.core.message_parts import expand_command, skill_blocks
-from app.core.queue_commands import claim_items, consume_items, release_items
+from app.core.queue_commands import claim_eval, claim_items, consume_items, release_items
 from app.core.reply_errors import CommandRefused
-from app.core.reply_services import ReplyServices
+from app.core.replies import ReplyRegistry, Reservation
+from app.core.reply_services import ChatEvals, ReplyServices
 from app.core.reply_setup import ReplySetup
 from app.core.summaries import TOO_LITTLE, compact_events, cover_point, yaap_compacts
 from app.storage.models import Conversation
@@ -109,12 +112,35 @@ async def claimed_compact_events(
                 await anyio.to_thread.run_sync(partial(release_items, session_factory, conversation_id, token))
 
 
+async def holding_reservation(
+    registry: ReplyRegistry, reservation: Reservation, events: AsyncIterator[str]
+) -> AsyncIterator[str]:
+    """The events of a command that keeps the conversation reserved until they end, like a reply does."""
+    try:
+        async for event in events:
+            yield event
+    finally:
+        registry.release(reservation)
+
+
+def hold_for_stream(
+    registry: ReplyRegistry, reservation: Reservation, events: AsyncIterator[str]
+) -> AsyncIterator[str]:
+    """Keep the reservation the sender holds for as long as `events` runs, instead of letting its `with` release it
+    when the stream is only returned. Marking it consumed makes that `with` leave it alone; the stream releases it
+    when it ends or is closed, and a stream that is dropped before it ever started releases it too."""
+    reservation.consumed = True
+    held = holding_reservation(registry, reservation, events)
+    weakref.finalize(held, registry.release, reservation)
+    return held
+
+
 class ReplyCommands:
     def __init__(self, services: ReplyServices) -> None:
         self.services = services
 
     def compact(
-        self, session: Session, conversation: Conversation, focus: str, queued: QueuedCommand
+        self, session: Session, conversation: Conversation, focus: str, queued: QueuedCommand, reservation: Reservation
     ) -> AsyncIterator[str]:
         """/compact: the summary is made while the stream is open; nothing else is added to the conversation."""
         if not yaap_compacts(session, self.services.providers, conversation):
@@ -124,9 +150,38 @@ class ReplyCommands:
         conversation_id = conversation.id
         session.close()
         events = compact_events(self.services.utility, conversation_id, focus)
+        if queued.item_ids:
+            events = claimed_compact_events(self.services.session_factory, conversation_id, queued, events)
+        return hold_for_stream(self.services.replies, reservation, events)
+
+    def queued_eval_run(
+        self,
+        session: Session,
+        evals: ChatEvals,
+        conversation: Conversation,
+        case_name: str | None,
+        queued: QueuedCommand,
+    ) -> tuple[int, str]:
+        """The run of /eval and what the chat shows. A queued command starts at most one run: a second consumer, or
+        one after a restart, gets the run that came from the item."""
         if not queued.item_ids:
-            return events
-        return claimed_compact_events(self.services.session_factory, conversation_id, queued, events)
+            return evals.start_from_chat(conversation, case_name)
+        item_id = queued.item_ids[0]
+        claim, existing = claim_eval(session, conversation.id, item_id, queued.handoff_job_id)
+        if claim == "start":
+            try:
+                run_id, text = evals.start_from_chat(conversation, case_name, item_id)
+            except IntegrityError:
+                # Another consumer created the run for this item first (unique queue_item_id).
+                session.rollback()
+                claim, existing = claim_eval(session, conversation.id, item_id, queued.handoff_job_id)
+            else:
+                # The run's creation removed the first row; any other rows of the command go now.
+                consume_items(session, conversation.id, queued.item_ids)
+                return run_id, text
+        if claim == "existing" and existing is not None:
+            return existing, f"Eval run {existing} was already started from this command."
+        raise CommandRefused("That queued command is no longer waiting.")
 
     def evaluate(
         self, session: Session, conversation: Conversation, case_name: str | None, queued: QueuedCommand
@@ -136,9 +191,7 @@ class ReplyCommands:
         evals = self.services.evals
         if evals is None or conversation.project_id is None:
             raise CommandRefused("/eval runs the eval cases of a project; use it in a project conversation.")
-        run_id, text = evals.start_from_chat(conversation, case_name)
-        if queued.item_ids:
-            consume_items(session, conversation.id, queued.item_ids)
+        run_id, text = self.queued_eval_run(session, evals, conversation, case_name, queued)
         project_id = conversation.project_id
 
         async def events() -> AsyncIterator[str]:

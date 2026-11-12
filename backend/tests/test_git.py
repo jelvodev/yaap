@@ -13,6 +13,7 @@ from app.git.service import (
     run_git,
 )
 from app.git.remote import auth_config, fetch, pull, push, validate_remote_url
+from app.runner.service import RUNNERS
 
 
 def git(*arguments: str, cwd: Path) -> str:
@@ -20,8 +21,9 @@ def git(*arguments: str, cwd: Path) -> str:
 
 
 @pytest.fixture
-def repositories(tmp_path):
+def repositories(tmp_path, monkeypatch):
     """A bare 'remote' and two clones of it, as if on two machines."""
+    monkeypatch.setattr(RUNNERS, "workspace_dir", tmp_path / "data" / "workspace")
     remote = tmp_path / "remote.git"
     git("init", "--bare", "-b", "main", str(remote), cwd=tmp_path)
     first, second = tmp_path / "first", tmp_path / "second"
