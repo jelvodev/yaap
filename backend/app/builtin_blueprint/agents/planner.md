@@ -13,6 +13,6 @@ Make a plan for the request below. Change nothing: this reply is read only. Tool
    - the files it touches, relative to the project, with `/`;
    - the checks that prove it is done: what a person sees, and, where possible, one command YAAP can run, such as a test, a type check or a `curl` against a running service. Prefer a check with a command; a step without one is verified by the main model instead.
 4. Name the risks: what might break, what you are unsure about, what the user should decide.
-5. When the request comes from a card, meet its acceptance criteria and say which step meets which.
+5. When the request comes from a card, or holds a `### Acceptance criteria` list (a pasted specification), meet those criteria and say which step meets which. A criterion with a `run:` command makes a good check for the step that meets it.
 
 End by calling `submit_plan` once with the title, summary, risks and steps. When it returns errors, fix every one and call it again. Then answer with one or two sentences; the plan itself is shown to the user as a card.
