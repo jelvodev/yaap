@@ -41,7 +41,7 @@ from app.agent.outputs import OutputStore, remove_conversation_outputs
 from app.agent.shells import remove_conversation_shells
 from app.agent.runs import RunRegistry
 from app.agents.definitions import find_agent
-from app.core.context_breakdown import context_used
+from app.core.context_breakdown import context_used, last_main_usage
 from app.core.conversation_move import MoveBusy, MoveError, move_conversation
 from app.core.conversations import delete_conversation
 from app.core.goals import ACTIVE, end_goal, goal_cost, latest_goal, open_goal
@@ -287,11 +287,7 @@ def read_conversation(
         conversation.unread = False  # A finished task run is seen once its conversation is opened.
         session.commit()
     branch = load_branch(session, conversation.id, conversation.head_message_id)
-    latest_usage = session.scalar(
-        select(UsageRecord)
-        .where(UsageRecord.conversation_id == conversation.id, UsageRecord.purpose == "main")
-        .order_by(UsageRecord.id.desc())
-    )
+    latest_usage = last_main_usage(session, conversation.id)
     model = providers.find_model(conversation.model)
     versions: dict[tuple[int | None, str], list[int]] = {}
     for message_id, parent_id, role in session.execute(
