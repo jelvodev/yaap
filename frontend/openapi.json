@@ -8553,6 +8553,21 @@
       },
       "PresetCreate": {
         "properties": {
+          "delegation": {
+            "anyOf": [
+              {
+                "enum": [
+                  "free",
+                  "brief"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delegation"
+          },
           "effort": {
             "title": "Effort",
             "type": "string"
@@ -8633,6 +8648,15 @@
       },
       "PresetOut": {
         "properties": {
+          "delegation": {
+            "default": "free",
+            "enum": [
+              "free",
+              "brief"
+            ],
+            "title": "Delegation",
+            "type": "string"
+          },
           "effort": {
             "title": "Effort",
             "type": "string"
@@ -8778,6 +8802,21 @@
       },
       "PresetUpdate": {
         "properties": {
+          "delegation": {
+            "anyOf": [
+              {
+                "enum": [
+                  "free",
+                  "brief"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delegation"
+          },
           "effort": {
             "anyOf": [
               {
@@ -11361,6 +11400,331 @@
           "finished_at"
         ],
         "title": "ReviewSummaryOut",
+        "type": "object"
+      },
+      "RouteCheckOut": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "permission",
+              "approval",
+              "guard",
+              "outgoing",
+              "secrets",
+              "output_stored",
+              "memory",
+              "cache",
+              "trim",
+              "note"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "ran",
+              "skipped",
+              "failed",
+              "waiting"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "waited_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waited Ms"
+          },
+          "why": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WhyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "state",
+          "text"
+        ],
+        "title": "RouteCheckOut",
+        "type": "object"
+      },
+      "RouteOut": {
+        "properties": {
+          "cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "stops": {
+            "items": {
+              "$ref": "#/components/schemas/RouteStopOut"
+            },
+            "title": "Stops",
+            "type": "array"
+          }
+        },
+        "required": [
+          "stops"
+        ],
+        "title": "RouteOut",
+        "type": "object"
+      },
+      "RouteStopOut": {
+        "properties": {
+          "checks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RouteCheckOut"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "count": {
+            "default": 1,
+            "title": "Count",
+            "type": "integer"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "items": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "lane": {
+            "enum": [
+              "main",
+              "tools",
+              "worker",
+              "afterwards"
+            ],
+            "title": "Lane",
+            "type": "string"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "stage": {
+            "enum": [
+              "message",
+              "route",
+              "context",
+              "model",
+              "tool",
+              "worker",
+              "answer",
+              "afterwards",
+              "note"
+            ],
+            "title": "Stage",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "state": {
+            "default": "ran",
+            "enum": [
+              "ran",
+              "skipped",
+              "failed",
+              "waiting"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "step_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Id"
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RouteTokensOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "why": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WhyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "stage",
+          "lane",
+          "label"
+        ],
+        "title": "RouteStopOut",
+        "type": "object"
+      },
+      "RouteTokensOut": {
+        "properties": {
+          "cache_read": {
+            "title": "Cache Read",
+            "type": "integer"
+          },
+          "cache_write": {
+            "title": "Cache Write",
+            "type": "integer"
+          },
+          "new": {
+            "title": "New",
+            "type": "integer"
+          },
+          "output": {
+            "title": "Output",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "new",
+          "cache_read",
+          "cache_write",
+          "output"
+        ],
+        "title": "RouteTokensOut",
         "type": "object"
       },
       "RubricCheckIO": {
@@ -15710,7 +16074,8 @@
               "budget",
               "outgoing",
               "guard",
-              "hint"
+              "hint",
+              "delegation"
             ],
             "title": "Source",
             "type": "string"
@@ -19546,6 +19911,58 @@
         "summary": "Retry Message",
         "tags": [
           "conversations"
+        ]
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/route": {
+      "get": {
+        "description": "The route of a reply: message, route, context, model calls, tools, helpers, answer and what came after.",
+        "operationId": "read_route_api_v1_conversations__conversation_id__messages__message_id__route_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "title": "Message Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Route",
+        "tags": [
+          "tracing"
         ]
       }
     },

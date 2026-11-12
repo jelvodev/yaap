@@ -1275,6 +1275,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/route": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Route
+         * @description The route of a reply: message, route, context, model calls, tools, helpers, answer and what came after.
+         */
+        get: operations["read_route_api_v1_conversations__conversation_id__messages__message_id__route_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/conversations/{conversation_id}/messages/{message_id}/rule-proposal": {
         parameters: {
             query?: never;
@@ -7746,6 +7766,8 @@ export interface components {
         };
         /** PresetCreate */
         PresetCreate: {
+            /** Delegation */
+            delegation?: ("free" | "brief") | null;
             /** Effort */
             effort: string;
             /** Max Output Tokens */
@@ -7765,6 +7787,12 @@ export interface components {
         };
         /** PresetOut */
         PresetOut: {
+            /**
+             * Delegation
+             * @default free
+             * @enum {string}
+             */
+            delegation: "free" | "brief";
             /** Effort */
             effort: string;
             /** Environment Id */
@@ -7820,6 +7848,8 @@ export interface components {
         };
         /** PresetUpdate */
         PresetUpdate: {
+            /** Delegation */
+            delegation?: ("free" | "brief") | null;
             /** Effort */
             effort?: string | null;
             /** Is Default */
@@ -8618,6 +8648,102 @@ export interface components {
             status: "running" | "done" | "skipped" | "failed";
             /** Writer Vendors */
             writer_vendors: string[];
+        };
+        /** RouteCheckOut */
+        RouteCheckOut: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "permission" | "approval" | "guard" | "outgoing" | "secrets" | "output_stored" | "memory" | "cache" | "trim" | "note";
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "ran" | "skipped" | "failed" | "waiting";
+            /** Text */
+            text: string;
+            /** Waited Ms */
+            waited_ms?: number | null;
+            why?: components["schemas"]["WhyOut"] | null;
+        };
+        /** RouteOut */
+        RouteOut: {
+            /** Cost */
+            cost?: number | null;
+            /** Duration Ms */
+            duration_ms?: number | null;
+            /** Stops */
+            stops: components["schemas"]["RouteStopOut"][];
+        };
+        /** RouteStopOut */
+        RouteStopOut: {
+            /**
+             * Checks
+             * @default []
+             */
+            checks: components["schemas"]["RouteCheckOut"][];
+            /** Cost */
+            cost?: number | null;
+            /**
+             * Count
+             * @default 1
+             */
+            count: number;
+            /** Detail */
+            detail?: string | null;
+            /** Duration Ms */
+            duration_ms?: number | null;
+            /** Id */
+            id: string;
+            /**
+             * Items
+             * @default []
+             */
+            items: string[];
+            /** Label */
+            label: string;
+            /**
+             * Lane
+             * @enum {string}
+             */
+            lane: "main" | "tools" | "worker" | "afterwards";
+            /** Line */
+            line?: string | null;
+            /** Parent */
+            parent?: string | null;
+            /** Reason */
+            reason?: string | null;
+            /** Run Id */
+            run_id?: number | null;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "message" | "route" | "context" | "model" | "tool" | "worker" | "answer" | "afterwards" | "note";
+            /** Started At */
+            started_at?: string | null;
+            /**
+             * State
+             * @default ran
+             * @enum {string}
+             */
+            state: "ran" | "skipped" | "failed" | "waiting";
+            /** Step Id */
+            step_id?: number | null;
+            tokens?: components["schemas"]["RouteTokensOut"] | null;
+            why?: components["schemas"]["WhyOut"] | null;
+        };
+        /** RouteTokensOut */
+        RouteTokensOut: {
+            /** Cache Read */
+            cache_read: number;
+            /** Cache Write */
+            cache_write: number;
+            /** New */
+            new: number;
+            /** Output */
+            output: number;
         };
         /** RubricCheckIO */
         RubricCheckIO: {
@@ -10070,7 +10196,7 @@ export interface components {
              * Source
              * @enum {string}
              */
-            source: "permission" | "route" | "model_policy" | "cache" | "trim" | "summary" | "memory" | "budget" | "outgoing" | "guard" | "hint";
+            source: "permission" | "route" | "model_policy" | "cache" | "trim" | "summary" | "memory" | "budget" | "outgoing" | "guard" | "hint" | "delegation";
         };
         /**
          * WorkerOut
@@ -12443,6 +12569,38 @@ export interface operations {
                 };
                 content: {
                     "text/event-stream": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_route_api_v1_conversations__conversation_id__messages__message_id__route_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                message_id: number;
+                conversation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RouteOut"];
                 };
             };
             /** @description Validation Error */
