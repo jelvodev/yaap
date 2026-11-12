@@ -28,12 +28,14 @@ import {
 } from "../components/workbench/Workbench";
 import { useEnvironment } from "../environment/EnvironmentProvider";
 import { type Agent, type AgentTemplate } from "./blueprint/AgentPanels";
+import { BuiltinDetail, BuiltinList, type OverrideLevel, levelOfOverride } from "./blueprint/BuiltinLayer";
 import type { HistoryTarget } from "./blueprint/HistoryTab";
 import ImportPanel from "./blueprint/ImportPanel";
 import ItemDetail, { type ChainEntry, StateBadge } from "./blueprint/ItemDetail";
 import PackagesDetail from "./blueprint/PackagesDetail";
 import MatrixView, { type MatrixColumn } from "./blueprint/MatrixView";
 import { type ItemKind, KINDS, NAME_PATTERN, kindInfo, pathFor } from "./blueprint/model";
+import { useBuiltinItems } from "./blueprint/useBuiltinItems";
 import "./blueprint/blueprint.css";
 
 type Filter = "all" | "here" | "inherited" | "overridden" | "off";
@@ -140,6 +142,9 @@ export default function BlueprintPage() {
   // The environment whose layers, projects and agents surround the level; Global is seen from the active one.
   const environmentId = level.kind === "global" ? (active?.id ?? null) : level.environmentId;
   const environment = environments.find((entry) => entry.id === environmentId);
+  // The read-only Built-in layer is open while ?builtin= is present; Settings links to it with the item's name.
+  const builtinOpen = params.has("builtin");
+  const builtin = useBuiltinItems(builtinOpen ? environmentId : null);
   const currentName = nameOfLevel(level, environments, projects);
   const currentColour = level.kind === "global" ? undefined : environments.find((entry) => entry.id === level.environmentId)?.colour;
 
@@ -299,7 +304,15 @@ export default function BlueprintPage() {
 
   function open(itemPath: string) {
     setMain("item");
-    update({ path: itemPath, kind: kindOfPath(itemPath) ?? kind, view: null });
+    update({ path: itemPath, kind: kindOfPath(itemPath) ?? kind, view: null, builtin: null });
+  }
+
+  function openFromBuiltin(target: OverrideLevel, itemPath: string) {
+    const opened =
+      environmentId === null ? null : levelOfOverride(target, environmentId, projects[environmentId] ?? []);
+    if (!opened) return;
+    setMain("item");
+    setParams(new URLSearchParams({ ...levelParams(opened), kind: kindOfPath(itemPath) ?? "agent", path: itemPath }));
   }
 
   function startNew(itemKind: ItemKind) {
@@ -453,7 +466,7 @@ export default function BlueprintPage() {
           onClick={() => {
             setMain("item");
             setNewKind(null);
-            update({ kind: entry.kind, path: null, filter: null });
+            update({ kind: entry.kind, path: null, filter: null, builtin: null });
           }}
           count={items ? items.filter((item) => item.kind === entry.kind).length : undefined}
         >
@@ -470,6 +483,15 @@ export default function BlueprintPage() {
           { value: "matrix", label: "Matrix" },
         ]}
       />
+      <RailHeading>Built-in · read-only</RailHeading>
+      <RailItem
+        active={builtinOpen}
+        onClick={() => update({ builtin: params.get("builtin") ?? "" })}
+        count={builtin.items?.length}
+        title="Agents and skills shipped with YAAP; change one by copying it to your own layer"
+      >
+        Built-in
+      </RailItem>
     </>
   );
 
@@ -601,7 +623,9 @@ export default function BlueprintPage() {
   );
 
   let detail;
-  if (view === "matrix") {
+  if (builtinOpen) {
+    detail = <BuiltinDetail builtin={builtin} selected={params.get("builtin") || null} onOpenItem={openFromBuiltin} />;
+  } else if (view === "matrix") {
     detail = (
       <>
         <PageHeader
@@ -756,8 +780,16 @@ export default function BlueprintPage() {
     );
   }
 
+  const builtinList = (
+    <BuiltinList
+      builtin={builtin}
+      selected={params.get("builtin") || null}
+      onSelect={(name) => update({ builtin: name })}
+    />
+  );
+
   return (
-    <Workbench label="Blueprint" rail={rail} list={view === "list" ? list : undefined}>
+    <Workbench label="Blueprint" rail={rail} list={builtinOpen ? builtinList : view === "list" ? list : undefined}>
       {detail}
     </Workbench>
   );
