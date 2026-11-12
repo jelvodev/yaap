@@ -19,7 +19,7 @@ import anyio
 
 from app.config import environment_value
 from app.targets.base import CapturedResult, CommandResult, FileEntry, TargetError
-from app.targets.safe_root import SafeRoot, SafeRootError, relative_parts
+from app.targets.safe_root import RootReplacedError, SafeRoot, SafeRootError, relative_parts
 from app.targets.sessions import ShellState, bash_session
 
 MAX_SEARCH_FILE_BYTES = 1024 * 1024
@@ -118,9 +118,9 @@ class LocalFiles:
         if for_write:
             try:
                 canonical = self.safe.canonical_parts("/".join(parts)) if parts else ()
+            except RootReplacedError as error:
+                raise TargetError("The project folder was replaced.") from error
             except SafeRootError as error:
-                if "replaced" in str(error).casefold():
-                    raise TargetError("The project folder was replaced.") from error
                 raise TargetError(f"The path {path} cannot be written safely.") from error
             git_parts = {part.casefold() for part in canonical} if os.name == "nt" else set(canonical)
             if not parts or ".git" in git_parts:

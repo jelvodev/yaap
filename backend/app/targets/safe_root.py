@@ -57,6 +57,10 @@ class SafeRootError(OSError):
     """A path is missing, unsafe, or cannot be used below the pinned root."""
 
 
+class RootReplacedError(SafeRootError):
+    """The pinned project folder, or a folder below it that was already opened, is no longer the same folder."""
+
+
 def relative_parts(path: str) -> tuple[str, ...]:
     """Normalize a relative path and refuse absolute paths or traversal above the root."""
     clean = path.replace("\\", "/")
@@ -121,12 +125,12 @@ class SafeRoot:
         try:
             current = self._open_root(self.path)
         except OSError as error:
-            raise SafeRootError("The project folder was replaced.") from error
+            raise RootReplacedError("The project folder was replaced.") from error
         try:
             pinned = os.fstat(self._root_fd)
             found = os.fstat(current)
             if (pinned.st_dev, pinned.st_ino) != (found.st_dev, found.st_ino):
-                raise SafeRootError("The project folder was replaced.")
+                raise RootReplacedError("The project folder was replaced.")
         finally:
             os.close(current)
 
@@ -249,11 +253,11 @@ class SafeRoot:
             pinned = os.fstat(descriptor)
             found = os.fstat(current)
             if (pinned.st_dev, pinned.st_ino) != (found.st_dev, found.st_ino):
-                raise SafeRootError("The parent folder was replaced.")
+                raise RootReplacedError("The parent folder was replaced.")
         except OSError as error:
             if isinstance(error, SafeRootError):
                 raise
-            raise SafeRootError("The parent folder was replaced.") from error
+            raise RootReplacedError("The parent folder was replaced.") from error
         finally:
             os.close(current)
 

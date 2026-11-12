@@ -10,7 +10,7 @@ import pytest
 
 from app.targets.base import TargetError
 from app.targets.container import LocalFiles
-from app.targets.safe_root import SafeRoot
+from app.targets.safe_root import RootReplacedError, SafeRoot, SafeRootError
 
 POSIX_ONLY = pytest.mark.skipif(os.name != "posix", reason="descriptor-relative checks require POSIX")
 
@@ -292,3 +292,31 @@ def test_git_link_retargeted_after_preflight_is_still_refused(tmp_path: Path, op
         with pytest.raises(TargetError, match="into .git"):
             asyncio.run(files.remove("alias/config"))
     assert config.read_text(encoding="utf-8") == "safe"
+
+
+@pytest.mark.parametrize(
+    ("raised", "message"),
+    [
+        (RootReplacedError("unrelated wording"), "The project folder was replaced."),
+        (RootReplacedError("The parent folder was replaced."), "The project folder was replaced."),
+        (SafeRootError("The project folder was replaced."), "The path value.txt cannot be written safely."),
+        (SafeRootError("The symbolic link leaves the project folder."), "The path value.txt cannot be written safely."),
+    ],
+)
+def test_write_check_recognises_a_replaced_root_by_error_type_not_text(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, raised: SafeRootError, message: str
+) -> None:
+    files = LocalFiles(str(tmp_path))
+
+    def refuse(_path: str) -> tuple[str, ...]:
+        raise raised
+
+    monkeypatch.setattr(files.safe, "canonical_parts", refuse)
+
+    with pytest.raises(TargetError) as caught:
+        files.check("value.txt", for_write=True)
+    assert str(caught.value) == message
+
+
+def test_root_replaced_error_is_a_safe_root_error() -> None:
+    assert issubclass(RootReplacedError, SafeRootError)
