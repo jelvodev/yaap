@@ -11,11 +11,9 @@ the browser are reached on the event loop from there.
 
 import asyncio
 import logging
-import re
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, replace
 from functools import partial
-from typing import Any
 
 import anyio
 from sqlalchemy import select, update
@@ -27,19 +25,21 @@ from app.agent.toolbox import RunToolBox
 from app.agents.records import finish_record, finish_run_record
 from app.attachments.files import AttachmentError
 from app.attachments.service import AttachmentResolver, claim_attachments, conversation_attachments
-from app.blueprint.check import CheckError, check_block, is_read_only_check
+from app.blueprint.check import is_read_only_check
 from app.core.audit import record_request, reply_entry, with_refusal
 from app.core.cache_policy import reply_cache_ttl
 from app.core.budget_stop import both_listeners, reply_budget_guard, with_budget_stop
-from app.core.chat import add_user_message, build_request, load_branch, server_sent_event, stream_reply
+from app.core.chat import add_user_message, build_request, load_branch, stream_reply
 from app.core.context_control import output_tokens
-from app.core.goals import GoalError, create_goal, end_goal, goal_block, goal_objective, next_turn, start_text
-from app.core.message_parts import expand_command, skill_blocks
+from app.core.goals import end_goal, goal_block, next_turn
+from app.core.message_parts import expand_command
 from app.core.model_choice import Billing
 from app.core.message_queue import QueueError, select_for_send, select_ids_for_send
 from app.core.outgoing_checks import checked_provider, request_refusal
+from app.core.queue_commands import EVAL_COMMAND
 from app.core.replies import ReplyJob, Reservation
-from app.core.reply_errors import CommandRefused, InvalidReplyRequest, ReplyBusy, ReplyError
+from app.core.reply_commands import QueuedCommand, ReplyCommands, command_blocks
+from app.core.reply_errors import InvalidReplyRequest, ReplyBusy, ReplyError
 from app.core.reply_events import (
     BACKGROUND_WORK,
     TitleRequest,
@@ -56,7 +56,7 @@ from app.core.reply_run import reply_model_trace, run_folder, start_agent_run
 from app.core.reply_services import ReplyServices
 from app.core.reply_setup import ReplySetup, prepare_reply
 from app.core.search_index import message_text
-from app.core.summaries import TOO_LITTLE, compact_events, compact_focus, cover_point, yaap_compacts
+from app.core.summaries import compact_focus
 from app.core.turn_context import with_turn_context
 from app.learning.after_reply import with_learning_review
 from app.providers.base import AgentRequest, HistoryMessage, ToolServer
@@ -67,10 +67,6 @@ from app.tracing.provider import traced_provider
 from app.tracing.recorder import StepListener
 
 logger = logging.getLogger(__name__)
-
-# /eval, or /eval <case>: an eval run of all the project's cases or of one.
-EVAL_COMMAND = re.compile(r"^/eval(?:\s+([a-z0-9][a-z0-9-]{0,59}))?$")
-
 
 @dataclass(frozen=True)
 class ReplyRequest:
@@ -101,6 +97,8 @@ class NewMessage:
     edit_of: int | None = None
     attachment_ids: tuple[int, ...] = ()
     queued_item_ids: tuple[int, ...] = ()
+    # The send-now job that holds the queued rows, when they are sent by one.
+    handoff_job_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -115,6 +113,7 @@ class ReplyStream:
 class ReplyService:
     def __init__(self, services: ReplyServices) -> None:
         self.services = services
+        self.commands = ReplyCommands(services)
 
     def prepare(self, session: Session, conversation: Conversation, query: str = "") -> ReplySetup:
         return prepare_reply(self.services, session, conversation, query)
@@ -264,33 +263,31 @@ class ReplyService:
         self, session: Session, conversation: Conversation, item_id: int | None, send_all: bool
     ) -> ReplyStream:
         """Accept queued rows together with the user message that consumes them."""
-        with self.services.replies.reserve(conversation.id) as reservation:
-            current = session.get(Conversation, conversation.id, populate_existing=True)
-            if current is None:
-                raise InvalidReplyRequest("This conversation no longer exists.")
-            try:
-                selected = select_for_send(session, current.id, item_id, send_all)
-            except QueueError as error:
-                raise InvalidReplyRequest(str(error)) from error
-            message = NewMessage(
-                "\n\n".join(item.text for item in selected if item.text),
-                attachment_ids=tuple(
-                    attachment_id for item in selected for attachment_id in (item.attachment_ids or [])
-                ),
-                queued_item_ids=tuple(item.id for item in selected),
-            )
-            return self._send_reserved(session, current, message, reservation)
+        return self._send_selection(
+            session, conversation, lambda current: select_for_send(session, current.id, item_id, send_all)
+        )
 
     def send_queued_ids(
         self, session: Session, conversation: Conversation, item_ids: list[int], job_id: str
     ) -> ReplyStream:
         """Send the exact queue rows saved in a durable send-now handoff."""
+        return self._send_selection(
+            session, conversation, lambda current: select_ids_for_send(session, current.id, item_ids, job_id), job_id
+        )
+
+    def _send_selection(
+        self,
+        session: Session,
+        conversation: Conversation,
+        choose: Callable[[Conversation], list[QueuedMessage]],
+        handoff_job_id: str | None = None,
+    ) -> ReplyStream:
         with self.services.replies.reserve(conversation.id) as reservation:
             current = session.get(Conversation, conversation.id, populate_existing=True)
             if current is None:
                 raise InvalidReplyRequest("This conversation no longer exists.")
             try:
-                selected = select_ids_for_send(session, current.id, item_ids, job_id)
+                selected = choose(current)
             except QueueError as error:
                 raise InvalidReplyRequest(str(error)) from error
             message = NewMessage(
@@ -299,6 +296,7 @@ class ReplyService:
                     attachment_id for item in selected for attachment_id in (item.attachment_ids or [])
                 ),
                 queued_item_ids=tuple(item.id for item in selected),
+                handoff_job_id=handoff_job_id,
             )
             return self._send_reserved(session, current, message, reservation)
 
@@ -364,16 +362,13 @@ class ReplyService:
         commands = setup.agent.commands if setup.agent else None
         own_command = expand_command(setup.layers, message.text, commands) is not None
         focus = compact_focus(message.text) if not own_command else None
+        queued = QueuedCommand(message.queued_item_ids, message.handoff_job_id)
         if focus is not None:
-            if message.queued_item_ids:
-                raise CommandRefused("Queued /compact messages stay in the queue until they can be accepted atomically.")
-            return ReplyStream(self.compact_now(session, conversation, focus))
+            return ReplyStream(self.commands.compact(session, conversation, focus, queued))
         # /eval [case] starts an eval run of the project's cases instead of replying, unless the Blueprint has its own.
         evaluated = EVAL_COMMAND.match(message.text.strip()) if not own_command else None
         if evaluated is not None:
-            if message.queued_item_ids:
-                raise CommandRefused("Queued /eval messages stay in the queue until they can be accepted atomically.")
-            return ReplyStream(self.eval_now(conversation, evaluated.group(1)))
+            return ReplyStream(self.commands.evaluate(session, conversation, evaluated.group(1), queued))
         # Writing in an archived conversation brings it back.
         conversation.archived_at = None
         parent_id, carried = self.edit_point(session, conversation, message.edit_of)
@@ -382,7 +377,7 @@ class ReplyService:
         except AttachmentError as error:
             raise InvalidReplyRequest(str(error)) from error
         first_exchange = conversation.head_message_id is None
-        extra_blocks, read_only = self.command_blocks(session, conversation, setup, message.text, parent_id)
+        extra_blocks, read_only = command_blocks(session, conversation, setup, message.text, parent_id)
         text = message.text.strip()
         if message.queued_item_ids:
             selected = list(
@@ -422,70 +417,6 @@ class ReplyService:
             and (attachment := session.get(Attachment, block.get("attachment_id"))) is not None
         ]
         return original.parent_id, carried
-
-    def command_blocks(
-        self, session: Session, conversation: Conversation, setup: ReplySetup, text: str, parent_id: int | None
-    ) -> tuple[list[dict[str, Any]], bool]:
-        """The blocks the message gets besides its text (pinned skills, a command, a goal), and whether the reply is
-        read only."""
-        earlier = load_branch(session, conversation.id, parent_id)
-        extra_blocks = skill_blocks(
-            setup.layers,
-            conversation.pinned_skills or [],
-            [message.content for message in earlier if message.role == "user"],
-        )
-        command = expand_command(setup.layers, text, setup.agent.commands if setup.agent else None)
-        read_only = False
-        if command is None:
-            # /check checks the project against its standards in a read-only run, unless the Blueprint has its own
-            # command named check.
-            try:
-                command = check_block(setup.layers, text)
-            except CheckError as error:
-                session.rollback()
-                raise CommandRefused(str(error)) from error
-            if command is not None:
-                if setup.agent_project is None:
-                    session.rollback()
-                    raise CommandRefused("/check works in a project conversation.")
-                read_only = True
-        if command is not None:
-            extra_blocks.append(command)
-            return extra_blocks, read_only
-        # /goal starts goal mode, unless the Blueprint has its own command named goal.
-        try:
-            objective = goal_objective(text)
-            if objective is not None:
-                goal = create_goal(session, conversation, objective)
-                extra_blocks.append(goal_block(start_text(objective, goal.max_turns), 1, goal.max_turns))
-        except GoalError as error:
-            session.rollback()
-            raise CommandRefused(str(error)) from error
-        return extra_blocks, read_only
-
-    def compact_now(self, session: Session, conversation: Conversation, focus: str) -> AsyncIterator[str]:
-        """/compact: the summary is made while the stream is open; nothing else is added to the conversation."""
-        if not yaap_compacts(session, self.services.providers, conversation):
-            raise CommandRefused("Claude Code and Codex compact their own sessions.")
-        if cover_point(load_branch(session, conversation.id, conversation.head_message_id)) is None:
-            raise CommandRefused(TOO_LITTLE)
-        conversation_id = conversation.id
-        session.close()
-        return compact_events(self.services.utility, conversation_id, focus)
-
-    def eval_now(self, conversation: Conversation, case_name: str | None) -> AsyncIterator[str]:
-        """/eval: the run starts in the background; the stream says which run it is. Nothing is added to the
-        conversation."""
-        evals = self.services.evals
-        if evals is None or conversation.project_id is None:
-            raise CommandRefused("/eval runs the eval cases of a project; use it in a project conversation.")
-        run_id, text = evals.start_from_chat(conversation, case_name)
-        project_id = conversation.project_id
-
-        async def events() -> AsyncIterator[str]:
-            yield server_sent_event("eval_started", {"run_id": run_id, "project_id": project_id, "detail": text})
-
-        return events()
 
     def regenerate(self, session: Session, conversation: Conversation, message_id: int) -> ReplyJob:
         """A new version of a reply: the same question answered again, next to the earlier answer."""

@@ -35,6 +35,7 @@ export default function QueueStrip({
           <li key={item.id}>
             <span className="queue-text">
               {item.text || "(attachment)"}
+              {item.kind !== "message" && <span className="faint"> - command, runs on its own</span>}
               {item.attachment_ids.length > 0 && (
                 <span className="faint">
                   {" "}
@@ -42,7 +43,7 @@ export default function QueueStrip({
                 </span>
               )}
             </span>
-            {onSteer && item.attachment_ids.length === 0 && (
+            {onSteer && item.attachment_ids.length === 0 && item.kind === "message" && (
               <button
                 type="button"
                 className="link-button"

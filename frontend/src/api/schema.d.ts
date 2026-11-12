@@ -7667,6 +7667,11 @@ export interface components {
             created_at: string;
             /** Id */
             id: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "message" | "compact" | "eval";
             /** Send Now Pending */
             send_now_pending: boolean;
             /** Steering Pending */

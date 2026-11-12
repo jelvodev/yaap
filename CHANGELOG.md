@@ -12,6 +12,7 @@ yourself when you update; it says "None." when there is nothing.
 - Resetting a settings list now reports a failed request instead of showing a success message.
 - A failed reply start now closes the model connection and revokes the run's tool-server token.
 - Git on project folders (status, diff, commits, branches, merges, reviews and the like) now runs in the environment's runner instead of in YAAP; fetch and push stay in YAAP because they use your GitHub token.
+- A queued `/compact` or `/eval` is now accepted from the queue and run in turn, instead of waiting as a message.
 
 ### Action needed
 

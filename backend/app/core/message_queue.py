@@ -6,6 +6,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.agent.runs import SteeringHandoff
+from app.core.queue_commands import queue_item_kind
 from app.storage.models import QueuedMessage
 
 MAX_MESSAGE_LENGTH = 200_000
@@ -48,7 +49,7 @@ def select_for_send(
     """Read the selected queue rows and validate the combined message before changing either one."""
     items = queued_items(session, conversation_id)
     if send_all:
-        selected = items
+        selected = leading_messages(items)
     elif item_id is not None:
         selected = [item for item in items if item.id == item_id]
     else:
@@ -57,6 +58,18 @@ def select_for_send(
     if any(item.send_now_job_id is not None or item.steering_run_id is not None for item in selected):
         raise QueueError("A selected queued message already has a pending handoff.")
     return selected
+
+
+def leading_messages(items: list[QueuedMessage]) -> list[QueuedMessage]:
+    """What "send all" sends as one message: the ordinary messages up to the first command, or a command alone."""
+    if not items or queue_item_kind(items[0].text) != "message":
+        return items[:1]
+    run: list[QueuedMessage] = []
+    for item in items:
+        if queue_item_kind(item.text) != "message":
+            break
+        run.append(item)
+    return run
 
 
 def select_ids_for_send(
@@ -76,6 +89,11 @@ def select_ids_for_send(
 def validate_selection(selected: list[QueuedMessage]) -> list[QueuedMessage]:
     if not selected:
         raise QueueError("The selected queued message is no longer available.")
+    commands = [item for item in selected if queue_item_kind(item.text) != "message"]
+    if commands and len(selected) > 1:
+        raise QueueError("A queued command is sent on its own.")
+    if commands and any(item.attachment_ids for item in commands):
+        raise QueueError("A queued command cannot carry attachments.")
     text = "\n\n".join(item.text for item in selected if item.text)
     attachment_ids = [attachment_id for item in selected for attachment_id in (item.attachment_ids or [])]
     if len(text) > MAX_MESSAGE_LENGTH:
@@ -123,6 +141,8 @@ def add_steering(
             raise QueueError("Queued message not found.")
         if item.attachment_ids:
             raise QueueError("A message with attachments waits for the reply to end.")
+        if queue_item_kind(item.text) != "message":
+            raise QueueError("A queued command waits for the reply to end.")
         if item.steering_run_id is not None or item.send_now_job_id is not None:
             raise QueueError("That message is already being steered to a running reply.")
     item.steering_run_id = run_id

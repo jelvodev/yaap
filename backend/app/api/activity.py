@@ -34,6 +34,7 @@ from app.core.message_queue import (
     request_send_now,
     queued_items,
 )
+from app.core.queue_commands import QueueItemKind, queue_item_kind
 from app.core.reply_errors import ReplyError
 from app.core.reply_service import ReplyService
 from app.core.replies import ReplyRegistry
@@ -67,6 +68,7 @@ class QueuedMessageOut(BaseModel):
     created_at: datetime
     send_now_pending: bool
     steering_pending: bool
+    kind: QueueItemKind
 
 
 class QueueTake(BaseModel):
@@ -122,6 +124,7 @@ def queued_to_out(item: QueuedMessage) -> QueuedMessageOut:
         created_at=item.created_at,
         send_now_pending=item.send_now_job_id is not None,
         steering_pending=item.steering_run_id is not None,
+        kind=queue_item_kind(item.text),
     )
 
 
@@ -135,6 +138,8 @@ def add_to_queue(payload: QueuedMessageIn, conversation: ConversationDependency,
     """Keep a message for when the running reply ends."""
     if not payload.text.strip() and not payload.attachment_ids:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "A queued message needs text or an attachment.")
+    if payload.attachment_ids and queue_item_kind(payload.text) != "message":
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "A command cannot carry attachments.")
     items = queued_items(session, conversation.id)
     if len(items) >= MAX_QUEUED:
         raise HTTPException(status.HTTP_409_CONFLICT, f"At most {MAX_QUEUED} messages can wait in the queue.")

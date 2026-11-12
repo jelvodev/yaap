@@ -8873,6 +8873,15 @@
             "title": "Id",
             "type": "integer"
           },
+          "kind": {
+            "enum": [
+              "message",
+              "compact",
+              "eval"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
           "send_now_pending": {
             "title": "Send Now Pending",
             "type": "boolean"
@@ -8892,7 +8901,8 @@
           "attachment_ids",
           "created_at",
           "send_now_pending",
-          "steering_pending"
+          "steering_pending",
+          "kind"
         ],
         "title": "QueuedMessageOut",
         "type": "object"
