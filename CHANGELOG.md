@@ -32,6 +32,16 @@ yourself when you update; it says "None." when there is nothing.
 - A built-in `specification` skill writes a specification with you from one of four templates (feature, bug, refactor, chore), each with a goal, context, acceptance criteria, what is out of scope and open questions. The skill and each template can be replaced in your Blueprint.
 - Acceptance criteria can carry a check YAAP runs itself: `run: <command>`, `file: <path> exists` or `file: <path> contains <text>`; a criterion without a check is judged by the reviewer.
 
+- `/card <request>` in a project conversation, and *Make a card* in a message's menu, turn a request into a card on the project board. The card starts in Design, keeps the request as its description and is linked to the conversation.
+- A card shows in the chat with its stage, cost and the one step that is needed next: *Plan*, *Approve and build*, *Continue*, *Stop*, *Review* or *Mark done*. A conversation that belongs to a card shows a card chip in its heading.
+- *Plan* starts a planning conversation for the card. When the plan is submitted, the card moves to Plan and the plan is written into the card. *Approve and build* builds it on its own branch, and the card moves to Build.
+- When the build is done, the card moves to Review with its cost and commits, and a review of the build branch starts by itself. The review shows the diff, the checks that ran and the reviewer's findings.
+- After a restart, a card whose build was cut off shows *Continue the build* with the step it will go on from. A review that was cut off can be run again.
+- In a conversation that belongs to a card, the agent can read the card and set its specification or ask the user a question on it. It cannot change anything else on the card.
+- Added: the project board page. Clicking a project in the chat sidebar opens its board in the main area: seven
+- Added: a project without cards opens with one field to start a conversation or note a first idea.
+- Added: the board can be switched on or off per project in its settings; switched off, a project click behaves as
+
 ### Action needed
 
 - `git push --all` and `git push --mirror` also push the `yaap-board` branch, and with it every card, specification and plan. On a public repository, push your branches one by one.
