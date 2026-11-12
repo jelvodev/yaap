@@ -53,7 +53,7 @@ def git_place(environment_id: int, folder: Path, runners: Runners = RUNNERS) -> 
     if git_place_kind(folder, runners.workspace_dir, runners.enabled) == "yaap":
         return GitPlace(folder)
     try:
-        runtime = runners.runtime(environment_id, "git")
+        runtime = runners.git_runtime(environment_id)
         return GitPlace(folder, runtime.executor(str(folder)), runtime.environment_dir)
     except TargetError as error:  # RunnerUnavailable is one; so is a folder outside the environment
         raise GitError(str(error)) from error
