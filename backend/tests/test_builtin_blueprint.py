@@ -410,7 +410,7 @@ def test_each_moved_prompt_equals_its_old_text(new, old):
 
 def test_all_eight_built_in_items_are_shipped():
     items = builtin_items()
-    assert set(items) == {"explorer", "worker", "reviewer", "router", "guard", "summariser", "memory-keeper", "learner", "brief-worker", "planner"}
+    assert set(items) == {"explorer", "worker", "reviewer", "router", "guard", "summariser", "memory-keeper", "learner", "brief-worker", "planner", "state-keeper"}
     assert items["memory-keeper"].tasks == ("title", "memory_suggestion", "memory_tidy")
     assert items["learner"].tasks == ("learning", "rule")
     assert items["reviewer"].tasks == ("review",)

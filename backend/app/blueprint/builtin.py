@@ -25,6 +25,7 @@ BuiltinName = Literal[
     "memory-keeper",
     "learner",
     "planner",
+    "state-keeper",
 ]
 BuiltinKind = Literal["agent", "skill"]
 BuiltinRole = Literal["worker", "explorer"]
@@ -41,6 +42,7 @@ KIND_BY_NAME: dict[str, BuiltinKind] = {
     "memory-keeper": "skill",
     "learner": "skill",
     "planner": "agent",
+    "state-keeper": "skill",
 }
 # Names whose behaviour is a security decision: a user file of the same name never replaces them.
 LOCKED = frozenset({"guard", "outgoing-check"})

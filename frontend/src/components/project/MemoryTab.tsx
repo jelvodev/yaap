@@ -2,6 +2,7 @@ import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react
 
 import { api, errorMessage } from "../../api/client";
 import type { components } from "../../api/schema";
+import CurrentState from "./CurrentState";
 import { ProjectSkipNotice } from "../UtilitySkipNotice";
 
 type Entries = components["schemas"]["MemoryEntriesOut"];
@@ -385,6 +386,7 @@ export default function MemoryTab({ projectId }: { projectId: number }) {
   if (entries === null) return <p className="faint small pp-pad">{notice?.text ?? "Loading…"}</p>;
   return (
     <div className="pp-memory">
+      <CurrentState projectId={projectId} />
       <p className="faint small">
         Decisions, conventions and lessons every conversation in this project knows. The agent adds to it with
         update_memory; each change is a commit of only <span className="mono">.blueprint/memory.md</span>. A large memory
