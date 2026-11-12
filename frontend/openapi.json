@@ -2147,6 +2147,55 @@
         "title": "BudgetOut",
         "type": "object"
       },
+      "BuildApprovalOut": {
+        "properties": {
+          "approval_id": {
+            "title": "Approval Id",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "tool": {
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "approval_id",
+          "tool",
+          "summary"
+        ],
+        "title": "BuildApprovalOut",
+        "type": "object"
+      },
+      "BuildRefusalOut": {
+        "properties": {
+          "code": {
+            "enum": [
+              "plan_not_draft",
+              "no_repository",
+              "build_running",
+              "copy_failed",
+              "not_resumable",
+              "build_unavailable"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "BuildRefusalOut",
+        "type": "object"
+      },
       "BuiltinItemOut": {
         "properties": {
           "can_override": {
@@ -6827,6 +6876,35 @@
         "title": "FilesLocationOut",
         "type": "object"
       },
+      "FinalCheckOut": {
+        "properties": {
+          "command": {
+            "title": "Command",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "passed",
+              "failed",
+              "not_run",
+              "stopped"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "output": {
+            "title": "Output",
+            "type": "string"
+          }
+        },
+        "required": [
+          "command",
+          "outcome",
+          "output"
+        ],
+        "title": "FinalCheckOut",
+        "type": "object"
+      },
       "FindingOut": {
         "properties": {
           "explanation": {
@@ -9698,6 +9776,68 @@
         "title": "PinnedSkillsIn",
         "type": "object"
       },
+      "PlanBuildOut": {
+        "description": "The build of an approved plan, beside its steps' state.",
+        "properties": {
+          "approvals": {
+            "items": {
+              "$ref": "#/components/schemas/BuildApprovalOut"
+            },
+            "title": "Approvals",
+            "type": "array"
+          },
+          "attempts": {
+            "additionalProperties": {
+              "items": {
+                "enum": [
+                  "worker",
+                  "main"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Attempts",
+            "type": "object"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "delivered": {
+            "title": "Delivered",
+            "type": "boolean"
+          },
+          "final_checks": {
+            "items": {
+              "$ref": "#/components/schemas/FinalCheckOut"
+            },
+            "title": "Final Checks",
+            "type": "array"
+          },
+          "uncommitted": {
+            "title": "Uncommitted",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "uncommitted",
+          "cost",
+          "attempts",
+          "final_checks",
+          "delivered",
+          "approvals"
+        ],
+        "title": "PlanBuildOut",
+        "type": "object"
+      },
       "PlanEditIn": {
         "properties": {
           "risks": {
@@ -9744,6 +9884,60 @@
               }
             ],
             "title": "Approved At"
+          },
+          "base_branch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Branch"
+          },
+          "base_commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Commit"
+          },
+          "build": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanBuildOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "build_branch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Build Branch"
+          },
+          "build_folder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Build Folder"
           },
           "card_id": {
             "anyOf": [
@@ -28088,6 +28282,105 @@
         ]
       }
     },
+    "/api/v1/plans/{plan_id}/approve": {
+      "post": {
+        "description": "Approve a draft and start its build in a copy of the project. Approving approves the plan's check commands,\nexactly as shown, for this build.",
+        "operationId": "approve_plan_api_v1_plans__plan_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "title": "Plan Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildRefusalOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "The plan is not valid (code invalid_plan)."
+          }
+        },
+        "summary": "Approve Plan",
+        "tags": [
+          "plans"
+        ]
+      }
+    },
+    "/api/v1/plans/{plan_id}/continue": {
+      "post": {
+        "description": "Go on with an interrupted or failed build from its first open step, in the same copy.",
+        "operationId": "continue_plan_api_v1_plans__plan_id__continue_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "title": "Plan Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildRefusalOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Continue Plan",
+        "tags": [
+          "plans"
+        ]
+      }
+    },
     "/api/v1/plans/{plan_id}/discard": {
       "post": {
         "operationId": "discard_plan_api_v1_plans__plan_id__discard_post",
@@ -28125,6 +28418,49 @@
           }
         },
         "summary": "Discard Plan",
+        "tags": [
+          "plans"
+        ]
+      }
+    },
+    "/api/v1/plans/{plan_id}/stop": {
+      "post": {
+        "description": "Stop a build: it ends failed, and the steps done so far come into the project as the build branch.",
+        "operationId": "stop_plan_api_v1_plans__plan_id__stop_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "title": "Plan Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stop Plan",
         "tags": [
           "plans"
         ]

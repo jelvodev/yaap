@@ -3330,6 +3330,47 @@ export interface paths {
         patch: operations["edit_plan_api_v1_plans__plan_id__patch"];
         trace?: never;
     };
+    "/api/v1/plans/{plan_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve Plan
+         * @description Approve a draft and start its build in a copy of the project. Approving approves the plan's check commands,
+         *     exactly as shown, for this build.
+         */
+        post: operations["approve_plan_api_v1_plans__plan_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plans/{plan_id}/continue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Continue Plan
+         * @description Go on with an interrupted or failed build from its first open step, in the same copy.
+         */
+        post: operations["continue_plan_api_v1_plans__plan_id__continue_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/plans/{plan_id}/discard": {
         parameters: {
             query?: never;
@@ -3341,6 +3382,26 @@ export interface paths {
         put?: never;
         /** Discard Plan */
         post: operations["discard_plan_api_v1_plans__plan_id__discard_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plans/{plan_id}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stop Plan
+         * @description Stop a build: it ends failed, and the steps done so far come into the project as the build branch.
+         */
+        post: operations["stop_plan_api_v1_plans__plan_id__stop_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5844,6 +5905,25 @@ export interface components {
             /** Spent */
             spent: number;
         };
+        /** BuildApprovalOut */
+        BuildApprovalOut: {
+            /** Approval Id */
+            approval_id: string;
+            /** Summary */
+            summary: string;
+            /** Tool */
+            tool: string;
+        };
+        /** BuildRefusalOut */
+        BuildRefusalOut: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "plan_not_draft" | "no_repository" | "build_running" | "copy_failed" | "not_resumable" | "build_unavailable";
+            /** Message */
+            message: string;
+        };
         /** BuiltinItemOut */
         BuiltinItemOut: {
             /** Can Override */
@@ -7258,6 +7338,18 @@ export interface components {
             /** Label */
             label: string;
         };
+        /** FinalCheckOut */
+        FinalCheckOut: {
+            /** Command */
+            command: string;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "passed" | "failed" | "not_run" | "stopped";
+            /** Output */
+            output: string;
+        };
         /** FindingOut */
         FindingOut: {
             /** Explanation */
@@ -8276,6 +8368,26 @@ export interface components {
             /** Skills */
             skills: string[];
         };
+        /**
+         * PlanBuildOut
+         * @description The build of an approved plan, beside its steps' state.
+         */
+        PlanBuildOut: {
+            /** Approvals */
+            approvals: components["schemas"]["BuildApprovalOut"][];
+            /** Attempts */
+            attempts: {
+                [key: string]: ("worker" | "main")[];
+            };
+            /** Cost */
+            cost: number | null;
+            /** Delivered */
+            delivered: boolean;
+            /** Final Checks */
+            final_checks: components["schemas"]["FinalCheckOut"][];
+            /** Uncommitted */
+            uncommitted: number;
+        };
         /** PlanEditIn */
         PlanEditIn: {
             /** Risks */
@@ -8294,6 +8406,15 @@ export interface components {
         PlanOut: {
             /** Approved At */
             approved_at: string | null;
+            /** Base Branch */
+            base_branch?: string | null;
+            /** Base Commit */
+            base_commit?: string | null;
+            build?: components["schemas"]["PlanBuildOut"] | null;
+            /** Build Branch */
+            build_branch?: string | null;
+            /** Build Folder */
+            build_folder?: string | null;
             /** Card Id */
             card_id: number | null;
             /** Conversation Id */
@@ -17143,7 +17264,116 @@ export interface operations {
             };
         };
     };
+    approve_plan_api_v1_plans__plan_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BuildRefusalOut"];
+                };
+            };
+            /** @description The plan is not valid (code invalid_plan). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    continue_plan_api_v1_plans__plan_id__continue_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BuildRefusalOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     discard_plan_api_v1_plans__plan_id__discard_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stop_plan_api_v1_plans__plan_id__stop_post: {
         parameters: {
             query?: never;
             header?: never;
