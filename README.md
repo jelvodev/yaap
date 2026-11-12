@@ -92,7 +92,7 @@ Updating is one command (`scripts/update.ps1` or `scripts/update.sh`) with a bac
 | 📝 **Files and documents** | A file browser and editor beside the chat, and documents you and the agent edit together. |
 | 🖥️ **This computer** | Optionally, the agent works in folders of your own computer over SSH, with its own user and asking before every change. |
 | 🔐 **The vault** | API keys, tokens and secrets encrypted with your master key, several per kind, with expiry dates and a use log. |
-| 💾 **Backups and usage** | Daily backups to a folder or a network share, restore from the interface, and cost per environment, project, model and month with budgets, plus a cost estimate for a goal or scheduled task from earlier similar runs. |
+| 💾 **Backups and usage** | Daily backups to a folder or a network share, restore from the interface, and cost per environment, project, model and month with budgets, plus a cost estimate for a goal or scheduled task from earlier similar runs. What YAAP runs by itself, and what it costs, is in [behind the scenes](docs/behind-the-scenes.md). |
 | 🔌 **Open to other tools** | MCP servers for the agent, other agents over A2A, YAAP's own tools as an MCP server for outside clients, and plugins of your own. |
 
 ## How it fits together

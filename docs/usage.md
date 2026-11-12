@@ -1,6 +1,6 @@
 # Using YAAP
 
-A tour of what YAAP does and where to find it. The interface has three tabs, **Chat**, **Blueprint** and **Settings**, plus the environment switcher and **Ctrl K** (command palette and search) in the header. The header also shows, when they apply, *N waiting* (approvals; it opens the first conversation that waits), *N expiring* or *N expired* (keys in the vault) and *Backup failed*, each a link to where it is handled.
+A tour of what YAAP does and where to find it. The interface has three tabs, **Chat**, **Blueprint** and **Settings**, plus the environment switcher and **Ctrl K** (command palette and search) in the header. What YAAP runs by itself (titles, summaries, memory suggestions, backups and the like), when, at what cost and how to switch it off, is in [behind the scenes](behind-the-scenes.md). The header also shows, when they apply, *N waiting* (approvals; it opens the first conversation that waits), *N expiring* or *N expired* (keys in the vault) and *Backup failed*, each a link to where it is handled.
 
 ## Chat
 
