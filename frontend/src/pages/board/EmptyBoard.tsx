@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { newCard } from "./BoardColumn";
+import ImportIssues from "./ImportIssues";
 import NotStarted from "./NotStarted";
 import type { BoardHandle } from "./useBoard";
 
@@ -64,6 +65,7 @@ export default function EmptyBoard({
           </button>
         </div>
       )}
+      {ready && !choosing && <ImportIssues projectId={projectId} onImported={() => void board.reload()} />}
     </div>
   );
 }

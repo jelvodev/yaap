@@ -66,6 +66,7 @@ function LoadedBoard({ handle, board, prefs, projectId, cardId, project }: Loade
     onDragEnd: dnd.end,
     onDrop: dnd.drop,
     dragging: dnd.dragging,
+    onImported: () => void handle.reload(),
   };
 
   const detail = cardId !== null && (

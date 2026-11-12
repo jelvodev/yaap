@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { BoardCard, CardCreate, Column } from "./boardApi";
 import { COLUMN_LABELS, COLUMN_NOTES } from "./boardLogic";
 import CardTile from "./CardTile";
+import ImportIssues from "./ImportIssues";
 
 /** The body for a card noted by title only. */
 export function newCard(title: string, column: "inbox" | "idea", version: string | null = null): CardCreate {
@@ -22,6 +23,8 @@ export interface ColumnActions {
   /** Dropping the dragged card here; the page checks the move. */
   onDrop: (column: Column) => void;
   dragging: BoardCard | null;
+  /** After issues were imported into Inbox; without it Inbox offers no import. */
+  onImported?: () => void;
 }
 
 export interface ColumnData {
@@ -150,6 +153,9 @@ export default function BoardColumn({ data, actions }: { data: ColumnData; actio
           />
         ))}
         {(column === "inbox" || column === "idea") && <AddCard column={column} onAdd={actions.onAdd} />}
+        {column === "inbox" && actions.onImported && (
+          <ImportIssues projectId={actions.projectId} onImported={actions.onImported} />
+        )}
       </div>
     </section>
   );
