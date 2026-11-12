@@ -965,6 +965,77 @@
       "conditional": false
     },
     {
+      "name": "add_card",
+      "description": "Put a card in the project board's Inbox for something you noticed outside your task (a bug, a missing test, a chore), for the user to accept or drop. Not for the task you are working on. The board is searched first: when similar cards exist you get them back and nothing is added; then use add_to_card, or call add_card again with confirmed_new true. At most 5 cards per reply and 20 per conversation; the description at most 8000 characters, why at most 2000.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "bug",
+              "feature",
+              "refactor",
+              "chore"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "why": {
+            "type": "string",
+            "description": "Why you noticed it, in a sentence or two."
+          },
+          "confirmed_new": {
+            "type": "boolean",
+            "description": "True only after add_card showed similar cards and none of them is this work."
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "project",
+      "read_only": false,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
+      "name": "add_to_card",
+      "description": "Add a note to a card on the project board (one that add_card showed you), under \"Noticed again\" in its description. Nothing else on the card changes. The note is at most 2000 characters.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "card_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "card_id",
+          "note"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "project",
+      "read_only": false,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
       "name": "list_attachment",
       "description": "List the conversation's attachments, or the files inside a zip or folder attachment (optionally below a path).",
       "input_schema": {
@@ -1189,6 +1260,8 @@
     "submit_plan": "plans",
     "read_card": "card",
     "update_card": "card",
+    "add_card": "intake",
+    "add_to_card": "intake",
     "search_project": "searcher",
     "read_knowledge": "searcher",
     "web_search": "web_search",
