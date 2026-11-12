@@ -60,3 +60,15 @@ def version_summary(cards: Sequence[tuple[str, float]], budget_usd: float | None
     cost = round(sum(cost_usd for _column, cost_usd in cards), 2)
     done = sum(1 for column, _cost in cards if column == "done")
     return VersionSummary(done, len(cards), cost, budget_usd, budget_level(cost, budget_usd))
+
+
+def conversation_costs(session: Session, conversation_ids: Sequence[int]) -> dict[int, float]:
+    """Charged usage per conversation, for many cards' costs in one query."""
+    if not conversation_ids:
+        return {}
+    rows = session.execute(
+        select(UsageRecord.conversation_id, func.coalesce(func.sum(UsageRecord.cost), 0.0))
+        .where(UsageRecord.conversation_id.in_(conversation_ids))
+        .group_by(UsageRecord.conversation_id)
+    )
+    return {conversation_id: float(total or 0.0) for conversation_id, total in rows if conversation_id is not None}
