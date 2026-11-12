@@ -386,7 +386,7 @@ class ReplyService:
         except AttachmentError as error:
             raise InvalidReplyRequest(str(error)) from error
         first_exchange = conversation.head_message_id is None
-        extra_blocks, read_only = command_blocks(session, conversation, setup, message.text, parent_id)
+        extra_blocks, read_only = command_blocks(session, conversation, setup, message.text, parent_id, self.services.board)
         text = message.text.strip()
         if message.queued_item_ids:
             selected = list(

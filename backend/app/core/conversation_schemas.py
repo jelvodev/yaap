@@ -91,6 +91,8 @@ class ContentBlockOut(BaseModel):
     imported: bool | None = None
     # Plan blocks: the plan's id.
     plan_id: int | None = None
+    # A /card command block: the card it made on the project's board.
+    card_id: int | None = None
 
 
 class ReplyRouteOut(BaseModel):

@@ -1,4 +1,4 @@
-"""The commands a message can be instead of a question: /compact, /eval, /check, /plan and /goal.
+"""The commands a message can be instead of a question: /compact, /eval, /check, /plan, /card and /goal.
 
 /compact and /eval do not start a reply. When they were sent from the queue, their rows leave the queue only once the
 command was accepted: /eval when its run has started, /compact when the summary has been made or its failure
@@ -17,6 +17,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.blueprint.check import CheckError, check_block
+from app.board.card_command import card_command
+from app.board.service import BoardService
 from app.core.chat_events import server_sent_event
 from app.core.chat_history import load_branch
 from app.core.goals import GoalError, create_goal, goal_block, goal_objective, start_text
@@ -39,30 +41,51 @@ class QueuedCommand:
     handoff_job_id: str | None = None
 
 
+@dataclass(frozen=True)
+class CommandContext:
+    """What a built-in command works with: the reply's session and conversation, its setup and the board."""
+
+    session: Session
+    conversation: Conversation
+    setup: ReplySetup
+    board: BoardService | None = None
+
+
 # The built-in commands that make a read-only reply, in the order they are tried. Each returns its command block, or
 # None when the message is not that command, and raises CommandRefused when it cannot run here.
-BuiltinCommand = Callable[[ReplySetup, str], dict[str, Any] | None]
+BuiltinCommand = Callable[[CommandContext, str], dict[str, Any] | None]
 
 
-def check_command(setup: ReplySetup, text: str) -> dict[str, Any] | None:
+def check_command(context: CommandContext, text: str) -> dict[str, Any] | None:
     """/check checks the project against its standards in a read-only run."""
     try:
-        block = check_block(setup.layers, text)
+        block = check_block(context.setup.layers, text)
     except CheckError as error:
         raise CommandRefused(str(error)) from error
-    if block is not None and setup.agent_project is None:
+    if block is not None and context.setup.agent_project is None:
         raise CommandRefused("/check works in a project conversation.")
     return block
 
 
-BUILTIN_COMMANDS: tuple[BuiltinCommand, ...] = (check_command, plan_command)
+def plan_builtin(context: CommandContext, text: str) -> dict[str, Any] | None:
+    """/plan makes a plan in a read-only run (app/plans/command.py)."""
+    return plan_command(context.setup, text)
 
 
-def builtin_block(session: Session, setup: ReplySetup, text: str) -> dict[str, Any] | None:
+def card_builtin(context: CommandContext, text: str) -> dict[str, Any] | None:
+    """/card makes a card on the project's board; the reply confirms it (app/board/card_command.py)."""
+    return card_command(context.board, context.session, context.conversation, text)
+
+
+BUILTIN_COMMANDS: tuple[BuiltinCommand, ...] = (check_command, plan_builtin, card_builtin)
+
+
+def builtin_block(context: CommandContext, text: str) -> dict[str, Any] | None:
     """The block of the built-in command the message is, if any; a refusal rolls the session back first."""
+    session = context.session
     for command in BUILTIN_COMMANDS:
         try:
-            block = command(setup, text)
+            block = command(context, text)
         except CommandRefused:
             session.rollback()
             raise
@@ -72,7 +95,12 @@ def builtin_block(session: Session, setup: ReplySetup, text: str) -> dict[str, A
 
 
 def command_blocks(
-    session: Session, conversation: Conversation, setup: ReplySetup, text: str, parent_id: int | None
+    session: Session,
+    conversation: Conversation,
+    setup: ReplySetup,
+    text: str,
+    parent_id: int | None,
+    board: BoardService | None = None,
 ) -> tuple[list[dict[str, Any]], bool]:
     """The blocks a message gets besides its text (pinned skills, a command, a goal), and whether the reply is read
     only. A Blueprint command of the same name wins over a built-in one."""
@@ -84,7 +112,7 @@ def command_blocks(
     )
     command = expand_command(setup.layers, text, setup.agent.commands if setup.agent else None)
     if command is None:
-        command = builtin_block(session, setup, text)
+        command = builtin_block(CommandContext(session, conversation, setup, board), text)
     if command is not None:
         extra_blocks.append(command)
         return extra_blocks, command.get("read_only") is True
