@@ -3,6 +3,7 @@ import {
   type DragEvent,
   type KeyboardEvent,
   type ReactNode,
+  useEffect,
   useRef,
   useState,
 } from "react";
@@ -47,6 +48,8 @@ interface ComposerProps {
   projectId?: number | null;
   // A screenshot of the running preview to attach; left out while no preview runs.
   previewShot?: () => Promise<File>;
+  // Text to put into the box, not sent; each new nonce replaces what is typed.
+  draft?: { text: string; nonce: number } | null;
 }
 
 function SkillsMenu({
@@ -141,6 +144,7 @@ export default function Composer({
   setup,
   projectId,
   previewShot,
+  draft,
 }: ComposerProps) {
   const [text, setText] = useState("");
   const [highlight, setHighlight] = useState(0);
@@ -180,6 +184,23 @@ export default function Composer({
     onSend(text.trim());
     setText("");
   }
+
+  // A request present at mount was handled before; only a newer one fills the box.
+  const handledDraft = useRef(draft?.nonce ?? 0);
+  useEffect(() => {
+    if (!draft || draft.nonce === handledDraft.current) return;
+    handledDraft.current = draft.nonce;
+    setText(draft.text);
+    setSuggestionsClosed(true);
+    // After React has put the new text in the box, so the cursor lands after it.
+    const timer = window.setTimeout(() => {
+      const box = input.current;
+      if (!box) return;
+      box.focus();
+      box.setSelectionRange(box.value.length, box.value.length);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [draft]);
 
   function focusInput() {
     const box = input.current;

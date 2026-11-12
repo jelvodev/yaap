@@ -1,6 +1,7 @@
 import { type ReactNode, useState } from "react";
 
 import type { Message } from "../../api/client";
+import type { SecondOpinions } from "../../pages/chat/useSecondOpinions";
 import RulePanel, { type RuleTarget } from "../RulePanel";
 import type { ToolCallRef } from "../trace/traceOrder";
 
@@ -14,6 +15,12 @@ export interface MessageActions {
   onShowTrace?: (message: Message, toolCall?: ToolCallRef) => void;
   // Where Remember as rule can save; absent when the conversation is not loaded.
   ruleTarget?: RuleTarget;
+  // The conversation's second opinions and how to ask for one; absent when the conversation is not loaded.
+  secondOpinions?: SecondOpinions;
+  // Put text into the composer, not sent (a second opinion to build on).
+  onUseInConversation?: (text: string) => void;
+  // Open a review in the project's Reviews tab.
+  onOpenReview?: (reviewId: number) => void;
   // The conversation's last reply and the actions under it that act on the whole conversation (eval case, learning).
   lastReply?: { messageId: number; actions: ReactNode };
 }

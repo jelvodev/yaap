@@ -1,0 +1,87 @@
+/* The second opinion under a reply: the button with its card, and the folded report. */
+.messages .second-opinion-anchor {
+  position: relative;
+  display: inline-flex;
+}
+
+.messages .second-opinion-card {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 300px;
+  max-width: 80vw;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface, var(--bg));
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.18);
+}
+
+.messages .second-opinion-card p,
+.messages .second-opinion-details p {
+  margin: 0;
+}
+
+.messages .second-opinion-warning {
+  color: var(--warning);
+}
+
+.messages .second-opinion-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.messages .second-opinion-report {
+  margin-top: 6px;
+  font-size: 13px;
+}
+
+.messages .second-opinion-fold {
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+}
+
+.messages .second-opinion-fold:disabled {
+  cursor: default;
+}
+
+.messages .second-opinion-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 0 4px 14px;
+  border-left: 2px solid var(--border);
+}
+
+.messages .second-opinion-points {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.messages .second-opinion-severity {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.messages .second-opinion-high {
+  color: var(--danger);
+}
+
+.messages .second-opinion-medium {
+  color: var(--warning);
+}
+
+.messages .second-opinion-low {
+  color: var(--muted);
+}

@@ -22,6 +22,8 @@ export const SOURCE_LABELS: Record<ReviewSummary["source"], string> = {
   task: "after a scheduled task",
   changes: "uncommitted changes",
   conversation: "a conversation's changes",
+  reply: "a reply's changes",
+  answer: "a reply's answer",
 };
 
 /** What a review found in a few words, for a list row or a chip. */

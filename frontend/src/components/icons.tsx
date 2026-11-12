@@ -130,6 +130,13 @@ export const BranchIcon = (props: IconProps) => (
   </Svg>
 );
 
+/** Two overlapping speech bubbles: another model's view of a reply. */
+export const SecondOpinionIcon = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="M3 5h11v8H8l-3 3v-3H3zM17 9h4v8h-2v3l-3-3h-5v-2" />
+  </Svg>
+);
+
 /** A clock with a turning arrow: history and checkpoints. */
 export const HistoryIcon = (props: IconProps) => (
   <Svg {...props}>

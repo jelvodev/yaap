@@ -3,11 +3,11 @@ import type { components } from "../api/schema";
 /** An estimate from earlier similar runs: a goal's or a scheduled task's. */
 export type CostEstimate = components["schemas"]["CostEstimateOut"];
 
-function money(value: number): string {
+export function money(value: number): string {
   return value < 0.01 ? "under $0.01" : `$${value.toFixed(2)}`;
 }
 
-function tokens(value: number): string {
+export function tokens(value: number): string {
   if (value >= 1_000_000) return `${Number((value / 1_000_000).toFixed(1))}M tokens`;
   return value >= 1000 ? `${Math.round(value / 1000)}k tokens` : `${value} tokens`;
 }

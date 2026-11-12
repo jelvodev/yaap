@@ -6,6 +6,7 @@ import { Markdown } from "./Markdown";
 import type { MessageActions } from "./MessageActions";
 import { ReplyActions } from "./ReplyActions";
 import { ReplyBody } from "./ReplyBody";
+import { SecondOpinionReport } from "./SecondOpinionReport";
 import { blocksFromMessage } from "./replyBlock";
 import type { MessageAnchor } from "./UserMessage";
 
@@ -59,6 +60,9 @@ export default function AssistantMessage({
           </p>
         )}
         {message.route && <RouteNote route={message.route} />}
+        {actions?.secondOpinions?.opinions
+          .filter((opinion) => opinion.message_id === message.id)
+          .map((opinion) => <SecondOpinionReport key={opinion.id} opinion={opinion} actions={actions} />)}
         {actions && <ReplyActions message={message} actions={actions} />}
       </div>
     </div>

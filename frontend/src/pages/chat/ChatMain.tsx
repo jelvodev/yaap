@@ -25,7 +25,9 @@ import type { ChatSession } from "./useChatSession";
 import { type AgentInfo, useCommands } from "./useCommands";
 import type { DraftConversation } from "./useDraftConversation";
 import { useGoalEstimate } from "./useGoalEstimate";
+import { type DraftRequest, useComposerDraft } from "./useComposerDraft";
 import type { ProjectRail } from "./useProjectRail";
+import { useSecondOpinions } from "./useSecondOpinions";
 
 export interface ChatMainProps {
   environment: Environment;
@@ -68,8 +70,13 @@ export default function ChatMain(props: ChatMainProps) {
   const lastReplyId = conversation ? lastReplyOf(conversation) : null;
   const showTrace = (messageId: number, toolCall?: ToolCallRef) =>
     conversation && setTrace({ conversationId: conversation.id, messageId, toolCall });
+  const composerDraft = useComposerDraft(conversation?.id ?? null);
+  const secondOpinions = useSecondOpinions(conversation?.id ?? null);
   const actions: MessageActions = {
     ...messageActions(props),
+    secondOpinions: secondOpinions ?? undefined,
+    onUseInConversation: composerDraft.fill,
+    onOpenReview: props.rail.focusReview,
     onShowTrace: (message, toolCall) => showTrace(message.id, toolCall),
     lastReply:
       conversation && lastReplyId !== null ? lastReplyActions(conversation, lastReplyId, session.busy) : undefined,
@@ -112,7 +119,7 @@ export default function ChatMain(props: ChatMainProps) {
           onDismiss={session.goal.dismiss}
         />
       )}
-      {canChat && <ChatComposer {...props} goalEstimate={goalEstimate} />}
+      {canChat && <ChatComposer {...props} goalEstimate={goalEstimate} composerDraft={composerDraft.request} />}
       {trace && <TraceDialog target={trace} onClose={() => setTrace(null)} />}
     </section>
   );
@@ -199,7 +206,8 @@ function ChatComposer({
   rail,
   running,
   goalEstimate,
-}: ChatMainProps & { goalEstimate: string | null }) {
+  composerDraft,
+}: ChatMainProps & { goalEstimate: string | null; composerDraft: DraftRequest | null }) {
   const conversation = active.conversation;
   const { queue, composer, stream, attachments } = session;
   // A running preview can be attached as a screenshot.
@@ -218,6 +226,7 @@ function ChatComposer({
         />
       )}
       <Composer
+        draft={composerDraft}
         busy={session.busy}
         onSend={(text) => void composer.send(text)}
         attachments={attachments.here}
