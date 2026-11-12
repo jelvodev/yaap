@@ -242,6 +242,8 @@ YAAP's repository holds a fixed eval set to measure YAAP itself: ten cases on *S
 
 Later, each efficiency change is measured the same way: three runs of the set on the new version, compared with the baseline runs in **Compare** (pass rate, median cost, tokens and steps, B minus A). A change is kept only when the pass rate holds. Rubric checks are scored by the utility model and cost a little on top, shown apart.
 
+A second, small set measures *Context savings* (Settings › Context), whose parts only act on long test output and on files read twice: two cases on *Freight*, a Python project with a long pytest suite (`evals/savings/`). Build it the same way into another new, empty project with `--set savings` (no tracker needed); its runner needs pytest, for example `EXTRA_APT_PACKAGES: python3-pytest` (see [configuration.md](configuration.md#extra-packages-for-the-runner)). Play each case three times with the setting off and three times on.
+
 Developers also measure what YAAP sends without a model: `python -m app.scripts.token_footprint` (from `backend/`) prints the characters and estimated tokens of the system parts, the tool definitions and the first tool results for a plain chat, a project conversation and a goal turn.
 
 ## Search

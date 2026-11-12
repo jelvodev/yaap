@@ -1,0 +1,37 @@
+diff --git a/freight/rates.py b/freight/rates.py
+index 4cf9388..ca27cd0 100644
+--- a/freight/rates.py
++++ b/freight/rates.py
+@@ -103,8 +103,8 @@ def zone_of(country: str) -> int:
+ 
+ 
+ def is_export(zone: int) -> bool:
+-    """The last zone leaves the EU."""
+-    return zone >= len(DELIVERY_DAYS)
++    """Zone 4 leaves the EU."""
++    return zone == 4
+ 
+ 
+ # 2. Chargeable weight
+@@ -150,9 +150,9 @@ BASE_RATES = {
+ 
+ 
+ def weight_band(kg: float) -> int:
+-    """The index of the band a chargeable weight falls in."""
++    """The index of the band a chargeable weight falls in; a band includes its upper limit."""
+     for index, limit in enumerate(WEIGHT_BANDS):
+-        if kg < limit:
++        if kg <= limit:
+             return index
+     raise NotAccepted(f"{kg} kg is over the maximum of {MAXIMUM_KG} kg.")
+ 
+@@ -168,8 +168,7 @@ def base_rate(zone: int, kg: float) -> int:
+ 
+ FUEL_PERCENT = 12
+ REMOTE_AREA_CENTS = 450
+-TERSCHELLING = tuple(f"888{digit}" for digit in range(1, 4))
+-REMOTE_PREFIXES = ("179", *TERSCHELLING, "8899", "9161", "9162", "9163", "9164")
++REMOTE_PREFIXES = ("179", "8881", "8882", "8883", "8884", "8899", "9161", "9162", "9163", "9164")
+ OVERSIZE_CENTS = 1500
+ OVERSIZE_LONGEST_CM = 120
+ OVERSIZE_GIRTH_CM = 300
