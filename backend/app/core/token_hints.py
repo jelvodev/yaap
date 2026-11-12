@@ -5,6 +5,8 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Literal
 
+from app.core.why import Why
+
 HintKind = Literal["repeated_read", "cold_cache", "tool_results_heavy", "mcp_share"]
 
 # The default prompt cache lives five minutes; a reply that starts after a longer pause finds it expired.
@@ -63,6 +65,7 @@ class Hint:
     remedy: str
     # The public roadmap item that would help.
     roadmap_item: int
+    why: Why | None = None
 
 
 def repeated_read(facts: HintFacts) -> Hint | None:
@@ -72,7 +75,8 @@ def repeated_read(facts: HintFacts) -> Hint | None:
     # Ties keep the order of the reads, so the text is stable.
     named = repeats.most_common(NAMED_PATHS)
     text = " ".join(f"{path} was read {count} times." for path, count in named)
-    return Hint("repeated_read", text, "Skipping a re-read of an unchanged file.", ROADMAP_ITEM["repeated_read"])
+    why = Why(f"A file read {REPEATED_READS} times or more in a session is named as a repeated read.", "hint")
+    return Hint("repeated_read", text, "Skipping a re-read of an unchanged file.", ROADMAP_ITEM["repeated_read"], why)
 
 
 def cold_cache(facts: HintFacts) -> Hint | None:
@@ -91,7 +95,12 @@ def cold_cache(facts: HintFacts) -> Hint | None:
         f"and wrote {written:,} tokens to it again."
     )
     remedy = "A summary or a new conversation after a long pause, before the history is sent again."
-    return Hint("cold_cache", text, remedy, ROADMAP_ITEM["cold_cache"])
+    why = Why(
+        f"A pause of more than {COLD_PAUSE_SECONDS // 60} minutes finds the cache expired, so the next reply writes it "
+        "again.",
+        "hint",
+    )
+    return Hint("cold_cache", text, remedy, ROADMAP_ITEM["cold_cache"], why)
 
 
 def tool_results_heavy(facts: HintFacts) -> Hint | None:
@@ -103,7 +112,9 @@ def tool_results_heavy(facts: HintFacts) -> Hint | None:
         return None
     text = f"Tool results hold {round(share * 100)}% of the context ({context.tool_result_tokens:,} tokens)."
     remedy = "Leaving out what is not needed any more from old tool results."
-    return Hint("tool_results_heavy", text, remedy, ROADMAP_ITEM["tool_results_heavy"])
+    percent = round(TOOL_RESULTS_SHARE * 100)
+    why = Why(f"Tool results over {percent}% of the context are the first thing to trim.", "hint")
+    return Hint("tool_results_heavy", text, remedy, ROADMAP_ITEM["tool_results_heavy"], why)
 
 
 def mcp_share(facts: HintFacts) -> Hint | None:
@@ -126,7 +137,8 @@ def mcp_share(facts: HintFacts) -> Hint | None:
         return None
     text = f"The MCP server {server} holds {round(share * 100)}% of the tool definitions ({tokens:,} tokens)."
     remedy = "Turning off the tools of that server that this work does not use."
-    return Hint("mcp_share", text, remedy, ROADMAP_ITEM["mcp_share"])
+    why = Why(f"One MCP server holding over {round(MCP_SHARE * 100)}% of the tool definitions is worth a look.", "hint")
+    return Hint("mcp_share", text, remedy, ROADMAP_ITEM["mcp_share"], why)
 
 
 def session_hints(facts: HintFacts) -> list[Hint]:

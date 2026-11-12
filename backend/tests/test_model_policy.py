@@ -26,6 +26,7 @@ from app.core.model_policy import (
     agent_refusal,
     check_policy,
     model_refusal,
+    model_refusal_why,
     parse_level,
     widening_problem,
 )
@@ -321,3 +322,21 @@ def test_call_agent_to_an_agent_outside_the_policy_is_refused_before_asking(clie
     output, is_error = asyncio.run(call_tool(registry_, run, "call_agent", {"agent": "helper", "message": "Hi"}))
     assert is_error and "the A2A agent helper is not allowed" in str(output)
     assert agent.requests == [] and run.events.empty()
+
+
+@pytest.mark.parametrize(
+    ("rules", "request_target", "layer"),
+    [
+        (policy((WORK, LOCAL_ONLY)), target(), "environment"),
+        (policy((WORK, LevelPolicy()), (SITE, LOCAL_ONLY)), target(), "project"),
+    ],
+)
+def test_a_refusal_carries_the_rule_and_the_layer_of_the_level_that_refused(rules, request_target, layer):
+    refusal = model_refusal_why(rules, request_target)
+    assert refusal is not None and refusal.text == model_refusal(rules, request_target)
+    assert (refusal.why.source, refusal.why.setting, refusal.why.layer) == ("model_policy", "model_policy", layer)
+    assert refusal.why.rule
+
+
+def test_an_allowed_model_has_no_refusal_reason():
+    assert model_refusal_why(policy(), target()) is None

@@ -21,6 +21,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy.orm import Session
 
 from app.core.goals import ACTIVE, open_goal
+from app.core.why import Why
 from app.providers.base import CacheTtl
 from app.providers.registry import ProviderSpec
 from app.storage.models import Conversation, Message
@@ -40,22 +41,50 @@ class CacheFacts:
     last_reply_at: datetime | None = None
 
 
-def choose_cache_ttl(facts: CacheFacts) -> CacheTtl:
+@dataclass(frozen=True)
+class CacheChoice:
+    """The cache lifetime chosen for a reply, with the rule that chose it."""
+
+    ttl: CacheTtl
+    why: Why
+
+
+def cache_why(rule: str) -> Why:
+    return Why(rule, "cache")
+
+
+def choose_cache_ttl(facts: CacheFacts) -> CacheChoice:
     if not facts.long_cache:
-        return "5m"
-    if facts.goal or facts.scheduled:
-        return "1h"
+        return CacheChoice("5m", cache_why("This connection has no long cache, so the five-minute cache is used."))
+    if facts.goal:
+        rule = "A turn of a goal can wait on long commands and approvals, so the cache lasts an hour."
+        return CacheChoice("1h", cache_why(rule))
+    if facts.scheduled:
+        rule = "A scheduled task runs without anyone at the screen, so the cache lasts an hour."
+        return CacheChoice("1h", cache_why(rule))
     if facts.last_reply_at is not None and facts.now - facts.last_reply_at > LONG_PAUSE:
-        return "1h"
-    return "5m"
+        minutes = int(LONG_PAUSE.total_seconds() // 60)
+        rule = (
+            f"The previous reply came more than {minutes} minutes ago, so the next message is likely to be slow too: "
+            "the cache lasts an hour."
+        )
+        return CacheChoice("1h", cache_why(rule))
+    return CacheChoice("5m", cache_why("A quick follow-up keeps the five-minute cache warm."))
 
 
 def reply_cache_ttl(
     session: Session, conversation: Conversation, branch: Sequence[Message], spec: ProviderSpec
 ) -> CacheTtl:
     """The cache TTL for a reply to the last message of branch."""
+    return reply_cache_choice(session, conversation, branch, spec).ttl
+
+
+def reply_cache_choice(
+    session: Session, conversation: Conversation, branch: Sequence[Message], spec: ProviderSpec
+) -> CacheChoice:
+    """The cache lifetime and its reason for a reply to the last message of branch."""
     if not spec.long_cache:
-        return "5m"
+        return choose_cache_ttl(CacheFacts(long_cache=False, now=datetime.now(UTC)))
     goal = open_goal(session, conversation.id)
     replies = [message for message in branch if message.role == "assistant"]
     facts = CacheFacts(

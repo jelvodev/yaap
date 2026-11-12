@@ -1,7 +1,7 @@
 """The permission decision as a pure function: each rule of app.agent.permissions in one table."""
 
 import dataclasses
-from typing import Any
+from typing import Any, get_args
 
 import pytest
 
@@ -13,6 +13,7 @@ from app.agent.permissions import (
     Verdict,
     decide,
     outside_content_reason,
+    permission_why,
 )
 from app.agent.policy import AccessLevel, ToolPolicy
 from app.agent.tools import TOOLS_BY_NAME
@@ -228,3 +229,53 @@ def test_a_decision_cannot_be_changed() -> None:
     with pytest.raises(dataclasses.FrozenInstanceError):
         decision.verdict = "allow"  # type: ignore[misc]  # checking that the frozen dataclass refuses the change
     assert isinstance(decision, PermissionDecision)
+
+
+WHY_CASES = [
+    ("read_only", "write_file", "access", "conversation"),
+    ("permission", "run_command", "tool_permissions", None),
+    ("permission", "git_push", None, None),
+    ("allowlisted", "run_command", "command_allowlist", None),
+    ("allowlisted", "web_fetch", "web_allowlist", None),
+    ("outside_content", "write_file", "injection_check", None),
+    ("full_access", "run_command", "access", "conversation"),
+    ("secret", "run_command", None, None),
+    ("cannot_roll_back", "write_file", None, None),
+    ("unattended", "run_command", None, None),
+    ("model_policy", "call_agent", "model_policy", None),
+    ("secret_not_allowed", "write_file", None, None),
+    ("unknown_secret", "run_command", None, None),
+    ("auto", "read_file", None, None),
+    ("asks_itself", "install_skill", None, None),
+]
+
+
+@pytest.mark.parametrize(
+    ("reason", "tool_name", "setting", "layer"),
+    [pytest.param(*case, id=f"{case[0]}-{case[1]}") for case in WHY_CASES],
+)
+def test_every_reason_has_a_rule_with_its_setting(reason: Reason, tool_name: str, setting, layer) -> None:
+    why = permission_why(reason, tool_name, run())
+    assert why.rule
+    source = "model_policy" if reason == "model_policy" else "permission"
+    assert (why.source, why.setting, why.layer) == (source, setting, layer)
+
+
+def test_every_reason_is_covered_by_the_why_table() -> None:
+    assert {case[0] for case in WHY_CASES} == set(get_args(Reason))
+
+
+@pytest.mark.parametrize(
+    ("call", "facts", "setting"),
+    [
+        pytest.param(WRITE, run("read_only"), "access", id="read only"),
+        pytest.param(RUN, run(), "tool_permissions", id="asks"),
+        pytest.param(ALLOWLISTED, run(), "command_allowlist", id="allowlisted"),
+        pytest.param(WRITE, run(outside_sources=OUTSIDE), "injection_check", id="guard"),
+        pytest.param(RUN, run(unattended=True), None, id="unattended"),
+    ],
+)
+def test_a_decision_carries_the_rule_that_decided_it(call, facts, setting) -> None:
+    decision = decide(call[0], call[1], facts)
+    assert decision.why is not None and decision.why.rule
+    assert decision.why.source == "permission" and decision.why.setting == setting
