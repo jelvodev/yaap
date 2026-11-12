@@ -163,3 +163,11 @@ agents, `metadata.sources` for skills, as `<repository>/<path>` or `own` for YAA
 | Skill | `prompt-design` | [agency-agents: engineering-prompt-engineer.md](https://github.com/msitarzewski/agency-agents/blob/main/engineering/engineering-prompt-engineer.md) |
 | Skill | `research-and-summarise` | own |
 | Agent | `researcher` | own |
+
+### Built-in
+
+YAAP's own built-in items are written for YAAP. The one you work with directly:
+
+| Kind | Item | Sources |
+|---|---|---|
+| Skill | `specification` | own |
