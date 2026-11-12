@@ -38,7 +38,7 @@ function invalidPlanErrors(error: unknown): string[] | null {
 }
 
 /** The message of a refused build action: the 409 detail is `{code, message}`. */
-function refusalMessage(error: unknown, fallback: string): string {
+export function refusalMessage(error: unknown, fallback: string): string {
   if (error && typeof error === "object" && "detail" in error) {
     const detail: unknown = error.detail;
     if (detail && typeof detail === "object" && "message" in detail && typeof detail.message === "string") {

@@ -64,6 +64,13 @@ export function useCommands(
     if (inProject && !commands.some((entry) => entry.name === "plan")) {
       commands.push({ name: "plan", summary: "Make a plan without changing anything; approve it to build" });
     }
+    // /card is built in: in a project, unless the Blueprint has its own command named card.
+    if (inProject && !commands.some((entry) => entry.name === "card")) {
+      commands.push({
+        name: "card",
+        summary: "Make a card on the project board from a request; /card <title or request>",
+      });
+    }
     // /eval is built in: in a project, unless the Blueprint has its own command named eval.
     if (inProject && !commands.some((entry) => entry.name === "eval")) {
       commands.push({ name: "eval", summary: "Run the project's eval cases; /eval <case> for one" });
