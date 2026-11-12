@@ -12,6 +12,7 @@ from app.agent.file_tools import DEFAULT_READ_LINES
 from app.core.chat_history import is_part_of_history
 from app.core.context_control import ContextControl, resolve_context_control
 from app.core.context_savings import context_savings_on
+from app.core.reply_notes import TRIM_TEXT, note_on_reply
 from app.core.summaries import KEEP_TURNS, latest_summary
 from app.core.why import Why, WhySource
 from app.providers.anthropic_provider import TURNS_BLOCK_TYPE
@@ -19,6 +20,7 @@ from app.providers.base import HistoryMessage
 from app.providers.openai_provider import ITEMS_BLOCK_TYPE
 from app.providers.registry import ProviderRegistry
 from app.storage.models import Conversation, Message
+from app.tracing.notes import Note
 
 LONG_OUTPUT = 2000
 KEEP_CHARS = 600
@@ -201,7 +203,7 @@ def context_savings_for(session: Any, branch: list[Message]) -> bool:
     return conversation is not None and context_savings_on(session, conversation.environment_id)
 
 
-def mark_trim(session: Any, branch: list[Message]) -> bool:
+def mark_trim(session: Any, branch: list[Message], why: Why | None = None) -> bool:
     point = trim_point(branch)
     if point is None:
         return False
@@ -212,6 +214,7 @@ def mark_trim(session: Any, branch: list[Message]) -> bool:
         block["stale"] = sorted(stale_reads(branch) & reads_up_to_point)
     message.content = [*(item for item in message.content if item.get("type") != "trim"), block]
     session.commit()
+    note_on_reply(session, message.conversation_id, branch[-1].id, Note("trim", TRIM_TEXT, why))
     return True
 
 

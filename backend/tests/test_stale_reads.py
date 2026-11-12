@@ -1,11 +1,16 @@
 """Reads that went stale: at a trim point the result of a read of a file edited later becomes a stub."""
 
+from datetime import UTC, datetime
+
 import pytest
+from sqlalchemy import func, select
 
 from app.core.settings import SETTING_DEFINITIONS, store_setting
 from app.core.trimming import apply_trim, mark_trim, stale_reads
 from app.providers.base import HistoryMessage
-from app.storage.models import Message
+from app.core.why import Why
+from app.storage.models import AgentRunRecord, Message, RunStep
+from app.tracing.notes import run_notes
 from tests.test_chat import start_conversation
 
 LONG = "x" * 5000
@@ -134,3 +139,34 @@ def test_the_stub_names_the_lines_or_the_outline(extra, expected):
     branch[1].content.append({"type": "trim", "stale": ["r"]})
     history = [HistoryMessage(role=item.role, content=item.content, provider_raw=item.provider_raw) for item in branch]
     assert apply_trim(branch, history)[1].provider_raw[0]["items"][0]["output"] == expected
+
+
+def test_marking_a_trim_writes_a_note_with_its_reason_on_the_replys_run(client):
+    conversation_id = start_conversation(client)
+    why = Why("The context reached 90%.", "trim", "trim_at")
+    with client.app.state.session_factory() as session:
+        branch = trim_branch(conversation_id)
+        session.add_all(branch)
+        session.commit()
+        session.add(AgentRunRecord(
+            environment_id=1, conversation_id=conversation_id, model="m", status="complete", message_id=branch[-1].id,
+            started_at=datetime.now(UTC),
+        ))
+        session.commit()
+
+        assert mark_trim(session, branch, why)
+
+        (view,) = run_notes(session, session.scalars(select(AgentRunRecord.id)).all())
+    assert view.note.kind == "trim" and view.note.why == why
+
+
+def test_marking_a_trim_without_a_run_for_the_reply_writes_no_note(client):
+    conversation_id = start_conversation(client)
+    with client.app.state.session_factory() as session:
+        branch = trim_branch(conversation_id)
+        session.add_all(branch)
+        session.commit()
+
+        assert mark_trim(session, branch)
+
+        assert session.scalar(select(func.count()).select_from(RunStep)) == 0

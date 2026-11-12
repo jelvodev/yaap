@@ -27,7 +27,7 @@ from app.attachments.files import AttachmentError
 from app.attachments.service import AttachmentResolver, claim_attachments, conversation_attachments
 from app.blueprint.check import is_read_only_check
 from app.core.audit import record_request, reply_entry, with_refusal
-from app.core.cache_policy import reply_cache_ttl
+from app.core.cache_policy import reply_cache_choice
 from app.core.budget_stop import both_listeners, reply_budget_guard, with_budget_stop
 from app.core.chat import build_request, stream_reply
 from app.core.chat_history import add_user_message, load_branch
@@ -52,6 +52,7 @@ from app.core.reply_events import (
     with_summary_check,
 )
 from app.core.reply_blueprint_versions import record_blueprint_versions
+from app.core.reply_notes import cache_note, record_reply_notes
 from app.core.reply_repo_map import with_repo_map
 from app.core.reply_routing import route_reply
 from app.core.reply_run import reply_model_trace, run_folder, start_agent_run
@@ -144,13 +145,8 @@ class ReplyService:
             messages = list(request.history)
         else:
             messages = with_turn_context(agent_request.messages, setup.turn_context)
-        agent_request = replace(
-            agent_request,
-            model=model,
-            effort=effort,
-            messages=messages,
-            cache_ttl=reply_cache_ttl(session, conversation, branch, setup.provider_spec),
-        )
+        cache = reply_cache_choice(session, conversation, branch, setup.provider_spec)
+        agent_request = replace(agent_request, model=model, effort=effort, messages=messages, cache_ttl=cache.ttl)
         conversation_id = conversation.id
         guard = reply_budget_guard(
             session, lambda: services.replies.cancel(conversation_id), conversation.environment_id
@@ -165,6 +161,7 @@ class ReplyService:
             entry = reply_entry(conversation, setup.provider_spec, agent_request, setup.project_data, bool(attachments))
             record_request(services.session_factory, with_refusal(entry, request_refusal(agent_request, setup.outgoing)))
             trace = reply_model_trace(services, session, conversation, setup, run, on_step)
+            record_reply_notes(trace, [*setup.notes, cache_note(cache)])
             billing: Billing = "metered" if setup.provider_spec.metered else "subscription"
             provider = traced_provider(checked_provider(setup.provider_spec.create(setup.api_key), setup.outgoing), trace)
             events = stream_reply(

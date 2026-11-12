@@ -144,6 +144,13 @@ def masked_forms(value: str) -> set[str]:
     return {form for form in forms if len(form) >= MIN_MASK_CHARS}
 
 
+def masked_names(text: str, secrets: dict[str, str]) -> list[str]:
+    """The names, sorted, of the secrets whose value occurs in text in any form `mask` replaces."""
+    if not secrets or not text:
+        return []
+    return sorted(name for name, value in secrets.items() if any(form in text for form in masked_forms(value)))
+
+
 def mask(text: str, secrets: dict[str, str]) -> str:
     if not secrets or not text:
         return text

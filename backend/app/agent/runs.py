@@ -28,6 +28,7 @@ from app.checkpoints.service import CheckpointStore
 from app.core.goals import GoalHandle
 from app.core.model_policy import ModelPolicy
 from app.core.search import RunSearch
+from app.core.why import Why
 from app.targets.ssh import SshTarget
 from app.tracing.recorder import TraceRecorder
 from app.websearch.service import SearchProvider
@@ -468,8 +469,9 @@ class RunRegistry:
         detail: str,
         reason: str | None = None,
         suspicion: str | None = None,
+        why: Why | None = None,
     ) -> ApprovalAnswer:
-        return await ask_approval_answer(run, tool, summary, detail, reason, suspicion)
+        return await ask_approval_answer(run, tool, summary, detail, reason, suspicion, why)
 
     def decide(self, approval_id: str, decision: Decision, reason: str | None = None) -> bool:
         """The user's decision, with the reason they gave (kept on the tool's step as a learning signal)."""
@@ -494,7 +496,13 @@ async def ask_approval(
 
 
 async def ask_approval_answer(
-    run: AgentRun, tool: str, summary: str, detail: str, reason: str | None = None, suspicion: str | None = None
+    run: AgentRun,
+    tool: str,
+    summary: str,
+    detail: str,
+    reason: str | None = None,
+    suspicion: str | None = None,
+    why: Why | None = None,
 ) -> ApprovalAnswer:
     """ask_approval with the reason the user gave for their decision."""
     if run.unattended:
@@ -521,6 +529,7 @@ async def ask_approval_answer(
             "detail": detail,
             "reason": reason,
             "suspicion": suspicion,
+            "why": why.stored() if why else None,
         }
     )
     try:
