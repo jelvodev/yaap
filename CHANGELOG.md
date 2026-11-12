@@ -28,6 +28,8 @@ yourself when you update; it says "None." when there is nothing.
 - The context savings switch is on the Context tab in Settings.
 - Coming back to a long conversation after its prompt cache has expired shows, before the next send, what continuing costs (estimated; tokens on a subscription), with *Summarise first* (YAAP's own loop), *New conversation from a summary* (every connection) and *Just send*. Nothing happens by itself.
 - A conversation started from a summary links to the earlier one in its heading, and the earlier one links to it.
+- An eval case can approve calls up front with `approve` (`tools` and plain `commands`): in that case's own play they pass the injection guard after the run has read outside content, such as an MCP server's output. Only file edits, renames, local commits and listed commands can be approved; ordinary conversations keep the guard as before, and the play's trace shows each call the case approved.
+- The baseline case tracker-csv-export approves its edits and the unit test command, so it can pass after reading its issue from the tracker.
 
 ### Action needed
 
