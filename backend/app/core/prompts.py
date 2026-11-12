@@ -25,8 +25,8 @@ def language_lines(languages: Languages) -> str:
         reply = f"- Reply in {languages.reply}, whatever language the user writes in."
     else:
         reply = (
-            "- Reply in the language of the user's latest message. When the user writes Dutch, answer in Dutch; when "
-            "they write English, answer in English. Follow the user when they switch."
+            "- Reply in the language of the user's latest message, whatever language earlier messages, files or "
+            "these instructions are in. Follow the user when they switch."
         )
     if languages.work.casefold() == ENGLISH.casefold():
         work = (
