@@ -13,9 +13,17 @@ yourself when you update; it says "None." when there is nothing.
 - Edit the block in the project's Memory tab (with a character counter, Save and Revert). A new conversation in a project shows it, with *Continue from here* and *Edit*.
 - New API: `GET` and `PUT /api/v1/projects/{id}/current-state`.
 
+- A board per project, kept as Markdown files on the project's own `yaap-board` branch. YAAP writes that branch without touching your work tree, your index or the branch you have checked out. Changes made close together go into one commit ("Board: 3 cards added, 1 moved").
+- Cards move from Inbox through Idea, Design, Plan, Build and Review to Done under fixed rules. A move that is not allowed is refused with a sentence that says why, for example "Use Approve and build on the plan." Every card shows what is needed next and who does it.
+- Versions with a budget show their progress and what their cards have cost so far, from the usage of the cards' conversations. From 80 % of the budget a version is shown as nearly spent.
+- Cards you edit by hand on the branch are picked up. A card file that cannot be read is listed as broken, with its error, and YAAP never rewrites it.
+- New settings: *Project board* (global, environment and project level; on by default) and *Push the board* (project level; off by default).
+  - With the board switched off, the board's files are kept but not used.
+  - Pushing sends only the `yaap-board` branch. YAAP asks for confirmation when the remote is public, or when it cannot tell whether it is.
+
 ### Action needed
 
-None.
+- `git push --all` and `git push --mirror` also push the `yaap-board` branch, and with it every card, specification and plan. On a public repository, push your branches one by one.
 
 ## 0.7.0 (2026-11-12)
 
