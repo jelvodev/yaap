@@ -89,9 +89,10 @@ def read_base(place: Repository) -> BuildBase:
     return BuildBase(branch or None, commit, uncommitted)
 
 
-def branch_exists(place: Repository, branch: str) -> bool:
+def branch_tip(place: Repository, branch: str) -> str | None:
+    """The commit the project's branch points at, or None when it does not exist."""
     found = run_git(["rev-parse", "--verify", "--quiet", f"{BRANCH_PREFIX}{branch}"], place, accept_exit_codes=(0, 1))
-    return found.exit_code == 0
+    return found.stdout.strip() if found.exit_code == 0 else None
 
 
 def bundle_header(data: bytes) -> tuple[tuple[str, ...], tuple[tuple[str, str], ...]]:
@@ -171,14 +172,18 @@ def copy_tip(copy: Repository, branch: str) -> str:
     return run_git(["rev-parse", "--verify", f"{BRANCH_PREFIX}{branch}^{{commit}}"], copy).stdout.strip()
 
 
-def deliver_build(place: Repository, copy: Repository, branch: str, base_commit: str, commit: str) -> bool:
-    """Bring the build branch at `commit` (the commit the build recorded) into the project as a new branch. False when
-    there is nothing to bring (no step was committed). Raises BuildCopyError when the branch exists, the bundle holds
-    anything else, or the commit does not descend from the base."""
-    if commit == base_commit:
+def deliver_build(
+    place: Repository, copy: Repository, branch: str, base_commit: str, commit: str, previous: str | None = None
+) -> bool:
+    """Bring the build branch at `commit` (the commit the build recorded) into the project. The branch is created,
+    or, for a build that goes on after it delivered `previous`, moved on from exactly that commit. False when there is
+    nothing new to bring. Raises BuildCopyError when the branch exists otherwise, the bundle holds anything else, or
+    the commit does not descend from the base."""
+    if commit in (base_commit, previous):
         return False
     try:
-        if branch_exists(place, branch):
+        existing = branch_tip(place, branch)
+        if existing is not None and existing != previous:
             raise BuildCopyError(f"The branch {branch} already exists in the project; it was left as it is.")
         data = bundle_create(copy, [f"{BRANCH_PREFIX}{branch}", f"^{base_commit}"], timeout=COPY_TIMEOUT_SECONDS)
         check_build_bundle(bundle_header(data)[1], branch, commit)
@@ -186,7 +191,7 @@ def deliver_build(place: Repository, copy: Repository, branch: str, base_commit:
         descends = run_git(["merge-base", "--is-ancestor", base_commit, commit], place, accept_exit_codes=(0, 1))
         if descends.exit_code != 0:
             raise BuildCopyError(f"{commit[:12]} does not descend from the build's base commit; nothing was brought.")
-        run_git(["update-ref", f"{BRANCH_PREFIX}{branch}", commit, ""], place)
+        run_git(["update-ref", f"{BRANCH_PREFIX}{branch}", commit, existing or ""], place)
     except GitError as error:
         raise BuildCopyError(str(error)) from error
     return True

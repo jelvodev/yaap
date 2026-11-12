@@ -9,6 +9,7 @@ from sqlalchemy import CursorResult, select, update
 from sqlalchemy.orm import Session
 
 from app.plans.model import Plan, PlanStatus, plan_from_json, plan_to_json
+from app.plans.progress import BuildInfo, build_info_to_json
 from app.plans.models import PlanRecord
 
 
@@ -66,3 +67,18 @@ class PlanStore:
             return {}
         rows = self.session.scalars(select(PlanRecord).where(PlanRecord.id.in_(wanted)))
         return {row.id: plan_from_json(row.body) for row in rows}
+
+    def building_in_project(self, project_id: int, other_than: int) -> PlanRecord | None:
+        """Another plan of the project that is being built."""
+        return self.session.scalar(
+            select(PlanRecord).where(
+                PlanRecord.project_id == project_id, PlanRecord.status == "building", PlanRecord.id != other_than
+            )
+        )
+
+    def with_status(self, statuses: Iterable[PlanStatus]) -> list[PlanRecord]:
+        return list(self.session.scalars(select(PlanRecord).where(PlanRecord.status.in_(list(statuses)))))
+
+    def save_progress(self, record: PlanRecord, plan: Plan, build: BuildInfo) -> None:
+        """The plan with its steps' state and the build's own facts (body["build"])."""
+        record.body = {**plan_to_json(plan), "build": build_info_to_json(build)}
