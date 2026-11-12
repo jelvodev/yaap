@@ -6,6 +6,13 @@ yourself when you update; it says "None." when there is nothing.
 
 ## Unreleased
 
+- `/plan <what>` in a project conversation makes a plan without changing anything: the reply is read only, and the agent hands over its plan as a card with numbered steps, the files each touches, the checks that prove it and the risks. The card can be edited in place or discarded; a new `/plan` replaces the earlier draft. Exports show the plan as a checklist.
+- Work that a read-only reply delegates is read only too: a sub-run never gets more access than the reply that started it.
+- Each project's memory now has a short **Current state** block: where the work stands, what is open and the next step. Every conversation of the project reads it on every turn, so new work picks up where the last stopped.
+- The agent keeps it up to date with the new `update_current_state` tool, at the end of a goal or a build and when you stop long work. When it does not, a background task (*Current state of projects*, switchable under Background tasks) rewrites it after a goal ends or a long conversation goes quiet; your own edits always win.
+- Edit the block in the project's Memory tab (with a character counter, Save and Revert). A new conversation in a project shows it, with *Continue from here* and *Edit*.
+- New API: `GET` and `PUT /api/v1/projects/{id}/current-state`.
+
 ### Action needed
 
 None.
