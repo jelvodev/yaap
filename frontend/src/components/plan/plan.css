@@ -142,7 +142,8 @@
 }
 
 .plan-error,
-.plan-errors {
+.plan-errors,
+.plan-failure {
   color: var(--danger);
 }
 
@@ -194,6 +195,108 @@
   font-family: var(--mono) !important;
 }
 
+.plan-hint {
+  margin: 6px 0 0;
+}
+
+.plan-failure {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.plan-progress-line,
+.plan-build-info {
+  margin: 6px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.plan-mark {
+  min-width: 20px;
+  text-align: center;
+  color: var(--faint);
+}
+
+.plan-step[data-status="done"] .plan-mark {
+  color: var(--ok);
+}
+
+.plan-step[data-status="failed"] .plan-mark {
+  color: var(--danger);
+}
+
+.plan-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  min-width: 12px;
+  margin: 0 4px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: plan-spin 0.8s linear infinite;
+}
+
+@keyframes plan-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.plan-commit {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.plan-attempts {
+  margin-left: 28px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.plan-note {
+  margin-left: 28px;
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.plan-note p {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.plan-wait {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+}
+
+.plan-final-checks {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+}
+
+.plan-final-checks li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.plan-final-checks li[data-outcome="passed"] .plan-outcome {
+  color: var(--ok);
+}
+
+.plan-final-checks li[data-outcome="failed"] .plan-outcome {
+  color: var(--danger);
+}
+
 @media (max-width: 640px) {
   .plan-actions,
   .plan-editor-step-head {
@@ -203,7 +306,9 @@
 
   .plan-step-details,
   .plan-files,
-  .plan-checks {
+  .plan-checks,
+  .plan-attempts,
+  .plan-note {
     margin-left: 0;
   }
 }
