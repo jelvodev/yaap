@@ -27,6 +27,7 @@ from app.blueprint.layers import Layer
 from app.checkpoints.service import CheckpointStore
 from app.core.goals import GoalHandle
 from app.core.model_policy import ModelPolicy
+from app.plans.service import PlanService
 from app.core.search import RunSearch
 from app.core.why import Why
 from app.targets.ssh import SshTarget
@@ -175,10 +176,13 @@ class RunServices:
     trace: TraceRecorder | None = None
     # The project's language servers, where a server for one of its languages can run (the code tools).
     code_intel: "CodeIntel | None" = None
+    # Where submit_plan stores a plan; only a top-level run in a project has it.
+    plans: PlanService | None = None
 
     def for_child(self) -> "RunServices":
-        """A sub-run uses its parent's services, but cannot delegate or end the conversation's goal."""
-        return replace(self, delegator=None, goal=None)
+        """A sub-run uses its parent's services, but cannot delegate, end the conversation's goal or hand over a
+        plan."""
+        return replace(self, delegator=None, goal=None, plans=None)
 
 
 @dataclass
@@ -396,6 +400,10 @@ class AgentRun:
     @property
     def goal(self) -> GoalHandle | None:
         return self.services.goal
+
+    @property
+    def plans(self) -> PlanService | None:
+        return self.services.plans
 
     @property
     def trace(self) -> TraceRecorder | None:

@@ -819,6 +819,88 @@
       "conditional": false
     },
     {
+      "name": "submit_plan",
+      "description": "Hand over your plan, once, at the end of planning: a title, a short summary, the risks and the steps, each with the files it touches and the checks that prove it. The user sees it as a draft, edits it and approves it before anything is built. Returns the plan's number, or every problem to fix.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "risks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "details": {
+                  "type": "string",
+                  "description": "What to change and why."
+                },
+                "files": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Paths relative to the project, with /."
+                },
+                "checks": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "text": {
+                        "type": "string",
+                        "description": "How a person knows the step is done."
+                      },
+                      "run": {
+                        "type": "string",
+                        "description": "Optional: one command line YAAP runs to prove it, such as a test or a type check."
+                      }
+                    },
+                    "required": [
+                      "text"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "1 to 10 checks that prove the step."
+                }
+              },
+              "required": [
+                "title",
+                "checks"
+              ],
+              "additionalProperties": false
+            },
+            "description": "1 to 30 steps, in build order."
+          }
+        },
+        "required": [
+          "title",
+          "steps"
+        ],
+        "additionalProperties": false
+      },
+      "permission": "auto",
+      "scope": "project",
+      "read_only": false,
+      "asks_itself": false,
+      "takes_secrets": false,
+      "describes": false,
+      "conditional": false
+    },
+    {
       "name": "list_attachment",
       "description": "List the conversation's attachments, or the files inside a zip or folder attachment (optionally below a path).",
       "input_schema": {
@@ -1040,6 +1122,7 @@
   "conditional_tools": {
     "delegate": "delegator",
     "finish_goal": "goal",
+    "submit_plan": "plans",
     "search_project": "searcher",
     "read_knowledge": "searcher",
     "web_search": "web_search",

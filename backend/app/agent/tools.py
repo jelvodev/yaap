@@ -16,6 +16,7 @@ from app.agent.file_tools import FILE_TOOLS
 from app.agent.git_tools import GIT_TOOLS
 from app.agent.on_demand_tools import ON_DEMAND_TOOLS
 from app.agent.output_tools import OUTPUT_TOOLS
+from app.agent.plan_tools import PLAN_TOOLS
 from app.agent.process_tools import PROCESS_TOOLS
 from app.agent.runs import AgentRun
 from app.agent.search_tools import SEARCH_TOOLS
@@ -34,6 +35,7 @@ TOOLS: list[Tool] = [
     *SEARCH_TOOLS,
     *CODE_TOOLS,
     *DELEGATION_TOOLS,
+    *PLAN_TOOLS,
     *ATTACHMENT_TOOLS,
     *SKILL_TOOLS,
     *DOCUMENT_TOOLS,
@@ -47,6 +49,7 @@ ON_DEMAND_NAMES = frozenset(tool.name for tool in ON_DEMAND_TOOLS)
 CONDITIONAL_TOOLS = {
     "delegate": "delegator",
     "finish_goal": "goal",
+    "submit_plan": "plans",
     "search_project": "searcher",
     "read_knowledge": "searcher",
     "web_search": "web_search",

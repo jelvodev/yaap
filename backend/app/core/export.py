@@ -6,12 +6,16 @@ Markdown but kept in JSON. Attachments are listed by name; their files are not p
 
 import json
 import re
+from collections.abc import Mapping
 from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.chat_history import load_branch
+from app.plans.markdown import plan_markdown
+from app.plans.model import Plan
+from app.plans.store import PlanStore
 from app.storage.models import Conversation, Environment, Message, Project, UsageRecord
 
 TOOL_OUTPUT_LIMIT = 4000
@@ -48,8 +52,11 @@ def speaker(message: Message, conversation: Conversation) -> str:
     return f"YAAP · {conversation.agent}" if conversation.agent else "YAAP"
 
 
-def markdown_block(block: dict[str, Any]) -> str | None:
+def markdown_block(block: dict[str, Any], plans: Mapping[int, Plan] | None = None) -> str | None:
     kind = block.get("type")
+    if kind == "plan":
+        plan = (plans or {}).get(int(block.get("plan_id") or 0))
+        return plan_markdown(plan) if plan is not None else f"*Plan {block.get('plan_id')} (no longer stored)*"
     if kind == "text":
         return str(block.get("text") or "").strip() or None
     if kind == "attachment":
@@ -91,8 +98,15 @@ def to_markdown(session: Session, conversation: Conversation) -> str:
         f"Started: {conversation.created_at:%Y-%m-%d %H:%M} UTC",
     ]
     lines = [f"# {conversation.title}", "", " · ".join(item for item in details if item), ""]
-    for message in load_branch(session, conversation.id, conversation.head_message_id):
-        blocks = [rendered for block in message.content or [] if (rendered := markdown_block(block))]
+    branch = load_branch(session, conversation.id, conversation.head_message_id)
+    plans = PlanStore(session).plans_by_id(
+        int(block.get("plan_id") or 0)
+        for message in branch
+        for block in message.content or []
+        if block.get("type") == "plan"
+    )
+    for message in branch:
+        blocks = [rendered for block in message.content or [] if (rendered := markdown_block(block, plans))]
         if message.error:
             blocks.append(f"*Error: {message.error}*")
         elif message.status not in ("complete", "streaming"):

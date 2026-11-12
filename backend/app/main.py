@@ -66,6 +66,7 @@ from app.api import openai_endpoints as openai_endpoints_api
 from app.api import tasks as tasks_api
 from app.api import estimates as estimates_api
 from app.api import reviews as reviews_api
+from app.api import plans as plans_api
 from app.api import second_opinion as second_opinion_api
 from app.api import github as github_api
 from app.api import targets as targets_api
@@ -398,6 +399,7 @@ def create_app(
     api.include_router(tasks_api.router)
     api.include_router(estimates_api.router)
     api.include_router(reviews_api.router)
+    api.include_router(plans_api.router)
     api.include_router(second_opinion_api.router)
     api.include_router(files_api.router)
     api.include_router(speech_api.router)
