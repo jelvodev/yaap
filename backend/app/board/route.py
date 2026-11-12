@@ -11,6 +11,7 @@ import asyncio
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Protocol
 
 import anyio
@@ -24,6 +25,7 @@ from app.board.errors import (
     BoardNotStarted,
     BoardOff,
     CardBroken,
+    InvalidCard,
     MoveRefused,
     NoPlan,
     NothingToReviewOnCard,
@@ -42,6 +44,9 @@ from app.plans.model import PlanEvent, PlanStatus
 from app.plans.models import PlanRecord
 from app.plans.runner import BuildRunner
 from app.plans.service import PlanNotFound, PlanService, PlanView
+from app.reviews.criteria_checks import card_criteria, check_on_copy, criteria_commands
+from app.reviews.evidence import NO_PREVIEW, Evidence, TraceRef, assemble, evidence_from_json, evidence_markdown
+from app.reviews.evidence import plan_checks as plan_check_runs
 from app.reviews.scope import BuildTarget, NothingToReview
 from app.reviews.service import ReviewService
 from app.storage.models import Review
@@ -71,6 +76,32 @@ def can_plan(facts: CardFacts) -> bool:
     if facts.broken:
         return False
     return facts.column == "design" or (facts.column == "plan" and facts.plan_status not in PLAN_IN_HAND)
+
+
+def with_evidence(card: Card, evidence: Evidence | None, now: datetime) -> Card:
+    """The card with `## Evidence` as the summary of its review's evidence, when there is any."""
+    changes: dict[str, object] = {"updated": now}
+    if evidence is not None:
+        changes["evidence"] = evidence_markdown(evidence)
+    return revise(card, changes)
+
+
+def send_back_reason(
+    findings: list[dict[str, object]], evidence: Evidence | None, finding: int | None, criterion: int | None
+) -> str | None:
+    """The reason a card is sent back with: one finding of its review, or one criterion that failed or was judged
+    not met; None when the choice names neither."""
+    if finding is not None and 0 <= finding < len(findings):
+        item = findings[finding]
+        line = item.get("line")
+        where = f"{item.get('path')}:{line}" if line else str(item.get("path"))
+        return f"Review finding ({item.get('severity')}) in {where}: {item.get('explanation')}"
+    if criterion is not None and evidence is not None:
+        for item in evidence.criteria:
+            if item.number == criterion and item.status in ("failed", "judged_not_met"):
+                note = f" {item.note}" if item.note else ""
+                return f"Acceptance criterion {item.number} is not met: {item.text}.{note}"
+    return None
 
 
 def refused(outcome: Refusal) -> MoveRefused:
@@ -300,19 +331,90 @@ class CardRoute:
             )
         if running is not None:
             raise ActionRunning("The card's review is running.")
-        target = BuildTarget(
-            view.base_commit, view.build_branch, f"#{card_id}: {view.plan.title}", view.conversation_id, card_id
-        )
+        objective = f"#{card_id}: {view.plan.title}\n\n{plan_markdown(view.plan)}"
+        target = BuildTarget(view.base_commit, view.build_branch, objective, view.conversation_id, card_id)
+        evidence = self.gathered_evidence(view, card_id)
         try:
-            review_id = ReviewService(self.services()).start_for_branch(view.project_id, target)
+            review = ReviewService(self.services(), self.review_ended)
+            review_id = review.start_for_branch(view.project_id, target, evidence)
         except NothingToReview as error:
             raise NothingToReviewOnCard(str(error)) from error
+        evidence_now = self.stored_evidence(review_id)
         self.write_stage(
             view.project_id,
             card_id,
-            lambda card: revise(with_review(card, review_id), {"updated": self.board.clock()}),
+            lambda card: with_evidence(with_review(card, review_id), evidence_now, self.board.clock()),
         )
         return review_id
+
+    # --- Evidence ----------------------------------------------------------------------------------------------------
+
+    def criteria_commands(self, view: PlanView) -> tuple[str, ...]:
+        """The card's criteria commands that approving its plan approves too (BuildRunner.approved_extras); none for
+        a plan without a card or when the card cannot be read. Blocking."""
+        card_id = view.card_id if view.card_id is not None else self.plan_card(view)
+        if card_id is None:
+            return ()
+        try:
+            card, _facts = self.card_and_facts(view.project_id, card_id)
+        except BoardError:
+            return ()
+        return criteria_commands(card_criteria(card.specification))
+
+    def gathered_evidence(self, view: PlanView, card_id: int) -> Evidence:
+        """YAAP's own evidence for the review: the plan's checks as the build ran them and the card's command and file
+        criteria checked on the build's copy. In a worker thread."""
+        try:
+            card, _facts = self.card_and_facts(view.project_id, card_id)
+            criteria = card_criteria(card.specification)
+        except BoardError:
+            criteria = []
+        checks = anyio.from_thread.run(check_on_copy, self.services(), view, criteria) if criteria else []
+        trace = TraceRef(view.conversation_id, view.build_run_id)
+        return assemble(criteria, checks, plan_check_runs(view.plan, view.build.final_checks), trace, (NO_PREVIEW,))
+
+    def stored_evidence(self, review_id: int) -> Evidence | None:
+        with self.services().session_factory() as session:
+            review = session.get(Review, review_id)
+            return evidence_from_json(review.evidence) if review is not None else None
+
+    def review_ended(self, review_id: int) -> None:
+        """A card's review ended: its evidence with the reviewer's verdicts goes into the card as `## Evidence`.
+        Blocking."""
+        with self.services().session_factory() as session:
+            review = session.get(Review, review_id)
+            if review is None or review.card_id is None:
+                return
+            project_id, card_id, evidence = review.project_id, review.card_id, evidence_from_json(review.evidence)
+        if evidence is None:
+            return
+
+        def change(card: Card) -> Card | None:
+            if card.links.review_id not in (None, review_id):
+                return None  # A newer review is the card's by now.
+            return with_evidence(card, evidence, self.board.clock())
+
+        try:
+            self.write_stage(project_id, card_id, change)
+        except (BoardOff, BoardNotStarted):
+            return
+        except BoardError as error:
+            logger.warning("Card #%s did not get the evidence of review %s: %s", card_id, review_id, error)
+
+    def send_back(self, project_id: int, card_id: int, finding: int | None, criterion: int | None) -> CardDetail:
+        """*Send back with the finding*: the card goes back to Design with one finding or unmet criterion of its
+        review in its description, so *Plan* plans the fix. The text is the stored review's, never the caller's.
+        Blocking."""
+        card, _facts = self.card_and_facts(project_id, card_id)
+        with self.services().session_factory() as session:
+            review = session.get(Review, card.links.review_id) if card.links.review_id is not None else None
+            if review is None or review.project_id != project_id or review.card_id != card_id:
+                raise NoPlan("The card has no review to send back from.")
+            reason = send_back_reason(review.findings or [], evidence_from_json(review.evidence), finding, criterion)
+        if reason is None:
+            raise InvalidCard("Choose a finding or an unmet criterion of the card's review.")
+        detail = self.board.apply_event(project_id, card_id, "send_back", "user", reason=reason)
+        return detail if detail is not None else self.board.get_card(project_id, card_id)
 
     def mark_done(self, project_id: int, card_id: int) -> CardDetail | None:
         return self.board.apply_event(project_id, card_id, "mark_done", "user")

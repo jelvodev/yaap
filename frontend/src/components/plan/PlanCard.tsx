@@ -60,6 +60,7 @@ export default function PlanCard({ planId }: { planId: number }) {
   const draft = plan.status === "draft";
   const tracked = ["building", "interrupted", "failed", "done"].includes(plan.status);
   const hasRunCommand = plan.steps.some((step) => step.checks.some((check) => check.run));
+  const criteriaCommands = plan.criteria_commands;
 
   if (isFolded(plan.status) && !unfolded) {
     return (
@@ -127,10 +128,24 @@ export default function PlanCard({ planId }: { planId: number }) {
                   Discard
                 </button>
               </div>
-              {hasRunCommand && (
+              {(hasRunCommand || criteriaCommands.length > 0) && (
                 <p className="plan-hint">
                   Approving runs these check commands in a copy of the project without asking.
                 </p>
+              )}
+              {criteriaCommands.length > 0 && (
+                <div className="plan-criteria-commands">
+                  <span className="plan-section-label">
+                    The card&apos;s acceptance criteria commands, run on the copy after the build:
+                  </span>
+                  <ul>
+                    {criteriaCommands.map((command) => (
+                      <li key={command}>
+                        <code className="plan-run">{command}</code>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </>
           )}

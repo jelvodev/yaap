@@ -11,8 +11,8 @@ the diff and the rules are replaced by placeholders before anything is stored or
 
 import logging
 import threading
-from collections.abc import Coroutine
-from dataclasses import dataclass, field
+from collections.abc import Callable, Coroutine
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any, Literal
 
@@ -41,11 +41,22 @@ from app.core.utility import (
 )
 from app.core.utility_tasks import OFF_SETTING_KEY, task_enabled
 from app.git.service import MAX_DIFF_CHARS
+from app.reviews.evidence import (
+    Evidence,
+    Judgement,
+    awaiting_reviewer,
+    diff_stat,
+    evidence_from_json,
+    evidence_to_json,
+    with_judgements,
+)
 from app.reviews.report import (
     Finding,
     ReportError,
     ReviewParts,
+    criteria_prompt,
     ordered,
+    parse_judgements,
     parse_report,
     plan_parts,
     review_prompt,
@@ -82,6 +93,9 @@ class PreparedReview:
     review_id: int
     call: UtilityCall
     prompts: tuple[str, ...]
+    # The request for the card's criteria without a check, and their numbers; None without such criteria.
+    criteria_prompt: str | None = None
+    criteria_numbers: tuple[int, ...] = ()
 
 
 @dataclass
@@ -92,6 +106,9 @@ class ReviewOutcome:
     input_tokens: int = 0
     output_tokens: int = 0
     problem: str | None = None
+    judgements: list[Judgement] = field(default_factory=list)
+    # Why the criteria were not judged, while the review itself went on.
+    criteria_note: str | None = None
 
 
 def spawn(work: Coroutine[Any, Any, None]) -> None:
@@ -102,6 +119,8 @@ def spawn(work: Coroutine[Any, Any, None]) -> None:
 @dataclass(frozen=True)
 class ReviewService:
     services: ReplyServices
+    # Told with the review's id when a review ends, whatever its status (the card's route writes its evidence).
+    on_ended: Callable[[int], None] | None = None
 
     # --- Starting -------------------------------------------------------------------------------------------------
 
@@ -122,14 +141,14 @@ class ReviewService:
         anyio.from_thread.run_sync(spawn, self.run(review_id))
         return review_id
 
-    def start_for_branch(self, project_id: int, target: BuildTarget) -> int:
-        """Review a build branch since the commit it started from. In a worker thread; raises NothingToReview when
-        the branch changed nothing or cannot be read."""
+    def start_for_branch(self, project_id: int, target: BuildTarget, evidence: Evidence | None = None) -> int:
+        """Review a build branch since the commit it started from, with the evidence YAAP gathered for its card. In
+        a worker thread; raises NothingToReview when the branch changed nothing or cannot be read."""
         with self.services.session_factory() as session:
             scope = branch_scope(session, self.services.workspace_dir, session.get_one(Project, project_id), target)
             if scope is None:
                 raise NothingToReview("The build branch has no changes since the build started.")
-            review_id = self.create(session, scope)
+            review_id = self.create(session, scope, evidence)
         anyio.from_thread.run_sync(spawn, self.run(review_id))
         return review_id
 
@@ -168,8 +187,8 @@ class ReviewService:
     def checkpoints(self) -> CheckpointStore:
         return CheckpointStore(self.services.session_factory, self.services.data_dir)
 
-    def create(self, session: Session, scope: ReviewScope) -> int:
-        """Store the review as running, its diff with secrets as placeholders."""
+    def create(self, session: Session, scope: ReviewScope, evidence: Evidence | None = None) -> int:
+        """Store the review as running, its diff and evidence with secrets as placeholders."""
         secrets = resolve_secrets(session, self.services.cipher, scope.environment_id, scope.project_id)
         diff = mask(scope.diff, secrets)
         notes = []
@@ -193,6 +212,7 @@ class ReviewService:
             base_commit=scope.base_commit,
             branch=scope.branch,
             card_id=scope.card_id,
+            evidence=None if evidence is None else evidence_to_json(masked(evidence, scope.diff, secrets)),
         )
         session.add(review)
         session.commit()
@@ -210,6 +230,16 @@ class ReviewService:
         except Exception:  # A background task: the review ends as failed and the cause is logged.
             logger.exception("Review %s failed.", review_id)
             await anyio.to_thread.run_sync(self.end, review_id, "failed", "The review failed; see the log.")
+        finally:
+            await self.tell_ended(review_id)
+
+    async def tell_ended(self, review_id: int) -> None:
+        if self.on_ended is None:
+            return
+        try:
+            await anyio.to_thread.run_sync(self.on_ended, review_id)
+        except Exception:  # noqa: BLE001 - a listener's failure must not change the review, which has ended
+            logger.exception("A listener of review %s failed.", review_id)
 
     def prepare(self, review_id: int) -> PreparedReview | None:
         """The reviewer and the prompts; None when the review ended here (skipped, or the key cannot be used)."""
@@ -238,7 +268,22 @@ class ReviewService:
             session.commit()
             call = UtilityCall(choice, api_key, outgoing, REVIEW_TASK, project.id, review.conversation_id)
             lead = utility_instructions(services.utility, review.environment_id, "reviewer")
-            return PreparedReview(review_id, call, prompts_for(review.objective, rules, parts, lead))
+            prompts = prompts_for(review.objective, rules, parts, lead)
+            criteria = self.criteria_request(review)
+            if criteria is None:
+                return PreparedReview(review_id, call, prompts)
+            return PreparedReview(review_id, call, prompts, *criteria)
+
+    def criteria_request(self, review: Review) -> tuple[str, tuple[int, ...]] | None:
+        """The request for the card's criteria that no check of YAAP's covers, with their numbers."""
+        evidence = evidence_from_json(review.evidence)
+        waiting = awaiting_reviewer(evidence) if evidence is not None else []
+        if evidence is None or not waiting:
+            return None
+        lead = utility_instructions(self.services.utility, review.environment_id, "reviewer", "Criteria")
+        listed = [(item.number, item.text) for item in waiting]
+        prompt = criteria_prompt(lead, review.objective, listed, evidence.checks_run, review.diff)
+        return prompt, tuple(item.number for item in waiting)
 
     def project_rules(self, session: Session, project: Project) -> str | None:
         environment = session.get_one(Environment, project.environment_id)
@@ -263,13 +308,33 @@ class ReviewService:
             if summary:
                 outcome.summaries.append(summary)
             outcome.findings.extend(findings)
+        if prepared.criteria_prompt is not None:
+            await self.judge_criteria(prepared, prepared.criteria_prompt, outcome)
         return outcome
+
+    async def judge_criteria(self, prepared: PreparedReview, prompt: str, outcome: ReviewOutcome) -> None:
+        """The reviewer's verdicts on the criteria without a check; a missing or broken answer leaves them unchecked
+        with a note, and the review of the diff stands."""
+        answer = await ask_utility_model(self.services.utility, prepared.call, prompt, REVIEW_MAX_TOKENS)
+        if answer is None:
+            outcome.criteria_note = "The reviewer did not answer on the acceptance criteria."
+            return
+        add_usage(outcome, answer)
+        try:
+            outcome.judgements = parse_judgements(answer.text, prepared.criteria_numbers)
+        except ReportError as error:
+            outcome.criteria_note = str(error)
 
     def finish(self, review_id: int, outcome: ReviewOutcome) -> None:
         with self.services.session_factory() as session:
             review = session.get_one(Review, review_id)
             review.summary = "\n\n".join(outcome.summaries) or None
             review.findings = [finding.stored() for finding in ordered(outcome.findings)]
+            evidence = evidence_from_json(review.evidence)
+            if evidence is not None:
+                review.evidence = evidence_to_json(with_judgements(evidence, outcome.judgements))
+            if outcome.criteria_note:
+                review.notes = [*review.notes, outcome.criteria_note]
             review.cost, review.input_tokens, review.output_tokens = (
                 outcome.cost,
                 outcome.input_tokens,
@@ -296,6 +361,18 @@ def recover_reviews(session: Session) -> int:
         review.status, review.reason, review.finished_at = "failed", RESTARTED, datetime.now(UTC)
     session.commit()
     return len(running)
+
+
+def masked(evidence: Evidence, diff: str, secrets: dict[str, str]) -> Evidence:
+    """The evidence with the diff's size, and with secret values in its texts and outputs as placeholders."""
+    criteria = tuple(
+        replace(item, text=mask(item.text, secrets), note=mask(item.note, secrets)) for item in evidence.criteria
+    )
+    runs = tuple(
+        replace(run, command=mask(run.command, secrets), output=mask(run.output, secrets))
+        for run in evidence.checks_run
+    )
+    return replace(evidence, criteria=criteria, checks_run=runs, diff_stat=diff_stat(diff))
 
 
 def prompts_for(

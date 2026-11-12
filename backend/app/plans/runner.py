@@ -65,6 +65,10 @@ class StepResult:
     note: str
 
 
+def no_extras(_view: PlanView) -> tuple[str, ...]:
+    return ()
+
+
 @dataclass
 class BuildRunner:
     """Starts, runs and stops builds; one per project (checked under `lock` when a build starts)."""
@@ -79,6 +83,9 @@ class BuildRunner:
     follow_ups: BackgroundWork[bool] = field(default_factory=BackgroundWork)
     # Set while YAAP shuts down: a build cut off then is interrupted, not stopped, and Continue goes on with it.
     shutting_down: bool = False
+    # The commands beside the plan's own that approving it approves: its card's acceptance criteria commands, given
+    # by the card's route, so plans/ knows nothing of cards. Blocking.
+    approved_extras: Callable[[PlanView], tuple[str, ...]] = no_extras
 
     def plans(self) -> PlanService:
         return PlanService(self.services().session_factory)
@@ -96,6 +103,7 @@ class BuildRunner:
             project = session.get_one(Project, view.project_id)
             folder = project_path(services.workspace_dir, project)
             environment_id = project.environment_id
+        extras = self.approved_extras(view)
         if not (folder / ".git").exists():
             raise BuildRefused(
                 "no_repository", "Building needs a git repository. Create one in the project's Branches panel."
@@ -110,7 +118,7 @@ class BuildRunner:
                 make_build_copy(place, lambda path: git_place(environment_id, path), plan_id, base.commit, branch)
             except (GitError, BuildCopyError) as error:
                 raise BuildRefused("copy_failed", str(error)) from error
-            start = BuildStart(base.branch, base.commit, branch, copy_relative(plan_id), base.uncommitted)
+            start = BuildStart(base.branch, base.commit, branch, copy_relative(plan_id), base.uncommitted, extras)
             try:
                 view = plans.approve_for_build(plan_id, start)
             except BaseException:

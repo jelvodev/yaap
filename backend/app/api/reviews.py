@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 from app.api.dependencies import ProjectDependency, SessionDependency
+from app.api.evidence_schemas import EvidenceOut, evidence_out
 from app.core.reply_services import ReplyServices
 from app.reviews.report import Severity
 from app.reviews.scope import NothingToReview, ReviewSource
@@ -68,6 +69,8 @@ class ReviewOut(ReviewSummaryOut):
     diff: str
     input_tokens: int
     output_tokens: int
+    # A card's review: per acceptance criterion what YAAP checked or the reviewer judged, with its source.
+    evidence: EvidenceOut | None = None
 
 
 def summary_fields(review: Review, title: str | None) -> dict[str, object]:
@@ -108,6 +111,7 @@ def review_out(session: SessionDependency, review: Review) -> ReviewOut:
             "diff": review.diff,
             "input_tokens": review.input_tokens,
             "output_tokens": review.output_tokens,
+            "evidence": evidence_out(review.evidence),
         }
     )
 

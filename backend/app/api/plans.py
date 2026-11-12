@@ -125,6 +125,9 @@ class PlanOut(BaseModel):
     build_folder: str | None = None
     # None until the plan is approved.
     build: PlanBuildOut | None = None
+    # The card's acceptance criteria commands that approving also approves (a draft: as the card has them now),
+    # run on the build's copy after the build for the review's evidence.
+    criteria_commands: list[str] = []
 
 
 def plan_service(request: Request) -> PlanService:
@@ -195,7 +198,14 @@ def plan_out(view: PlanView, plans: PlanService, runner: BuildRunner) -> PlanOut
         build_branch=view.build_branch,
         build_folder=view.build_folder,
         build=build_out(view, plans, runner),
+        criteria_commands=list(approved_criteria(view, runner)),
     )
+
+
+def approved_criteria(view: PlanView, runner: BuildRunner) -> tuple[str, ...]:
+    if view.status == "draft":
+        return runner.approved_extras(view)
+    return view.build.criteria_commands
 
 
 def not_found(error: PlanNotFound) -> HTTPException:

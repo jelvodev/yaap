@@ -1,7 +1,8 @@
 import { Link, useLocation } from "react-router-dom";
 
 import type { PlanOut } from "../plan/usePlan";
-import type { CardDetail, ReviewDetail } from "./useCard";
+import EvidencePart from "./EvidencePart";
+import type { CardDetail, ReviewDetail, SendBackChoice } from "./useCard";
 
 const REVIEW_STATUS = {
   running: "Review running",
@@ -41,19 +42,30 @@ function Checks({ plan }: { plan: PlanOut }) {
   );
 }
 
-/** The review of a card: the reviewer's summary and findings as plain text, the checks that ran, and the branch. */
+/** The review of a card: the reviewer's summary and findings as plain text, the evidence behind it, and the branch. */
 export default function CardReviewPart({
   card,
   review,
   plan,
+  busy,
+  onSendBack,
 }: {
   card: CardDetail;
   review: ReviewDetail | null;
   plan: PlanOut | null;
+  busy: boolean;
+  onSendBack: (choice: SendBackChoice) => void;
 }) {
   // The Branches panel opens through ?panel= on the conversation the card is shown in; it has no branch preselection.
   const { pathname } = useLocation();
   const branch = card.links.branch;
+  const evidence = review?.evidence ?? null;
+  const branchLink = branch && (
+    <>
+      Branch <code>{branch}</code>. <Link to={`${pathname}?panel=branches`}>Open the Branches panel</Link> to see the
+      diff.
+    </>
+  );
   return (
     <div className="card-review">
       <p className="card-review-status" data-status={review?.status ?? card.review}>
@@ -68,16 +80,30 @@ export default function CardReviewPart({
               <code>{finding.line === null ? finding.path : `${finding.path}:${finding.line}`}</code>
               <span className="card-finding-severity">{finding.severity}</span>
               <p>{finding.explanation}</p>
+              <button
+                type="button"
+                className="link-button"
+                disabled={busy}
+                onClick={() => onSendBack({ finding: index })}
+              >
+                Send back with the finding
+              </button>
             </li>
           ))}
         </ul>
       )}
-      {plan && <Checks plan={plan} />}
-      {branch && (
-        <p className="card-muted">
-          Branch <code>{branch}</code>. <Link to={`${pathname}?panel=branches`}>Open the Branches panel</Link> to see the
-          diff.
-        </p>
+      {evidence ? (
+        <EvidencePart
+          evidence={evidence}
+          branch={branchLink}
+          busy={busy}
+          onSendBack={(criterion) => onSendBack({ criterion })}
+        />
+      ) : (
+        <>
+          {plan && <Checks plan={plan} />}
+          {branchLink && <p className="card-muted">{branchLink}</p>}
+        </>
       )}
     </div>
   );
