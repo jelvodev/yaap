@@ -110,12 +110,22 @@ def server_line(server: ServerListing) -> str:
     return line
 
 
+LISTING_HEADING = "## MCP servers"
+# A server line of the listing whose tools wait for find_tools: "- name (12 tools, find_tools)".
+SEARCHABLE_LINE = re.compile(r"^- .+? \((\d+) tools?, find_tools\)", re.MULTILINE)
+
+
+def searchable_tool_count(listing: str) -> int:
+    """How many tools a rendered listing holds back for find_tools."""
+    return sum(int(count) for count in SEARCHABLE_LINE.findall(listing))
+
+
 def listing_part(catalog: ToolCatalog) -> SystemPart | None:
     """The run's outside MCP servers for the system prompt; cacheable, since it changes only with the settings."""
     if not catalog.servers:
         return None
     lines = [
-        "## MCP servers",
+        LISTING_HEADING,
         "",
         "Outside MCP servers of this conversation; their tools are named <server>__<tool>. When a server's tools are "
         "not among your tools (marked find_tools), call find_tools with what you need, and the matching tools are "

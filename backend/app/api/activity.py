@@ -1,4 +1,4 @@
-"""Working comfort around a conversation: the message queue, waiting approvals and the context breakdown."""
+"""Working comfort around a conversation: the message queue, steering and waiting approvals."""
 
 from datetime import UTC, datetime
 from typing import Literal
@@ -6,25 +6,19 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select, update
+from sqlalchemy import select
 
 from app.agent.runs import RunRegistry
-from app.agents.definitions import agent_part, find_agent
 from app.api.conversations import (
     ConversationDependency,
     ReplyServiceDependency,
-    conversation_layers,
     event_stream,
     reply_http_error,
 )
 from app.api.dependencies import (
     EnvironmentDependency,
-    BlueprintDirDependency,
-    ProviderRegistryDependency,
     SessionDependency,
-    WorkspaceDirDependency,
 )
-from app.core.chat_history import load_branch
 from app.core.message_queue import (
     MAX_MESSAGE_ATTACHMENTS,
     MAX_MESSAGE_LENGTH,
@@ -38,18 +32,7 @@ from app.core.queue_commands import QueueItemKind, queue_item_kind
 from app.core.reply_errors import ReplyError
 from app.core.reply_service import ReplyService
 from app.core.replies import ReplyRegistry
-from app.core.search import recall_project_memory
-from app.core.turn_context import memory_parts, turn_context
-from app.core.trimming import latest_trim, shorten
-from app.core.summaries import carried_texts, cover_point, latest_summary, summary_block, yaap_compacts
-from app.core.search_index import message_text
-from app.core.prompts import base_prompt
-from app.core.settings import resolve_languages
-from app.blueprint.context import index_part, instructions_part, project_part, standards_part
-from app.blueprint.layers import active_items
-from app.projects.memory import read_memory
-from app.projects.service import project_path
-from app.storage.models import Attachment, Project, QueuedMessage, UsageRecord
+from app.storage.models import Attachment, QueuedMessage
 
 router = APIRouter(tags=["activity"])
 
@@ -257,162 +240,3 @@ def waiting_approvals(environment: EnvironmentDependency, request: Request) -> l
         for approval in run.state.approvals.values()
         if not approval.future.done()
     ]
-
-
-class ContextPartOut(BaseModel):
-    label: str
-    # Estimated from the text length (about four characters per token), as counting exactly needs a model call.
-    tokens: int
-
-
-class LastReplyOut(BaseModel):
-    input_tokens: int
-    cache_read_tokens: int
-    cache_write_tokens: int
-    output_tokens: int
-    # Share of the prompt read from the cache, 0 to 1.
-    cache_share: float
-    cost: float | None
-
-
-class RecalledEntryOut(BaseModel):
-    section: str
-    text: str
-    # recent: among the newest of its section; related: close to the user's message.
-    reason: Literal["recent", "related"]
-
-
-class MemoryRecallOut(BaseModel):
-    """What of the project memory went into the prompt."""
-
-    whole: bool
-    total_entries: int
-    entries: list[RecalledEntryOut]
-
-
-class ContextBreakdownOut(BaseModel):
-    parts: list[ContextPartOut]
-    memory: MemoryRecallOut | None = None
-    # Summaries: how many messages the current summary covers, and whether "Summarise now" can run.
-    summarised_messages: int = 0
-    can_summarise: bool = False
-    context_tokens: int | None
-    context_window: int | None
-    last_reply: LastReplyOut | None
-
-
-def estimate(text: str) -> int:
-    return (len(text) + 3) // 4
-
-
-@router.get("/conversations/{conversation_id}/context", response_model=ContextBreakdownOut)
-def context_breakdown(
-    request: Request,
-    conversation: ConversationDependency,
-    session: SessionDependency,
-    providers: ProviderRegistryDependency,
-    blueprint_dir: BlueprintDirDependency,
-    workspace_dir: WorkspaceDirDependency,
-) -> ContextBreakdownOut:
-    """Where the context goes: each part of the system prompt, the conversation, and the last reply."""
-    layers = conversation_layers(session, blueprint_dir, workspace_dir, conversation.environment_id, conversation.project_id)
-    items = active_items(layers)
-    agent = find_agent(layers, conversation.agent) if conversation.agent else None
-    project = session.get(Project, conversation.project_id) if conversation.project_id else None
-    branch = load_branch(session, conversation.id, conversation.head_message_id)
-    recalled = None
-    if project is not None:
-        last_question = next((message_text(message) for message in reversed(branch) if message.role == "user"), "")
-        recalled = recall_project_memory(
-            session,
-            getattr(request.app.state, "indexer", None),
-            conversation.environment_id,
-            project.id,
-            read_memory(project_path(workspace_dir, project)),
-            last_question,
-        )
-    texts = [
-        ("Base prompt", base_prompt(resolve_languages(session, conversation.environment_id, conversation.project_id))),
-        ("General instructions", instructions_part(items) or ""),
-        ("Standards", standards_part(items) or ""),
-        ("Skills, commands and agents", index_part(items) or ""),
-        ("Agent role", agent_part(agent, layers) if agent else ""),
-        ("Project and memory", project_part(project, memory_parts(recalled)[0]) if project and recalled else ""),
-        ("Context with the message (date, recalled memory)", turn_context(session, memory_parts(recalled)[1] if recalled else None)),
-    ]
-    parts = [ContextPartOut(label=label, tokens=estimate(text)) for label, text in texts if text]
-    skill_text = "".join(
-        block.get("text", "") for message in branch for block in message.content if block.get("type") == "skill"
-    )
-    if skill_text:
-        parts.append(ContextPartOut(label="Pinned skills", tokens=estimate(skill_text)))
-    summary_index = latest_summary(branch)
-    summarised_messages = 0
-    if summary_index is not None:
-        block = summary_block(branch[summary_index]) or {}
-        summarised_messages = summary_index + 1
-        parts.append(ContextPartOut(label=f"Summary of {summarised_messages} earlier messages", tokens=estimate(block.get("text", ""))))
-        kept_texts = carried_texts(branch[: summary_index + 1])
-        if kept_texts:
-            parts.append(ContextPartOut(label="Skills kept after the summary", tokens=estimate("".join(kept_texts))))
-    history = ""
-    trim_index = latest_trim(branch)
-    if trim_index is not None and (summary_index is None or trim_index > summary_index):
-        parts.append(ContextPartOut(label=f"Old tool output shortened up to message {trim_index + 1}", tokens=0))
-    start = (summary_index + 1) if summary_index is not None else 0
-    for position, message in enumerate(branch[start:], start):
-        trimmed = trim_index is not None and position <= trim_index
-        for block in message.content:
-            kind = block.get("type")
-            if kind in ("text", "command"):
-                history += block.get("text", "")
-            elif kind == "tool_call":
-                output = block.get("output") or ""
-                history += f"{block.get('input', '')}{shorten(output) if trimmed else output}"
-    attachments = session.scalar(
-        select(func.count()).select_from(Attachment).where(Attachment.conversation_id == conversation.id, Attachment.message_id.is_not(None))
-    )
-    parts.append(ContextPartOut(label="Conversation so far", tokens=estimate(history)))
-    if attachments:
-        # Images and documents are counted by the provider, not by their text; shown as a rough figure.
-        parts.append(ContextPartOut(label=f"Attachments ({attachments})", tokens=attachments * 1500))
-
-    last = session.scalar(
-        select(UsageRecord)
-        .where(UsageRecord.conversation_id == conversation.id, UsageRecord.purpose == "main")
-        .order_by(UsageRecord.id.desc())
-    )
-    last_reply = None
-    if last is not None:
-        prompt = last.input_tokens + last.cache_read_tokens + last.cache_write_tokens
-        last_reply = LastReplyOut(
-            input_tokens=last.input_tokens,
-            cache_read_tokens=last.cache_read_tokens,
-            cache_write_tokens=last.cache_write_tokens,
-            output_tokens=last.output_tokens,
-            cache_share=round(last.cache_read_tokens / prompt, 3) if prompt else 0.0,
-            cost=last.cost,
-        )
-    model = providers.find_model(conversation.model)
-    context_tokens = None
-    if last is not None:
-        context_tokens = last.context_tokens if last.context_tokens is not None else (
-            last.input_tokens + last.cache_read_tokens + last.cache_write_tokens + last.output_tokens
-        )
-    memory = None
-    if recalled is not None and recalled.total:
-        memory = MemoryRecallOut(
-            whole=recalled.whole,
-            total_entries=recalled.total,
-            entries=[RecalledEntryOut(section=e.section, text=e.text, reason="recent") for e in recalled.recent]
-            + [RecalledEntryOut(section=e.section, text=e.text, reason="related") for e in recalled.related],
-        )
-    return ContextBreakdownOut(
-        parts=parts,
-        memory=memory,
-        summarised_messages=summarised_messages,
-        can_summarise=yaap_compacts(session, providers, conversation) and cover_point(branch) is not None,
-        context_tokens=context_tokens,
-        context_window=model.context_window if model else None,
-        last_reply=last_reply,
-    )
