@@ -7,60 +7,6 @@ Where YAAP is going. Each version has a theme. The order is what is intended, no
 
 The current version is **0.6.2**.
 
-## 0.6.x: public and easier to start
-
-Making the repository public, then fewer steps and less waiting before the first answer, and what makes YAAP
-different within one click.
-
-51. **Checks on every push** in GitHub Actions: the backend tests, the migration check, the frontend build and whether
-    the generated API types are up to date.
-48. **Releases on GitHub.** Each release is published as a GitHub Release, so the update notice finds it.
-60. **A front page that shows it.** A short animation and three screenshots in the README.
-49. **Make the repository public**, and check that the update notice in a running YAAP sees the release.
-50. **A clean install** from the public repository on another computer, from `git clone` to a first command in a
-    project: its tests run after an approval in the chat, with their output shown. With the time it took.
-45. **Ready-made images.** Each release publishes YAAP's images, so installing and updating download them instead of
-    building on your computer, and the runner's image arrives when it is first needed. Building locally stays
-    possible. Once the repository is public, GitHub Actions builds them for free.
-
-## 0.7.0: see and save
-
-See what YAAP does and what it costs, and pay less for the same answers.
-
-9. **A baseline measurement.** The bundled eval set is run and the result is recorded, so every change below can be
-   compared with it.
-66. **See where the tokens go.** The context meter opens a breakdown of what the conversation holds now: the system
-    prompt, the Blueprint, tools, messages and tool results per tool, and the free space. A session view shows per
-    answer what came from the cache, what was written to it and what was new, with the workers and the most
-    expensive tool results, and points out where tokens were lost.
-58. **Less context, same answers.** A file that has not changed since it was read is not sent again, old reads of a
-    file that changed since are left out, and test output keeps the failures and the summary. What is left out can
-    always be read again. Switched on only when the evals show that quality holds.
-64. **Coming back to a long conversation.** After a pause long enough for the cache to expire, YAAP shows what
-    continuing costs and offers to summarise first or to start a new conversation from a summary. Nothing happens
-    by itself.
-68. **Behind the scenes, under each answer.** Small labels show what happened around an answer: the model it was
-    routed to, memory that was used, output that was shortened, helpers that ran, a secret that was replaced. Each
-    opens to the reason and the cost.
-70. **Why did that happen?** An approval that was asked, a tool that was refused, a model that was chosen or context
-    that was shortened shows the rule and the setting behind it.
-67. **YAAP's own agents and skills in the Blueprint.** The helpers that work in the background (the explorer, the
-    worker, the reviewer, the router, the summariser, the memory keeper, the learner and the guard) show as
-    Blueprint items with their instructions, model and cost. You can change their instructions in a layer of your
-    own; the guard can be read but not switched off.
-69. **One page for background tasks.** Every task YAAP runs by itself (titles, summaries, memory, routing, reviews,
-    learning) with its model, whether it is on, how often it ran and what it cost this month.
-71. **The answer as a route.** Each answer drawn as a line with stops: routing, building the context, the model
-    calls, the tools with their checks, the helpers and the work afterwards.
-    - While the answer runs, a small strip above it grows stop by stop and shows where it is now, such as an
-      approval it waits for.
-    - When it is done, the strip folds into the labels of 68, with one that opens the route.
-    - The trace gets a Route tab with the whole line. Each stop opens to what happened, why, its time and its cost.
-59. **A lead model with cheap helpers.** The main model splits the work into small tasks, each with a check such as a
-    test. A cheaper model reads and does the work, YAAP runs the check, and after two failures the main model takes
-    over. Several readers can work at once. On the board this works per card, with the cost and the attempts of each
-    card measured.
-
 ## 0.8.0: the project board
 
 Plan, build and review the work of a project, steered from one board.
@@ -91,6 +37,21 @@ Plan, build and review the work of a project, steered from one board.
     cards.
 25. **Triggers.** A failing CI run, a new issue or a dependency update becomes a card in the Inbox, within a budget.
 
+## 0.8.1: public and easier to start
+
+Making the repository public once the project board is in, then fewer steps and less waiting before the first
+answer.
+
+51. **Checks on every push** in GitHub Actions: the backend tests, the migration check, the frontend build and whether
+    the generated API types are up to date.
+48. **Releases on GitHub.** Each release is published as a GitHub Release, so the update notice finds it.
+49. **Make the repository public**, and check that the update notice in a running YAAP sees the release.
+50. **A clean install** from the public repository on another computer, from `git clone` to a first command in a
+    project: its tests run after an approval in the chat, with their output shown. With the time it took.
+45. **Ready-made images.** Each release publishes YAAP's images, so installing and updating download them instead of
+    building on your computer, and the runner's image arrives when it is first needed. Building locally stays
+    possible. Once the repository is public, GitHub Actions builds them for free.
+
 ## Later
 
 The direction after 0.8, not yet in a version.
@@ -114,6 +75,8 @@ The direction after 0.8, not yet in a version.
 33. **The runner:** a panel with its state, *Stop* and *Rebuild*. A sandbox project's MCP servers and browser run in
     its sandbox.
 34. **A model policy at the global level.**
+81. **Independent tool calls together.** The agent runs tool calls that do not depend on each other in one turn, so
+    an answer needs fewer model calls.
 
 ## Wish list
 
@@ -161,3 +124,7 @@ For the code base itself:
 8. **Linting and formatting.** One pass of ruff, mypy, ESLint and Prettier over the whole code base, with a script
    to run them.
 35. **More checks in GitHub Actions:** linting and the audit on every pull request, and Dependabot.
+80. **Fairer token measurements.** Each eval play records how many model calls it made, and a savings case runs
+    several replies in YAAP's own loop, so the context savings can be measured apart from the number of calls.
+82. **Tidy git transports.** A project's transport repository is removed with the project, and changes move in
+    smaller bundles instead of whole ones held in memory.
