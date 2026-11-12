@@ -260,12 +260,17 @@ async function sendQueuedNow(context: StreamContext, item: QueuedMessage, all: b
   const { refs, active } = context;
   if (!active.conversation) return;
   const id = active.conversation.id;
+  const selection: QueueSelection = all ? { all: true } : { item_id: item.id };
+  const restore = context.queue.withdraw(selection);
   if (refs.following.current === id) {
-    const accepted = await context.queue.sendNow(id, all ? { all: true } : { item_id: item.id });
-    if (!accepted) return;
+    const accepted = await context.queue.sendNow(id, selection);
+    if (!accepted) {
+      restore();
+      return;
+    }
     refs.stopIntent.current = "send-now";
   } else {
-    await sendQueued(context, id, all ? { all: true } : { item_id: item.id });
+    await sendQueued(context, id, selection);
   }
 }
 
