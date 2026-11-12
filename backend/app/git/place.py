@@ -31,6 +31,8 @@ class GitPlace:
     folder: Path
     # None: git runs in YAAP's own process.
     executor: CommandExecutor | None = None
+    # The environment's folder in YAAP's workspace, which the runner mounts: where commits are handed to the runner.
+    environment_dir: Path | None = None
 
 
 def git_place_kind(folder: Path, workspace_dir: Path | None, runner_enabled: bool) -> GitPlaceKind:
@@ -52,7 +54,7 @@ def git_place(environment_id: int, folder: Path, runners: Runners = RUNNERS) -> 
         return GitPlace(folder)
     try:
         runtime = runners.runtime(environment_id, "git")
-        return GitPlace(folder, runtime.executor(str(folder)))
+        return GitPlace(folder, runtime.executor(str(folder)), runtime.environment_dir)
     except TargetError as error:  # RunnerUnavailable is one; so is a folder outside the environment
         raise GitError(str(error)) from error
 
