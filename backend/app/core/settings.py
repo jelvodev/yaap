@@ -16,6 +16,7 @@ from app.agent.workers import CLI_WORKERS, cli_worker_validator
 from app.agent.workers import default_value as cli_default_value
 from app.backups.destinations import validate_destinations
 from app.backups.runs import SCHEDULE_DEFAULT, validate_schedule
+from app.board.settings import BOARD_PUSH_KEY, PROJECT_BOARD_KEY, validate_switch
 from app.core.context_control import (
     DEFAULT_COMPACT_AT,
     DEFAULT_TRIM_AT,
@@ -542,6 +543,29 @@ SETTING_DEFINITIONS: dict[str, SettingDefinition] = {
             levels=frozenset({"project"}),
             default={},
             validate=validate_target_setting,
+        ),
+        SettingDefinition(
+            key=PROJECT_BOARD_KEY,
+            label="Project board",
+            description=(
+                "Whether a project opens its board: cards in columns from Inbox to Done, kept on the project's "
+                "yaap-board branch. Off: clicking the project only narrows the conversations, as before; the "
+                "board's files are kept."
+            ),
+            levels=frozenset({"global", "environment", "project"}),
+            default=True,
+            validate=validate_switch,
+        ),
+        SettingDefinition(
+            key=BOARD_PUSH_KEY,
+            label="Push the board",
+            description=(
+                "Offer Push for the project's board. Pushing publishes every card, specification and plan on the "
+                "yaap-board branch; on a public repository they become public. Nothing is pushed by itself."
+            ),
+            levels=frozenset({"project"}),
+            default=False,
+            validate=validate_switch,
         ),
         SettingDefinition(
             key="runner_network",
