@@ -53,6 +53,9 @@ API = "/api/v1"
 UNUSED_SEARCH_URL = "http://127.0.0.1:9"
 STAND_IN_KEY = "footprint-stand-in-not-a-key"
 LARGE_FILE = "stockroom/inventory.py"
+EDITED_FILE = "stockroom/pricing.py"
+RIGHT_LINE = "    return round(net_cents * rate_percent / 100)"
+WRONG_LINE = "    return net_cents * rate_percent // 100 + 1"
 NOTES = (
     "Browser tool definitions are a hand-written stand-in for Playwright MCP 0.0.83's (playwright_tools.json).",
     "The outside MCP server is the baseline's issue tracker (22 tools).",
@@ -71,6 +74,19 @@ def project_calls(python: str) -> ToolCalls:
         ("search", {"pattern": "def expire_reservations|def release", "path": "stockroom"}),
         ("read_file", {"path": LARGE_FILE}),
         ("run_command", {"command": f'"{python}" -m stockroom.cli report'}),
+    )
+
+
+def long_project_calls(python: str) -> ToolCalls:
+    """A later reply of a project conversation: a file read twice, an edit that makes tests fail, a test run with
+    long output, and the edit undone so that every measurement starts from the same files."""
+    read = ("read_file", {"path": EDITED_FILE})
+    return (
+        read,
+        read,
+        ("edit_file", {"path": EDITED_FILE, "old_string": RIGHT_LINE, "new_string": WRONG_LINE}),
+        ("run_command", {"command": f'"{python}" -m pytest -v -p no:cacheprovider tests'}),
+        ("edit_file", {"path": EDITED_FILE, "old_string": WRONG_LINE, "new_string": RIGHT_LINE}),
     )
 
 
@@ -192,10 +208,23 @@ def situation(name: str, description: str, record: Recorded) -> Situation:
     return Situation(name, description, (*parts, *results), tools)
 
 
+def send_all(client: TestClient, workspace_dir: Path, source: Path) -> None:
+    """The conversations of the measurement, in the order of the model script."""
+    send(client, new_conversation(client), "What is the difference between a list and a tuple in Python?")
+    project_id = baseline_project(client, workspace_dir, source)
+    send(client, new_conversation(client, project_id), "Where are expired reservations released?")
+    send(client, new_conversation(client, project_id), "/goal Add a low-stock command to the CLI.")
+    for savings in ("off", "on"):
+        client.put(f"{API}/settings/context_savings", json={"value": savings}).raise_for_status()
+        send(client, new_conversation(client, project_id), "Fix the VAT rounding and run the tests.")
+
+
 def measure_footprint(python: str = sys.executable, source: Path = BASELINE_DIR) -> Footprint:
-    """The footprint of three situations: a plain chat, a project conversation with its first tool results, and the
-    first turn of a goal. The browser and an outside MCP server are configured in all of them."""
+    """The footprint of five situations: a plain chat, a project conversation with its first tool results, the first
+    turn of a goal, and a longer project conversation's reply with context_savings off and on. The browser and an
+    outside MCP server are configured in all of them."""
     script: list[ToolCalls] = [(), project_calls(python), (("finish_goal", {"status": "done", "summary": "Done."}),)]
+    script += [long_project_calls(python), long_project_calls(python)]
     recorded: list[Recorded] = []
     data_dir = Path(tempfile.mkdtemp(prefix="yaap-footprint-"))
     variables = {"YAAP_DATA_DIR": str(data_dir), "YAAP_MASTER_KEY": Fernet.generate_key().decode()}
@@ -206,19 +235,18 @@ def measure_footprint(python: str = sys.executable, source: Path = BASELINE_DIR)
             with TestClient(app) as client:
                 sign_in(client)
                 configure(client, python, source)
-                send(client, new_conversation(client), "What is the difference between a list and a tuple in Python?")
-                project_id = baseline_project(client, app.state.workspace_dir, source)
-                send(client, new_conversation(client, project_id), "Where are expired reservations released?")
-                send(client, new_conversation(client, project_id), "/goal Add a low-stock command to the CLI.")
+                send_all(client, app.state.workspace_dir, source)
     finally:
         remove_folder(data_dir)
-    if len(recorded) != 3:
-        raise RuntimeError(f"Expected three model requests, got {len(recorded)}.")
+    if len(recorded) != 5:
+        raise RuntimeError(f"Expected five model requests, got {len(recorded)}.")
     return Footprint(
         (
             situation("plain_chat", "a conversation outside a project, first request", recorded[0]),
             situation("project", "a conversation in the baseline project, first request and tool results", recorded[1]),
             situation("goal_turn", "the first turn of a goal in the baseline project", recorded[2]),
+            situation("long_project", "a later reply in the baseline project, context_savings off", recorded[3]),
+            situation("long_project_savings", "the same reply with context_savings on", recorded[4]),
         ),
         NOTES,
     )
