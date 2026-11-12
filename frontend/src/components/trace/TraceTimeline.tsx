@@ -1,4 +1,4 @@
-import { RUN_STATUS_LABELS, WORKER_LABELS } from "./runLabels";
+import { approvalLabel, RUN_STATUS_LABELS, WORKER_LABELS } from "./runLabels";
 import { barOf, formatCost, formatDuration, timeSpan, timelineRows, type TraceRun, type TraceStep } from "./traceOrder";
 
 interface TraceTimelineProps {
@@ -79,7 +79,7 @@ function StepLine({ step }: { step: TraceStep }) {
   return (
     <span className={`trace-step-label${step.is_error ? " form-error" : ""}`}>
       <span className="trace-kind">tool</span> <span className="mono">{step.tool}</span>
-      {step.approval && <span className="faint small"> · {step.approval}</span>}
+      {step.approval && <span className="faint small"> · {approvalLabel(step.approval)}</span>}
       {step.summary && <span className="faint small"> {step.summary}</span>}
     </span>
   );

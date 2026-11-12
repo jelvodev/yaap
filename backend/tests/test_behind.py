@@ -135,6 +135,14 @@ def test_the_approvals_label_names_the_outcome_when_all_calls_share_one(approval
     assert labels["approvals"].items[0] == f"tool0: {approvals[0]}" and labels["approvals"].step_id == 10
 
 
+def test_a_call_let_through_by_an_eval_case_approval_asks_nobody_and_adds_no_approvals_label():
+    steps = [tool_step(10, 1, "edit_file", "case_approved"), tool_step(99, 1, "free", None)]
+
+    labels = {item.kind: item for item in behind_labels(facts(steps, [note("trim")]))}
+
+    assert "approvals" not in labels
+
+
 def test_the_approvals_label_takes_its_reason_from_the_first_matching_call():
     calls = [
         CallWhy(50, 1, "other", "k0", "approved", Why("Not this.", "permission")),

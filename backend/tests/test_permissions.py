@@ -1,10 +1,11 @@
 """The permission decision as a pure function: each rule of app.agent.permissions in one table."""
 
 import dataclasses
-from typing import Any, get_args
+from typing import Any, cast, get_args
 
 import pytest
 
+from app.agent import gate
 from app.agent.permissions import (
     PermissionDecision,
     Place,
@@ -17,7 +18,9 @@ from app.agent.permissions import (
     permission_why,
 )
 from app.agent.policy import AccessLevel, CaseApprovals, ToolPolicy
+from app.agent.toolkit import Tool
 from app.agent.tools import TOOLS_BY_NAME
+from tests.test_cli_sign_in import runs_on_event_loop
 
 
 def tool(name: str, description: str = "", conditional_asks: bool = False) -> ToolFacts:
@@ -402,3 +405,31 @@ def test_an_attended_run_decides_the_same_with_or_without_approvals(
         plain = run(access, outside_sources=outside, place=place)
         approved = dataclasses.replace(plain, policy=dataclasses.replace(plain.policy, case_approvals=approvals))
         assert decide(*call, approved) == decide(*call, plain), call[0].name
+
+
+@pytest.mark.parametrize(
+    ("decision", "approval"),
+    [
+        pytest.param(PermissionDecision("allow", "case_approved"), "case_approved", id="a case-approved call"),
+        pytest.param(PermissionDecision("allow", "auto"), None, id="a call that ran without asking"),
+        pytest.param(PermissionDecision("refuse", "unattended", "No."), "asked", id="an unattended call"),
+    ],
+)
+@runs_on_event_loop
+async def test_the_gate_records_how_a_call_was_let_through(
+    monkeypatch: pytest.MonkeyPatch, decision: PermissionDecision, approval: str | None
+) -> None:
+    async def handler(arguments: dict[str, Any]) -> str:
+        return "done"
+
+    async def passthrough(run: object, name: str, arguments: dict[str, Any], run_handler: Any) -> str:
+        return "done"
+
+    monkeypatch.setattr(gate, "tool_facts", lambda *args: WRITE[0])
+    monkeypatch.setattr(gate, "run_facts", lambda run: case_run())
+    monkeypatch.setattr(gate, "decide", lambda *args: decision)
+    monkeypatch.setattr(gate, "with_document", passthrough)
+    echo = Tool("echo", "Echo.", {}, "auto", handler)
+    note = gate.CallNote()
+    await gate.gated_call(cast(Any, None), cast(Any, None), echo, "echo", {}, note)
+    assert note.approval == approval

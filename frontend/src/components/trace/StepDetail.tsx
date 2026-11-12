@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { approvalLabel } from "./runLabels";
 import { formatCost, formatDuration, type TraceStep } from "./traceOrder";
 import { type StepContext, useStepContext } from "./useTrace";
 
@@ -80,7 +81,7 @@ function ToolFacts({ step }: { step: TraceStep }) {
       {step.approval && (
         <>
           <dt>Approval</dt>
-          <dd>{step.approval}</dd>
+          <dd>{approvalLabel(step.approval)}</dd>
         </>
       )}
     </>

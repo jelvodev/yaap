@@ -125,6 +125,7 @@ def test_the_route_stop_is_skipped_without_a_stored_route(route, state, reason, 
         ("declined", "failed", "Declined", "failed"),
         ("refused", "failed", "Refused by the permission rules", "failed"),
         ("asked", "skipped", "Nobody to approve", "skipped"),
+        ("case_approved", "ran", None, "ran"),
     ],
 )
 def test_an_approval_decides_the_state_of_the_tool_stop_and_adds_a_check(approval, state, reason, check_state):

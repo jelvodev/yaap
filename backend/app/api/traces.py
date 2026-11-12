@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.api.conversations import ConversationDependency
 from app.api.dependencies import DataDirDependency, SessionDependency
 from app.tracing.context_view import part_content, step_context
+from app.tracing.notes import ApprovalOutcome
 from app.tracing.snapshots import SnapshotStore, trace_dir
 from app.tracing.steps import (
     RunNode,
@@ -52,7 +53,7 @@ class TraceStepOut(BaseModel):
     summary: str | None
     output_ref: int | None
     is_error: bool
-    approval: Literal["approved", "declined", "refused", "asked"] | None
+    approval: ApprovalOutcome | None
 
 
 class TraceRunOut(BaseModel):

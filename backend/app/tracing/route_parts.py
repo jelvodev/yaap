@@ -33,6 +33,7 @@ APPROVAL_TEXT: dict[ApprovalOutcome, tuple[RouteState, str]] = {
     "declined": ("failed", "You declined the call."),
     "refused": ("failed", "The permission rules refused the call."),
     "asked": ("skipped", "The call needed approval and nobody was there to give it."),
+    "case_approved": ("ran", "Allowed by the eval case's approval."),
 }
 APPROVAL_REASON: dict[ApprovalOutcome, str] = {
     "declined": "Declined",
