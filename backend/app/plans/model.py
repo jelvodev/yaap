@@ -122,17 +122,17 @@ def plan_warnings(plan: Plan) -> list[str]:
 def path_problem(path: str) -> str | None:
     """Why a file path of a step is not usable, or None. Paths are relative, with `/`, inside the project."""
     if not path.strip():
-        return "an empty path"
+        return "a file path is empty"
     if "\0" in path:
-        return "a path with a NUL character"
+        return "a file path has a NUL character"
     if len(path) > MAX_PATH:
-        return f"a path over {MAX_PATH} characters"
+        return f"a file path is over {MAX_PATH} characters"
     if "\\" in path:
         return f"{path} uses \\; write paths with /"
     if path.startswith("/") or _DRIVE.match(path):
         return f"{path} is absolute; write it relative to the project"
     if ".." in path.split("/"):
-        return f"{path} goes outside the project with .."
+        return f"{path} goes outside the project (..)"
     return None
 
 
@@ -190,9 +190,9 @@ def parse_step(value: object, number: int, errors: list[str]) -> PlanStep:
     details = text_value(value.get("details"), f"{where} details", MAX_DETAILS, errors)
     files: list[str] = []
     for path in text_list(value.get("files"), f"{where} files", errors)[: MAX_FILES + 1]:
-        problem = path_problem(path) if isinstance(path, str) else "a file that is not text"
+        problem = path_problem(path) if isinstance(path, str) else "a file path is not text"
         if problem is not None:
-            errors.append(f"{where} has {problem}.")
+            errors.append(f"{where}: {problem}.")
         else:
             files.append(str(path).strip())
     if len(files) > MAX_FILES:
