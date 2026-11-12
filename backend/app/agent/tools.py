@@ -20,6 +20,7 @@ from app.agent.process_tools import PROCESS_TOOLS
 from app.agent.runs import AgentRun
 from app.agent.search_tools import SEARCH_TOOLS
 from app.agent.skill_tools import SKILL_TOOLS
+from app.agent.state_tools import STATE_TOOLS
 from app.agent.toolkit import Tool
 from app.agent.web_tools import WEB_TOOLS
 
@@ -31,6 +32,7 @@ TOOLS: list[Tool] = [
     *WEB_TOOLS,
     *OUTPUT_TOOLS,
     *BLUEPRINT_TOOLS,
+    *STATE_TOOLS,
     *SEARCH_TOOLS,
     *CODE_TOOLS,
     *DELEGATION_TOOLS,
