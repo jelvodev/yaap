@@ -304,6 +304,19 @@ SETTING_DEFINITIONS: dict[str, SettingDefinition] = {
             options=(SettingOption("on", "On"), SettingOption("off", "Off")),
         ),
         SettingDefinition(
+            key="context_savings",
+            label="Context savings",
+            description=(
+                "Whether YAAP sends less of what the model already has: a repeated read of an unchanged file "
+                "becomes one line, reads of files that changed since are left out when old tool output is "
+                "shortened, long test output keeps its failures and summary, and the repository map stays the same "
+                "until the conversation is shortened or summarised. What is left out says how to read it again."
+            ),
+            levels=frozenset({"global", "environment"}),
+            default="off",
+            options=(SettingOption("off", "Off"), SettingOption("on", "On")),
+        ),
+        SettingDefinition(
             key="utility_model",
             label="Utility model",
             description=(

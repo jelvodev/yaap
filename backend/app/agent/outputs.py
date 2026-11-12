@@ -54,10 +54,17 @@ class OutputStore:
 
 
 def shortened(text: str, number: int) -> str:
-    lines = text.count("\n") + 1
     left_out = len(text) - HEAD_CHARS - TAIL_CHARS
     return (
         f"{text[:HEAD_CHARS]}\n\n[… {left_out:,} characters left out …]\n\n{text[-TAIL_CHARS:]}\n\n"
+        + full_output_note(text, number)
+    )
+
+
+def full_output_note(text: str, number: int) -> str:
+    """The note that tells where the whole output is; the chat looks for its first words (NOTE)."""
+    lines = text.count("\n") + 1
+    return (
         f"[Full output: output {number}, {lines:,} lines, {len(text):,} characters. Read any part with read_output "
         "(a range of lines, or a search).]"
     )

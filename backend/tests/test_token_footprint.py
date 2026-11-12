@@ -68,7 +68,7 @@ def test_the_footprint_is_the_same_twice(measured: tuple[Footprint, Footprint]) 
 
 def test_every_situation_has_its_parts(measured: tuple[Footprint, Footprint]) -> None:
     situations = {situation.name: situation for situation in measured[0].situations}
-    assert list(situations) == ["plain_chat", "project", "goal_turn"]
+    assert list(situations) == ["plain_chat", "project", "goal_turn", "long_project", "long_project_savings"]
     names = {name: {part.name: part for part in situation.parts} for name, situation in situations.items()}
     for parts in names.values():
         assert {"system:base", "tools:yaap", "message:user", "message:turn_context"} <= set(parts)
@@ -86,3 +86,18 @@ def test_every_situation_has_its_parts(measured: tuple[Footprint, Footprint]) ->
     assert 4_000 < names["project"]["result:4:run_command"].chars < 6_000
     assert "finish_goal" in dict(situations["goal_turn"].tools) and "finish_goal" not in dict(project.tools)
     assert names["goal_turn"]["message:user"].chars > names["project"]["message:user"].chars
+
+
+def test_context_savings_shorten_the_repeated_read_and_the_test_output(measured: tuple[Footprint, Footprint]) -> None:
+    situations = {situation.name: situation for situation in measured[0].situations}
+    off = {part.name: part for part in situations["long_project"].parts}
+    on = {part.name: part for part in situations["long_project_savings"].parts}
+    assert off["result:2:read_file"].chars == off["result:1:read_file"].chars
+    assert on["result:2:read_file"].chars < 200 < on["result:1:read_file"].chars
+    assert off["result:4:run_command"].chars > 4_000
+    assert on["result:4:run_command"].chars < off["result:4:run_command"].chars / 2
+    # The edits and the first read do not change.
+    for name in ("result:1:read_file", "result:3:edit_file", "result:5:edit_file"):
+        assert on[name] == off[name]
+    totals = {name: sum(part.tokens for part in situations[name].parts) for name in situations}
+    assert totals["long_project_savings"] < totals["long_project"]

@@ -206,6 +206,11 @@ class RunState:
     joined_tools: set[str] = field(default_factory=set)
     # How often each test command failed in this run (app/learning signals).
     failed_tests: dict[str, int] = field(default_factory=dict)
+    # The context_savings setting, read once when the run starts (app/core/context_savings.py).
+    context_savings: bool = False
+    # Full reads of read_file in this run: (path, first line, last line) -> hash of the result and the read's number.
+    read_ranges: dict[tuple[str, int, int], tuple[str, int]] = field(default_factory=dict)
+    reads: int = 0
 
     def for_child(self, record_id: int | None) -> "RunState":
         """A sub-run shares the injection guard's state with its parent, both ways, and starts with the tools its
@@ -215,6 +220,7 @@ class RunState:
             outside_sources=self.outside_sources,
             outside_files=self.outside_files,
             joined_tools=set(self.joined_tools),
+            context_savings=self.context_savings,
         )
 
 

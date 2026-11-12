@@ -1,0 +1,133 @@
+   Compiling shop v0.3.1 (/work/shop)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.21s
+     Running unittests src/lib.rs (target/debug/deps/shop-3f1a9c1d2b7e4a10)
+
+running 120 tests
+test cart::tests::case_001 ... ok
+test cart::tests::case_002 ... ok
+test cart::tests::case_003 ... ok
+test cart::tests::case_004 ... ok
+test cart::tests::case_005 ... ok
+test cart::tests::case_006 ... ok
+test cart::tests::case_007 ... ok
+test cart::tests::case_008 ... ok
+test cart::tests::case_009 ... ok
+test cart::tests::case_010 ... ok
+test cart::tests::case_011 ... ok
+test cart::tests::case_012 ... ok
+test cart::tests::case_013 ... ok
+test cart::tests::case_014 ... ok
+test cart::tests::case_015 ... ok
+test cart::tests::case_016 ... ok
+test cart::tests::case_017 ... ok
+test cart::tests::case_018 ... ok
+test cart::tests::case_019 ... ok
+test cart::tests::case_020 ... ok
+test cart::tests::case_021 ... ok
+test cart::tests::case_022 ... ok
+test cart::tests::case_023 ... ok
+test cart::tests::case_024 ... ok
+test cart::tests::case_025 ... ok
+test cart::tests::case_026 ... ok
+test cart::tests::case_027 ... ok
+test cart::tests::case_028 ... ok
+test cart::tests::case_029 ... ok
+test cart::tests::case_030 ... ok
+test cart::tests::case_031 ... ok
+test cart::tests::case_032 ... ok
+test cart::tests::case_033 ... ok
+test cart::tests::case_034 ... ok
+test cart::tests::case_035 ... ok
+test cart::tests::case_036 ... ok
+test cart::tests::case_037 ... ok
+test cart::tests::case_038 ... ok
+test cart::tests::case_039 ... ok
+test cart::tests::case_040 ... ok
+test cart::tests::case_041 ... ok
+test cart::tests::case_042 ... ok
+test cart::tests::case_043 ... ok
+test cart::tests::case_044 ... ok
+test cart::tests::case_045 ... ok
+test cart::tests::case_046 ... ok
+test cart::tests::case_047 ... ok
+test cart::tests::case_048 ... ok
+test cart::tests::case_049 ... ok
+test cart::tests::case_050 ... ok
+test cart::tests::case_051 ... ok
+test cart::tests::case_052 ... ok
+test cart::tests::case_053 ... ok
+test cart::tests::case_054 ... ok
+test cart::tests::case_055 ... ok
+test cart::tests::case_056 ... ok
+test cart::tests::case_057 ... ok
+test cart::tests::case_058 ... ok
+test cart::tests::case_059 ... ok
+test cart::tests::case_060 ... ok
+test cart::tests::case_061 ... ok
+test cart::tests::case_062 ... ok
+test cart::tests::case_063 ... ok
+test cart::tests::case_064 ... ok
+test cart::tests::case_065 ... ok
+test cart::tests::case_066 ... ok
+test cart::tests::case_067 ... ok
+test cart::tests::case_068 ... ok
+test cart::tests::case_069 ... ok
+test cart::tests::case_070 ... ok
+test cart::tests::case_071 ... ok
+test cart::tests::case_072 ... ok
+test cart::tests::case_073 ... ok
+test cart::tests::case_074 ... ok
+test cart::tests::case_075 ... ok
+test cart::tests::case_076 ... ok
+test cart::tests::case_077 ... ok
+test cart::tests::case_078 ... ok
+test cart::tests::case_079 ... ok
+test cart::tests::case_080 ... ok
+test cart::tests::case_081 ... ok
+test cart::tests::case_082 ... ok
+test cart::tests::case_083 ... ok
+test cart::tests::case_084 ... ok
+test cart::tests::case_085 ... ok
+test cart::tests::case_086 ... ok
+test cart::tests::case_087 ... ok
+test cart::tests::case_088 ... ok
+test cart::tests::case_089 ... ok
+test cart::tests::case_090 ... ok
+test cart::tests::case_091 ... ok
+test cart::tests::case_092 ... ok
+test cart::tests::case_093 ... ok
+test cart::tests::case_094 ... ok
+test cart::tests::case_095 ... ok
+test cart::tests::case_096 ... ok
+test cart::tests::case_097 ... ok
+test cart::tests::case_098 ... ok
+test cart::tests::case_099 ... ok
+test cart::tests::case_100 ... ok
+test cart::tests::case_101 ... ok
+test cart::tests::case_102 ... ok
+test cart::tests::case_103 ... ok
+test cart::tests::case_104 ... ok
+test cart::tests::case_105 ... ok
+test cart::tests::case_106 ... ok
+test cart::tests::case_107 ... ok
+test cart::tests::case_108 ... ok
+test cart::tests::case_109 ... ok
+test cart::tests::case_110 ... ok
+test cart::tests::case_111 ... ok
+test cart::tests::case_112 ... ok
+test cart::tests::case_113 ... ok
+test cart::tests::case_114 ... ok
+test cart::tests::case_115 ... ok
+test cart::tests::case_116 ... ok
+test cart::tests::case_117 ... ok
+test cart::tests::case_118 ... ok
+test cart::tests::case_119 ... ok
+test cart::tests::case_120 ... ok
+
+test result: ok. 120 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+
+   Doc-tests shop
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
