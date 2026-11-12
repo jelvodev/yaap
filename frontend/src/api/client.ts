@@ -21,6 +21,10 @@ export type BlueprintFile = components["schemas"]["BlueprintFileOut"];
 export type MutationStatus = components["schemas"]["MutationStatusOut"];
 export type GitRepository = components["schemas"]["RepositoryOut"];
 export type Preset = components["schemas"]["PresetOut"];
+export type Why = components["schemas"]["WhyOut"];
+export type Behind = components["schemas"]["BehindOut"];
+export type BehindLabel = components["schemas"]["BehindLabelOut"];
+export type CallWhy = components["schemas"]["CallWhyOut"];
 
 /** Turn an error body from the API into one readable sentence. */
 export function errorMessage(error: unknown, fallback = "Something went wrong."): string {

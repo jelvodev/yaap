@@ -1,6 +1,7 @@
 import type { Message } from "../../api/client";
-import RouteNote from "../RouteNote";
 import type { ToolCallRef } from "../trace/traceOrder";
+import { BehindChips } from "./BehindChipRow";
+import { BehindProvider } from "./BehindProvider";
 import { TraceStepContext } from "./contexts";
 import { Markdown } from "./Markdown";
 import type { MessageActions } from "./MessageActions";
@@ -42,28 +43,30 @@ export default function AssistantMessage({
     <div className="message-assistant" {...anchor}>
       <div className="avatar" aria-hidden="true" />
       <div className="assistant-body">
-        <TraceStepContext.Provider value={openStep}>
-          <ReplyBody blocks={blocksFromMessage(message)} />
-        </TraceStepContext.Provider>
-        {summary && (
-          <details className="summary-marker">
-            <summary>
-              Earlier messages summarised · the model continues from here with a summary of {summary.covered} messages
-              {summary.focus ? ` · focus: ${summary.focus}` : ""}
-            </summary>
-            <Markdown text={summary.text} />
-          </details>
-        )}
-        {message.status !== "complete" && (
-          <p className={`message-status status-${message.status}`}>
-            <strong>{STATUS_LABELS[message.status]}:</strong> {message.error}
-          </p>
-        )}
-        {message.route && <RouteNote route={message.route} />}
-        {actions?.secondOpinions?.opinions
-          .filter((opinion) => opinion.message_id === message.id)
-          .map((opinion) => <SecondOpinionReport key={opinion.id} opinion={opinion} actions={actions} />)}
-        {actions && <ReplyActions message={message} actions={actions} />}
+        <BehindProvider message={message}>
+          <TraceStepContext.Provider value={openStep}>
+            <ReplyBody blocks={blocksFromMessage(message)} />
+          </TraceStepContext.Provider>
+          {summary && (
+            <details className="summary-marker">
+              <summary>
+                Earlier messages summarised · the model continues from here with a summary of {summary.covered} messages
+                {summary.focus ? ` · focus: ${summary.focus}` : ""}
+              </summary>
+              <Markdown text={summary.text} />
+            </details>
+          )}
+          {message.status !== "complete" && (
+            <p className={`message-status status-${message.status}`}>
+              <strong>{STATUS_LABELS[message.status]}:</strong> {message.error}
+            </p>
+          )}
+          <BehindChips message={message} actions={actions} />
+          {actions?.secondOpinions?.opinions
+            .filter((opinion) => opinion.message_id === message.id)
+            .map((opinion) => <SecondOpinionReport key={opinion.id} opinion={opinion} actions={actions} />)}
+          {actions && <ReplyActions message={message} actions={actions} />}
+        </BehindProvider>
       </div>
     </div>
   );

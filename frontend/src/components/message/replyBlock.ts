@@ -1,4 +1,4 @@
-import type { Message } from "../../api/client";
+import type { Message, Why } from "../../api/client";
 import type { ApprovalDecision } from "../../api/message-stream";
 
 /** One piece of an assistant reply, in the order it happened. */
@@ -30,6 +30,7 @@ export type ReplyBlock =
       decision: ApprovalDecision | null;
       reason?: string | null;
       suspicion?: string | null;
+      why?: Why | null;
     };
 
 export type ToolCallReplyBlock = Extract<ReplyBlock, { type: "tool_call" }>;

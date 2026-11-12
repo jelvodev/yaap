@@ -1,9 +1,11 @@
 import { useContext, useEffect, useRef, useState } from "react";
 
+import { callKey } from "../../api/checkpoints";
 import { usePreferences } from "../../preferences/PreferencesProvider";
 import { JsonText } from "../highlight";
 import { ChevronIcon } from "../icons";
-import { CheckpointContext, OutputContext, TraceStepContext } from "./contexts";
+import { WhyPopover } from "../why/WhyPopover";
+import { CallReasonContext, CheckpointContext, OutputContext, TraceStepContext } from "./contexts";
 import { type ToolCallReplyBlock, toolLineLabel } from "./replyBlock";
 
 const FULL_OUTPUT = /\[Full output: output (\d+),/;
@@ -108,6 +110,7 @@ export function ToolCallBlock({ block }: { block: ToolCallReplyBlock }) {
   const [open, setOpen] = useState(preferences.verbose_tools);
   const state = block.output === null ? "running" : block.is_error ? "error" : "done";
   const summary = inputSummary(block.input);
+  const reason = useContext(CallReasonContext)(callKey(block.name, block.input))?.why;
   const liveRef = useRef<HTMLPreElement>(null);
   useEffect(() => {
     if (liveRef.current) liveRef.current.scrollTop = liveRef.current.scrollHeight;
@@ -127,6 +130,7 @@ export function ToolCallBlock({ block }: { block: ToolCallReplyBlock }) {
           )}
         </span>
       </button>
+      {reason && <WhyPopover why={reason} />}
       <ToolCallLinks block={block} finished={state !== "running"} />
       {state === "running" && block.live && (
         <pre className="tool-call-live" ref={liveRef}>

@@ -1,4 +1,4 @@
-import { type ConversationSummary, type Message, errorMessage } from "./client";
+import { type ConversationSummary, type Message, type Why, errorMessage } from "./client";
 import type { UtilitySkip } from "./utility-skips";
 
 export interface ToolCallStart {
@@ -23,6 +23,8 @@ export interface ApprovalRequest {
   reason?: string | null;
   // What the optional utility-model check found suspicious.
   suspicion?: string | null;
+  // The rule behind the question, when a rule decided it.
+  why?: Why | null;
 }
 
 export type ApprovalDecision = "approve" | "deny";
