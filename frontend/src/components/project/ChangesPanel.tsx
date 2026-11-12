@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type { GitRepository, Project } from "../../api/client";
 import { Badge } from "../workbench/Workbench";
@@ -105,7 +105,12 @@ export default function ChangesPanel({
   /** Open Project settings, where the remote is set. */
   onOpenSettings?: () => void;
 }) {
-  const { repository, error } = git;
+  const { repository, error, reload } = git;
+  // The rail keeps the git state between replies; opening the panel reads it again, so changes made outside YAAP
+  // (an editor, a terminal) show too.
+  useEffect(() => {
+    void reload();
+  }, [reload]);
   if (error) return <p className="notice pp-pad">{error}</p>;
   if (!repository) return <p className="faint small pp-pad">Loading…</p>;
   return (
