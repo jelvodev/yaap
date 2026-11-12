@@ -125,7 +125,7 @@ def test_a_switched_on_plugin_registers_its_tool_at_the_next_start(client, tmp_p
         conversation_id = start_conversation(again)
         fake.responses.extend(
             [
-                ScriptedResponse(text="Greeting.", tool_calls=(("greeter_greet", {"name": "Jelle"}),)),
+                ScriptedResponse(text="Greeting.", tool_calls=(("greeter_greet", {"name": "Sam"}),)),
                 ScriptedResponse(text="Done."),
             ]
         )
@@ -133,7 +133,7 @@ def test_a_switched_on_plugin_registers_its_tool_at_the_next_start(client, tmp_p
             again.post(f"/api/v1/conversations/{conversation_id}/messages", json={"text": "Greet me"}).text
         )
         result = next(data for name, data in events if name == "tool_result")
-        assert result["output"] == "Hello, Jelle!" and not result["is_error"]
+        assert result["output"] == "Hello, Sam!" and not result["is_error"]
 
         # Switching off takes effect at the next start too.
         off = again.put("/api/v1/plugins/greeter", json={"enabled": False}).json()

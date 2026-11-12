@@ -32,7 +32,7 @@ COMPOSE = {"com.docker.compose.project": "yaap"}
         # Docker Desktop's and WSL's Linux names for a Windows drive.
         ("/run/desktop/mnt/host/c/YAAP/data", "C:\\YAAP\\data"),
         ("/mnt/c/YAAP/data", "C:\\YAAP\\data"),
-        ("/host_mnt/c/Users/jelle/yaap/data", "C:\\Users\\jelle\\yaap\\data"),
+        ("/host_mnt/c/Users/alex/yaap/data", "C:\\Users\\alex\\yaap\\data"),
         ("/mnt/d", "D:\\"),
         # A Linux host's path stays as it is.
         ("/home/x/yaap/data", "/home/x/yaap/data"),

@@ -112,9 +112,9 @@ def test_a_broken_frame_is_an_error(data: bytes, problem: str):
         ("/workspace/site", False, "file:///usr/lib/python3/typing.pyi", None),
         ("/workspace/site", False, "untitled:Untitled-1", None),
         ("/workspace", False, "file:///workspace/a%20b.py", "a b.py"),
-        ("C:\\Users\\jelle\\site", True, "file:///C:/Users/jelle/site/src/a.py", "src/a.py"),
-        ("C:\\Users\\jelle\\site", True, "file:///c%3A/Users/Jelle/site/src/a.py", "src/a.py"),
-        ("C:\\Users\\jelle\\site", True, "file:///D:/site/a.py", None),
+        ("C:\\Users\\alex\\site", True, "file:///C:/Users/alex/site/src/a.py", "src/a.py"),
+        ("C:\\Users\\alex\\site", True, "file:///c%3A/Users/Alex/site/src/a.py", "src/a.py"),
+        ("C:\\Users\\alex\\site", True, "file:///D:/site/a.py", None),
     ],
 )
 def test_file_uris_map_to_paths_in_the_project_folder(root: str, windows: bool, uri: str, relative: str | None):
@@ -124,7 +124,7 @@ def test_file_uris_map_to_paths_in_the_project_folder(root: str, windows: bool, 
 def test_a_relative_path_becomes_the_uri_the_server_knows():
     assert PathMap("/workspace/site").uri("src/a b.py") == "file:///workspace/site/src/a%20b.py"
     assert PathMap("/workspace/site").uri() == "file:///workspace/site"
-    assert PathMap("C:\\Users\\jelle\\site", True).uri("src/a.py") == "file:///C:/Users/jelle/site/src/a.py"
+    assert PathMap("C:\\Users\\alex\\site", True).uri("src/a.py") == "file:///C:/Users/alex/site/src/a.py"
     assert PathMap("/workspace").label("file:///usr/lib/x.pyi") == "/usr/lib/x.pyi"
 
 

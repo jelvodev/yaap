@@ -1,7 +1,7 @@
 """Embedding models for semantic search.
 
 An `Embedder` turns text into unit vectors. YAAP runs one embedding model for everything (setting `embedding_model`),
-because a change of model means rebuilding the index. The model is `BAAI/bge-m3` (chosen 2026-11-06 by measuring on
+because a change of model means rebuilding the index. The model is `BAAI/bge-m3` (chosen by measuring on
 YAAP's own data, see app/scripts/measure_embeddings.py), run locally with ONNX Runtime from files downloaded once
 into the data folder (app/core/local_models), so no text leaves the machine.
 """
@@ -87,11 +87,11 @@ class ModelSpec:
 
 
 MODELS = {
-    # E5 similarities are compressed into a narrow, high band. Measured on YAAP data (2026-11-05): related chunks at
+    # E5 similarities are compressed into a narrow, high band. Measured on YAAP data: related chunks at
     # distance 0.12-0.15, unrelated queries from 0.16 up.
     "multilingual-e5-small": ModelSpec("multilingual-e5-small", 384, "mean", True, MAX_DISTANCE),
     "multilingual-e5-base": ModelSpec("multilingual-e5-base", 768, "mean", True, MAX_DISTANCE),
-    # Measured on YAAP data (2026-11-06): right hits at 0.02-0.50, also from Dutch questions to English standards;
+    # Measured on YAAP data: right hits at 0.02-0.50, also from Dutch questions to English standards;
     # unrelated queries from 0.54 up.
     "bge-m3": ModelSpec("bge-m3", 1024, "cls", False, 0.52),
 }
