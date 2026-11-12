@@ -133,6 +133,10 @@ CHILD_FIELDS = [
     ("state", "joined_tools", {"browser__browser_navigate"}),
     # A test that failed twice counts per run.
     ("state", "failed_tests", {}),
+    # The setting is read once per run and a sub-run follows its parent; what was read is each run's own.
+    ("state", "context_savings", False),
+    ("state", "read_ranges", {}),
+    ("state", "reads", 0),
 ]
 
 
