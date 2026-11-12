@@ -126,7 +126,7 @@ def conversation_return_notice(
                 scheduled=conversation.scheduled_task_id is not None,
                 last_reply_at=aware(replies[-1].created_at) if replies else None,
             )
-        ),
+        ).ttl,
     )
     return return_notice(facts)
 
@@ -165,4 +165,4 @@ def last_reply_ttl(session: Session, conversation: Conversation, branch: list[Me
         scheduled=conversation.scheduled_task_id is not None,
         last_reply_at=aware(previous.created_at) if previous else None,
     )
-    return choose_cache_ttl(facts)
+    return choose_cache_ttl(facts).ttl

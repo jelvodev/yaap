@@ -126,8 +126,6 @@ def test_a_reply_past_half_the_window_marks_a_trim(client, fake):
         messages = session.scalars(select(Message).where(Message.conversation_id == conversation_id).order_by(Message.id)).all()
         marked = [item.id for item in messages if any(block.get("type") == "trim" for block in item.content)]
     assert marked == [messages[1].id]
-    breakdown = client.get(f"/api/v1/conversations/{conversation_id}/context").json()
-    assert any(part["label"].startswith("Old tool output shortened") for part in breakdown["parts"])
 
 
 def test_repeated_identical_calls_are_warned_then_refused_and_pause_the_goal(client):

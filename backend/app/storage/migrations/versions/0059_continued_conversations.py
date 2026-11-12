@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "0059_continued_conversations"
-down_revision = "0057_eval_queue_items"
+down_revision = "0058_step_notes"
 branch_labels = None
 depends_on = None
 
