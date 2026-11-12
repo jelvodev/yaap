@@ -13,6 +13,9 @@ allowed_tools:
   - tracker__search_issues
   - tracker__list_comments
   - tracker__list_issues
+approve:
+  tools: [edit_file, write_file]
+  commands: ["python3 -m unittest"]
 budget:
   steps: 40 steps
   tokens: 1M tokens

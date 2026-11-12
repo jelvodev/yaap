@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from app.agent.policy import CaseApprovals
 from app.evals.cases import parse_case, read_cases
 from app.evals.models import Budget, CommandCheck, FileCheck, RubricCheck, StartState
 from app.evals.units import UnitError, parse_cost, parse_seconds, parse_steps, parse_tokens
@@ -112,6 +113,52 @@ def test_an_invalid_case_file_is_refused_with_the_reason(name, text, expected):
 
     assert found.case is None
     assert any(expected in problem for problem in found.problems), found.problems
+
+
+@pytest.mark.parametrize(
+    ("approve", "expected"),
+    [
+        ({"tools": ["edit_file", "write_file"]}, CaseApprovals(frozenset({"edit_file", "write_file"}), ())),
+        ({"commands": ["python3 -m unittest"]}, CaseApprovals(frozenset(), ("python3 -m unittest",))),
+        (
+            {"tools": ["git_commit"], "commands": ["pytest  -q"]},
+            CaseApprovals(frozenset({"git_commit"}), ("pytest -q",)),
+        ),
+    ],
+)
+def test_a_valid_approve_is_read_as_the_calls_the_play_approves(approve, expected):
+    found = parse_case("approves", case_text(approve=approve))
+
+    assert found.problems == ()
+    assert found.case is not None and found.case.approve == expected
+
+
+def test_a_case_without_approve_approves_nothing():
+    found = parse_case("plain", case_text())
+
+    assert found.case is not None and found.case.approve is None
+
+
+@pytest.mark.parametrize(
+    "approve",
+    [
+        {"tools": ["web_fetch"]},
+        {"tools": ["git_push"]},
+        {"tools": ["run_command"]},
+        {"tools": ["no_such_tool"]},
+        {"commands": ["make test && make deploy"]},
+        {"commands": "pytest"},
+        {"tools": "edit_file"},
+        {"other": ["edit_file"]},
+        ["edit_file"],
+        {},
+    ],
+)
+def test_an_approve_that_could_open_the_guard_too_far_or_is_malformed_refuses_the_case(approve):
+    found = parse_case("approves", case_text(approve=approve))
+
+    assert found.case is None
+    assert any("approve" in problem for problem in found.problems), found.problems
 
 
 def test_every_problem_of_a_file_is_listed_at_once():

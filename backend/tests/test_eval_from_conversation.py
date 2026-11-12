@@ -9,6 +9,7 @@ import pytest
 
 from app.blueprint.layers import Layer
 from app.checkpoints.service import CheckpointStore
+from app.agent.policy import CaseApprovals
 from app.evals.case_writer import CaseExistsError, CaseWriteError, render_case, save_case
 from app.evals.cases import parse_case, read_cases
 from app.evals.from_conversation import parse_answer, propose_for_conversation, slug
@@ -204,6 +205,7 @@ FULL_CASE = EvalCase(
     agent="developer",
     preset="Balanced",
     allowed_tools=("read_file", "edit_file"),
+    approve=CaseApprovals(frozenset({"write_file", "edit_file"}), ("python3 -m unittest",)),
     budget=Budget(steps=40, tokens=1_500, cost_usd=0.00005, seconds=90),
 )
 
@@ -212,6 +214,14 @@ FULL_CASE = EvalCase(
     "case",
     [
         FULL_CASE,
+        EvalCase(
+            "tools-only",
+            "Do it.",
+            StartState(commit="abcdef1"),
+            (),
+            approve=CaseApprovals(frozenset({"git_commit"}), ()),
+            budget=Budget(steps=5),
+        ),
         EvalCase("replayed", "Do it.", StartState(checkpoint=7), (), budget=Budget(tokens=2_000_000, seconds=7200)),
         EvalCase("long-name", "Do it.", StartState(commit="abcdef1"), (RubricCheck("r" * 200, "r" * 200),)),
     ],

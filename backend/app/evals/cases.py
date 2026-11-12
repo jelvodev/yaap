@@ -2,14 +2,16 @@
 
 A case file has the Blueprint's file format (YAML front matter between --- lines, then Markdown), read with the
 Blueprint's own parser. The body is the prompt; the front matter holds the start state, the agent and preset, the
-tools allowed without asking, the budget and the checks. Validation is a pure function of the file's text: it
-collects every problem instead of stopping at the first, so one look at a broken case shows all that is wrong.
+tools allowed without asking, the calls the play approves after the run read outside content, the budget and the
+checks. Validation is a pure function of the file's text: it collects every problem instead of stopping at the first,
+so one look at a broken case shows all that is wrong.
 """
 
 import os
 import re
 from pathlib import Path
 
+from app.agent.policy import CaseApprovals, check_case_approvals
 from app.blueprint.layers import MAX_FILE_BYTES, PROJECT_LAYER_FOLDER, BlueprintError, parse_document
 from app.evals.models import (
     Budget,
@@ -34,7 +36,7 @@ MAX_CHECKS = 50
 DEFAULT_COMMAND_TIMEOUT = 600.0
 MAX_COMMAND_TIMEOUT = 3600.0
 
-FRONT_MATTER_KEYS = ("summary", "start", "agent", "preset", "allowed_tools", "budget", "checks")
+FRONT_MATTER_KEYS = ("summary", "start", "agent", "preset", "allowed_tools", "approve", "budget", "checks")
 FILE_CONDITIONS = ("contains", "not_contains", "matches", "not_matches")
 CHECK_KEYS: dict[str, tuple[str, ...]] = {
     "command": ("kind", "name", "run", "timeout"),
@@ -116,6 +118,7 @@ def parse_case(name: str, text: str, path: str = "", known_tools: frozenset[str]
         agent=optional_name(front, "agent", problems),
         preset=optional_text(front, "preset", MAX_PRESET_CHARS, problems),
         allowed_tools=parse_tools(front.get("allowed_tools"), problems),
+        approve=parse_approve(front, problems),
         budget=budget,
     )
     if problems or start is None:
@@ -174,6 +177,14 @@ def parse_tools(value: object, problems: list[str]) -> tuple[str, ...] | None:
         problems.append(f"allowed_tools has names that are not tool names: {', '.join(wrong)}.")
         return None
     return names
+
+
+def parse_approve(front: dict[str, object], problems: list[str]) -> CaseApprovals | None:
+    if "approve" not in front:
+        return None
+    approvals, found = check_case_approvals(front["approve"])
+    problems.extend(found)
+    return approvals
 
 
 def tool_warnings(case: EvalCase, known_tools: frozenset[str] | None) -> tuple[str, ...]:

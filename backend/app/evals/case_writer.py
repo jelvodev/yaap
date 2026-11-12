@@ -9,6 +9,7 @@ the project's Blueprint layer, the way every Blueprint change is committed (`blu
 import math
 from dataclasses import dataclass
 
+from app.agent.policy import CaseApprovals
 from app.blueprint.layers import MAX_FILE_BYTES, BlueprintError, Layer, commit
 from app.blueprint.rules import render
 from app.evals.cases import DEFAULT_COMMAND_TIMEOUT, EVALS_FOLDER, parse_case
@@ -48,6 +49,8 @@ def render_case(case: EvalCase) -> str:
         front["preset"] = case.preset
     if case.allowed_tools is not None:
         front["allowed_tools"] = list(case.allowed_tools)
+    if case.approve is not None:
+        front["approve"] = approve_value(case.approve)
     if case.budget is not None:
         front["budget"] = budget_value(case.budget)
     if case.checks:
@@ -59,6 +62,15 @@ def start_value(start: StartState) -> dict[str, object]:
     if start.checkpoint is not None:
         return {"checkpoint": start.checkpoint}
     return {"commit": start.commit or ""}
+
+
+def approve_value(approve: CaseApprovals) -> dict[str, list[str]]:
+    value: dict[str, list[str]] = {}
+    if approve.tools:
+        value["tools"] = sorted(approve.tools)
+    if approve.commands:
+        value["commands"] = list(approve.commands)
+    return value
 
 
 def budget_value(budget: Budget) -> dict[str, str]:
