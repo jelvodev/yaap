@@ -328,3 +328,165 @@
     border-bottom: 1px solid var(--border);
   }
 }
+
+/* The view under the tabs fills the rest of the dialog. */
+.trace-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Tabs of the trace dialog. */
+.trace-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.trace-tab {
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.trace-tab:hover {
+  color: var(--text);
+}
+
+.trace-tab[aria-selected="true"] {
+  border-bottom-color: var(--accent);
+  color: var(--text-strong);
+}
+
+.trace-tab-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 18px;
+}
+
+/* The token overview. */
+.tokens-summary {
+  margin: 0 0 6px;
+  color: var(--text-strong);
+}
+
+.token-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.token-part-cache_read {
+  background: var(--ok);
+}
+
+.token-part-cache_write {
+  background: var(--warning-strong);
+}
+
+.token-part-input {
+  background: var(--accent);
+}
+
+.token-part-output {
+  background: var(--diff-info);
+  opacity: 0.55;
+}
+
+.token-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.token-reply {
+  margin-bottom: 8px;
+}
+
+.token-row {
+  display: grid;
+  grid-template-columns: 180px 1fr 56px 64px;
+  align-items: center;
+  gap: 10px;
+  padding: 3px 0;
+}
+
+.token-row-indent {
+  padding-left: 22px;
+}
+
+.token-row-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.token-row-total,
+.token-row-cost {
+  text-align: right;
+}
+
+.token-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--raised);
+  overflow: hidden;
+}
+
+.token-bar .token-part {
+  height: 100%;
+}
+
+.tokens-tab h3 {
+  margin: 18px 0 6px;
+  font-size: 13px;
+}
+
+.token-results,
+.token-hints {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.token-hints li {
+  padding: 4px 0;
+}
+
+.token-result {
+  display: grid;
+  grid-template-columns: 130px 1fr auto;
+  gap: 10px;
+  width: 100%;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.token-result:hover {
+  background: var(--hover);
+}
+
+.token-result-summary {
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
