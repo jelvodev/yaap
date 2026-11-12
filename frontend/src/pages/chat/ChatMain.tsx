@@ -115,6 +115,8 @@ export default function ChatMain(props: ChatMainProps) {
           if (message) session.stream.retryStoredMessage(message);
         }}
         onOutsideDecided={() => conversation && void active.load(conversation.id)}
+        onFillDraft={composerDraft.fill}
+        onEditCurrentState={() => props.rail.open("memory")}
       />
       {conversation && <UtilitySkipNotice skips={session.skips.shown} onDismiss={session.skips.dismiss} />}
       {conversation && goal && (

@@ -10,6 +10,7 @@ import MessageView from "../../components/MessageView";
 import OutsideApprovals from "../../components/OutsideApprovals";
 import { UtilityLine, utilityEventsAfter } from "../../components/PreferencesMenu";
 import RouteStrip from "../../components/route/RouteStrip";
+import CurrentStateCard from "./CurrentStateCard";
 import { usePreferences } from "../../preferences/PreferencesProvider";
 
 interface MessageListProps {
@@ -31,6 +32,10 @@ interface MessageListProps {
   onRetryMessage: (messageId: number) => void;
   /** An approval asked outside the reply was decided: load the conversation again. */
   onOutsideDecided: () => void;
+  /** Put text into the composer, not sent. */
+  onFillDraft: (text: string) => void;
+  /** Open the project's memory panel. */
+  onEditCurrentState: () => void;
 }
 
 /** The messages of the open conversation and the reply streaming in, or the empty state of a new one. */
@@ -41,7 +46,12 @@ export default function MessageList(props: MessageListProps) {
     <div className="messages">
       <div className="messages-inner">
         {!conversation && !streaming && (
-          <EmptyState environmentName={props.environmentName} project={props.activeProject} />
+          <EmptyState
+            environmentName={props.environmentName}
+            project={props.activeProject}
+            onFillDraft={props.onFillDraft}
+            onEditCurrentState={props.onEditCurrentState}
+          />
         )}
         <OutputContext.Provider value={conversation?.id ?? null}>
           <CheckpointContext.Provider value={props.checkpointLinks}>
@@ -102,7 +112,17 @@ function StoredMessages({ conversation, focusMessageId, actions }: MessageListPr
   ));
 }
 
-function EmptyState({ environmentName, project }: { environmentName: string; project: Project | null }) {
+function EmptyState({
+  environmentName,
+  project,
+  onFillDraft,
+  onEditCurrentState,
+}: {
+  environmentName: string;
+  project: Project | null;
+  onFillDraft: (text: string) => void;
+  onEditCurrentState: () => void;
+}) {
   return (
     <div className="empty-state">
       <Logo blink className="empty-state-logo" />
@@ -117,6 +137,9 @@ function EmptyState({ environmentName, project }: { environmentName: string; pro
         )}
         . Press <kbd>Ctrl K</kbd> to jump anywhere.
       </p>
+      {project && (
+        <CurrentStateCard projectId={project.id} onContinue={onFillDraft} onEdit={onEditCurrentState} />
+      )}
     </div>
   );
 }
