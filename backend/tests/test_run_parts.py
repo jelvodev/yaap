@@ -75,6 +75,7 @@ def parent_run(registry: RunRegistry):
     run.state.steering.append("Use blue.")
     run.state.steering_item_ids.append(17)
     run.state.joined_tools.add("browser__browser_navigate")
+    run.state.context_savings = True
     return run
 
 
@@ -134,7 +135,7 @@ CHILD_FIELDS = [
     # A test that failed twice counts per run.
     ("state", "failed_tests", {}),
     # The setting is read once per run and a sub-run follows its parent; what was read is each run's own.
-    ("state", "context_savings", False),
+    ("state", "context_savings", True),
     ("state", "read_ranges", {}),
     ("state", "reads", 0),
 ]
