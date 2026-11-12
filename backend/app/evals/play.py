@@ -3,10 +3,10 @@
 A play makes the case's throwaway workspace (workspace.py), opens an archived conversation in the project for it,
 and starts the case's prompt through the reply service as an unattended reply: nobody is there to approve, so a call
 that would ask is refused (and counted as *asked*); the case's `allowed_tools` run without asking, as a scheduled
-task's allowlists do. The reply works in the workspace instead of the project folder, with the commands in the
-environment's runner, which holds only the environment's folder. Its steps are watched against the budget while it
-runs (budget.py). Then the case's checks run in the same workspace, the result is stored, and a passed play's
-workspace is removed.
+task's allowlists do; the calls the case's `approve` lists also pass the injection guard, in this play only. The
+reply works in the workspace instead of the project folder, with the commands in the environment's runner, which
+holds only the environment's folder. Its steps are watched against the budget while it runs (budget.py). Then the
+case's checks run in the same workspace, the result is stored, and a passed play's workspace is removed.
 """
 
 import asyncio
@@ -188,7 +188,12 @@ class CasePlayer:
                     raise PlayError(str(error)) from error
                 user_message = add_user_message(session, conversation, case.prompt)
                 reply = ReplyRequest(
-                    conversation, user_message, unattended=True, tools_by_name=case.allowed_tools or (), on_step=watch
+                    conversation,
+                    user_message,
+                    unattended=True,
+                    tools_by_name=case.allowed_tools or (),
+                    case_approvals=case.approve,
+                    on_step=watch,
                 )
                 watch.started = time.monotonic()
                 try:

@@ -11,7 +11,8 @@ The rules, in the order they apply:
    An A2A call to an agent the model policy does not allow is refused too.
 3. The tool's permission (the policy's per-tool choice where the user may change it) says whether it asks.
 4. An allowlisted command or website runs without asking, unless the run has read outside content.
-5. After outside content every tool that acts asks (the injection guard).
+5. After outside content every tool that acts asks (the injection guard). An eval case's approvals pass the guard
+   in its own (unattended) play.
 6. Full access runs everything without asking, except `ALWAYS_ASKS`.
 7. A call with a secret always asks.
 8. A changing tool on a computer whose changes YAAP cannot roll back asks, unless the conversation has full access.
@@ -42,6 +43,7 @@ Reason = Literal[
     # allow
     "auto",
     "allowlisted",
+    "case_approved",
     "full_access",
     "asks_itself",
     # ask
@@ -142,6 +144,12 @@ def permission_why(reason: Reason, tool: str, facts: RunFacts, permission: Permi
             "permission",
             "injection_check",
         )
+    if reason == "case_approved":
+        return Why(
+            f"The eval case approves {tool} in its throwaway workspace, so the injection guard did not ask after "
+            "outside content.",
+            "permission",
+        )
     if reason == "full_access":
         rule = "This conversation has full access, so tools run without asking."
         return Why(rule, "permission", "access", "conversation")
@@ -224,10 +232,14 @@ def decide(tool: ToolFacts, arguments: dict[str, Any], facts: RunFacts) -> Permi
     ask = permission == "ask" or (permission == "conditional" and tool.conditional_asks)
     reason: Reason = "permission" if ask else "auto"
     guard = None if tool.read_only or tool.asks_itself else outside_content_reason(facts.outside_sources)
-    if ask and guard is None and facts.policy.allows(name, arguments):
+    # An eval case's approvals pass the guard only in its play, which is unattended; every other run has none.
+    case_approved = guard is not None and facts.unattended and facts.policy.case_approvals.approves(name, arguments)
+    if ask and (guard is None or case_approved) and facts.policy.allows(name, arguments):
         ask, reason = False, "allowlisted"
-    if guard is not None:
+    if guard is not None and not case_approved:
         ask, reason = True, "outside_content"
+    if case_approved and not ask:
+        reason = "case_approved"
     if facts.access == "full" and name not in ALWAYS_ASKS and ask:
         ask, reason = False, "full_access"
     if secrets:

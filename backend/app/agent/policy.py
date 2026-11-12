@@ -33,6 +33,31 @@ SHELL_SYNTAX = re.compile(r"[;&|`$<>(){}\\\n\r*?~!#]")
 DOMAIN = re.compile(r"^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$")
 
 
+# What an eval case may approve in its play (`approve` in the case's front matter) when the injection guard would ask:
+# tools that change only the play's throwaway workspace. Whatever reaches the network, pushes, fills in secrets,
+# starts processes, writes outside the workspace or shows its own approval card is not here and can never be approved
+# by a case; run_command is approved per command (CaseApprovals.commands), never as a whole.
+CASE_APPROVABLE_TOOLS = frozenset({"write_file", "edit_file", "rename_symbol", "git_commit"})
+CASE_APPROVABLE_COMMAND_TOOL = "run_command"
+
+
+@dataclass(frozen=True)
+class CaseApprovals:
+    """The calls an eval case approves for its play when the injection guard would ask. Only an eval play's run has
+    any; empty, it approves nothing."""
+
+    tools: frozenset[str] = frozenset()
+    # Plain commands such as "python3 -m unittest"; a run_command call matches as the command allowlist does.
+    commands: tuple[str, ...] = ()
+
+    def approves(self, tool: str, arguments: dict[str, Any]) -> bool:
+        """Whether this call is one the case approved. A tool outside CASE_APPROVABLE_TOOLS never is, whatever the
+        list says."""
+        if tool == CASE_APPROVABLE_COMMAND_TOOL:
+            return command_allowed(str(arguments.get("command") or ""), self.commands)
+        return tool in self.tools and tool in CASE_APPROVABLE_TOOLS
+
+
 @dataclass(frozen=True)
 class ToolPolicy:
     permissions: dict[str, str] = field(default_factory=dict)
@@ -42,6 +67,8 @@ class ToolPolicy:
     access: AccessLevel = "default"
     # Tools allowed by name, whatever their arguments: an eval case's allowed_tools in its unattended run.
     tools: tuple[str, ...] = ()
+    # An eval case's approvals, set only for its play's unattended run: the calls that pass the injection guard.
+    case_approvals: CaseApprovals = field(default_factory=CaseApprovals)
 
     def permission_for(self, tool: str, default: str) -> str:
         return self.permissions.get(tool, default) if tool in CONFIGURABLE_TOOLS else default
@@ -108,6 +135,36 @@ def check_commands(value: Any) -> str | None:
         except ValueError:
             return f"'{entry}' has an unclosed quote."
     return None
+
+
+def check_case_approvals(value: Any) -> tuple[CaseApprovals | None, list[str]]:
+    """An eval case's `approve` value: `{tools: [...], commands: [...]}`, both optional. Returns the approvals, or
+    None with every problem found."""
+    problems: list[str] = []
+    if not isinstance(value, dict) or not value:
+        return None, ["approve must name tools, commands or both, like approve: {tools: [edit_file]}."]
+    unknown = sorted(str(key) for key in value if key not in ("tools", "commands"))
+    if unknown:
+        problems.append(f"approve has unknown keys: {', '.join(unknown)}. Use tools and commands.")
+    tools = value.get("tools", [])
+    if not isinstance(tools, list) or not all(isinstance(item, str) and item.strip() for item in tools):
+        problems.append("approve.tools must be a list of tool names.")
+        tools = []
+    names = [item.strip() for item in tools]
+    if CASE_APPROVABLE_COMMAND_TOOL in names:
+        problems.append("approve.tools cannot hold run_command; list the commands under approve.commands instead.")
+    refused = sorted({name for name in names if name not in CASE_APPROVABLE_TOOLS} - {CASE_APPROVABLE_COMMAND_TOOL})
+    if refused:
+        allowed = ", ".join(sorted(CASE_APPROVABLE_TOOLS))
+        problems.append(f"approve.tools cannot hold {', '.join(refused)}: a case can approve only {allowed}.")
+    commands = value.get("commands", [])
+    problem = check_commands(commands)
+    if problem is not None:
+        problems.append(f"approve.commands: {problem}")
+        commands = []
+    if problems:
+        return None, problems
+    return CaseApprovals(frozenset(names), tuple(" ".join(str(entry).split()) for entry in commands)), []
 
 
 def check_domains(value: Any) -> str | None:

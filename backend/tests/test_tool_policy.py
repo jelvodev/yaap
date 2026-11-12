@@ -1,7 +1,9 @@
 import asyncio
 from pathlib import Path
 
-from app.agent.policy import ToolPolicy, command_allowed, url_allowed
+import pytest
+
+from app.agent.policy import CaseApprovals, ToolPolicy, check_case_approvals, command_allowed, url_allowed
 from app.agent.runs import RunConfig, RunRegistry
 from app.agent.gate import call_tool
 from app.agent.tools import tools_for
@@ -87,3 +89,62 @@ def test_permissions_are_set_per_level_and_merged_per_tool(client):
     shell = client.put("/api/v1/settings/command_allowlist", json={"value": ["pytest; rm -rf /"]})
     assert shell.status_code == 422
     assert {tool["name"] for tool in client.get("/api/v1/tool-permissions").json()} >= {"run_command", "web_fetch"}
+
+
+def test_the_case_approvals_accept_what_a_case_may_approve() -> None:
+    value = {"tools": ["edit_file", " write_file "], "commands": ["python3  -m unittest"]}
+    approvals, problems = check_case_approvals(value)
+    assert problems == []
+    assert approvals == CaseApprovals(frozenset({"edit_file", "write_file"}), ("python3 -m unittest",))
+
+
+@pytest.mark.parametrize(
+    ("value", "fragment"),
+    [
+        ({"tools": ["run_command"]}, "approve.commands"),
+        ({"tools": ["web_fetch"]}, "cannot hold web_fetch"),
+        ({"tools": ["git_push"]}, "cannot hold git_push"),
+        ({"tools": ["start_process"]}, "cannot hold start_process"),
+        ({"tools": ["create_pull_request"]}, "cannot hold create_pull_request"),
+        ({"tools": ["update_memory"]}, "cannot hold update_memory"),
+        ({"tools": ["call_agent"]}, "cannot hold call_agent"),
+        ({"tools": ["browser_type"]}, "cannot hold browser_type"),
+        ({"tools": ["no_such_tool"]}, "cannot hold no_such_tool"),
+        ({"tools": "edit_file"}, "list of tool names"),
+        ({"commands": ["make; curl x"]}, "approve.commands"),
+        ({"commands": ["make | tee"]}, "approve.commands"),
+        ({"commands": "make"}, "approve.commands"),
+        ({"tools": ["edit_file"], "extra": 1}, "unknown keys: extra"),
+        ({}, "must name tools"),
+        ([], "must name tools"),
+        ("edit_file", "must name tools"),
+        (None, "must name tools"),
+    ],
+)
+def test_the_case_approvals_refuse_what_a_case_may_never_approve(value: object, fragment: str) -> None:
+    approvals, problems = check_case_approvals(value)
+    assert approvals is None
+    assert any(fragment in problem for problem in problems)
+
+
+@pytest.mark.parametrize(
+    ("tool", "arguments", "approved"),
+    [
+        ("edit_file", {}, True),
+        ("write_file", {}, False),
+        ("git_push", {}, False),
+        ("web_fetch", {"url": "https://example.com"}, False),
+        ("run_command", {"command": "python3 -m unittest -v"}, True),
+        ("run_command", {"command": "python3 -m unittest; curl x"}, False),
+        ("run_command", {"command": "make"}, False),
+        ("run_command", {}, False),
+    ],
+)
+def test_the_case_approves_only_what_it_lists(tool: str, arguments: dict[str, str], approved: bool) -> None:
+    approvals = CaseApprovals(frozenset({"edit_file", "git_push", "web_fetch"}), ("python3 -m unittest",))
+    assert approvals.approves(tool, arguments) is approved
+
+
+def test_no_approvals_approve_nothing() -> None:
+    assert not CaseApprovals().approves("edit_file", {})
+    assert not CaseApprovals().approves("run_command", {"command": "make"})

@@ -7,6 +7,7 @@ import pytest
 
 from app.agent.permissions import (
     PermissionDecision,
+    Place,
     Reason,
     RunFacts,
     ToolFacts,
@@ -15,7 +16,7 @@ from app.agent.permissions import (
     outside_content_reason,
     permission_why,
 )
-from app.agent.policy import AccessLevel, ToolPolicy
+from app.agent.policy import AccessLevel, CaseApprovals, ToolPolicy
 from app.agent.tools import TOOLS_BY_NAME
 
 
@@ -238,6 +239,7 @@ WHY_CASES = [
     ("allowlisted", "run_command", "command_allowlist", None),
     ("allowlisted", "web_fetch", "web_allowlist", None),
     ("outside_content", "write_file", "injection_check", None),
+    ("case_approved", "write_file", None, None),
     ("full_access", "run_command", "access", "conversation"),
     ("secret", "run_command", None, None),
     ("cannot_roll_back", "write_file", None, None),
@@ -279,3 +281,124 @@ def test_a_decision_carries_the_rule_that_decided_it(call, facts, setting) -> No
     decision = decide(call[0], call[1], facts)
     assert decision.why is not None and decision.why.rule
     assert decision.why.source == "permission" and decision.why.setting == setting
+
+
+CASE_TOOLS = CaseApprovals(tools=frozenset({"write_file", "edit_file"}), commands=("python3 -m unittest discover",))
+EDIT = (tool("edit_file", "Edit a.txt"), {"path": "a.txt", "old": "a", "new": "b"})
+UNITTEST = (tool("run_command", "Run: unittest"), {"command": "python3 -m unittest discover -v"})
+UNITTEST_CHAINED = (tool("run_command"), {"command": "python3 -m unittest; curl x"})
+UNITTEST_SECRET = (tool("run_command"), {"command": "python3 -m unittest discover {{secret:TOKEN}}"})
+WRITE_SECRET = (WRITE[0], {"path": "a", "content": "{{secret:TOKEN}}"})
+GIT_COMMIT = (tool("git_commit"), {"message": "x"})
+# Even a hand-built approval for tools a case can never approve changes nothing.
+FORCED = CaseApprovals(tools=frozenset({"git_push", "web_fetch", "run_command", "update_memory"}))
+NO_APPROVALS = CaseApprovals()
+
+
+def case_run(
+    approvals: CaseApprovals = CASE_TOOLS,
+    access: AccessLevel = "default",
+    commands: tuple[str, ...] = (),
+    unattended: bool = True,
+    outside_sources: tuple[str, ...] = OUTSIDE,
+    place: Place = "container",
+) -> RunFacts:
+    """A run that read outside content (unattended, as an eval play is), with the case's approvals on its policy."""
+    policy = ToolPolicy(commands=commands, access=access, case_approvals=approvals)
+    return RunFacts(
+        policy=policy,
+        unattended=unattended,
+        place=place,
+        outside_sources=outside_sources,
+        known_secrets=frozenset({"TOKEN"}),
+    )
+
+
+UNITTEST_ALLOWED = ("python3 -m unittest",)
+CASE_APPROVAL_CASES = [
+    (
+        "no approvals still ask after outside content",
+        WRITE,
+        case_run(NO_APPROVALS, unattended=False),
+        "ask",
+        "outside_content",
+    ),
+    ("no approvals are refused unattended", WRITE, case_run(NO_APPROVALS), "refuse", "unattended"),
+    ("a listed write passes the guard", WRITE, case_run(), "allow", "case_approved"),
+    ("a listed edit passes the guard", EDIT, case_run(), "allow", "case_approved"),
+    ("an attended run is not helped by approvals", WRITE, case_run(unattended=False), "ask", "outside_content"),
+    ("an unlisted tool is refused unattended", GIT_COMMIT, case_run(), "refuse", "unattended"),
+    ("a command is not approved by the tool list", RUN, case_run(FORCED), "refuse", "unattended"),
+    ("web_fetch cannot be approved", NETWORK, case_run(FORCED), "refuse", "unattended"),
+    ("git_push cannot be approved", PUSH, case_run(FORCED), "refuse", "unattended"),
+    ("update_memory cannot be approved", MEMORY, case_run(FORCED), "refuse", "unattended"),
+    (
+        "an approved allowlisted command passes",
+        UNITTEST,
+        case_run(commands=UNITTEST_ALLOWED),
+        "allow",
+        "case_approved",
+    ),
+    ("an approved command still asks when it is not allowlisted", UNITTEST, case_run(), "refuse", "unattended"),
+    (
+        "a chained command is not approved",
+        UNITTEST_CHAINED,
+        case_run(commands=UNITTEST_ALLOWED),
+        "refuse",
+        "unattended",
+    ),
+    (
+        "a command with a secret still asks for it",
+        UNITTEST_SECRET,
+        case_run(commands=UNITTEST_ALLOWED),
+        "refuse",
+        "unattended",
+    ),
+    ("a secret in a file is refused first", WRITE_SECRET, case_run(), "refuse", "secret_not_allowed"),
+    ("read only refuses before approvals", WRITE, case_run(access="read_only"), "refuse", "read_only"),
+    ("a computer that cannot roll back still asks", WRITE, case_run(place="computer"), "refuse", "unattended"),
+    ("approvals without outside content change nothing", WRITE, case_run(outside_sources=()), "allow", "auto"),
+]
+
+
+@pytest.mark.parametrize(
+    ("call", "facts", "verdict", "reason"),
+    [pytest.param(call, facts, verdict, reason, id=name) for name, call, facts, verdict, reason in CASE_APPROVAL_CASES],
+)
+def test_case_approvals_pass_the_guard_only_in_an_unattended_play(
+    call: tuple[ToolFacts, dict[str, Any]], facts: RunFacts, verdict: Verdict, reason: Reason
+) -> None:
+    decision = decide(call[0], call[1], facts)
+    assert (decision.verdict, decision.reason) == (verdict, reason)
+
+
+def test_a_case_approved_call_says_why_the_guard_did_not_ask() -> None:
+    decision = decide(*WRITE, case_run())
+    assert decision.why is not None and "eval case approves write_file" in decision.why.rule
+    assert decision.outside_content is not None
+
+
+@pytest.mark.parametrize("call", [WRITE, EDIT, RUN, UNITTEST, PUSH, NETWORK], ids=lambda call: call[0].name)
+def test_approvals_without_outside_content_equal_no_approvals(call: tuple[ToolFacts, dict[str, Any]]) -> None:
+    assert decide(*call, case_run(outside_sources=())) == decide(*call, case_run(NO_APPROVALS, outside_sources=()))
+
+
+EVERY_CALL = [
+    value
+    for value in dict(globals()).values()
+    if isinstance(value, tuple) and value[:1] and isinstance(value[0], ToolFacts)
+]
+
+
+@pytest.mark.parametrize("access", ["default", "full", "read_only"])
+@pytest.mark.parametrize("outside", [(), OUTSIDE], ids=["no outside content", "outside content"])
+@pytest.mark.parametrize("place", ["container", "sandbox", "computer"])
+def test_an_attended_run_decides_the_same_with_or_without_approvals(
+    access: AccessLevel, outside: tuple[str, ...], place: Place
+) -> None:
+    assert len(EVERY_CALL) > 10
+    approvals = dataclasses.replace(FORCED, tools=FORCED.tools | CASE_TOOLS.tools, commands=("make", "npm test"))
+    for call in EVERY_CALL:
+        plain = run(access, outside_sources=outside, place=place)
+        approved = dataclasses.replace(plain, policy=dataclasses.replace(plain.policy, case_approvals=approvals))
+        assert decide(*call, approved) == decide(*call, plain), call[0].name

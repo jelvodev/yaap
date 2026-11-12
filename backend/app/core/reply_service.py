@@ -19,6 +19,7 @@ import anyio
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
+from app.agent.policy import CaseApprovals
 from app.agent.runs import AgentRun
 from app.agent.tool_catalog import with_listing
 from app.agent.toolbox import RunToolBox
@@ -85,6 +86,8 @@ class ReplyRequest:
     unattended: bool = False
     # In an unattended reply: tools that run without asking, by name (an eval case's allowed_tools).
     tools_by_name: tuple[str, ...] = ()
+    # An eval play's approvals for the injection guard; nothing else sets it.
+    case_approvals: CaseApprovals | None = None
     # Hears every step of the reply as it is recorded (an eval case watching its budget).
     on_step: StepListener | None = None
     # The messages the model gets instead of the conversation's branch (a replay starts with what an earlier model
@@ -209,6 +212,7 @@ class ReplyService:
             request.unattended,
             request.tools_by_name,
             on_step,
+            case_approvals=request.case_approvals,
         )
         record_blueprint_versions(session, setup, run)
         try:
