@@ -60,6 +60,10 @@ export function useCommands(
         summary: "Check the project against its standards, read only; /check <standard> for one",
       });
     }
+    // /plan is built in: in a project, unless the Blueprint has its own command named plan.
+    if (inProject && !commands.some((entry) => entry.name === "plan")) {
+      commands.push({ name: "plan", summary: "Make a plan without changing anything; approve it to build" });
+    }
     // /eval is built in: in a project, unless the Blueprint has its own command named eval.
     if (inProject && !commands.some((entry) => entry.name === "eval")) {
       commands.push({ name: "eval", summary: "Run the project's eval cases; /eval <case> for one" });
