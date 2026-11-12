@@ -18,6 +18,7 @@ from app.core.goals import ACTIVE, open_goal
 from app.core.message_queue import queue_undelivered_steering
 from app.core.reply_services import ReplyServices
 from app.core.summaries import start_background_summary, summarise_if_needed
+from app.core.builtin_prompts import utility_instructions
 from app.core.utility import propose_title
 from app.projects.consolidation import start_tidy_after_reply
 from app.projects.service import project_path
@@ -106,8 +107,15 @@ async def first_title(services: ReplyServices, conversation: TitleRequest, reply
         title = await suggest_with_title(context, conversation_id, folder, language)
         if title is not None:
             return title
+    title_instructions = utility_instructions(context, conversation.environment_id, "memory-keeper", "Title")
     return await propose_title(
-        context, conversation.environment_id, conversation_id, conversation.title_text, reply_text, language
+        context,
+        conversation.environment_id,
+        conversation_id,
+        conversation.title_text,
+        reply_text,
+        language,
+        title_instructions,
     )
 
 

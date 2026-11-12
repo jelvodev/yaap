@@ -29,6 +29,7 @@ from app.blueprint.layers import (
 )
 from app.blueprint.levels import layers_for
 from app.blueprint.rules import unified_diff
+from app.core.builtin_prompts import utility_instructions
 from app.core.settings import resolve_languages
 from app.core.utility import UtilityContext, run_utility
 from app.evals.cases import read_cases
@@ -153,8 +154,14 @@ class LearningService:
         found = await anyio.to_thread.run_sync(self.review_input, conversation_id, since_last)
         if found is None:
             return []
+        instructions = utility_instructions(self.utility, found.environment_id, "learner", "Proposals")
         answer = await run_utility(
-            self.utility, found.environment_id, review_prompt(found), conversation_id, max_tokens=1500, task="learning"
+            self.utility,
+            found.environment_id,
+            review_prompt(found, instructions),
+            conversation_id,
+            max_tokens=1500,
+            task="learning",
         )
         drafts = fallback_drafts(found) if answer is None else parse_drafts(answer, found)
         return await anyio.to_thread.run_sync(self.store, found.project_id, conversation_id, drafts)

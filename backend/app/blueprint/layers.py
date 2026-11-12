@@ -19,7 +19,7 @@ from app.blueprint import mutations
 from app.blueprint.mutations import MutationResult
 from app.targets.safe_root import SafeRoot
 
-LayerKind = Literal["global", "environment", "project"]
+LayerKind = Literal["global", "environment", "project", "builtin"]
 ItemKind = Literal["instructions", "standard", "engineering", "skill", "command", "agent"]
 
 ITEM_PATH = re.compile(
@@ -109,6 +109,11 @@ class Item:
     def rules(self) -> list[str]:
         value = self.document.front_matter.get("rules")
         return [str(rule).strip() for rule in value if str(rule).strip()] if isinstance(value, list) else []
+
+
+def require_writable(layer: Layer) -> None:
+    if layer.kind == "builtin":
+        raise BlueprintError("The built-in Blueprint is read-only; replace an item with a file in a level.")
 
 
 def validate_path(path: str) -> str:
@@ -341,6 +346,7 @@ def active_items(layers: list[Layer]) -> list[Item]:
 
 
 def write_file(layer: Layer, path: str, content: str, message: str) -> MutationResult:
+    require_writable(layer)
     validate_path(path)
     if len(content.encode()) > MAX_FILE_BYTES:
         raise BlueprintError("The file is larger than 512 KB.")
@@ -352,6 +358,7 @@ def write_file(layer: Layer, path: str, content: str, message: str) -> MutationR
 
 
 def delete_file(layer: Layer, path: str, message: str) -> MutationResult:
+    require_writable(layer)
     validate_path(path)
     if not layer_has_file(layer, path):
         raise BlueprintError("This level has no file at that path.")
@@ -367,12 +374,14 @@ def delete_file(layer: Layer, path: str, message: str) -> MutationResult:
 
 def ensure_repository(layer: Layer) -> None:
     # Called before every write YAAP makes in a layer.
+    require_writable(layer)
     forget_merged()
     mutations.ensure_repository(layer)
 
 
 def commit(layer: Layer, path: str, message: str) -> MutationResult:
     """Commit only this file, so other changes in the repository (for example in a project) are left alone."""
+    require_writable(layer)
     forget_merged()
     result = mutations.commit_paths(layer, [path], message)
     if not result.committed:

@@ -23,7 +23,7 @@ from typing import Any, Literal
 import anyio
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.agent.exploring import EXPLORE_INSTRUCTIONS, capped_report, explore_only
+from app.agent.exploring import capped_report, explore_only
 from app.agent.runs import AgentRun, RunRegistry
 from app.agent.tool_catalog import with_listing
 from app.agents.definitions import agent_part, find_agent
@@ -35,6 +35,7 @@ from app.core.prompts import Languages
 from app.core.stopped_usage import StoppedRun, stopped_usage
 from app.credentials.crypto import CredentialCipher
 from app.credentials.types import CredentialType
+from app.blueprint.builtin import instructions as builtin_instructions
 from app.blueprint.context import build_system_parts
 from app.blueprint.layers import Layer
 from app.providers.base import (
@@ -61,12 +62,6 @@ Mode = Literal["work", "explore"]
 MAX_SUB_RUN_MODEL_CALLS = 40
 SUB_RUN_TIMEOUT_SECONDS = 30 * 60
 MAX_TRANSCRIPT_OUTPUT = 2000
-WORKER_INSTRUCTIONS = (
-    "# Delegated task\n\n"
-    "Another agent handed you the task below. You do not see its conversation: everything you need is in the task "
-    "and in the project. Work on it with the tools, then end with a short report for that agent: what you did, what "
-    "you found, and anything left open. Do not ask questions back; when something blocks you, say so in the report."
-)
 
 
 class DelegationError(Exception):
@@ -187,7 +182,7 @@ class Delegator:
         system = build_system_parts(
             self.layers, self.project_text, agent_part(agent, self.layers) if agent else None, self.languages
         )
-        instructions = EXPLORE_INSTRUCTIONS if mode == "explore" else WORKER_INSTRUCTIONS
+        instructions = builtin_instructions("explorer" if mode == "explore" else "worker", self.layers)
         request = AgentRequest(
             model=choice.model,
             effort=effort,

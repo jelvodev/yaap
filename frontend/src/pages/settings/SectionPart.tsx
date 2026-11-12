@@ -1,5 +1,6 @@
 import AccessSection from "./AccessSection";
 import AuditSection from "./AuditSection";
+import BackgroundTasksSection from "./BackgroundTasksSection";
 import ConnectionsSection from "./ConnectionsSection";
 import ContextSection from "./ContextSection";
 import FirstStartSection from "./FirstStartSection";
@@ -40,6 +41,8 @@ export default function SectionPart({ tab, level, store }: { tab: string; level:
       return <PresetsSection level={level} store={store} />;
     case "utility":
       return <UtilityModelsSection level={level} store={store} />;
+    case "background":
+      return <BackgroundTasksSection level={level} store={store} />;
     case "context":
       return <ContextSection level={level} store={store} />;
     case "policy":

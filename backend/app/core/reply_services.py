@@ -77,7 +77,9 @@ class ReplyServices:
 
     @property
     def utility(self) -> UtilityContext:
-        return UtilityContext(self.session_factory, self.cipher, self.credential_types, self.providers)
+        return UtilityContext(
+            self.session_factory, self.cipher, self.credential_types, self.providers, self.blueprint_dir
+        )
 
     @property
     def telemetry(self) -> TelemetrySender:

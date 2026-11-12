@@ -17,7 +17,9 @@ from typing import Literal, cast
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.blueprint.builtin import shipped_instructions
 from app.blueprint.layers import LayerKind, active_items
+from app.core.builtin_prompts import utility_instructions
 from app.core.utility import UtilitySkipped, run_utility_or_skip
 from app.evals.compare import FINISHED, compare
 from app.evals.runs import COMPARISON_REPEATS, EvalError, EvalService, result_plays
@@ -28,17 +30,17 @@ from app.storage.models import EvalResult, EvalRun, LearningProposal
 
 MeasurementStatus = Literal["ready", "measuring", "measured", "not_measured", "not_needed"]
 Effect = Literal["better", "worse", "same"]
-CONTRADICTION_PROMPT = """Below are the rules an AI coding agent follows in one project, from three levels: global
-(all work), environment (all projects of one environment) and project. Find pairs or groups of rules that contradict
-each other, so that following one breaks another. Rules that only overlap or repeat each other are not
-contradictions.
+# The answer format that parse_contradictions() reads; the instructions before it may be replaced.
+CONTRADICTION_ANSWER = (
+    "Answer with a JSON array only, no other text. Each item: "
+    '{"rules": [numbers of the rules], "explanation": "what\ncontradicts what, in one sentence"}. '
+    "Answer [] when nothing contradicts."
+)
 
-Answer with a JSON array only, no other text. Each item: {{"rules": [numbers of the rules], "explanation": "what
-contradicts what, in one sentence"}}. Answer [] when nothing contradicts.
 
-<rules>
-{rules}
-</rules>"""
+def contradiction_prompt(rules: str, instructions: str | None = None) -> str:
+    lead = instructions if instructions is not None else shipped_instructions("learner", "Contradictions")
+    return f"{lead}\n\n{CONTRADICTION_ANSWER}\n\n<rules>\n{rules}\n</rules>"
 
 
 @dataclass(frozen=True)
@@ -164,10 +166,11 @@ async def find_contradictions(service: LearningService, project_id: int) -> Cont
     if len(rules) < 2:
         return ContradictionReport(True, ())
     listed = "\n".join(f"{number}. [{rule.level}] {rule.path}: {rule.rule}" for number, rule in enumerate(rules, 1))
+    instructions = utility_instructions(service.utility, scope.environment_id, "learner", "Contradictions")
     answer = await run_utility_or_skip(
         service.utility,
         scope.environment_id,
-        CONTRADICTION_PROMPT.format(rules=listed),
+        contradiction_prompt(listed, instructions),
         max_tokens=1200,
         task="learning",
         project_id=project_id,

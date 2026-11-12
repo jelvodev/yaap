@@ -7,13 +7,16 @@ conversation's provider, so its connection, key and stored turns stay the same, 
 it: a model the policy forbids is never picked, whatever the utility model answers.
 """
 
+from dataclasses import replace
+
 import anyio
 from sqlalchemy.orm import Session
 
 from app.core.model_choice import ForReply, ModelChoiceError, resolve_provider
+from app.core.builtin_prompts import utility_instructions
 from app.core.reply_services import ReplyServices
 from app.core.routing import Route, RouteModel, RouteRole, decide_route, preset_routes, route_prompt
-from app.core.utility import UtilityContext, run_utility
+from app.core.utility import SWITCHED_OFF_REASON, UtilityContext, UtilitySkipped, run_utility_or_skip
 from app.presets.service import find_preset_by_name
 from app.storage.models import Conversation, Message, ModelPreset
 
@@ -71,7 +74,17 @@ def route_reply(services: ReplyServices, session: Session, conversation: Convers
         return None
 
     main = RouteModel(conversation.model, conversation.effort)
-    return decide_route(answer, preset_routes(preset.routes), main, preset_roles(preset), refusal, name)
+    route = decide_route(
+        None if isinstance(answer, UtilitySkipped) else answer,
+        preset_routes(preset.routes),
+        main,
+        preset_roles(preset),
+        refusal,
+        name,
+    )
+    if isinstance(answer, UtilitySkipped) and answer.reason == SWITCHED_OFF_REASON:
+        return replace(route, reason="Reply routing is switched off in Settings. The main model answers.")
+    return route
 
 
 def preset_roles(preset: ModelPreset) -> dict[RouteRole, RouteModel | None]:
@@ -83,10 +96,13 @@ def preset_roles(preset: ModelPreset) -> dict[RouteRole, RouteModel | None]:
     }
 
 
-async def ask_kind(context: UtilityContext, environment_id: int, conversation_id: int, text: str) -> str | None:
+async def ask_kind(
+    context: UtilityContext, environment_id: int, conversation_id: int, text: str
+) -> str | UtilitySkipped | None:
     """The utility model's answer to which kind the message is; None when it gives none in time."""
     with anyio.move_on_after(ROUTE_TIMEOUT_SECONDS):
-        return await run_utility(
-            context, environment_id, route_prompt(text), conversation_id, max_tokens=ROUTE_MAX_TOKENS, task="route"
+        prompt = route_prompt(text, utility_instructions(context, environment_id, "router"))
+        return await run_utility_or_skip(
+            context, environment_id, prompt, conversation_id, max_tokens=ROUTE_MAX_TOKENS, task="route"
         )
     return None

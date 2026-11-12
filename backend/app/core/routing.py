@@ -12,6 +12,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Literal, get_args
 
+from app.blueprint.builtin import shipped_instructions
 from app.core.why import Why
 
 RouteKind = Literal["question", "change", "planning", "review"]
@@ -87,11 +88,13 @@ def check_routes(value: Mapping[str, str]) -> str | None:
     return None
 
 
-def route_prompt(text: str) -> str:
-    """What the utility model is asked: the kind of the message, as one word."""
+def route_prompt(text: str, instructions: str | None = None) -> str:
+    """What the utility model is asked: the kind of the message, as one word. The instructions may be replaced; the
+    answer format that classify() parses stays here."""
+    lead = instructions if instructions is not None else shipped_instructions("router")
     shortened = text.strip()[:MAX_ROUTED_TEXT] or "(no text)"
     return (
-        "Classify this message to a software development assistant. Reply with one word:\n"
+        f"{lead} Reply with one word:\n"
         "question - it asks for an explanation or information and changes nothing\n"
         "change - a small, mechanical change with clear instructions (rename, format, a one-line fix)\n"
         "planning - it asks for a design, a plan, or a larger or open task of several steps\n"

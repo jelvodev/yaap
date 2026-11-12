@@ -8,7 +8,7 @@ per-task model; summaries use the worker model and the rubric scorer chooses its
 either. The code review's model is used only when it is of another vendor than the code's (core/other_vendor.py).
 """
 
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from typing import Any
 
 from app.providers.registry import ProviderRegistry
@@ -42,6 +42,25 @@ TASK_LABELS: dict[str, str] = {
     "summary": "Summaries",
     "eval_rubric": "Eval rubric scores",
 }
+# The tasks that start on their own and can be switched off. The user-started ones (rule, import, eval_case,
+# commit_message, pull_request) have no switch, and neither do the outside-content check, summaries or rubric scores.
+SWITCHABLE_TASKS: dict[str, str] = {
+    task: TASK_LABELS[task]
+    for task in ("title", "memory_suggestion", "memory_tidy", "route", "learning", "review")
+}
+OFF_SETTING_KEY = "utility_tasks_off"
+# The combined call stands for two switchable tasks: it runs only while both are on, so switching one off leaves the
+# other to its own call.
+COMBINED_TASKS: dict[str, tuple[str, ...]] = {"title_and_memory": ("title", "memory_suggestion")}
+
+
+def task_enabled(task: str | None, off: Collection[str]) -> bool:
+    """Whether a background task may run: an unnamed task, the outside-content check and every task without a switch
+    always may; a switchable task may unless it is named in off."""
+    if task is None:
+        return True
+    parts = COMBINED_TASKS.get(task, (task,))
+    return not any(part in SWITCHABLE_TASKS and part in off for part in parts)
 
 
 def task_label(task: str | None) -> str:
@@ -72,4 +91,16 @@ def check_task_models(value: Any, providers: ProviderRegistry) -> str | None:
             return f"Unknown utility task: {task}."
         if not isinstance(model, str) or (model.strip() and providers.find_model(model.strip()) is None):
             return f"Unknown model for {ROUTABLE_TASKS[task].lower()}."
+    return None
+
+
+def check_tasks_off(value: Any, providers: ProviderRegistry) -> str | None:
+    """A list of switchable background tasks."""
+    if not isinstance(value, list) or not all(isinstance(task, str) for task in value):
+        return "Give a list of background tasks."
+    for task in value:
+        if task in CAPABLE_ONLY:
+            return "The check of outside content cannot be switched off."
+        if task not in SWITCHABLE_TASKS:
+            return f"Unknown or not switchable background task: {task}."
     return None

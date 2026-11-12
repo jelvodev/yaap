@@ -17,6 +17,8 @@ from pathlib import Path
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.blueprint.builtin import render, shipped_instructions
+from app.core.builtin_prompts import utility_instructions
 from app.core.search_index import message_text
 from app.core.settings import resolve_languages
 from app.core.utility import UtilityContext, clean_title, run_utility, title_request
@@ -46,23 +48,6 @@ TEMPORARY = re.compile(
     r"(/tmp/|\\temp\\|localhost:\d+|127\.0\.0\.1:\d+|^(the agent|i|we|yaap) (ran|run|tried|executed|started)\b)",
     re.IGNORECASE,
 )
-
-PROMPT = """You keep the memory of a software project: short entries that later conversations about this project
-should know. Read the conversation below and propose at most {limit} new entries.
-
-Good entries are lasting: decisions and why, conventions of the codebase, lessons learned from mistakes, facts about
-the project's setup. Leave out what only mattered for this conversation: the task's steps, temporary files, ports,
-what the agent tried, and anything the memory already says.
-
-{answer}
-
-<memory>
-{memory}
-</memory>
-
-<conversation>
-{conversation}
-</conversation>"""
 
 ENTRY_SHAPE = """{{"section": one of {sections}, "text": "the entry"}}. Write each entry in {language} as one or two
 sentences, whatever language the conversation is in."""
@@ -193,17 +178,31 @@ def suggestion_input(context: UtilityContext, conversation_id: int, project_fold
     return SuggestionInput(project_id, environment_id, text, read_memory(project_folder), pending, language)
 
 
-def suggestion_prompt(found: SuggestionInput, answer: str, reply_language: str = "") -> str:
-    """The prompt with the answer it asks for: ANSWER_ENTRIES, or ANSWER_WITH_TITLE with the title in reply_language."""
+def suggestion_prompt(
+    found: SuggestionInput,
+    answer: str,
+    reply_language: str = "",
+    instructions: str | None = None,
+    title_instructions: str | None = None,
+) -> str:
+    """The prompt with the answer it asks for: ANSWER_ENTRIES, or ANSWER_WITH_TITLE with the title in reply_language.
+    The instructions and the title request may be the user's replacements; the answer format stays here."""
     known = found.memory + "".join(f"\n- {item} (suggested, waiting)" for item in found.pending)
     sections = ", ".join(SECTIONS)
-    title = title_request(reply_language)
-    return PROMPT.format(
-        limit=MAX_SUGGESTIONS,
-        answer=answer.format(sections=sections, language=found.language, title=title),
-        memory=known.strip() or "(empty)",
-        conversation=found.conversation,
+    title = title_request(reply_language, title_instructions)
+    lead = render(
+        instructions if instructions is not None else shipped_instructions("memory-keeper", "Suggestions"),
+        {"limit": str(MAX_SUGGESTIONS)},
     )
+    asked = answer.format(sections=sections, language=found.language, title=title)
+    return (
+        f"{lead}\n\n{asked}\n\n<memory>\n{known.strip() or '(empty)'}\n</memory>\n\n"
+        f"<conversation>\n{found.conversation}\n</conversation>"
+    )
+
+
+def suggestion_instructions(context: UtilityContext, found: SuggestionInput) -> str:
+    return utility_instructions(context, found.environment_id, "memory-keeper", "Suggestions")
 
 
 async def suggest(context: UtilityContext, conversation_id: int, project_folder: Path) -> list[MemorySuggestion]:
@@ -211,7 +210,7 @@ async def suggest(context: UtilityContext, conversation_id: int, project_folder:
     found = suggestion_input(context, conversation_id, project_folder)
     if found is None:
         return []
-    prompt = suggestion_prompt(found, ANSWER_ENTRIES)
+    prompt = suggestion_prompt(found, ANSWER_ENTRIES, instructions=suggestion_instructions(context, found))
     answer = await run_utility(
         context, found.environment_id, prompt, conversation_id, max_tokens=1500, task="memory_suggestion"
     )
@@ -228,7 +227,10 @@ async def suggest_with_title(
     found = suggestion_input(context, conversation_id, project_folder)
     if found is None:
         return None
-    prompt = suggestion_prompt(found, ANSWER_WITH_TITLE, reply_language)
+    title_instructions = utility_instructions(context, found.environment_id, "memory-keeper", "Title")
+    prompt = suggestion_prompt(
+        found, ANSWER_WITH_TITLE, reply_language, suggestion_instructions(context, found), title_instructions
+    )
     answer = await run_utility(
         context, found.environment_id, prompt, conversation_id, max_tokens=1600, task="title_and_memory"
     )

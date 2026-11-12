@@ -117,11 +117,13 @@ test("a section's override keys are the union of its former sections' keys", () 
     "utility_task_models",
     "claude_code_worker",
     "codex_worker",
+    "utility_tasks_off",
     "context_limit",
     "auto_compact",
     "compact_at",
     "trim_at",
     "repo_map",
+    "context_savings",
     "model_policy",
   ]);
   assert.deepEqual(SECTION_OVERRIDE_KEYS.agent, [

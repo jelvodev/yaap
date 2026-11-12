@@ -93,6 +93,7 @@ from app.api import learning as learning_api
 from app.api import blueprint_import as blueprint_import_api
 from app.api import blueprint_starter as blueprint_starter_api
 from app.api import first_run as first_run_api
+from app.api import background_tasks as background_tasks_api
 from app.core.first_run import FirstRunService
 from app.plugins.host import PLUGINS_FOLDER, PluginHost
 from app.preview.proxy import start_listener as start_preview_listener
@@ -413,6 +414,7 @@ def create_app(
     api.include_router(blueprint_import_api.router)
     api.include_router(blueprint_starter_api.router)
     api.include_router(first_run_api.router)
+    api.include_router(background_tasks_api.router)
     app.include_router(api)
     app.include_router(plugins_api.sdk_router)
     app.include_router(mcp_server.router)
