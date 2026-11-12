@@ -106,13 +106,18 @@ def add_usage(total: TokenUsage, usage: Any) -> TokenUsage:
     )
 
 
-def to_anthropic_system(request: AgentRequest) -> list[dict[str, Any]]:
-    """The system parts; the cacheable ones get a breakpoint, kept for an hour when the request asks for it. The
-    automatic breakpoint on the conversation stays at five minutes: an hour entry must come before five-minute ones,
-    which it does, as the system comes before the messages."""
+def cache_control(request: AgentRequest) -> dict[str, Any]:
+    """The cache breakpoint marker for this request: kept for an hour when the request asks for it."""
     control: dict[str, Any] = {"type": "ephemeral"}
     if request.cache_ttl == "1h":
         control["ttl"] = "1h"
+    return control
+
+
+def to_anthropic_system(request: AgentRequest) -> list[dict[str, Any]]:
+    """The system parts; the cacheable ones get a breakpoint. With a one-hour request the automatic breakpoint on
+    the conversation is kept an hour too, so an hour entry never comes after a five-minute one."""
+    control = cache_control(request)
     blocks: list[dict[str, Any]] = []
     for part in request.system:
         block: dict[str, Any] = {"type": "text", "text": part.text}
@@ -176,8 +181,8 @@ class AnthropicProvider:
             "messages": messages,
             "thinking": {"type": "adaptive", "display": "summarized"},
             "output_config": {"effort": request.effort},
-            # Automatic caching of the conversation prefix.
-            "cache_control": {"type": "ephemeral"},
+            # Automatic caching of the conversation prefix, with the same lifetime as the system parts.
+            "cache_control": cache_control(request),
         }
         if request.tool_box is not None:
             params["tools"] = tool_definitions(request.tool_box)

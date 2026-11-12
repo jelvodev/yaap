@@ -1,4 +1,4 @@
-"""How long a reply's cacheable system parts stay in the prompt cache.
+"""How long a reply's cacheable system parts, and the conversation after them, stay in the prompt cache.
 
 A five-minute cache entry is refreshed by every read, so a conversation whose model calls start less than five
 minutes apart keeps it warm for nothing extra. An hour costs more to write (2x input instead of 1.25x on Anthropic)

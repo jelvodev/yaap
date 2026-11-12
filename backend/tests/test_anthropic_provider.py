@@ -1,9 +1,11 @@
 """The Anthropic adapter, tested against a stand-in client so no real API call is made."""
 
 import asyncio
+from dataclasses import replace
 from types import SimpleNamespace
 
 import anthropic
+import pytest
 
 from app.providers.anthropic_provider import SERVER_SIDE_FALLBACK_BETA, AnthropicProvider, to_provider_error
 from app.providers.base import (
@@ -120,6 +122,22 @@ def test_request_mapping_and_events_with_fallback():
     assert completed.usage.cache_read_tokens == 100
     assert completed.usage.cache_write_tokens == 0
     assert completed.provider_raw[0]["signature"] == "sig"
+
+
+@pytest.mark.parametrize(
+    ("cache_ttl", "expected"),
+    [
+        (None, {"type": "ephemeral"}),
+        ("5m", {"type": "ephemeral"}),
+        ("1h", {"type": "ephemeral", "ttl": "1h"}),
+    ],
+)
+def test_conversation_cache_breakpoint_follows_the_requested_ttl(cache_ttl, expected):
+    request = make_request("claude-opus-5-5")
+    if cache_ttl is not None:
+        request = replace(request, cache_ttl=cache_ttl)
+    params = make_provider([])._build_params(request, [])
+    assert params["cache_control"] == expected
 
 
 def make_status_error(error_class, status: int, vendor_message: str):

@@ -15,6 +15,7 @@ yourself when you update; it says "None." when there is nothing.
 - A queued `/compact` or `/eval` is now accepted from the queue and run in turn, instead of waiting as a message.
 - A replay without changes now rebuilds its instructions from each Blueprint layer at the version the original run used, and its header says which version each layer came from.
 - Eval comparisons count the pass rate and the median cost over plays that passed or failed only, and show errors and stopped plays apart.
+- With Anthropic, a conversation that keeps its prompt cache for an hour (goals, scheduled tasks, a reply after a pause) now keeps the conversation history cached for an hour too, not only the instructions.
 
 ### Action needed
 
