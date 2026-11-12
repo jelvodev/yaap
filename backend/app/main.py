@@ -243,6 +243,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.board, reply_services, app.state.builds, ReplyStarter(reply_services), asyncio.get_running_loop()
     )
     app.state.builds.listeners.add(app.state.card_route.on_plan_event)
+    # Approving a card's plan also approves its acceptance criteria commands, which the review runs on the copy.
+    app.state.builds.approved_extras = app.state.card_route.criteria_commands
     start_check = asyncio.create_task(check_at_start(app.state.updates)) if app.state.update_check_at_start else None
     # CLIs installed by an older release are installed again from this release's lock.
     app.state.cli_sign_ins.refresh_tools()

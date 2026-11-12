@@ -32,6 +32,8 @@ class BuildInfo:
     final_checks: tuple[FinalCheck, ...] = ()
     # The commit of the build branch brought into the project last, or None before it was.
     delivered: str | None = None
+    # The card's acceptance criteria commands that approving the plan approved, run on the copy after the build.
+    criteria_commands: tuple[str, ...] = ()
 
 
 def build_info_to_json(info: BuildInfo) -> dict[str, Any]:
@@ -42,6 +44,7 @@ def build_info_to_json(info: BuildInfo) -> dict[str, Any]:
             {"command": check.command, "outcome": check.outcome, "output": check.output} for check in info.final_checks
         ],
         "delivered": info.delivered,
+        "criteria_commands": list(info.criteria_commands),
     }
 
 
@@ -64,8 +67,13 @@ def build_info_from_json(body: Mapping[str, Any]) -> BuildInfo:
         if isinstance(check, Mapping)
     )
     delivered = value.get("delivered")
+    criteria = tuple(str(item) for item in value.get("criteria_commands") or [] if isinstance(item, str))
     return BuildInfo(
-        int(value.get("uncommitted") or 0), attempts, checks, delivered if isinstance(delivered, str) else None
+        int(value.get("uncommitted") or 0),
+        attempts,
+        checks,
+        delivered if isinstance(delivered, str) else None,
+        criteria,
     )
 
 

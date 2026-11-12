@@ -83,6 +83,8 @@ class BuildStart:
     build_branch: str
     build_folder: str
     uncommitted: int
+    # The card's criteria commands shown with the plan, approved with it.
+    criteria_commands: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -215,7 +217,8 @@ class PlanService:
             record.base_branch, record.base_commit = start.base_branch, start.base_commit
             record.build_branch, record.build_folder = start.build_branch, start.build_folder
             record.failure = None
-            store.save_progress(record, plan_from_json(record.body), BuildInfo(uncommitted=start.uncommitted))
+            info = BuildInfo(uncommitted=start.uncommitted, criteria_commands=start.criteria_commands)
+            store.save_progress(record, plan_from_json(record.body), info)
             session.commit()
             session.refresh(record)
             return plan_view(record)

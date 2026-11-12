@@ -8,10 +8,12 @@ parse_report() reads leniently: an unknown severity becomes medium, a line that 
 
 import json
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal, get_args
 
 from app.blueprint.builtin import render, shipped_instructions
+from app.reviews.evidence import VERDICTS, CheckRun, Judgement
 
 Severity = Literal["high", "medium", "low"]
 SEVERITIES: tuple[Severity, ...] = get_args(Severity)
@@ -137,7 +139,8 @@ def review_prompt(
     standards = (rules or "").strip()[:MAX_RULES_CHARS] or "(the project has no standards)"
     diff = "".join(file.text for file in files)
     which = f" This is part {part} of {parts} of the diff; review only the files in it." if parts > 1 else ""
-    lead = render(instructions if instructions is not None else shipped_instructions("reviewer"), {"which": which})
+    text = instructions if instructions is not None else shipped_instructions("reviewer")
+    lead = render(main_text(text), {"which": which})
     return (
         f"{lead}\n\n"
         f"<material>\nWhat the changes were meant to do:\n{goal}\n\nThe project's standards:\n{standards}\n\n"
@@ -193,3 +196,76 @@ def parse_report(text: str) -> tuple[str, list[Finding]]:
 def ordered(findings: list[Finding]) -> list[Finding]:
     """High first, then by file and line."""
     return sorted(findings, key=lambda item: (SEVERITIES.index(item.severity), item.path, item.line or 0))
+
+
+# --- The acceptance criteria without a check --------------------------------------------------------------------------
+
+MAX_CRITERIA_DIFF_CHARS = 40_000
+MAX_CHECK_OUTPUT_CHARS = 1_500
+MAX_REASON_CHARS = 500
+SECTION_START = re.compile(r"^## ", re.MULTILINE)
+
+
+def main_text(instructions: str) -> str:
+    """The reviewer's instructions before its first `## ` section; the sections serve other requests."""
+    found = SECTION_START.search(instructions)
+    return instructions if found is None else instructions[: found.start()].rstrip()
+
+
+def criteria_prompt(
+    instructions: str,
+    objective: str | None,
+    criteria: Sequence[tuple[int, str]],
+    checks: Sequence[CheckRun],
+    diff: str,
+) -> str:
+    """The request for the criteria YAAP cannot check: the plan, the checks YAAP ran and their output, the diff and
+    the criteria, all fenced off as material. The answer format that parse_judgements() reads stays here."""
+    plan = (objective or "").strip()[:MAX_OBJECTIVE_CHARS] or "(not given)"
+    lines = [
+        f"- `{check.command}` ({check.step}): {check.outcome}\n{check.output[:MAX_CHECK_OUTPUT_CHARS]}".rstrip()
+        for check in checks
+    ]
+    ran = "\n".join(lines) or "(none)"
+    shown = diff[:MAX_CRITERIA_DIFF_CHARS]
+    if len(diff) > len(shown):
+        shown += "\n[The rest of the diff is not shown.]\n"
+    listed = "\n".join(f"{number}. {' '.join(text.split())}" for number, text in criteria)
+    return (
+        f"{instructions.strip()}\n\n"
+        f"<material>\nThe plan:\n{plan}\n\nThe checks YAAP ran:\n{ran}\n\nThe diff:\n{shown}\n\n"
+        f"The criteria to judge:\n{listed}\n</material>\n\n"
+        'Reply with only a JSON object: {"criteria": [{"number": the criterion\'s number, "verdict": "met" | '
+        '"not_met" | "unclear", "path": "the file you relied on, as in the diff", "line": its line number in the '
+        'new version or null, "reason": "one or two sentences"}]}. Answer "unclear" when the material does not '
+        "show it."
+    )
+
+
+def parse_judgements(text: str, numbers: Sequence[int]) -> list[Judgement]:
+    """The reviewer's verdict per criterion, read leniently: unknown numbers and verdicts are left out, a path that
+    is not text is none, the first answer per number counts."""
+    found = REPORT_OBJECT.search(text)
+    if found is None:
+        raise ReportError("The reviewer's answer on the criteria holds no report.")
+    try:
+        report = json.loads(found.group(0))
+    except json.JSONDecodeError as error:
+        raise ReportError("The reviewer's answer on the criteria is not valid JSON.") from error
+    items = report.get("criteria") if isinstance(report, dict) else None
+    if not isinstance(items, list):
+        raise ReportError("The reviewer's answer has no list of criteria.")
+    wanted = set(numbers)
+    judgements: dict[int, Judgement] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        number, verdict = line_of(item.get("number")), item.get("verdict")
+        choice = next((value for value in VERDICTS if value == verdict), None)
+        if number is None or number not in wanted or number in judgements or choice is None:
+            continue
+        path, reason = item.get("path"), item.get("reason")
+        where = path.strip() if isinstance(path, str) and path.strip() else None
+        why = reason.strip()[:MAX_REASON_CHARS] if isinstance(reason, str) else ""
+        judgements[number] = Judgement(number, choice, where, line_of(item.get("line")), why)
+    return list(judgements.values())
