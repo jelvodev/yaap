@@ -7,6 +7,7 @@ yourself when you update; it says "None." when there is nothing.
 ## Unreleased
 
 - Import can read the setup of Claude Code, Codex, Cursor and GitHub Copilot (a zipped home folder or a project): instructions, rules, commands, agents and skills are mapped, settings, hooks and credentials are never opened, scripts are only written when ticked, and values that look like keys are refused.
+- A reply has a second opinion: another model checks the reply's changes, or its answer, and shows the result under the reply after you have seen who reviews and what it can cost.
 - API tokens can no longer change or revoke other API tokens through the vault; use a signed-in browser.
 - Web fetch checks public destinations on every redirect and connects to the checked address.
 - Adding a web page as knowledge and installing a skill from GitHub use the same check: they refuse addresses on this computer or the local network, also after a redirect, and a GitHub token is only sent to the address it was meant for.

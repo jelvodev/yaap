@@ -428,11 +428,15 @@ class Review(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     environment_id: Mapped[int] = mapped_column(ForeignKey("environments.id"))
-    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    # Empty for the check of an answer in a conversation without a project.
+    project_id: Mapped[int | None] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
     conversation_id: Mapped[int | None] = mapped_column(ForeignKey("conversations.id", ondelete="SET NULL"), index=True)
+    # The reply a second opinion is about.
+    message_id: Mapped[int | None] = mapped_column(ForeignKey("messages.id", ondelete="CASCADE"), index=True)
     # The goal (or scheduled task run's goal) whose end started it; one review per goal.
     goal_id: Mapped[int | None] = mapped_column(Integer, index=True)
-    # goal, task, changes (the project's uncommitted changes) or conversation
+    # goal, task, changes (the project's uncommitted changes), conversation, reply (the changes of one reply) or
+    # answer (a check of a reply that changed nothing)
     source: Mapped[str] = mapped_column(String(20))
     # running, done, skipped (no allowed model of another vendor, or nothing to review) or failed
     status: Mapped[str] = mapped_column(String(20))
@@ -443,6 +447,11 @@ class Review(Base):
     writer_vendors: Mapped[list[str]] = mapped_column(JSON, default=list)
     reviewer_provider: Mapped[str | None] = mapped_column(String(40))
     reviewer_model: Mapped[str | None] = mapped_column(String(80))
+    # The reviewer is of the writer's own vendor, as no other vendor was allowed.
+    same_vendor: Mapped[bool] = mapped_column(Boolean, default=False)
+    # An answer check: whether the reviewer agrees (empty when it does not say) and what it would answer instead.
+    agrees: Mapped[bool | None] = mapped_column(Boolean)
+    alternative: Mapped[str | None] = mapped_column(Text)
     # The diff as reviewed, secrets as placeholders.
     diff: Mapped[str] = mapped_column(Text, default="")
     # What was shortened or left out of the review.

@@ -36,8 +36,9 @@ class FindingOut(BaseModel):
 
 class ReviewSummaryOut(BaseModel):
     id: int
-    project_id: int
+    project_id: int | None
     conversation_id: int | None
+    message_id: int | None
     conversation_title: str | None
     goal_id: int | None
     source: ReviewSource
@@ -46,6 +47,10 @@ class ReviewSummaryOut(BaseModel):
     writer_vendors: list[str]
     reviewer_provider: str | None
     reviewer_model: str | None
+    # The reviewer is of the writer's own vendor, as no other vendor was allowed.
+    same_vendor: bool
+    # An answer check: whether the reviewer agrees; empty when it does not say or the review is of changes.
+    agrees: bool | None
     findings_count: int
     high_count: int
     cost: float | None
@@ -56,6 +61,8 @@ class ReviewSummaryOut(BaseModel):
 class ReviewOut(ReviewSummaryOut):
     objective: str | None
     summary: str | None
+    # An answer check that does not agree: what the reviewer would answer instead.
+    alternative: str | None
     notes: list[str]
     findings: list[FindingOut]
     diff: str
@@ -69,6 +76,7 @@ def summary_fields(review: Review, title: str | None) -> dict[str, object]:
         "id": review.id,
         "project_id": review.project_id,
         "conversation_id": review.conversation_id,
+        "message_id": review.message_id,
         "conversation_title": title,
         "goal_id": review.goal_id,
         "source": review.source,
@@ -77,6 +85,8 @@ def summary_fields(review: Review, title: str | None) -> dict[str, object]:
         "writer_vendors": review.writer_vendors or [],
         "reviewer_provider": review.reviewer_provider,
         "reviewer_model": review.reviewer_model,
+        "same_vendor": review.same_vendor,
+        "agrees": review.agrees,
         "findings_count": len(findings),
         "high_count": sum(1 for finding in findings if finding.get("severity") == "high"),
         "cost": review.cost,
@@ -92,6 +102,7 @@ def review_out(session: SessionDependency, review: Review) -> ReviewOut:
             **summary_fields(review, conversation.title if conversation else None),
             "objective": review.objective,
             "summary": review.summary,
+            "alternative": review.alternative,
             "notes": review.notes or [],
             "findings": review.findings or [],
             "diff": review.diff,
@@ -133,7 +144,7 @@ def list_reviews(
     query = (
         select(Review, Conversation.title)
         .outerjoin(Conversation, Conversation.id == Review.conversation_id)
-        .where(Review.project_id == project.id)
+        .where(Review.project_id == project.id, Review.message_id.is_(None))
         .order_by(Review.id.desc())
         .limit(limit)
     )

@@ -205,7 +205,7 @@ flowchart LR
 | `tracing/` | What a run did step by step, context snapshots, and the OpenTelemetry export |
 | `evals/`, `replays/` | Eval cases, their checks and runs; replays of a run from one of its model calls |
 | `learning/` | Signals from run steps, and the proposals made from them |
-| `reviews/` | Reviews of changed code by a model of another vendor |
+| `reviews/` | Reviews of changed code by a model of another vendor, and the second opinion on one reply (its changes, or its answer checked against the files it names) |
 | `scripts/` | Command-line scripts: OpenAPI export, password reset, measurements |
 | `storage/` | Database models and migrations |
 

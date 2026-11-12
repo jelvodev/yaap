@@ -152,6 +152,7 @@ class ReviewService:
             project_id=scope.project_id,
             conversation_id=scope.conversation_id,
             goal_id=scope.goal_id,
+            message_id=scope.message_id,
             source=scope.source,
             status="running",
             objective=mask(scope.objective, secrets) if scope.objective else None,

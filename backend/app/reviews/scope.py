@@ -30,7 +30,7 @@ from app.git.service import GitError, repository_diff, repository_log
 from app.projects.service import ProjectError, project_path
 from app.storage.models import Checkpoint, Conversation, Goal, Message, Project, UsageRecord
 
-ReviewSource = Literal["goal", "task", "changes", "conversation"]
+ReviewSource = Literal["goal", "task", "changes", "conversation", "reply", "answer"]
 # Usage records of model calls that write code: a reply's and a delegated worker's.
 WRITING_PURPOSES = ("main", "worker")
 
@@ -41,7 +41,8 @@ class NothingToReview(Exception):
 
 @dataclass(frozen=True)
 class ReviewScope:
-    project_id: int
+    # None for the check of an answer in a conversation without a project.
+    project_id: int | None
     environment_id: int
     source: ReviewSource
     diff: str
@@ -51,6 +52,9 @@ class ReviewScope:
     goal_id: int | None = None
     # The conversation's preset, whose utility model the review starts from.
     preset: str | None = None
+    # A second opinion: the reply it is about and the models that wrote it.
+    message_id: int | None = None
+    writer_models: tuple[str, ...] = ()
 
 
 def folder_of(workspace_dir: Path, project: Project) -> Path:
