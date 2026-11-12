@@ -25,8 +25,8 @@ NoteKind = Literal["memory", "trim", "summary", "secrets_masked", "outgoing_bloc
 NOTE_KINDS: tuple[NoteKind, ...] = get_args(NoteKind)
 # What happened to a call that needed a decision: the user approved or declined it, the policy refused it, or it
 # would have asked in an unattended run (a scheduled task, an eval case), where nobody can approve, and was refused.
-# A call that ran without asking has none.
-ApprovalOutcome = Literal["approved", "declined", "refused", "asked"]
+# A call an eval case's approval let through without asking is "case_approved". A call that ran without asking has none.
+ApprovalOutcome = Literal["approved", "declined", "refused", "asked", "case_approved"]
 NOTE_TEXT_CHARS = 300
 NOTE_ITEM_CHARS = 200
 NOTE_MAX_ITEMS = 20

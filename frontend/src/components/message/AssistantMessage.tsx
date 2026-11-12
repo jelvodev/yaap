@@ -37,6 +37,9 @@ export default function AssistantMessage({
   actions?: MessageActions;
 }) {
   const summary = message.content.find((block) => block.type === "summary");
+  // The first message of a conversation continued from a summary holds only that summary and no model run, so
+  // trying again, a second opinion or versions mean nothing there. A compacted reply keeps its own blocks and actions.
+  const onlySummary = summary !== undefined && message.content.every((block) => block.type === "summary");
   const showTrace = actions?.onShowTrace;
   const openStep = showTrace ? (toolCallId: string) => showTrace(message, toolCallRef(message, toolCallId)) : null;
   return (
@@ -65,7 +68,7 @@ export default function AssistantMessage({
           {actions?.secondOpinions?.opinions
             .filter((opinion) => opinion.message_id === message.id)
             .map((opinion) => <SecondOpinionReport key={opinion.id} opinion={opinion} actions={actions} />)}
-          {actions && <ReplyActions message={message} actions={actions} />}
+          {actions && !onlySummary && <ReplyActions message={message} actions={actions} />}
         </BehindProvider>
       </div>
     </div>

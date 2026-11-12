@@ -102,6 +102,8 @@ class ContextBreakdownOut(BaseModel):
     context_tokens: int | None
     context_window: int | None
     last_reply: LastReplyOut | None
+    # Estimated tokens saved by shortening old tool output, which the categories count at its shortened size.
+    trimmed_tool_tokens: int = 0
 
 
 class TokenRowOut(BaseModel):
@@ -203,6 +205,7 @@ def breakdown_out(breakdown: ContextBreakdown) -> ContextBreakdownOut:
         context_tokens=breakdown.context_tokens,
         context_window=breakdown.context_window,
         last_reply=last_reply_out(breakdown.last_reply),
+        trimmed_tool_tokens=breakdown.trimmed_tool_tokens,
     )
 
 

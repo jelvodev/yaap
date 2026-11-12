@@ -19,3 +19,10 @@ export const REPLAY_STATUS_LABELS: Record<string, string> = {
   stopped: "Stopped",
   error: "Error",
 };
+
+/** How a tool call's approval outcome reads; an outcome without an entry reads as it is. */
+const APPROVAL_LABELS: Record<string, string> = { case_approved: "approved by the eval case" };
+
+export function approvalLabel(approval: string): string {
+  return APPROVAL_LABELS[approval] ?? approval;
+}

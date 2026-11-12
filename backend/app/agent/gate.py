@@ -277,6 +277,8 @@ async def gated_call(
     # A case-approved call passed the injection guard, which the trace should show.
     if decision.verdict != "allow" or decision.reason == "case_approved":
         note.why, note.call_key = decision.why, call_key(name, arguments)
+    if decision.verdict == "allow" and decision.reason == "case_approved":
+        note.approval = "case_approved"
     if decision.verdict == "refuse":
         # A call that would have asked, in a run without the user, is counted apart: an eval case reports it.
         note.approval = "asked" if decision.reason == "unattended" else "refused"

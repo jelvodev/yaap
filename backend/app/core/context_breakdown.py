@@ -48,6 +48,7 @@ from app.projects.service import project_path
 from app.providers.base import ToolDefinition
 from app.providers.registry import ProviderRegistry
 from app.storage.models import AgentRunRecord, Conversation, Message, Project, RunStep, UsageRecord
+from app.tracing.division import estimate_tokens
 from app.tracing.snapshots import JsonValue, SnapshotStore, cleaned, trace_dir
 
 Basis = Literal["snapshot", "assembly"]
@@ -106,6 +107,8 @@ class ContextBreakdown:
     context_tokens: int | None
     context_window: int | None
     last_reply: LastReply | None
+    # Estimated tokens saved by shortening old tool output; the categories count that output at its shortened size.
+    trimmed_tool_tokens: int = 0
 
 
 @dataclass(frozen=True)
@@ -259,6 +262,24 @@ def trimmed(blocks: Blocks) -> Blocks:
     ]
 
 
+def trimmed_tool_tokens(branch: list[Message]) -> int:
+    """Estimated tokens saved by shortening old tool output: the messages from the latest summary up to the trim."""
+    trim_index = latest_trim(branch)
+    if trim_index is None:
+        return 0
+    summary_index = latest_summary(branch)
+    start = summary_index + 1 if summary_index is not None else 0
+    saved = 0
+    for message in branch[start : trim_index + 1]:
+        if not is_part_of_history(message):
+            continue
+        for block in message.content:
+            output = block.get("output")
+            if isinstance(output, str):
+                saved += estimate_tokens(len(output)) - estimate_tokens(len(shorten(output)))
+    return saved
+
+
 def masked_blocks(blocks: Blocks, secrets: dict[str, str]) -> Blocks:
     """The stored blocks with secret values masked, as a snapshot holds them; labels are made from these."""
     masked = cleaned(blocks, secrets)
@@ -391,4 +412,5 @@ def context_breakdown(inputs: ContextInputs) -> ContextBreakdown:
         context_tokens=context_tokens,
         context_window=model.context_window if model else None,
         last_reply=last_reply_of(usage) if usage else None,
+        trimmed_tool_tokens=trimmed_tool_tokens(branch),
     )

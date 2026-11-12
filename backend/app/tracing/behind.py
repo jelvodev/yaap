@@ -169,7 +169,7 @@ def workers_label(facts: ReplyFacts) -> BehindLabel | None:
 
 
 def approvals_label(facts: ReplyFacts) -> BehindLabel | None:
-    asked = [step for step in tree_steps(facts) if step.kind == "tool" and step.approval is not None]
+    asked = [step for step in tree_steps(facts) if step.kind == "tool" and step.approval not in (None, "case_approved")]
     if not asked:
         return None
     outcomes = Counter(step.approval for step in asked)

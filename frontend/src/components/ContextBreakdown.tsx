@@ -129,6 +129,12 @@ function BreakdownParts({
           : "no context yet"}
         .
       </p>
+      {breakdown.trimmed_tool_tokens > 0 && (
+        <p className="faint small">
+          Old tool output shortened · about {formatTokens(breakdown.trimmed_tool_tokens)} tokens saved; tool results
+          count at their shortened size.
+        </p>
+      )}
       {(breakdown.can_summarise || breakdown.summarised_messages > 0) && (
         <div className="context-summary">
           <p className="faint small">

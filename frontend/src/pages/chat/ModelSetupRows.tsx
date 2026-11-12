@@ -50,9 +50,16 @@ function AgentRow({
   );
 }
 
+interface ContextRowProps {
+  use: ContextUse;
+  details?: ReactNode;
+  /** Whether the breakdown starts open. */
+  shown?: boolean;
+}
+
 /** The context in use against the limit, with a bar; in a conversation the breakdown opens below it. */
-function ContextRow({ use, details }: { use: ContextUse; details?: ReactNode }) {
-  const [shown, setShown] = useState(false);
+function ContextRow({ use, details, shown: initiallyShown = false }: ContextRowProps) {
+  const [shown, setShown] = useState(initiallyShown);
   const state = use.state === "full" ? " context-full" : use.state === "filling" ? " context-filling" : "";
   return (
     <div className={`model-setup-context${state}`}>
@@ -86,6 +93,8 @@ function ContextRow({ use, details }: { use: ContextUse; details?: ReactNode }) 
 export interface ConversationRowsProps {
   conversation: Conversation;
   use: ContextUse;
+  /** Show the context breakdown from the start, as when the ring was clicked. */
+  breakdownShown?: boolean;
   agents: AgentInfo[];
   /** The display name of the conversation's model, when the environment offers it. */
   modelName: string | undefined;
@@ -129,6 +138,7 @@ export function ConversationRows(props: ConversationRowsProps) {
       )}
       <ContextRow
         use={use}
+        shown={props.breakdownShown}
         details={
           <ContextBreakdown
             conversationId={conversation.id}
