@@ -109,7 +109,9 @@ def test_a_reply_with_two_model_calls_and_three_tool_calls_writes_five_steps_in_
         ("tool", "list_files"),
         ("model", None),
     ]
-    assert [step.position for step in steps] == [1, 2, 3, 4, 5]
+    # Notes (the cache choice, memory) share the run's positions but are not steps, so only the order is fixed.
+    positions = [step.position for step in steps]
+    assert positions == sorted(positions) and len(set(positions)) == 5
     assert steps[0].usage == FIRST and steps[4].usage == SECOND
     assert all(step.model == "claude-opus-5-5" and step.model_calls == 1 for step in steps if step.kind == "model")
     assert steps[1].summary and "a.txt" in steps[1].summary
