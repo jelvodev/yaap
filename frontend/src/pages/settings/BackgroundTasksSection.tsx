@@ -15,7 +15,8 @@ import {
 } from "./shared";
 
 const OFF_KEY = "utility_tasks_off";
-const ALWAYS_ON = "Always on: it protects you from outside content.";
+const ALWAYS_ON = "Always on.";
+const ALWAYS_ON_CHECK = "Always on: it protects you from outside content.";
 
 function namesOf(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
@@ -92,7 +93,7 @@ function TaskRow({
           {enabled ? "On" : "Off"}
         </label>
       ) : (
-        <Badge tone="level">{ALWAYS_ON}</Badge>
+        <Badge tone="level">{task.task === "injection_check" ? ALWAYS_ON_CHECK : ALWAYS_ON}</Badge>
       )}
       {numbers && <TaskLinks task={task} />}
       {numbers && <LastRuns task={task} />}
