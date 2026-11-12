@@ -39,6 +39,8 @@ Most AI coding tools tie you to one vendor, one editor or one way of working. YA
 
 **Where it is going: your personal software factory.** From an idea to a reviewed pull request: you describe the work, a strong model plans it, cheaper models build it, and every step is checked before it reaches you. The project board that runs this line is planned for 0.8.0; see the [roadmap](docs/roadmap.md).
 
+How YAAP compares with Claude Code, Codex CLI, Cursor, OpenHands and Open WebUI, fact by fact: [docs/comparison.md](docs/comparison.md).
+
 ## Who it is for
 
 Developers who want an AI agent in their own projects without handing those projects to a cloud service, who switch between models, and who like to decide how the agent works. You need Docker and are comfortable with a terminal for the install; after that, everything is in the browser.
@@ -83,12 +85,14 @@ Updating is one command (`scripts/update.ps1` or `scripts/update.sh`) with a bac
 | 🛠️ **An agent in your projects** | Reads, edits and runs code with your approval; shells that last the whole conversation, a headless browser, web search, project memory and knowledge. Per conversation you choose: *as set*, *full* or *read only*. |
 | 🛟 **A safety net** | A checkpoint before every change, a guard against instructions hidden in web pages and files, and everything the agent runs in a separate runner without access to YAAP's keys. A sandbox container per project when you want one. |
 | 📘 **The Blueprint** | Instructions, standards, skills, commands and agents as Markdown in git; import existing documents, install skills and packages from GitHub, `/check` a project against its standards, and see exactly what goes into the prompt. |
-| ⏱️ **Longer work** | Goal mode, delegation to a cheaper worker model or to Claude Code and Codex, scheduled tasks, and context control with automatic compaction and `/compact`. |
+| ⏱️ **Longer work** | Goal mode, delegation to a cheaper worker model or to Claude Code and Codex, scheduled tasks, a model per kind of message (routing), and context control with automatic compaction and `/compact`. |
+| 🔬 **Evals and traces** | Eval cases per project, run with `/eval` and compared between presets, agents or Blueprint branches; a trace of every reply, step by step, and replay from any model call with another model or rule. |
+| 🔍 **Review and preview** | A model of another vendor reviews the changes, and the project's dev server opens in a live preview beside the chat. |
 | 🌿 **Git and GitHub** | Commit with a proposed message, branches, pull requests with their checks, projects from template repositories, for projects and Blueprint layers alike. |
 | 📝 **Files and documents** | A file browser and editor beside the chat, and documents you and the agent edit together. |
 | 🖥️ **This computer** | Optionally, the agent works in folders of your own computer over SSH, with its own user and asking before every change. |
 | 🔐 **The vault** | API keys, tokens and secrets encrypted with your master key, several per kind, with expiry dates and a use log. |
-| 💾 **Backups and usage** | Daily backups to a folder or a network share, restore from the interface, and cost per environment, project, model and month with budgets. |
+| 💾 **Backups and usage** | Daily backups to a folder or a network share, restore from the interface, and cost per environment, project, model and month with budgets, plus a cost estimate for a goal or scheduled task from earlier similar runs. |
 | 🔌 **Open to other tools** | MCP servers for the agent, other agents over A2A, YAAP's own tools as an MCP server for outside clients, and plugins of your own. |
 
 ## How it fits together
