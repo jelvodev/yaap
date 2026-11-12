@@ -379,8 +379,8 @@ export default function Composer({
             <SkillsMenu skills={skills} pinned={pinnedSkills} onChange={onPinnedSkillsChange} />
             {controls}
             <span className="composer-hint">
-              {busy && onQueue ? "Enter to queue for after this reply" : "Enter to send"} · Shift+Enter for a new line · / for
-              commands
+              {busy && onQueue ? "Enter to queue for after this reply" : "Enter to send"}
+              <span className="composer-hint-extra"> · Shift+Enter for a new line · / for commands</span>
             </span>
           </div>
           {busy && onSteer && (

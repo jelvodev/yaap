@@ -1400,6 +1400,12 @@ kbd {
   container-type: inline-size;
 }
 
+@container (max-width: 900px) {
+  .composer-hint-extra {
+    display: none;
+  }
+}
+
 @container (max-width: 600px) {
   .composer-hint {
     display: none;
