@@ -41,6 +41,7 @@ from app.agent.outputs import OutputStore, remove_conversation_outputs
 from app.agent.shells import remove_conversation_shells
 from app.agent.runs import RunRegistry
 from app.agents.definitions import find_agent
+from app.core.context_breakdown import context_used
 from app.core.conversation_move import MoveBusy, MoveError, move_conversation
 from app.core.conversations import delete_conversation
 from app.core.goals import ACTIVE, end_goal, goal_cost, latest_goal, open_goal
@@ -287,7 +288,9 @@ def read_conversation(
         session.commit()
     branch = load_branch(session, conversation.id, conversation.head_message_id)
     latest_usage = session.scalar(
-        select(UsageRecord).where(UsageRecord.conversation_id == conversation.id).order_by(UsageRecord.id.desc())
+        select(UsageRecord)
+        .where(UsageRecord.conversation_id == conversation.id, UsageRecord.purpose == "main")
+        .order_by(UsageRecord.id.desc())
     )
     model = providers.find_model(conversation.model)
     versions: dict[tuple[int | None, str], list[int]] = {}
@@ -305,17 +308,8 @@ def read_conversation(
             message_to_out(message, versions.get((message.parent_id, message.role), [message.id]))
             for message in branch
         ],
-        # Everything of the last turn is in the context of the next one.
-        context_tokens=(
-            None
-            if latest_usage is None
-            else latest_usage.context_tokens
-            if latest_usage.context_tokens is not None
-            else latest_usage.input_tokens
-            + latest_usage.cache_read_tokens
-            + latest_usage.cache_write_tokens
-            + latest_usage.output_tokens
-        ),
+        # Everything of the last main reply is in the context of the next one; a small helper call (a title) is not.
+        context_tokens=context_used(latest_usage),
         context_window=model.context_window if model else None,
         context_control=context_control_out(resolve_context_control(session, providers, conversation)),
         utility_events=[
