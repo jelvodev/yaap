@@ -1,6 +1,6 @@
 import { type RefObject, useState } from "react";
 
-import type { BlueprintItem, Conversation, Environment, Project } from "../../api/client";
+import type { BlueprintItem, Conversation, ConversationSummary, Environment, Project } from "../../api/client";
 import Composer from "../../components/Composer";
 import GoalStrip from "../../components/GoalStrip";
 import type { CheckpointLinks } from "../../components/message/contexts";
@@ -12,7 +12,7 @@ import type { ToolCallRef } from "../../components/trace/traceOrder";
 import type { TraceTarget } from "../../components/trace/useTrace";
 import { UtilitySkipNotice } from "../../components/UtilitySkipNotice";
 import ChatHeading from "./ChatHeading";
-import { ContextNotice, ModelNotice } from "./ChatNotices";
+import { ContextNotice, ModelNotice, ReturnNoticeFor } from "./ChatNotices";
 import { AccessSelect, TargetSelect } from "./ComposerControls";
 import EvalCaseAction from "./EvalCaseAction";
 import LearningAction from "./LearningAction";
@@ -49,6 +49,8 @@ export interface ChatMainProps {
   checkpointLinks: CheckpointLinks | null;
   endRef: RefObject<HTMLDivElement | null>;
   onNewConversation: () => void;
+  /** Open the conversation made from a summary of the open one. */
+  onContinued: (conversation: ConversationSummary) => void;
 }
 
 /** The middle of the chat: heading, notices, the messages, and the composer with the goal and queue above it. */
@@ -88,6 +90,14 @@ export default function ChatMain(props: ChatMainProps) {
         <ModelNotice model={activeModel} environment={environment} hasConversation={conversation !== null} />
       )}
       {conversation && <ContextNotice conversation={conversation} onNewConversation={props.onNewConversation} />}
+      {conversation && (
+        <ReturnNoticeFor
+          conversation={conversation}
+          busy={session.busy}
+          onChanged={() => void active.load(conversation.id)}
+          onContinued={props.onContinued}
+        />
+      )}
       <MessageList
         conversation={conversation}
         streaming={session.reply.blocks}

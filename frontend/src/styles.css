@@ -4105,3 +4105,9 @@ button.context-meter[aria-expanded="true"] {
   max-height: 24rem;
   overflow-y: auto;
 }
+
+.return-notice-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}

@@ -2,6 +2,7 @@
 
 from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from app.providers.base import ModelProvider
@@ -31,6 +32,9 @@ class ProviderSpec:
     # Whether the connection can keep the cacheable system parts for an hour (AgentRequest.cache_ttl): the Anthropic
     # API key can; Claude Code and Codex manage their own cache, OpenAI caches by itself.
     long_cache: bool = False
+    # How long the connection's prompt cache lives after the last call; None where nothing cached is lost by a pause
+    # (local models, endpoints, plugins).
+    cache_lifetime: timedelta | None = None
     # For a connection that signs in by itself (a subscription CLI): whether it reports a sign-in now. It starts the
     # CLI, so callers do not run it on every request.
     signed_in: Callable[[], Awaitable[bool]] | None = None
@@ -110,6 +114,8 @@ def default_provider_registry() -> ProviderRegistry:
         connection="api_key",
         runs_agents=True,
         long_cache=True,
+        # The hour applies when the cache policy chose it; return_notice handles that.
+        cache_lifetime=timedelta(minutes=5),
     )
     claude_code = ProviderSpec(
         name="anthropic",
@@ -119,6 +125,8 @@ def default_provider_registry() -> ProviderRegistry:
         connection="claude_code",
         runs_agents=True,
         metered=False,
+        # A safe guess: the CLI manages the cache itself.
+        cache_lifetime=timedelta(hours=1),
         signed_in=claude_code_signed_in,
         sign_in=claude_code_sign_in_spec(),
     )
@@ -133,6 +141,8 @@ def default_provider_registry() -> ProviderRegistry:
         create=create_openai_provider,
         connection="api_key",
         runs_agents=True,
+        # OpenAI caches by itself for a few minutes.
+        cache_lifetime=timedelta(minutes=5),
     )
     codex = ProviderSpec(
         name="openai",
@@ -142,6 +152,8 @@ def default_provider_registry() -> ProviderRegistry:
         connection="codex",
         runs_agents=True,
         metered=False,
+        # A safe guess: the CLI manages the cache itself.
+        cache_lifetime=timedelta(hours=1),
         signed_in=codex_signed_in,
         sign_in=codex_sign_in_spec(),
     )
