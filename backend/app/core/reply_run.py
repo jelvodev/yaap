@@ -23,6 +23,7 @@ from app.agents.records import start_reply_record, start_run_record
 from app.attachments.service import attachment_folder
 from app.browser.service import browser_tools
 from app.checkpoints.service import CheckpointStore
+from app.core.context_savings import context_savings_on
 from app.core.github_token import read_github_token
 from app.core.goals import ACTIVE, GoalHandle, open_goal
 from app.core.model_policy_store import resolve_model_policy
@@ -77,6 +78,7 @@ def start_agent_run(
         config = replace(config, policy=replace(config.policy, tools=(*config.policy.tools, *tools_by_name)))
     parts = run_services(services, session, conversation, setup, allowed_tools, on_step)
     run = services.runs.start(config, parts)
+    run.state.context_savings = context_savings_on(session, setup.environment.id)
     try:
         # A new reply is activity in the conversation, so its background processes keep running.
         services.processes.touch_conversation(conversation.id)
