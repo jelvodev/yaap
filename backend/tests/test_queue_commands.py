@@ -74,7 +74,7 @@ class FakeEvals:
         self.refuse = refuse
         monkeypatch.setattr(client.app.state.evals, "start_from_chat", self.start_from_chat)
 
-    def start_from_chat(self, _conversation, case_name):  # type: ignore[no-untyped-def]
+    def start_from_chat(self, _conversation, case_name, queue_item_id=None):  # type: ignore[no-untyped-def]
         if self.refuse:
             raise CommandRefused("No eval cases yet.")
         self.started.append(case_name)

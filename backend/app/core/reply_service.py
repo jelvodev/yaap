@@ -367,7 +367,7 @@ class ReplyService:
         focus = compact_focus(message.text) if not own_command else None
         queued = QueuedCommand(message.queued_item_ids, message.handoff_job_id)
         if focus is not None:
-            return ReplyStream(self.commands.compact(session, conversation, focus, queued))
+            return ReplyStream(self.commands.compact(session, conversation, focus, queued, reservation))
         # /eval [case] starts an eval run of the project's cases instead of replying, unless the Blueprint has its own.
         evaluated = EVAL_COMMAND.match(message.text.strip()) if not own_command else None
         if evaluated is not None:

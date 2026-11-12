@@ -3,11 +3,11 @@
 import re
 from typing import Literal
 
-from sqlalchemy import delete, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.summaries import compact_focus
-from app.storage.models import QueuedMessage
+from app.storage.models import EvalRun, QueuedMessage
 
 QueueItemKind = Literal["message", "compact", "eval"]
 
@@ -22,6 +22,32 @@ def queue_item_kind(text: str) -> QueueItemKind:
     if EVAL_COMMAND.match(text.strip()) is not None:
         return "eval"
     return "message"
+
+
+EvalClaim = Literal["start", "existing", "gone", "busy"]
+
+
+def eval_claim(item_exists: bool, existing_run_id: int | None, claimed_by_other: bool) -> EvalClaim:
+    """What a consumer of a queued /eval does: a run that already came from the item is returned (after a restart, or
+    for a second consumer), whatever became of the row; otherwise the item must still be there and not held by
+    another handoff."""
+    if existing_run_id is not None:
+        return "existing"
+    if not item_exists:
+        return "gone"
+    return "busy" if claimed_by_other else "start"
+
+
+def claim_eval(
+    session: Session, conversation_id: int, item_id: int, handoff: str | None
+) -> tuple[EvalClaim, int | None]:
+    """The claim decision for one queued /eval, and the run it already started, if any."""
+    run_id = session.scalar(select(EvalRun.id).where(EvalRun.queue_item_id == item_id))
+    item = session.scalar(
+        select(QueuedMessage).where(QueuedMessage.id == item_id, QueuedMessage.conversation_id == conversation_id)
+    )
+    other = item is not None and item.send_now_job_id is not None and item.send_now_job_id != handoff
+    return eval_claim(item is not None, run_id, other), run_id
 
 
 def claim_items(
