@@ -50,8 +50,9 @@ class ContentBlockOut(BaseModel):
     # summary: on the last message a summary covers; the model gets it instead of what it covers.
     # note: a line YAAP added to the conversation, such as a move to another project.
     # trim: the model gets the long tool results up to this message shortened.
+    # repo_map: the store key of the repository map kept for the conversation (not shown).
     type: Literal[
-        "text", "reasoning", "tool_call", "attachment", "command", "skill", "skill_removed", "goal", "summary", "trim", "steering", "note"
+        "text", "reasoning", "tool_call", "attachment", "command", "skill", "skill_removed", "goal", "summary", "trim", "steering", "note", "repo_map"
     ]
     # Text and reasoning blocks.
     text: str = ""
