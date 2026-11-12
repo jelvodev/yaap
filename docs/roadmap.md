@@ -12,34 +12,16 @@ The current version is **0.6.1**.
 Making the repository public, then fewer steps and less waiting before the first answer, and what makes YAAP
 different within one click.
 
-46. **Check the history and files** for anything private: names, addresses, keys, internal notes.
-47. **The fixes from the security check**, before everyone can read the code, each with a test that runs on Linux
-    the way YAAP runs in Docker.
 51. **Checks on every push** in GitHub Actions: the backend tests, the migration check, the frontend build and whether
     the generated API types are up to date.
-48. **Release 0.6.1** with the smaller first download, as a GitHub Release, so the update notice finds it.
-60. **A front page that shows it.** A short animation and three screenshots in the README, the features that set
-    YAAP apart (evals, replay, a review by another vendor, the live preview), and an honest comparison with other
-    tools.
+48. **Releases on GitHub.** Each release is published as a GitHub Release, so the update notice finds it.
+60. **A front page that shows it.** A short animation and three screenshots in the README.
 49. **Make the repository public**, and check that the update notice in a running YAAP sees the release.
 50. **A clean install** from the public repository on another computer, from `git clone` to a first command in a
     project: its tests run after an approval in the chat, with their output shown. With the time it took.
-52. **One reply at a time, no lost messages.** The server decides when a reply starts, so two sends at once never
-    start two replies. A queued message leaves the queue only when its send is accepted.
-53. **Replays and evals that say what they prove.** A replay keeps the Blueprint version of the original run and shows
-    which context it built again; with all fields empty it uses that version. An eval keeps failed checks apart from
-    stopped runs and errors, so those do not pull the pass rate or the cost down.
-63. **The cache keeps up with a slow pace.** When you take more than a few minutes between messages, the whole
-    conversation stays in the cache for an hour, not only the start, so each answer pays for what is new.
-72. **What YAAP does behind the scenes.** A page in the documentation with every background task: when it runs,
-    what it costs and how to switch it off.
 45. **Ready-made images.** Each release publishes YAAP's images, so installing and updating download them instead of
     building on your computer, and the runner's image arrives when it is first needed. Building locally stays
     possible. Once the repository is public, GitHub Actions builds them for free.
-61. **Bring your setup.** Instructions, skills, agents and commands from Claude Code, Codex, Cursor and `AGENTS.md`
-    become Blueprint items in one step, with a review before anything is written.
-62. **A second opinion.** One click under a reply asks a model of another vendor to check the answer or the changes.
-    Its findings show beside the reply, and nothing is applied by itself.
 
 ## 0.7.0: see and save
 

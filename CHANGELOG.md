@@ -19,6 +19,8 @@ yourself when you update; it says "None." when there is nothing.
 - A replay without changes now rebuilds its instructions from each Blueprint layer at the version the original run used, and its header says which version each layer came from.
 - Eval comparisons count the pass rate and the median cost over plays that passed or failed only, and show errors and stopped plays apart.
 - With Anthropic, a conversation that keeps its prompt cache for an hour (goals, scheduled tasks, a reply after a pause) now keeps the conversation history cached for an hour too, not only the instructions.
+- New documentation: `docs/behind-the-scenes.md` lists every task YAAP runs by itself, when it runs, what it costs and how to switch it off; `docs/comparison.md` compares YAAP with other tools, and the README names the features that set YAAP apart.
+- The changes panel reads the git state again when it opens, so changes made outside YAAP show too; an import on the first-start page now says what it wrote.
 
 ### Action needed
 
