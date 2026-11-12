@@ -6,6 +6,18 @@ yourself when you update; it says "None." when there is nothing.
 
 ## Unreleased
 
+- Fetch, push, pull and clone use the GitHub token only in a transport repository that YAAP alone writes, in the data folder; a process in the runner can no longer change how a token-carrying git command connects. Commits move between that repository and the project as git bundles, whose branch names and commits YAAP checks.
+- The git panel keeps its connection to the runner for a few minutes instead of making a new one (and a new vault use entry) on every request.
+- A queued `/eval` starts at most one eval run, also when it is sent twice or YAAP restarts in between; the run records the queue item it came from.
+- A queued `/compact` keeps the conversation reserved while it summarises, so a reply cannot start in the middle of it.
+- *Where it goes* in the model setup's Context now breaks the context down as a bar and a table by category (system prompt, Blueprint, tools, messages, the room until YAAP summarises, free space). The total is exact from the last reply; the split is estimated and scaled to it. A category opens to its largest items, with *Show in trace* for tool results. With Claude Code and Codex the CLI's own prompt and history show as one remainder.
+- The trace has two more tabs: *Context* (the same breakdown) and *Tokens*: per reply the cache read, cache write, uncached input and output with the cost, workers and background calls as rows of their own, the ten largest tool results, the cache hit rate, and hints where tokens were lost (a file read more than once, a cold cache after a pause, tool results over half of the context, one outside MCP server with a large share of the tool definitions).
+- `GET /conversations/{id}/token-usage`: where a conversation's tokens went over the session.
+- `GET /conversations/{id}/context` returns categories with their largest items instead of a flat list of parts.
+- The token footprint script and the screen count with the same division.
+- A setting `context_savings` (off by default) to send less of what the model already has: a repeated read of unchanged lines in the same reply becomes one line; long output of a known test runner (pytest, vitest, jest, go test, cargo test, dotnet test) keeps the failures and the summary, with the whole output readable through `read_output`; when old tool output is shortened, reads of files that changed since are left out with a note to read them again; and a conversation keeps its repository map until it is shortened or summarised. What is left out always says how to get it back.
+- The token footprint measures a longer project reply with these savings off and on.
+
 ### Action needed
 
 None.
