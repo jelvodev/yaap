@@ -21,6 +21,8 @@ export type ReplyBlock =
     }
   // A message the user sent while the agent worked; the agent got it at this point.
   | { type: "steering"; text: string }
+  // A plan the agent handed over with submit_plan; the card reads the plan by its id.
+  | { type: "plan"; planId: number }
   | {
       type: "approval";
       id: string;
@@ -45,6 +47,7 @@ export function appendLive(live: string | undefined, text: string): string {
 export function blocksFromMessage(message: Message): ReplyBlock[] {
   return message.content.flatMap((block): ReplyBlock[] => {
     if (block.type === "steering") return [{ type: "steering", text: block.text ?? "" }];
+    if (block.type === "plan") return block.plan_id != null ? [{ type: "plan", planId: block.plan_id }] : [];
     if (block.type !== "text" && block.type !== "reasoning" && block.type !== "tool_call") return [];
     if (block.type === "tool_call") {
       return [

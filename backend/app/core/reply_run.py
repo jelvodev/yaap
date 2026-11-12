@@ -216,6 +216,7 @@ def run_services(
         goal=GoalHandle(goal.id, services.session_factory) if goal is not None and goal.status == ACTIVE else None,
         trace=reply_trace(services, on_step),
         code_intel=code_intel_for_run(run_folder(services, setup), runtime) if in_project else None,
+        plans=services.plans if in_project else None,
     )
 
 

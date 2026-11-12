@@ -21,6 +21,7 @@ from app.core.utility import UtilityContext
 from app.credentials.crypto import CredentialCipher
 from app.credentials.types import CredentialType
 from app.mcp_client.manager import McpManager
+from app.plans.service import PlanService
 from app.providers.registry import ProviderRegistry
 from app.storage.models import Conversation
 from app.tracing.otlp_export import TelemetrySender
@@ -80,6 +81,10 @@ class ReplyServices:
         return UtilityContext(
             self.session_factory, self.cipher, self.credential_types, self.providers, self.blueprint_dir
         )
+
+    @property
+    def plans(self) -> PlanService:
+        return PlanService(self.session_factory)
 
     @property
     def telemetry(self) -> TelemetrySender:
