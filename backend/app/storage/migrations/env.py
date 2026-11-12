@@ -1,6 +1,7 @@
 from alembic import context
 from sqlalchemy import create_engine
 
+from app.board import models as board_models  # noqa: F401 - registers the board tables on Base.metadata
 from app.plans import models as plan_models  # noqa: F401 - registers the plans table on Base.metadata
 from app.storage.models import Base
 

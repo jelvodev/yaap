@@ -21,6 +21,7 @@ from app.core.utility import UtilityContext
 from app.credentials.crypto import CredentialCipher
 from app.credentials.types import CredentialType
 from app.mcp_client.manager import McpManager
+from app.board.service import BoardService
 from app.plans.service import PlanService
 from app.providers.registry import ProviderRegistry
 from app.storage.models import Conversation
@@ -75,6 +76,8 @@ class ReplyServices:
     evals: ChatEvals | None = None
     # YAAP's data folder on the user's computer (app/sandbox/host_path.py); None when it is not known.
     host_data_dir: str | None = None
+    # The project boards; None when the application runs without its lifespan.
+    board: BoardService | None = None
 
     @property
     def utility(self) -> UtilityContext:
@@ -123,4 +126,5 @@ class ReplyServices:
             reviews_after_goals=getattr(state, "reviews_after_goals", True),
             evals=getattr(state, "evals", None),
             host_data_dir=getattr(state, "host_data_dir", None),
+            board=getattr(state, "board", None),
         )
