@@ -15,7 +15,7 @@ router = APIRouter(tags=["background-tasks"])
 router.include_router(builtin_blueprint.router)
 
 
-class RunOut(BaseModel):
+class BackgroundRunOut(BaseModel):
     created_at: datetime
     model: str
     cost: float | None
@@ -35,7 +35,7 @@ class BackgroundTaskOut(BaseModel):
     # This month, in the environment.
     runs: int
     cost: float
-    last_runs: list[RunOut]
+    last_runs: list[BackgroundRunOut]
     # The built-in Blueprint item that holds the task's instructions.
     builtin_item: str | None
 
