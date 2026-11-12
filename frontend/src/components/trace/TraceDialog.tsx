@@ -55,6 +55,7 @@ export default function TraceDialog({ target, onClose, headerActions, initialSte
       selectStep(stepId);
     } else tabs.openInOtherRun(runId, stepId);
   };
+  const stepCount = runs.reduce((count, run) => count + run.steps.length, 0);
   const canReplay = selected !== null && selected.has_context && selectedRun?.parent_run_id === null;
   return (
     <div className="palette-backdrop trace-backdrop" onMouseDown={onClose}>
@@ -70,7 +71,7 @@ export default function TraceDialog({ target, onClose, headerActions, initialSte
           {trace && (
             <span className="faint small">
               {runs.length > 1 ? `${runs.length} runs · ` : ""}
-              {runs.reduce((count, run) => count + run.steps.length, 0)} steps
+              {stepCount} {stepCount === 1 ? "step" : "steps"}
               {trace.run.duration_ms != null && ` · ${formatDuration(trace.run.duration_ms)}`}
               {trace.run.total_cost != null && ` · ${formatCost(trace.run.total_cost)}`}
             </span>
