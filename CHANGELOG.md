@@ -8,6 +8,7 @@ yourself when you update; it says "None." when there is nothing.
 
 - API tokens can no longer change or revoke other API tokens through the vault; use a signed-in browser.
 - Web fetch checks public destinations on every redirect and connects to the checked address.
+- Adding a web page as knowledge and installing a skill from GitHub use the same check: they refuse addresses on this computer or the local network, also after a redirect, and a GitHub token is only sent to the address it was meant for.
 - Retrying or regenerating a built-in `/check` keeps the run read only, including for existing messages.
 - Resetting a settings list now reports a failed request instead of showing a success message.
 - A failed reply start now closes the model connection and revokes the run's tool-server token.

@@ -288,3 +288,13 @@ def test_a_ref_not_found_without_a_token_says_a_private_repository_needs_one(tok
         with pytest.raises(SkillInstallError) as raised:
             resolve()
         assert ("needs this environment's GitHub token" in str(raised.value)) is hinted
+
+
+@pytest.mark.parametrize("address", ["http://127.0.0.1/", "http://169.254.169.254/latest", "http://10.0.0.1/", "http://[::1]/"])
+def test_a_private_address_is_refused_before_any_connection(address, monkeypatch):
+    def connect(*_args, **_kwargs):
+        raise AssertionError("connected")
+
+    monkeypatch.setattr("socket.create_connection", connect)
+    with pytest.raises(SkillInstallError, match="not a public address"):
+        skill_install.http_get(address, None)

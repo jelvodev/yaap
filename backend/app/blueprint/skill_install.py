@@ -9,9 +9,8 @@ one commit.
 import hashlib
 import json
 import re
-import urllib.error
+import http.client
 import urllib.parse
-import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -32,6 +31,7 @@ from app.blueprint.layers import (
 )
 from app.blueprint.mutations import MutationResult, replace_folder
 from app.core.hidden_text import find_hidden, mark_hidden, refusal_reason, warning_lines
+from app.websearch.safe_fetch import FetchError, fetch_public_bytes
 
 API = "https://api.github.com"
 RAW = "https://raw.githubusercontent.com"
@@ -81,21 +81,21 @@ def http_get(url: str, token: str | None) -> bytes:
     headers = {"User-Agent": "YAAP", "Accept": "application/vnd.github+json"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
-    request = urllib.request.Request(url, headers=headers)
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
-            return response.read(MAX_SKILL_BYTES + 1)
-    except urllib.error.HTTPError as error:
-        if error.code == 404:
+        return fetch_public_bytes(url, MAX_SKILL_BYTES + 1, timeout=30, headers=headers)[1]
+    except FetchError as error:
+        if error.status is None:
+            raise SkillInstallError(f"GitHub could not be reached: {error}") from error
+        if error.status == 404:
             hint = "" if token else PRIVATE_HINT
             raise SkillInstallError(f"GitHub has nothing at this link.{hint}", 404) from error
-        if error.code in (401, 403, 429):
+        if error.status in (401, 403, 429):
             raise SkillInstallError(
                 "GitHub refused the request (no access, or the rate limit was reached). "
                 "A GitHub token in this environment raises the limit."
             ) from error
-        raise SkillInstallError(f"GitHub answered with HTTP {error.code}.", error.code) from error
-    except (urllib.error.URLError, TimeoutError) as error:
+        raise SkillInstallError(f"GitHub answered with HTTP {error.status}.", error.status) from error
+    except (OSError, http.client.HTTPException) as error:
         raise SkillInstallError(f"GitHub could not be reached: {error}") from error
 
 

@@ -4,7 +4,7 @@ import socket
 
 import pytest
 
-from app.websearch.safe_fetch import FetchError, fetch_public, public_address
+from app.websearch.safe_fetch import FetchError, fetch_public, public_address, request_origin
 
 
 @pytest.mark.parametrize(
@@ -92,3 +92,17 @@ def test_fetch_connects_to_the_checked_address(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setattr("app.websearch.safe_fetch.http.client.HTTPConnection", Connection)
     assert fetch_public("http://example.test/", 100)[1] == "ok"
     assert connected == [("8.8.8.8", 80)]
+
+
+@pytest.mark.parametrize(
+    ("first", "then", "same"),
+    [
+        ("https://api.github.com/repos/a/b", "https://api.github.com/other", True),
+        ("https://api.github.com/x", "https://objects.githubusercontent.com/x", False),
+        ("https://api.github.com/x", "http://api.github.com/x", False),
+        ("https://api.github.com/x", "https://api.github.com:8443/x", False),
+        ("https://API.github.com/x", "https://api.github.com/y", True),
+    ],
+)
+def test_own_headers_only_follow_a_redirect_within_the_same_origin(first: str, then: str, same: bool) -> None:
+    assert (request_origin(first) == request_origin(then)) is same

@@ -11,8 +11,7 @@ import os
 import re
 import shutil
 import stat
-import urllib.error
-import urllib.request
+import http.client
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -23,6 +22,7 @@ from app.attachments import ocr
 from app.attachments.files import AttachmentError, looks_like_text, store_upload
 from app.storage.models import KnowledgeDocument, Project
 from app.targets.safe_root import SafeRoot
+from app.websearch.safe_fetch import fetch_public_bytes
 
 MAX_FILE_BYTES = 50 * 1024 * 1024
 MAX_PROJECT_BYTES = 500 * 1024 * 1024
@@ -131,12 +131,9 @@ def fetch_page(url: str) -> tuple[str, str]:
 
     if not re.match(r"^https?://", url):
         raise KnowledgeError("Only http and https pages can be added.")
-    request = urllib.request.Request(url, headers={"User-Agent": "YAAP"})
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
-            content_type = response.headers.get("Content-Type", "")
-            body = response.read(MAX_FILE_BYTES + 1)
-    except (urllib.error.URLError, TimeoutError, ValueError) as error:
+        content_type, body, _final_url = fetch_public_bytes(url, MAX_FILE_BYTES + 1, timeout=30)
+    except (OSError, http.client.HTTPException, ValueError) as error:  # ValueError covers a refused destination
         raise KnowledgeError(f"Fetching {url} failed: {error}") from error
     if len(body) > MAX_FILE_BYTES:
         raise KnowledgeError(f"The page is larger than {MAX_FILE_BYTES // (1024 * 1024)} MB.")

@@ -71,7 +71,9 @@ class Page(BaseHTTPRequestHandler):
         pass
 
 
-def test_a_web_page_is_kept_and_refreshed(client):
+def test_a_web_page_is_kept_and_refreshed(client, monkeypatch):
+    # The page is served from this machine; the real fetch path runs with the address check relaxed.
+    monkeypatch.setattr("app.websearch.safe_fetch.public_address", lambda _address: True)
     server = ThreadingHTTPServer(("127.0.0.1", 0), Page)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
@@ -93,6 +95,18 @@ def test_a_web_page_is_kept_and_refreshed(client):
         assert "Use active voice." in text and "short sentences" not in text
     finally:
         server.shutdown()
+
+
+@pytest.mark.parametrize("address", ["http://127.0.0.1/", "http://169.254.169.254/latest", "http://10.0.0.1/", "http://[::1]/"])
+def test_a_page_on_a_private_address_is_refused_before_any_connection(address, monkeypatch):
+    from app.knowledge.service import KnowledgeError, fetch_page
+
+    def connect(*_args, **_kwargs):
+        raise AssertionError("connected")
+
+    monkeypatch.setattr("socket.create_connection", connect)
+    with pytest.raises(KnowledgeError, match="not a public address"):
+        fetch_page(address)
 
 
 def test_the_knowledge_folder_is_mirrored(client):
