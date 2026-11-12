@@ -41,6 +41,8 @@ yourself when you update; it says "None." when there is nothing.
 - The trace shows when an eval case's approval let a call through ("approved by the eval case") instead of an empty approval field.
 - The summary that starts a continued conversation no longer shows try again, second opinion or versions.
 - A click on the context ring opens the model setup with the context breakdown already shown.
+- Without a reply language set, replies and conversation titles follow the language of your message; before, a reply or title could come back in another language.
+- A browser screenshot the agent saves under a file name now also comes back as an image, so the agent sees it and the chat shows it.
 
 ### Action needed
 
