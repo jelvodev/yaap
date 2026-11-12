@@ -19,23 +19,19 @@ from app.api.dependencies import (
     SessionDependency,
     WorkspaceDirDependency,
 )
-from app.api.git import RepositoryDependency, github_token, status_out, RepositoryOut
+from app.api.git import Repository, RepositoryDependency, RepositoryOut, github_token, status_out
 from app.core.settings import resolve_languages
 from app.core.utility import UtilityContext, UtilitySkipped, propose_pull_request
 from app.credentials.crypto import CredentialCipher, CredentialDecryptionError
 from app.credentials.store import read_credential_value
 from app.git.service import (
     GitError,
-    branch_summary,
-    create_branch,
-    delete_branch,
-    fetch,
-    list_branches,
-    push,
     remote_url,
     repository_status,
-    switch_branch,
 )
+from app.git.branches import branch_summary, create_branch, delete_branch, list_branches, switch_branch
+from app.git.place import GitPlace, git_place
+from app.git.remote import fetch, push
 from app.github.client import MERGE_METHODS, GitHubClient, GitHubError, GitHubRepository, PullRequest, repository_name
 from app.projects.service import ProjectError, create_cloned_project, project_path
 from app.storage.models import Environment, Project
@@ -211,10 +207,18 @@ def github_failure(error: GitHubError | GitError) -> HTTPException:
     return HTTPException(status.HTTP_409_CONFLICT, str(error))
 
 
+def project_remote(environment: Environment, workspace_dir: Any, project: Project) -> str | None:
+    """The project's origin URL, or None when git cannot be asked (no repository, or the runner is not available)."""
+    try:
+        return remote_url(git_place(environment.id, project_path(workspace_dir, project)))
+    except (GitError, ProjectError):
+        return None
+
+
 def projects_by_repository(session: Session, workspace_dir: Any, environment: Environment) -> dict[str, list[str]]:
     found: dict[str, list[str]] = {}
     for project in session.scalars(select(Project).where(Project.environment_id == environment.id)):
-        name = repository_name(project.repository_url) or repository_name(remote_url(project_path(workspace_dir, project)))
+        name = repository_name(project.repository_url) or repository_name(project_remote(environment, workspace_dir, project))
         if name:
             found.setdefault(name.lower(), []).append(project.name)
     return found
@@ -313,12 +317,13 @@ def mark_template(
 # --- A project: branches ---------------------------------------------------------------------------------------
 
 
-def branches_out(repository: Any) -> BranchesOut:
+def branches_out(repository: Repository) -> BranchesOut:
     try:
-        branches = list_branches(repository.path)
+        place = repository.place()
+        branches = list_branches(place)
         return BranchesOut(
             branches=[BranchOut(**branch.__dict__) for branch in branches],
-            repository=status_out(repository, repository_status(repository.path)),
+            repository=status_out(repository, repository_status(place)),
         )
     except GitError as error:
         raise github_failure(error) from error
@@ -333,7 +338,7 @@ def project_branches(repository: RepositoryDependency) -> BranchesOut:
 def new_branch(payload: BranchIn, repository: RepositoryDependency) -> BranchesOut:
     """Create a branch and switch to it; uncommitted changes come along."""
     try:
-        create_branch(repository.path, payload.name, payload.start or None)
+        create_branch(repository.place(), payload.name, payload.start or None)
     except GitError as error:
         raise github_failure(error) from error
     return branches_out(repository)
@@ -343,7 +348,7 @@ def new_branch(payload: BranchIn, repository: RepositoryDependency) -> BranchesO
 def change_branch(payload: BranchIn, repository: RepositoryDependency) -> BranchesOut:
     """Switch to a branch; git refuses when uncommitted changes would be overwritten."""
     try:
-        switch_branch(repository.path, payload.name)
+        switch_branch(repository.place(), payload.name)
     except GitError as error:
         raise github_failure(error) from error
     return branches_out(repository)
@@ -353,7 +358,7 @@ def change_branch(payload: BranchIn, repository: RepositoryDependency) -> Branch
 def remove_branch(payload: BranchIn, repository: RepositoryDependency) -> BranchesOut:
     """Delete a local branch other than the current one; unmerged commits need force."""
     try:
-        delete_branch(repository.path, payload.name, payload.force)
+        delete_branch(repository.place(), payload.name, payload.force)
     except GitError as error:
         raise github_failure(error) from error
     return branches_out(repository)
@@ -362,8 +367,11 @@ def remove_branch(payload: BranchIn, repository: RepositoryDependency) -> Branch
 # --- A project: pull requests -----------------------------------------------------------------------------------
 
 
-def github_repository(repository: Any) -> str:
-    name = repository_name(remote_url(repository.path))
+def github_repository(repository: Repository) -> str:
+    try:
+        name = repository_name(remote_url(repository.place()))
+    except GitError as error:
+        raise github_failure(error) from error
     if name is None:
         raise HTTPException(status.HTTP_409_CONFLICT, "This project's remote is not a GitHub repository.")
     return name
@@ -378,8 +386,12 @@ def project_pulls(
     cipher: CipherDependency,
     state: Literal["open", "closed", "all"] = "open",
 ) -> PullsOut:
-    name = repository_name(remote_url(repository.path))
-    current = repository_status(repository.path).branch
+    try:
+        place = repository.place()
+        name = repository_name(remote_url(place))
+        current = repository_status(place).branch
+    except GitError as error:
+        raise github_failure(error) from error
     if name is None:
         return PullsOut(repository=None, current_branch=current, pulls=[])
     token = github_token(session, cipher, environment, repository, "list pull requests")
@@ -436,9 +448,9 @@ async def propose_pull(
 ) -> PullProposalOut:
     """A title and description proposed by the utility model from the branch's commits; the user reviews it."""
     try:
-        current = (await anyio.to_thread.run_sync(repository_status, repository.path)).branch
+        current = (await anyio.to_thread.run_sync(lambda: repository_status(repository.place()))).branch
         base = payload.base or "main"
-        commits, files = await anyio.to_thread.run_sync(branch_summary, repository.path, base)
+        commits, files = await anyio.to_thread.run_sync(lambda: branch_summary(repository.place(), base))
     except GitError as error:
         raise github_failure(error) from error
     if not current:
@@ -461,7 +473,7 @@ async def propose_pull(
 
 
 def open_pull_request(
-    client: GitHubClient, folder: Any, token: str | None, title: str, body: str, base: str | None, draft: bool
+    client: GitHubClient, folder: GitPlace, token: str | None, title: str, body: str, base: str | None, draft: bool
 ) -> PullRequest:
     """Push the current branch when GitHub does not have all of it yet, then open the pull request."""
     name = repository_name(remote_url(folder))
@@ -495,7 +507,7 @@ def create_pull(
     token = github_token(session, cipher, environment, repository, "create pull request")
     try:
         with client_for(request, token) as client:
-            pull = open_pull_request(client, repository.path, token, payload.title, payload.body, payload.base, payload.draft)
+            pull = open_pull_request(client, repository.place(), token, payload.title, payload.body, payload.base, payload.draft)
     except (GitHubError, GitError) as error:
         raise github_failure(error) from error
     return pull_out(pull)
@@ -529,7 +541,7 @@ def merge_pull(
     except GitHubError as error:
         raise github_failure(error) from error
     try:
-        fetch(repository.path, token)
+        fetch(repository.place(), token)
     except GitError:
         pass  # The merge happened; the panel's fetch shows it later.
     return MergeOut(sha=sha, branch_deleted=deleted)

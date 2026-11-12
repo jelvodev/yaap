@@ -7,9 +7,8 @@ outside what the user saw in the Changes panel is reached.
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from pathlib import Path
 
-from app.git.service import FileChange, GitError, repository_status, run_git
+from app.git.service import FileChange, GitError, Repository, repository_status, run_git
 
 # Paths are taken as written, never as pathspec magic or globs (a file may be named `*` or `:(top)`).
 LITERAL_PATHSPECS = {"GIT_LITERAL_PATHSPECS": "1"}
@@ -47,7 +46,7 @@ def plan_discard(changes: Sequence[FileChange], path: str | None) -> DiscardPlan
     return DiscardPlan(tuple(dict.fromkeys(tracked)), tuple(dict.fromkeys(untracked)), path is None)
 
 
-def apply_discard(folder: Path, plan: DiscardPlan, has_commits: bool) -> None:
+def apply_discard(folder: Repository, plan: DiscardPlan, has_commits: bool) -> None:
     """Carry out a plan. Without commits there is no HEAD to restore from, so staged files leave the index and are
     removed like untracked ones."""
     tracked = ["."] if plan.everything else list(plan.tracked)
@@ -71,7 +70,9 @@ def discard_summary(path: str | None) -> str:
     return "Before discarding all uncommitted changes" if path is None else f"Before discarding the changes to {path}"
 
 
-def discard_changes(folder: Path, path: str | None, checkpoint: Callable[[str], int | None] | None = None) -> int | None:
+def discard_changes(
+    folder: Repository, path: str | None, checkpoint: Callable[[str], int | None] | None = None
+) -> int | None:
     """Discard every uncommitted change (path None) or one changed file's. With `checkpoint`, the folder is
     snapshotted first and nothing is discarded when that fails; returns the checkpoint's id."""
     status = repository_status(folder)

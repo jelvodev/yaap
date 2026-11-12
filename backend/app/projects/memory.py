@@ -28,8 +28,16 @@ class MemoryChangedError(ProjectMemoryError):
     """The entry to change is no longer where it was: the memory changed in the meantime."""
 
 
-def memory_layer(project_folder: Path, label: str = "project") -> Layer:
-    return Layer("project", label, project_folder / PROJECT_LAYER_FOLDER, project_folder, f"{PROJECT_LAYER_FOLDER}/")
+def memory_layer(project_folder: Path, environment_id: int, label: str = "project") -> Layer:
+    """The project's Blueprint layer; the environment owns the folder, so its git runs where the environment's does."""
+    return Layer(
+        "project",
+        label,
+        project_folder / PROJECT_LAYER_FOLDER,
+        project_folder,
+        f"{PROJECT_LAYER_FOLDER}/",
+        environment_id,
+    )
 
 
 def memory_path(project_folder: Path) -> Path:
@@ -49,7 +57,7 @@ def has_entries(text: str) -> bool:
     return any(line.strip() and not line.lstrip().startswith("#") for line in text.splitlines())
 
 
-def write_memory(project_folder: Path, content: str, message: str) -> None:
+def write_memory(project_folder: Path, environment_id: int, content: str, message: str) -> None:
     normalized = content.replace("\r\n", "\n")
     if len(normalized.encode()) > MAX_MEMORY_BYTES:
         raise ProjectMemoryError(
@@ -64,7 +72,7 @@ def write_memory(project_folder: Path, content: str, message: str) -> None:
     except OSError as error:
         raise ProjectMemoryError(f"The project memory could not be written safely: {error}") from error
     try:
-        commit(memory_layer(project_folder), MEMORY_FILE, message)
+        commit(memory_layer(project_folder, environment_id), MEMORY_FILE, message)
     except BlueprintError as error:
         raise ProjectMemoryError(str(error)) from error
 
@@ -86,14 +94,14 @@ def add_entry(text: str, section: str, entry: str) -> str:
     return "\n".join(lines[:insert_at] + block + trailing + lines[end:]) + "\n"
 
 
-def remember(project_folder: Path, section: str, entry: str) -> str:
+def remember(project_folder: Path, environment_id: int, section: str, entry: str) -> str:
     if section not in SECTIONS:
         raise ProjectMemoryError(f"Section must be one of: {', '.join(SECTIONS)}.")
     if not entry.strip() or len(entry) > MAX_ENTRY_CHARS:
         raise ProjectMemoryError(f"An entry has 1 to {MAX_ENTRY_CHARS} characters.")
     updated = add_entry(read_memory(project_folder), section, entry)
     summary = " ".join(entry.split())
-    write_memory(project_folder, updated, f"Remember: {summary[:60]}{'…' if len(summary) > 60 else ''}")
+    write_memory(project_folder, environment_id, updated, f"Remember: {summary[:60]}{'…' if len(summary) > 60 else ''}")
     return updated
 
 
@@ -175,15 +183,15 @@ def replace_entry(text: str, entry_id: str, new_text: str | None) -> tuple[str, 
     return "\n".join(lines[: entry.start] + replacement + lines[entry.end :]), entry
 
 
-def edit_entry(project_folder: Path, entry_id: str, new_text: str) -> str:
+def edit_entry(project_folder: Path, environment_id: int, entry_id: str, new_text: str) -> str:
     updated, entry = replace_entry(read_memory(project_folder), entry_id, new_text)
-    write_memory(project_folder, updated, f"Edit memory: {short(new_text)}")
+    write_memory(project_folder, environment_id, updated, f"Edit memory: {short(new_text)}")
     return updated
 
 
-def delete_entry(project_folder: Path, entry_id: str) -> str:
+def delete_entry(project_folder: Path, environment_id: int, entry_id: str) -> str:
     updated, entry = replace_entry(read_memory(project_folder), entry_id, None)
-    write_memory(project_folder, updated, f"Forget: {short(entry.text)}")
+    write_memory(project_folder, environment_id, updated, f"Forget: {short(entry.text)}")
     return updated
 
 

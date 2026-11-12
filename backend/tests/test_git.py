@@ -4,19 +4,15 @@ from pathlib import Path
 
 import pytest
 
-from app.git import service
+from app.git import remote as git_remote, service
 from app.git.service import (
     GitError,
-    auth_config,
     commit_all,
-    fetch,
-    pull,
-    push,
     repository_diff,
     repository_status,
     run_git,
-    validate_remote_url,
 )
+from app.git.remote import auth_config, fetch, pull, push, validate_remote_url
 
 
 def git(*arguments: str, cwd: Path) -> str:
@@ -36,7 +32,7 @@ def repositories(tmp_path):
 
 def allow_local_fixture_remote(monkeypatch: pytest.MonkeyPatch) -> None:
     """Let integration tests exercise local bare remotes without widening production transport policy."""
-    monkeypatch.setattr(service, "validate_remote_url", lambda url: url)
+    monkeypatch.setattr(git_remote, "validate_remote_url", lambda url: url)
     monkeypatch.setattr(service, "remote_operation_variables", lambda: {"GIT_ALLOW_PROTOCOL": "https:file"})
 
 

@@ -267,7 +267,7 @@ def merged_memory(memory: str, replaced: list[Entry], text: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", "\n".join(lines))
 
 
-def accept_merge(folder: Path, merge: MemoryMerge, text: str | None = None) -> None:
+def accept_merge(folder: Path, environment_id: int, merge: MemoryMerge, text: str | None = None) -> None:
     """Write the merge (as edited) into the memory: one commit. Raises MemoryChangedError when an entry it replaces
     is gone or changed."""
     memory = read_memory(folder)
@@ -275,4 +275,6 @@ def accept_merge(folder: Path, merge: MemoryMerge, text: str | None = None) -> N
     if replaced is None:
         raise MemoryChangedError("An entry this merge replaces was changed or removed meanwhile; tidy up again.")
     final = text or merge.text
-    write_memory(folder, merged_memory(memory, replaced, final), f"Merge {len(replaced)} memory entries: {short(final)}")
+    write_memory(
+        folder, environment_id, merged_memory(memory, replaced, final), f"Merge {len(replaced)} memory entries: {short(final)}"
+    )

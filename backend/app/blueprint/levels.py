@@ -21,7 +21,14 @@ def environment_layer(blueprint_dir: Path, environment: Environment) -> Layer:
 
 def project_layer(workspace_dir: Path, project: Project) -> Layer:
     folder = project_path(workspace_dir, project)
-    return Layer("project", project.name, folder / PROJECT_LAYER_FOLDER, folder, f"{PROJECT_LAYER_FOLDER}/")
+    return Layer(
+        "project",
+        project.name,
+        folder / PROJECT_LAYER_FOLDER,
+        folder,
+        f"{PROJECT_LAYER_FOLDER}/",
+        project.environment_id,
+    )
 
 
 def layers_for(

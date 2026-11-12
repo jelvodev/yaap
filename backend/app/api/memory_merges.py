@@ -96,7 +96,7 @@ def accept_memory_merge(
     merge = find_merge(session, project, merge_id)
     folder = project_path(workspace_dir, project)
     try:
-        accept_merge(folder, merge, " ".join(payload.text.split()) or None)
+        accept_merge(folder, project.environment_id, merge, " ".join(payload.text.split()) or None)
     except MemoryChangedError as error:
         merge.status, merge.decided_at = "outdated", datetime.now(UTC)
         session.commit()

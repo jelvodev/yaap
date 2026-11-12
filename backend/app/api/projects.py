@@ -195,7 +195,7 @@ def save_project_memory(
     """Save the memory as edited by the user; the change is committed on its own in the project."""
     folder = project_path(workspace_dir, project)
     try:
-        write_memory(folder, payload.content, "Update the project memory")
+        write_memory(folder, project.environment_id, payload.content, "Update the project memory")
     except ProjectMemoryError as error:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
     return ProjectMemoryOut(content=read_memory(folder), exists=True)
@@ -305,7 +305,7 @@ def accept_memory_suggestion(
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"Unknown section; use one of {', '.join(SECTIONS)}.")
     folder = project_path(workspace_dir, project)
     try:
-        accept(folder, item, payload.section, payload.text.strip() or None)
+        accept(folder, project.environment_id, item, payload.section, payload.text.strip() or None)
     except ProjectMemoryError as error:
         raise memory_error(error) from error
     item.status = "accepted"
@@ -338,7 +338,7 @@ def add_memory_entry(
     folder = project_path(workspace_dir, project)
     near = similar_entry(parse_entries(read_memory(folder)), payload.text)
     try:
-        result = memory_entries(remember(folder, payload.section, payload.text))
+        result = memory_entries(remember(folder, project.environment_id, payload.section, payload.text))
         result.similar = near.text if near is not None else None
     except ProjectMemoryError as error:
         raise memory_error(error) from error
@@ -352,7 +352,7 @@ def edit_memory_entry(
 ) -> MemoryEntriesOut:
     """Change one entry; a commit of only the memory file."""
     try:
-        return memory_entries(edit_entry(project_path(workspace_dir, project), entry_id, payload.text))
+        return memory_entries(edit_entry(project_path(workspace_dir, project), project.environment_id, entry_id, payload.text))
     except ProjectMemoryError as error:
         raise memory_error(error) from error
 
@@ -361,7 +361,7 @@ def edit_memory_entry(
 def delete_memory_entry(entry_id: str, project: ProjectDependency, workspace_dir: WorkspaceDirDependency) -> MemoryEntriesOut:
     """Remove one entry; a commit of only the memory file."""
     try:
-        return memory_entries(delete_entry(project_path(workspace_dir, project), entry_id))
+        return memory_entries(delete_entry(project_path(workspace_dir, project), project.environment_id, entry_id))
     except ProjectMemoryError as error:
         raise memory_error(error) from error
 

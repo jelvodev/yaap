@@ -19,7 +19,7 @@ from app.blueprint.levels import project_layer
 from app.checkpoints.pins import case_owner, pin_checkpoint
 from app.core.search_index import message_text
 from app.core.settings import SETTING_DEFINITIONS, resolve_setting
-from app.evals.case_writer import SavedCase, save_case
+from app.evals.case_writer import SavedCase, case_repository, save_case
 from app.evals.cases import CASE_NAME, DEFAULT_COMMAND_TIMEOUT
 from app.evals.from_conversation import existing_names, free_name, slug
 from app.evals.models import Budget, Check, CommandCheck, EvalCase, RubricCheck, StartState
@@ -75,7 +75,9 @@ def make_case(
         preset=inputs.preset,
         budget=case_budget(inputs.usage, inputs.seconds),
     )
-    saved = save_case(project_layer(workspace_dir, project), case, f"Add eval case {case.name} from replay {replay.id}")
+    layer = project_layer(workspace_dir, project)
+    message = f"Add eval case {case.name} from replay {replay.id}"
+    saved = save_case(layer, case, message, repository=case_repository(layer, project.environment_id))
     owner = case_owner(project.id, saved.case.name)
     pin_checkpoint(session, checkpoint.id, owner)
     snapshots = SnapshotStore(trace_dir(data_dir))

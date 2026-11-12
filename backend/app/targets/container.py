@@ -18,7 +18,7 @@ from typing import Any
 import anyio
 
 from app.config import environment_value
-from app.targets.base import CommandResult, FileEntry, TargetError
+from app.targets.base import CapturedResult, CommandResult, FileEntry, TargetError
 from app.targets.safe_root import SafeRoot, SafeRootError, relative_parts
 from app.targets.sessions import ShellState, bash_session
 
@@ -282,6 +282,19 @@ class LocalExecutor:
             return CommandResult(None, collected.text(), timed_out=True, stopped=stopped)  # type: ignore[arg-type]
         await process.wait()
         return CommandResult(process.returncode, collected.text())
+
+    async def capture(self, command: str, timeout: float) -> CapturedResult:
+        options = {**self.options({}), "stderr": asyncio.subprocess.PIPE}
+        if sys.platform != "win32":
+            options["start_new_session"] = True
+        process = await self.start(command, options, None)
+        try:
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
+        except TimeoutError:
+            stop_tree(process)
+            await process.wait()
+            return CapturedResult(None, b"", b"", timed_out=True)
+        return CapturedResult(process.returncode, stdout, stderr)
 
     async def spawn(
         self, command: str, env: dict[str, str], session: ShellState | None = None

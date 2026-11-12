@@ -50,6 +50,9 @@ class Layer:
     # The git repository the layer lives in, and the layer's path inside it.
     repository: Path
     prefix: str = ""
+    # The environment that owns a project layer's folder: where its git runs (app.git.place). None for the global and
+    # environment layers, which live outside the workspace.
+    environment_id: int | None = None
 
 
 @dataclass(frozen=True)

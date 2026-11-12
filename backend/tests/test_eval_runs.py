@@ -102,9 +102,10 @@ def test_a_failing_case_keeps_its_workspace_for_a_day(client, fake):
     assert result["status"] == "failed"
     assert result["checks"][0]["status"] == "failed" and "does not exist" in result["checks"][0]["detail"]
     workspace = client.app.state.workspace_dir / result["workspace"]
-    # A clone at the start commit, detached and without a remote: it shares nothing with the project.
+    # The files of the start commit as a repository of its own, without a remote: it shares nothing with the project.
     assert (workspace / "README.md").is_file() and (workspace / ".git").is_dir()
-    assert run_git(["rev-parse", "HEAD"], workspace).stdout.strip() == commit
+    tree = run_git(["rev-parse", f"{commit}^{{tree}}"], folder).stdout.strip()
+    assert run_git(["rev-parse", "HEAD^{tree}"], workspace).stdout.strip() == tree
     assert run_git(["remote"], workspace).stdout.strip() == ""
     assert result["workspace_expires_at"] is not None
 

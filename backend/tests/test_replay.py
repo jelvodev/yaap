@@ -179,6 +179,7 @@ def test_the_case_from_a_replay_starts_at_its_pinned_checkpoint_which_survives_t
             client.app.state.data_dir,
             project["id"],
             lambda number: checkpoint_tree(session, project["id"], number),
+            1,
         )
     assert (workspace / "hello.txt").read_text(encoding="utf-8") == "hello" and not (workspace / "other.txt").exists()
     again = client.post(f"/api/v1/conversations/{conversation_id}/replays/{replay['id']}/eval-case", json={})

@@ -1,8 +1,10 @@
 """The git tools: status, diff, commit and push of the project, and a GitHub pull request.
 
-They work on the project folder in YAAP; on a computer over SSH git runs as a command instead.
+They work on the project folder: in YAAP, or through the run's executor on a computer over SSH, in a sandbox or in
+the environment's runner. Network git (push) always runs in YAAP.
 """
 
+from pathlib import Path
 from typing import Any
 
 import anyio
@@ -10,25 +12,26 @@ import anyio
 from app.agent.runs import AgentRun
 from app.agent.tool_context import executor, project_root
 from app.agent.toolkit import STRING, Tool, ToolError, schema, text_argument, truncate
-from app.git.service import RepositoryStatus, commit_all, list_branches, push, repository_diff, repository_status
-from app.git.worktree import (
-    commit_all as commit_all_on_target,
-    list_branches as list_branches_on_target,
-    push_commits,
-    repository_diff as repository_diff_on_target,
-    repository_status as repository_status_on_target,
-)
+from app.git.branches import list_branches
+from app.git.place import GitPlace
+from app.git.remote import push
+from app.git.service import RepositoryStatus, commit_all, repository_diff, repository_status
 from app.github.client import GitHubClient, GitHubError, repository_name
 
 
+def git_place_of(run: AgentRun) -> GitPlace:
+    """Where git runs for the run's project: YAAP, or the executor of the run's target. The folder is YAAP's path of
+    the project, which the network commands use."""
+    if run.target is None:
+        return GitPlace(project_root(run))
+    folder = project_root(run) if run.project_folder is not None else Path(run.target_root or "")
+    return GitPlace(folder, executor(run))
+
+
 async def git_status(run: AgentRun, _arguments: dict[str, Any]) -> str:
-    if run.target is not None:
-        target_executor = executor(run)
-        status = await repository_status_on_target(target_executor)
-        branches = await list_branches_on_target(target_executor)
-    else:
-        status = await anyio.to_thread.run_sync(repository_status, project_root(run))
-        branches = await anyio.to_thread.run_sync(list_branches, project_root(run))
+    place = git_place_of(run)
+    status = await anyio.to_thread.run_sync(repository_status, place)
+    branches = await anyio.to_thread.run_sync(list_branches, place)
     lines = [
         f"Branch: {status.branch or 'detached'}",
         f"Upstream: {status.upstream or 'none'} (ahead {status.ahead}, behind {status.behind})",
@@ -41,33 +44,22 @@ async def git_status(run: AgentRun, _arguments: dict[str, Any]) -> str:
 
 
 async def git_diff(run: AgentRun, _arguments: dict[str, Any]) -> str:
-    if run.target is not None:
-        diff = await repository_diff_on_target(executor(run))
-    else:
-        diff = await anyio.to_thread.run_sync(repository_diff, project_root(run))
+    diff = await anyio.to_thread.run_sync(repository_diff, git_place_of(run))
     return truncate(diff) if diff.strip() else "No changes."
 
 
 async def git_commit(run: AgentRun, arguments: dict[str, Any]) -> str:
     message = text_argument(arguments, "message")
-    if run.target is not None:
-        commit = await commit_all_on_target(executor(run), message, run.git_author)
-    else:
-        commit = await anyio.to_thread.run_sync(commit_all, project_root(run), message, run.git_author)
+    commit = await anyio.to_thread.run_sync(commit_all, git_place_of(run), message, run.git_author)
     return f"Committed all changes as {commit}."
 
 
 async def git_push(run: AgentRun, _arguments: dict[str, Any]) -> str:
-    if run.target is not None:
-        await push_commits(executor(run), project_root(run), run.github_token)
-    else:
-        await anyio.to_thread.run_sync(push, project_root(run), run.github_token)
+    await anyio.to_thread.run_sync(push, git_place_of(run), run.github_token)
     return "Pushed."
 
 
-def open_pull(run: AgentRun, arguments: dict[str, Any], status: RepositoryStatus | None = None) -> str:
-    folder = project_root(run)
-    status = status or repository_status(folder)
+def open_pull(run: AgentRun, arguments: dict[str, Any], status: RepositoryStatus) -> str:
     name = repository_name(status.remote_url)
     if name is None:
         raise ToolError("This project's remote is not a GitHub repository.")
@@ -94,10 +86,8 @@ def open_pull(run: AgentRun, arguments: dict[str, Any], status: RepositoryStatus
 
 
 async def create_pull_request(run: AgentRun, arguments: dict[str, Any]) -> str:
-    if run.target is not None:
-        status = await repository_status_on_target(executor(run))
-        return await anyio.to_thread.run_sync(open_pull, run, arguments, status)
-    return await anyio.to_thread.run_sync(open_pull, run, arguments)
+    status = await anyio.to_thread.run_sync(repository_status, git_place_of(run))
+    return await anyio.to_thread.run_sync(open_pull, run, arguments, status)
 
 
 GIT_TOOLS = [

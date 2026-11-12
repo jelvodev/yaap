@@ -8,13 +8,13 @@ the project's Blueprint layer, the way every Blueprint change is committed (`blu
 
 import math
 from dataclasses import dataclass
-from pathlib import Path
 
 from app.blueprint.layers import MAX_FILE_BYTES, BlueprintError, Layer, commit
 from app.blueprint.rules import render
 from app.evals.cases import DEFAULT_COMMAND_TIMEOUT, EVALS_FOLDER, parse_case
 from app.evals.models import Budget, Check, CommandCheck, EvalCase, FileCheck, StartState
-from app.git.service import GitError, run_git
+from app.git.place import GitPlace, git_place
+from app.git.service import GitError, Repository, run_git
 
 SECONDS_PER_MINUTE = 60
 SECONDS_PER_HOUR = 3600
@@ -127,10 +127,19 @@ def named(name: str, default: str) -> dict[str, object]:
     return {} if not name or name == default[:120] else {"name": name}
 
 
-def save_case(layer: Layer, case: EvalCase, message: str | None = None) -> SavedCase:
+def case_repository(layer: Layer, environment_id: int) -> GitPlace:
+    """Where git runs for the layer's repository: the environment's runner for a project in the workspace."""
+    try:
+        return git_place(environment_id, layer.repository)
+    except GitError as error:
+        raise CaseWriteError(f"The case could not be committed: {error}") from error
+
+
+def save_case(layer: Layer, case: EvalCase, message: str | None = None, *, repository: Repository) -> SavedCase:
     """Write the case as a new file in the project's layer and commit only that file. Refuses a case that does not
     validate, a name the project already has, and a project that is not a git repository (nothing could be committed);
-    nothing is left behind when committing fails."""
+    nothing is left behind when committing fails. `repository` is the layer's repository where git runs; call this
+    from a worker thread."""
     text = render_case(case)
     found = parse_case(case.name, text)
     if found.case is None:
@@ -152,10 +161,10 @@ def save_case(layer: Layer, case: EvalCase, message: str | None = None) -> Saved
     except BlueprintError as error:
         file.unlink(missing_ok=True)
         raise CaseWriteError(f"The case could not be committed: {error}") from error
-    return SavedCase(found.case, f"{layer.prefix}{relative}", head_commit(layer.repository))
+    return SavedCase(found.case, f"{layer.prefix}{relative}", head_commit(repository))
 
 
-def head_commit(repository: Path) -> str:
+def head_commit(repository: Repository) -> str:
     """The commit just made."""
     try:
         return run_git(["rev-parse", "HEAD"], repository).stdout.strip()

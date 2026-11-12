@@ -122,7 +122,7 @@ def test_a_new_project_from_a_template_gets_its_repository_clone_and_blueprint(c
     store_token(client)
     cloned: list[str] = []
 
-    def clone(url: str, target: Path, token: str | None) -> None:
+    def clone(url: str, target: Path, token: str | None, checkout: object = None) -> None:
         cloned.append(url)
         (target / ".blueprint" / "standards").mkdir(parents=True)
         (target / ".blueprint" / "standards" / "shop.md").write_text("---\nsummary: Shop rules\n---\nKeep prices exact.\n")

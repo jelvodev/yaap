@@ -225,6 +225,7 @@ class ReplayService:
                     services.data_dir,
                     project.id,
                     lambda number: checkpoint_tree(session, project.id, number),
+                    environment.id,
                 )
                 layers = self.layers(services, replay_id, environment, project, variant)
             except (WorkspaceError, VariantError, ProjectError) as error:

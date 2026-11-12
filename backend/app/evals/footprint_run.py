@@ -33,6 +33,7 @@ from app.credentials.types import CredentialTestResult, CredentialType
 from app.evals.baseline import BASELINE_DIR, build_project
 from app.evals.footprint import Footprint, Part, Situation, request_parts, result_part
 from app.evals.workspace import remove_folder
+from app.git.place import git_place
 from app.main import create_app
 from app.providers.base import (
     AgentEvent,
@@ -181,7 +182,7 @@ def baseline_project(client: TestClient, workspace_dir: Path, source: Path) -> i
     response = client.post(f"{API}/environments/1/projects", json={"name": "Stockroom"})
     response.raise_for_status()
     project = response.json()
-    build_project(workspace_dir / project["folder"], source)
+    build_project(git_place(int(project["environment_id"]), workspace_dir / project["folder"]), source)
     return int(project["id"])
 
 

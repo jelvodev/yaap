@@ -90,7 +90,7 @@ async def propose_for_conversation(
     ask: UtilityAsk | None,
 ) -> CaseProposal:
     """The proposed case for a conversation in a project; raises CaseFromConversationError when there is none."""
-    facts = read_conversation(session, checkpoints, conversation, project_folder)
+    facts = await read_conversation(session, checkpoints, conversation, project_folder)
     allowlist = resolve_setting(
         session, SETTING_DEFINITIONS["command_allowlist"], conversation.environment_id, conversation.project_id
     ).value

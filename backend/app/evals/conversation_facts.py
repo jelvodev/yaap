@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
+import anyio
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -28,8 +29,9 @@ from app.core.search_index import message_text
 from app.evals.cases import workspace_path
 from app.evals.models import StartState
 from app.evals.project_commands import RanCommand
+from app.git.place import GitPlace, git_place
 from app.git.service import GitError, run_git
-from app.storage.models import Checkpoint, Conversation, Message
+from app.storage.models import Checkpoint, Conversation, Message, Project
 from app.tracing.steps import RunNode, conversation_runs, run_steps
 
 StartSource = Literal["commit", "checkpoint", "none"]
@@ -73,7 +75,7 @@ class ConversationFacts:
     usage: ConversationUsage | None
 
 
-def read_conversation(
+async def read_conversation(
     session: Session, checkpoints: CheckpointStore, conversation: Conversation, folder: Path
 ) -> ConversationFacts:
     if conversation.project_id is None:
@@ -85,7 +87,12 @@ def read_conversation(
         raise CaseFromConversationError("The conversation has no message with text to use as the prompt.")
     replies = [message_text(message) for message in branch if message.role == "assistant"]
     first_checkpoint, last_checkpoint = conversation_checkpoints(session, conversation)
-    commit = commit_before(folder, first.created_at)
+    try:
+        environment_id = session.get_one(Project, conversation.project_id).environment_id
+        place = await anyio.to_thread.run_sync(git_place, environment_id, folder)
+    except GitError as error:
+        raise CaseFromConversationError(f"The project's git cannot be used: {error}") from error
+    commit = await anyio.to_thread.run_sync(commit_before, place, first.created_at)
     if commit is not None:
         start, source = StartState(commit=commit), "commit"
     elif first_checkpoint is not None:
@@ -115,14 +122,15 @@ def read_conversation(
     )
 
 
-def commit_before(folder: Path, moment: datetime) -> str | None:
-    """The newest commit on the project's current branch made at or before the moment; None without one."""
-    if not (folder / ".git").exists():
+def commit_before(place: GitPlace, moment: datetime) -> str | None:
+    """The newest commit on the project's current branch made at or before the moment; None without one. Call it
+    from a worker thread: git runs where the place says."""
+    if not (place.folder / ".git").exists():
         return None
     when = moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)
     stamp = when.astimezone(UTC).strftime("%Y-%m-%d %H:%M:%S +0000")
     try:
-        result = run_git(["rev-list", "-1", f"--before={stamp}", "HEAD", "--"], folder)
+        result = run_git(["rev-list", "-1", f"--before={stamp}", "HEAD", "--"], place)
     except GitError:
         # A repository without commits has no HEAD to list.
         return None

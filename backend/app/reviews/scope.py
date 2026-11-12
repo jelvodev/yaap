@@ -25,6 +25,7 @@ from app.checkpoints.service import CheckpointStore
 from app.checkpoints.shadow import CheckpointError
 from app.core.goals import latest_goal
 from app.core.search_index import message_text
+from app.git.place import git_place
 from app.git.service import GitError, repository_diff, repository_log
 from app.projects.service import ProjectError, project_path
 from app.storage.models import Checkpoint, Conversation, Goal, Message, Project, UsageRecord
@@ -159,12 +160,14 @@ def conversation_scope(
 
 
 def changes_scope(session: Session, workspace_dir: Path, project: Project) -> ReviewScope:
-    """The project's uncommitted changes. They were written by the conversations that changed files in the project
-    since the last commit; when there are none, by a person, and any vendor may review."""
+    """The project's uncommitted changes, read where the project's git runs (call it from a worker thread). They were
+    written by the conversations that changed files in the project since the last commit; when there are none, by a
+    person, and any vendor may review."""
     folder = folder_of(workspace_dir, project)
     try:
-        diff = repository_diff(folder)
-        last = repository_log(folder, limit=1)
+        place = git_place(project.environment_id, folder)
+        diff = repository_diff(place)
+        last = repository_log(place, limit=1)
     except GitError as error:
         raise NothingToReview(str(error)) from error
     if not diff.strip():

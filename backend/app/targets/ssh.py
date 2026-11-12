@@ -24,7 +24,7 @@ from typing import Any
 
 import asyncssh
 
-from app.targets.base import CommandResult, FileEntry, TargetError
+from app.targets.base import CapturedResult, CommandResult, FileEntry, TargetError
 from app.targets.container import ANSI, MAX_SEARCH_FILE_BYTES, Collected
 from app.targets.sessions import PRUNE_MINUTES, STATE_PREFIX, ShellState, bash_session
 
@@ -396,12 +396,16 @@ class SshExecutor:
         self.root = root
 
     async def start(
-        self, command: str, env: dict[str, str], session: ShellState | None = None
+        self,
+        command: str,
+        env: dict[str, str],
+        session: ShellState | None = None,
+        separate_stderr: bool = False,
     ) -> asyncssh.SSHClientProcess:
         settings = self.target.settings
         connection = await self.target.connection()
         process = await connection.create_process(
-            shell_command(settings.shell), stderr=asyncssh.STDOUT, encoding=None
+            shell_command(settings.shell), stderr=asyncssh.PIPE if separate_stderr else asyncssh.STDOUT, encoding=None
         )
         process.stdin.write(script_for(settings, self.root, command, env, session).encode("utf-8"))
         process.stdin.write_eof()
@@ -446,6 +450,17 @@ class SshExecutor:
             return CommandResult(None, collected.text(), timed_out=True, stopped=stopped)  # type: ignore[arg-type]
         completed = await process.wait(check=False)
         return CommandResult(completed.exit_status, collected.text())
+
+    async def capture(self, command: str, timeout: float) -> CapturedResult:
+        process = await self.start(command, {}, separate_stderr=True)
+        try:
+            async with asyncio.timeout(timeout):
+                stdout, stderr = await asyncio.gather(process.stdout.read(), process.stderr.read())
+                completed = await process.wait(check=False)
+        except TimeoutError:
+            process.close()
+            return CapturedResult(None, b"", b"", timed_out=True)
+        return CapturedResult(completed.exit_status, bytes(stdout), bytes(stderr))
 
     async def spawn(self, command: str, env: dict[str, str], session: ShellState | None = None) -> Any:
         process = await self.start(command, remote_env(env), session)

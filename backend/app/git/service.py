@@ -1,47 +1,42 @@
-"""Git commands for project and Blueprint repositories, run with the git binary in the container."""
+"""Git commands for project and Blueprint repositories.
+
+A repository is a `Path` (git runs in YAAP's own process, after `check_repository`) or a `GitPlace` (app.git.place):
+for a folder the runner can write, the work-tree and object commands go to the runner through the place's executor.
+Remote access (the commands that need the network) is in remote.py, branches in branches.py.
+"""
 
 import ast
-import base64
 import io
 import os
 import re
+import shlex
 import subprocess
 import tarfile
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 
 from app.core.subprocess_env import safe_subprocess_env
-from app.git.safety import (
-    RECEIVE_PACK,
-    UPLOAD_PACK,
-    ConfigEntry,
-    UnsafeRepository,
-    check_repository,
-    git_command,
-    git_variables,
+from app.git.common import (
+    DEFAULT_BRANCH,
+    GIT_TIMEOUT_SECONDS,
+    YAAP_AUTHOR,
+    GitError,
+    GitResult,
+    UnsafeRepositoryError,
 )
+from app.git.executor import archive_on_executor, run_worktree_git
+from app.git.place import GitPlace, run_from_worker
+from app.git.safety import ConfigEntry, UnsafeRepository, check_repository, git_command, git_variables
+from app.targets.base import CommandExecutor
 
-GIT_TIMEOUT_SECONDS = 120
-DEFAULT_BRANCH = "main"
-# Commits made by YAAP itself (for example when the Blueprint editor saves a file).
-YAAP_AUTHOR = ("YAAP", "yaap@localhost")
+__all__ = ["DEFAULT_BRANCH", "GIT_TIMEOUT_SECONDS", "YAAP_AUTHOR", "GitError", "GitResult", "UnsafeRepositoryError"]
 
-
-class GitError(RuntimeError):
-    """A git command failed; the message is safe to show to the user."""
-
-
-class UnsafeRepositoryError(GitError):
-    """YAAP does not run git in this repository: its configuration names something git could run."""
-
-
-@dataclass(frozen=True)
-class GitResult:
-    stdout: str
-    stderr: str
-    exit_code: int = 0
-
+# A repository: a folder git runs in directly, or a place that may send the commands to the runner.
+Repository = GitPlace | Path
+# Commands that use the network. They carry the GitHub token, so they only ever run in YAAP.
+NETWORK_COMMANDS = frozenset({"fetch", "push", "pull", "clone", "ls-remote", "update"})
 
 IDENTITY = {
     "GIT_AUTHOR_NAME": YAAP_AUTHOR[0],
@@ -49,6 +44,16 @@ IDENTITY = {
     "GIT_COMMITTER_NAME": YAAP_AUTHOR[0],
     "GIT_COMMITTER_EMAIL": YAAP_AUTHOR[1],
 }
+
+
+def folder_of(repository: Repository) -> Path:
+    """YAAP's path of the repository."""
+    return repository.folder if isinstance(repository, GitPlace) else repository
+
+
+def executor_of(repository: Repository) -> CommandExecutor | None:
+    """The executor that runs git for the repository; None when git runs in YAAP's own process."""
+    return repository.executor if isinstance(repository, GitPlace) else None
 
 
 def git_environment(
@@ -62,7 +67,7 @@ def git_environment(
 
 def run_git(
     arguments: Sequence[str],
-    cwd: Path,
+    repository: Repository,
     extra_environment: Mapping[str, str] | None = None,
     config: Sequence[str] = (),
     timeout: int = GIT_TIMEOUT_SECONDS,
@@ -70,12 +75,49 @@ def run_git(
     private_config: Sequence[ConfigEntry] = (),
     allow_local_transport: bool = False,
 ) -> GitResult:
-    """Run `git -c <config>... <arguments>` in cwd, after checking that the repository there sets nothing git could
-    use to run a program (`check_repository`). `config` entries are passed per command and never stored;
+    """Run `git -c <config>... <arguments>` in the repository. In YAAP's process, first check that the repository
+    sets nothing git could use to run a program (`check_repository`). On a place with an executor the command runs
+    there instead, from a worker thread. `config` entries are passed per command and never stored;
     `private_config` (a credential) goes through the environment, never on the command line."""
+    executor = executor_of(repository)
+    if executor is None:
+        return run_in_yaap(
+            arguments,
+            folder_of(repository),
+            extra_environment,
+            config,
+            timeout,
+            accept_exit_codes,
+            private_config,
+            allow_local_transport,
+        )
+    if (arguments and arguments[0] in NETWORK_COMMANDS) or private_config or allow_local_transport:
+        raise GitError("Commands that use the network run in YAAP on the repository folder, not in the runner.")
+    return run_from_worker(
+        partial(
+            run_worktree_git,
+            executor,
+            arguments,
+            extra_environment=extra_environment,
+            config=config,
+            timeout=timeout,
+            accept_exit_codes=accept_exit_codes,
+        )
+    )
+
+
+def run_in_yaap(
+    arguments: Sequence[str],
+    cwd: Path,
+    extra_environment: Mapping[str, str] | None,
+    config: Sequence[str],
+    timeout: int,
+    accept_exit_codes: Sequence[int],
+    private_config: Sequence[ConfigEntry],
+    allow_local_transport: bool,
+) -> GitResult:
     effective_environment = dict(extra_environment or {})
-    remote_commands = {"fetch", "push", "pull", "clone", "ls-remote", "update"}
-    if arguments and arguments[0] in remote_commands:
+    if arguments and arguments[0] in NETWORK_COMMANDS:
         effective_environment.update(remote_operation_variables())
         if allow_local_transport and arguments[0] == "clone":
             source = Path(arguments[-2]) if len(arguments) >= 3 else None
@@ -120,19 +162,23 @@ def remote_operation_variables() -> dict[str, str]:
     return {"GIT_ALLOW_PROTOCOL": "https"}
 
 
-def archive(repository: Path, commit: str, paths: Sequence[str] = ()) -> bytes:
+def archive(repository: Repository, commit: str, paths: Sequence[str] = ()) -> bytes:
     """The files of a commit (only `paths` when given) as a tar archive, read from the object store: nothing is
     checked out, so the repository's branch and work tree stay as they are."""
+    executor = executor_of(repository)
+    if executor is not None:
+        return run_from_worker(archive_on_executor, executor, commit, list(paths))
+    folder = folder_of(repository)
     try:
-        check_repository(repository)
+        check_repository(folder)
     except UnsafeRepository as error:
         raise UnsafeRepositoryError(str(error)) from error
     arguments = ["archive", "--format=tar", commit, "--", *paths]
     try:
         completed = subprocess.run(
             git_command(arguments),
-            cwd=repository,
-            env=git_environment(repository),
+            cwd=folder,
+            env=git_environment(folder),
             capture_output=True,
             timeout=GIT_TIMEOUT_SECONDS,
             check=False,
@@ -154,87 +200,20 @@ def extract_archive(data: bytes, folder: Path) -> None:
         bundle.extractall(folder, filter="data")
 
 
-def init_repository(folder: Path) -> None:
+def init_repository(repository: Repository) -> None:
+    """Make the folder a repository when it is none yet; the init runs in the repository's place."""
+    folder = folder_of(repository)
     folder.mkdir(parents=True, exist_ok=True)
     if not (folder / ".git").exists():
-        run_git(["init", "-b", DEFAULT_BRANCH], folder)
+        run_git(["init", "-b", DEFAULT_BRANCH], repository)
 
 
-# --- Remote access -------------------------------------------------------------------------------------------------
-
-GITHUB_HOST = "github.com"
-REMOTE_URL = re.compile(r"^https://(?P<host>[A-Za-z0-9.-]+)(?::\d+)?/[^\s@]+$")
-
-
-def validate_remote_url(url: str) -> str:
-    """Only plain https URLs: no credentials in the URL, because git would store them in .git/config."""
-    url = url.strip()
-    if not REMOTE_URL.match(url):
-        raise GitError(
-            "Use an https URL without a user name or token in it, for example https://github.com/owner/repository.git."
-        )
-    return url
-
-
-def auth_config(remote_url: str | None, github_token: str | None) -> tuple[ConfigEntry, ...]:
-    """The GitHub token for this one command, as a setting passed through git's environment (never on the command
-    line or on disk), scoped to github.com; nothing for another host."""
-    if not github_token or not remote_url:
-        return ()
-    match = REMOTE_URL.match(remote_url)
-    if not match or match.group("host").lower() != GITHUB_HOST:
-        return ()
-    basic = base64.b64encode(f"x-access-token:{github_token}".encode()).decode()
-    return ((f"http.https://{GITHUB_HOST}/.extraheader", f"AUTHORIZATION: basic {basic}"),)
-
-
-def remote_url(folder: Path) -> str | None:
+def remote_url(repository: Repository) -> str | None:
     """The URL of origin, or None without one (also for a repository YAAP does not run git in, so lists still show)."""
     try:
-        return run_git(["remote", "get-url", "origin"], folder).stdout.strip() or None
+        return run_git(["remote", "get-url", "origin"], repository).stdout.strip() or None
     except GitError:
         return None
-
-
-def required_remote_url(folder: Path) -> str:
-    """The URL of origin for a fetch, push or pull; an unsafe repository says why instead of "no remote"."""
-    try:
-        url = run_git(["remote", "get-url", "origin"], folder).stdout.strip()
-    except UnsafeRepositoryError:
-        raise
-    except GitError:
-        url = ""
-    if not url:
-        raise GitError("This repository has no remote yet. Set a GitHub URL first.")
-    return validate_remote_url(url)
-
-
-def required_push_url(folder: Path) -> str:
-    """The URL git will use for an origin push, including a configured pushurl."""
-    try:
-        url = run_git(["remote", "get-url", "--push", "origin"], folder).stdout.strip()
-    except UnsafeRepositoryError:
-        raise
-    except GitError as error:
-        raise GitError("This repository has no remote yet. Set a GitHub URL first.") from error
-    if not url:
-        raise GitError("This repository has no remote yet. Set a GitHub URL first.")
-    return validate_remote_url(url)
-
-
-def set_remote_url(folder: Path, url: str) -> None:
-    url = validate_remote_url(url)
-    if remote_url(folder) is None:
-        run_git(["remote", "add", "origin", url], folder)
-    else:
-        run_git(["remote", "set-url", "origin", url], folder)
-
-
-def clone_repository(url: str, target: Path, github_token: str | None) -> None:
-    url = validate_remote_url(url)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    authorization = auth_config(url, github_token)
-    run_git(["clone", UPLOAD_PACK, url, str(target)], target.parent, private_config=authorization, timeout=600)
 
 
 # --- Status, diff, commit, push, pull ------------------------------------------------------------------------------
@@ -271,13 +250,14 @@ def change_state(code: str) -> str:
     return next((STATE_BY_CODE[letter] for letter in code if letter in STATE_BY_CODE), "modified")
 
 
-def repository_status(folder: Path) -> RepositoryStatus:
-    output = run_git(["status", "--porcelain=v2", "--branch", "--untracked-files=all"], folder, config=QUOTEPATH_OFF)
-    status = parse_repository_status(output.stdout, remote_url(folder))
+def repository_status(repository: Repository) -> RepositoryStatus:
+    arguments = ["status", "--porcelain=v2", "--branch", "--untracked-files=all"]
+    output = run_git(arguments, repository, config=QUOTEPATH_OFF)
+    status = parse_repository_status(output.stdout, remote_url(repository))
     if not status.has_commits and status.upstream:
         # A branch without commits gets no ahead/behind from git; everything on the upstream is "behind".
         try:
-            behind = int(run_git(["rev-list", "--count", status.upstream], folder).stdout.strip() or 0)
+            behind = int(run_git(["rev-list", "--count", status.upstream], repository).stdout.strip() or 0)
         except GitError:
             behind = 0
         return RepositoryStatus(
@@ -351,24 +331,41 @@ MAX_DIFF_CHARS = 400_000
 MAX_NEW_FILE_BYTES = 200_000
 
 
-def repository_diff(folder: Path) -> str:
+def new_file_size(repository: Repository, path: str) -> int:
+    """The size of an untracked file, or more than the limit for one that is not a plain file. On a place with an
+    executor the executor measures it, without following a link."""
+    too_big = MAX_NEW_FILE_BYTES + 1
+    executor = executor_of(repository)
+    if executor is None:
+        file = folder_of(repository) / path
+        return file.stat().st_size if file.is_file() else too_big
+    quoted = shlex.quote(path)
+    command = f"if [ ! -L {quoted} ] && [ -f {quoted} ]; then wc -c < {quoted}; else echo 0; fi"
+    stat = run_from_worker(executor.capture, command, 10)
+    try:
+        return int(stat.stdout.decode("utf-8", errors="replace").strip()) if stat.exit_code == 0 else too_big
+    except ValueError:
+        return too_big
+
+
+def repository_diff(repository: Repository) -> str:
     """Everything that a commit of all changes would contain, including new files. Read-only: the index is untouched."""
-    status = repository_status(folder)
+    status = repository_status(repository)
+    null_device = os.devnull if executor_of(repository) is None else "/dev/null"
     parts: list[str] = []
     if status.has_commits:
-        parts.append(run_git(["diff", "HEAD", *PLAIN_DIFF], folder, config=QUOTEPATH_OFF).stdout)
+        parts.append(run_git(["diff", "HEAD", *PLAIN_DIFF], repository, config=QUOTEPATH_OFF).stdout)
     else:
-        parts.append(run_git(["diff", "--cached", *PLAIN_DIFF], folder, config=QUOTEPATH_OFF).stdout)
+        parts.append(run_git(["diff", "--cached", *PLAIN_DIFF], repository, config=QUOTEPATH_OFF).stdout)
     for change in status.changes:
         if change.state != "untracked":
             continue
-        file = folder / change.path
-        if file.is_file() and file.stat().st_size <= MAX_NEW_FILE_BYTES:
+        if new_file_size(repository, change.path) <= MAX_NEW_FILE_BYTES:
             # Exit code 1 means "there are differences", which is always the case for a new file.
             parts.append(
                 run_git(
-                    ["diff", "--no-index", *PLAIN_DIFF, "--", os.devnull, change.path],
-                    folder,
+                    ["diff", "--no-index", *PLAIN_DIFF, "--", null_device, change.path],
+                    repository,
                     config=QUOTEPATH_OFF,
                     accept_exit_codes=(0, 1),
                 ).stdout
@@ -396,14 +393,14 @@ COMMIT_HASH = re.compile(r"[0-9a-f]{7,40}")
 MAX_LOG_ENTRIES = 200
 
 
-def repository_log(folder: Path, path: str | None = None, limit: int = 50) -> list[CommitEntry]:
+def repository_log(repository: Repository, path: str | None = None, limit: int = 50) -> list[CommitEntry]:
     """The most recent commits, newest first; with a path, only those that touched it (following renames)."""
-    if not repository_status(folder).has_commits:
+    if not repository_status(repository).has_commits:
         return []
     arguments = ["log", f"--max-count={max(1, min(limit, MAX_LOG_ENTRIES))}", f"--format={LOG_FORMAT}"]
     if path:
         arguments += ["--follow", "--", path]
-    output = run_git(arguments, folder, config=QUOTEPATH_OFF).stdout
+    output = run_git(arguments, repository, config=QUOTEPATH_OFF).stdout
     entries = []
     for line in output.splitlines():
         fields = line.split("\x1f")
@@ -412,148 +409,28 @@ def repository_log(folder: Path, path: str | None = None, limit: int = 50) -> li
     return entries
 
 
-def commit_diff(folder: Path, commit: str, path: str | None = None) -> str:
+def commit_diff(repository: Repository, commit: str, path: str | None = None) -> str:
     """What one commit changed, optionally limited to one path."""
     if not COMMIT_HASH.fullmatch(commit):
         raise GitError("That is not a commit hash.")
     arguments = ["show", *PLAIN_DIFF, "--format=", commit]
     if path:
         arguments += ["--", path]
-    diff = run_git(arguments, folder, config=QUOTEPATH_OFF).stdout
+    diff = run_git(arguments, repository, config=QUOTEPATH_OFF).stdout
     if len(diff) > MAX_DIFF_CHARS:
         return diff[:MAX_DIFF_CHARS] + "\n\n[The diff is longer than this; the rest is not shown.]"
     return diff
 
 
-def commit_all(folder: Path, message: str, author: tuple[str, str] | None = None) -> str:
+def commit_all(repository: Repository, message: str, author: tuple[str, str] | None = None) -> str:
     message = message.strip()
     if not message:
         raise GitError("A commit needs a message.")
-    run_git(["add", "--all"], folder)
-    if not repository_status(folder).changes:
+    run_git(["add", "--all"], repository)
+    if not repository_status(repository).changes:
         raise GitError("There is nothing to commit.")
     extra = {}
     if author:
         extra = {"GIT_AUTHOR_NAME": author[0], "GIT_AUTHOR_EMAIL": author[1]}
-    run_git(["commit", "-m", message], folder, extra)
-    return run_git(["rev-parse", "--short", "HEAD"], folder).stdout.strip()
-
-
-def fetch(folder: Path, github_token: str | None) -> None:
-    url = required_remote_url(folder)
-    authorization = auth_config(url, github_token)
-    run_git(["fetch", UPLOAD_PACK, "--prune", "origin"], folder, private_config=authorization, timeout=300)
-
-
-def push(folder: Path, github_token: str | None) -> None:
-    url = required_push_url(folder)
-    status = repository_status(folder)
-    if not status.has_commits:
-        raise GitError("There are no commits to push yet.")
-    arguments = ["push", RECEIVE_PACK] + ([] if status.upstream else ["--set-upstream", "origin", "HEAD"])
-    run_git(arguments, folder, private_config=auth_config(url, github_token), timeout=300)
-
-
-def pull(folder: Path, github_token: str | None) -> None:
-    """Fast-forward only: when histories have diverged, nothing changes and the user decides what to do."""
-    url = required_remote_url(folder)
-    authorization = auth_config(url, github_token)
-    run_git(["fetch", UPLOAD_PACK, "origin"], folder, private_config=authorization, timeout=300)
-    try:
-        run_git(["merge", "--ff-only", "@{upstream}"], folder, timeout=300)
-    except GitError as error:
-        if "Not possible to fast-forward" in str(error) or "diverged" in str(error):
-            raise GitError(
-                "Your local commits and the remote have diverged, so a fast-forward pull is not possible. "
-                "Nothing was changed."
-            ) from error
-        raise
-
-
-# --- Branches ----------------------------------------------------------------------------------
-
-
-@dataclass
-class Branch:
-    name: str
-    current: bool
-    upstream: str | None
-    # "ahead 2, behind 1" as git reports it; empty when even or without upstream.
-    track: str
-    subject: str
-
-
-def check_branch_name(folder: Path, name: str) -> str:
-    name = name.strip()
-    if not name or name.startswith("-"):
-        raise GitError("Name the branch, such as feature/login.")
-    try:
-        run_git(["check-ref-format", "--branch", name], folder)
-    except UnsafeRepositoryError:
-        raise
-    except GitError as error:
-        raise GitError(f"{name} is not a valid branch name.") from error
-    return name
-
-
-def list_branches(folder: Path) -> list[Branch]:
-    output = run_git(
-        [
-            "for-each-ref",
-            "--sort=-committerdate",
-            "--format=%(HEAD)%00%(refname:short)%00%(upstream:short)%00%(upstream:track,nobracket)%00"
-            "%(contents:subject)",
-            "refs/heads",
-        ],
-        folder,
-    )
-    return parse_branches(output.stdout)
-
-
-def parse_branches(output: str) -> list[Branch]:
-    """Parse the null-delimited output of `for-each-ref` shared by local and runner git."""
-    branches = []
-    for line in output.splitlines():
-        head, name, upstream, track, subject = (line.split("\0") + [""] * 5)[:5]
-        branches.append(Branch(name, head == "*", upstream or None, track, subject))
-    return branches
-
-
-def create_branch(folder: Path, name: str, start: str | None = None, switch: bool = True) -> None:
-    name = check_branch_name(folder, name)
-    arguments = ["switch", "-c", name] if switch else ["branch", name]
-    if start:
-        arguments.append(start)
-    run_git(arguments, folder)
-
-
-def switch_branch(folder: Path, name: str) -> None:
-    """Switch to a local branch, or to a new local branch tracking origin/<name>. Changes that would be lost stop it."""
-    run_git(["switch", check_branch_name(folder, name)], folder)
-
-
-def delete_branch(folder: Path, name: str, force: bool = False) -> None:
-    name = check_branch_name(folder, name)
-    status = repository_status(folder)
-    if status.branch == name:
-        raise GitError("This is the current branch. Switch to another branch first.")
-    try:
-        run_git(["branch", "-D" if force else "-d", name], folder)
-    except GitError as error:
-        if "not fully merged" in str(error):
-            raise GitError(f"{name} has commits that are not merged. Delete it anyway to lose them.") from error
-        raise
-
-
-def branch_summary(folder: Path, base: str, limit: int = 60) -> tuple[str, str]:
-    """The commits on HEAD since base, and the changed files with their size of change, for a pull request text."""
-    for candidate in (f"origin/{base}", base):
-        try:
-            log = run_git(["log", "--format=- %s%n%b", f"-{limit}", f"{candidate}..HEAD"], folder).stdout
-            stat = run_git(["diff", "--stat", *PLAIN_DIFF, f"{candidate}...HEAD"], folder).stdout
-            return log.strip(), stat.strip()
-        except UnsafeRepositoryError:
-            raise
-        except GitError:
-            continue
-    raise GitError(f"The base branch {base} is not known here. Fetch first.")
+    run_git(["commit", "-m", message], repository, extra)
+    return run_git(["rev-parse", "--short", "HEAD"], repository).stdout.strip()

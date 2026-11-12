@@ -286,13 +286,17 @@ def due(session: Session, conversation_id: int) -> bool:
     return (session.scalar(turns) or 0) >= TURNS_BETWEEN or (session.scalar(goals) or 0) > 0
 
 
-def accept(project_folder: Path, suggestion: MemorySuggestion, section: str | None, text: str | None) -> None:
+def accept(
+    project_folder: Path, environment_id: int, suggestion: MemorySuggestion, section: str | None, text: str | None
+) -> None:
     """Write the suggestion (as edited) into the memory: one commit. An update replaces the entry it matched, when
     that entry is still there; otherwise the text is added."""
-    accept_entry(project_folder, section or suggestion.section, text or suggestion.text, suggestion.updates_entry)
+    accept_entry(
+        project_folder, environment_id, section or suggestion.section, text or suggestion.text, suggestion.updates_entry
+    )
 
 
-def accept_entry(project_folder: Path, section: str, text: str, updates_entry: str | None) -> None:
+def accept_entry(project_folder: Path, environment_id: int, section: str, text: str, updates_entry: str | None) -> None:
     """Write an entry into the memory, replacing updates_entry when it is still there: one commit. Shared with the
     memory lines of learning proposals (app/learning)."""
     final = " ".join(text.split())
@@ -301,6 +305,6 @@ def accept_entry(project_folder: Path, section: str, text: str, updates_entry: s
     if updates_entry:
         current = next((entry for entry in parse_entries(read_memory(project_folder)) if entry.text == updates_entry), None)
         if current is not None:
-            edit_entry(project_folder, current.id, final)
+            edit_entry(project_folder, environment_id, current.id, final)
             return
-    remember(project_folder, section, final)
+    remember(project_folder, environment_id, section, final)

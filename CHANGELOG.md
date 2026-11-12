@@ -11,6 +11,7 @@ yourself when you update; it says "None." when there is nothing.
 - Retrying or regenerating a built-in `/check` keeps the run read only, including for existing messages.
 - Resetting a settings list now reports a failed request instead of showing a success message.
 - A failed reply start now closes the model connection and revokes the run's tool-server token.
+- Git on project folders (status, diff, commits, branches, merges, reviews and the like) now runs in the environment's runner instead of in YAAP; fetch and push stay in YAAP because they use your GitHub token.
 
 ### Action needed
 

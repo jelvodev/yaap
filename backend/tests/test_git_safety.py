@@ -2,7 +2,6 @@
 includes, pagers and upload-pack commands written into a project by a command in the runner never run with YAAP's
 rights, while status, diff, commit, checkpoints, fetch, push and branches keep working."""
 
-import asyncio
 import os
 import stat
 import subprocess
@@ -12,7 +11,7 @@ from pathlib import Path
 import pytest
 
 from app.checkpoints.shadow import ShadowRepository
-from app.git import safety, service
+from app.git import remote as git_remote, safety, service
 from app.git.safety import (
     FIXED_CONFIG,
     UnsafeRepository,
@@ -25,16 +24,12 @@ from app.git.safety import (
 from app.git.service import (
     GitError,
     commit_all,
-    create_branch,
-    fetch,
-    list_branches,
-    push,
-    pull,
     repository_diff,
     repository_status,
-    switch_branch,
 )
-from app.providers.base import AgentRequest, ProviderError
+from app.git.branches import create_branch, list_branches, switch_branch
+from app.git.remote import fetch, pull, push
+from app.providers.base import AgentRequest
 from app.providers.claude_code_provider import ClaudeCodeProvider, TurnInput, claude_code_environment
 
 
@@ -67,9 +62,9 @@ def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path
     host_git("push", "-u", "origin", "main", cwd=folder)
     # Local bare remotes keep these integration tests offline; transport policy is tested separately.
     monkeypatch.setattr(service, "remote_operation_variables", lambda: {})
-    validate_url = service.validate_remote_url
+    validate_url = git_remote.validate_remote_url
     monkeypatch.setattr(
-        service,
+        git_remote,
         "validate_remote_url",
         lambda url: url if url == str(remote) else validate_url(url),
     )
@@ -433,15 +428,3 @@ def test_claude_code_runs_git_with_the_same_settings_and_without_project_setting
     arguments = ClaudeCodeProvider(["claude"]).build_arguments(request, TurnInput(None, []), folder / "prompt.md")
     assert arguments[arguments.index("--setting-sources") + 1] == "user"
 
-
-def test_claude_code_does_not_start_in_an_unsafe_repository(project):
-    folder, _, marker = project
-    plant_fsmonitor(folder, marker)
-    request = AgentRequest(model="claude-opus-5-5", effort="high", system=[], messages=[], working_folder=folder)
-
-    async def first_event() -> None:
-        async for _ in ClaudeCodeProvider(["claude"]).run_once(request):
-            break
-
-    with pytest.raises(ProviderError, match="core.fsmonitor"):
-        asyncio.run(first_event())

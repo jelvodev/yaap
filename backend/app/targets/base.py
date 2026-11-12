@@ -36,6 +36,16 @@ class CommandResult:
     stopped: Literal["total", "silence"] | None = None
 
 
+@dataclass(frozen=True)
+class CapturedResult:
+    """A finished command with its two output streams apart and undecoded, for output that is parsed or binary."""
+
+    exit_code: int | None
+    stdout: bytes
+    stderr: bytes
+    timed_out: bool = False
+
+
 class TargetFiles(Protocol):
     """Files inside one working folder. Every path is checked to stay inside it."""
 
@@ -85,6 +95,11 @@ class CommandExecutor(Protocol):
         self, command: str, env: dict[str, str], session: ShellState | None = None
     ) -> asyncio.subprocess.Process:
         """Start a command that keeps running, with its output on stdout, in its own process group."""
+        ...
+
+    async def capture(self, command: str, timeout: float) -> CapturedResult:
+        """Run a shell command without a shell session or secrets and wait for it. Standard output and standard
+        error are kept apart as bytes; after `timeout` seconds the command is stopped (timed_out, no output)."""
         ...
 
 

@@ -9,6 +9,8 @@ import re
 from pathlib import Path
 
 from app.blueprint.layers import BlueprintError, Layer
+from app.blueprint.mutations import layer_place
+from app.git.place import GitPlace
 from app.git.service import GitError, archive, extract_archive, run_git
 
 # A branch, tag or commit; never an option, a range or a reflog expression.
@@ -22,13 +24,13 @@ def check_ref(ref: str) -> str:
     return ref
 
 
-def resolve_ref(repository: Path, ref: str) -> str:
+def resolve_ref(place: GitPlace, ref: str) -> str:
     """The commit a ref names in the layer's repository."""
     ref = check_ref(ref)
-    if not (repository / ".git").exists():
+    if not (place.folder / ".git").exists():
         raise BlueprintError("This Blueprint layer is not a git repository, so it has no other versions.")
     try:
-        found = run_git(["rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"], repository, accept_exit_codes=(0, 1))
+        found = run_git(["rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"], place, accept_exit_codes=(0, 1))
     except GitError as error:
         raise BlueprintError(f"The ref {ref} cannot be read: {error}") from error
     commit = found.stdout.strip()
@@ -39,15 +41,19 @@ def resolve_ref(repository: Path, ref: str) -> str:
 
 def layer_at_ref(layer: Layer, ref: str, folder: Path) -> Layer:
     """A copy of the layer at ref in folder (made empty first is up to the caller); the returned layer reads from it.
-    A layer that did not exist yet at that ref is empty."""
-    commit = resolve_ref(layer.repository, ref)
+    A layer that did not exist yet at that ref is empty. Synchronous git: call it from a worker thread."""
+    try:
+        place = layer_place(layer)
+    except GitError as error:
+        raise BlueprintError(f"The layer at {ref} cannot be read: {error}") from error
+    commit = resolve_ref(place, ref)
     prefix = layer.prefix.rstrip("/")
     try:
-        listed = run_git(["ls-tree", "--name-only", commit, "--", prefix], layer.repository) if prefix else None
+        listed = run_git(["ls-tree", "--name-only", commit, "--", prefix], place) if prefix else None
         if listed is None or listed.stdout.strip():
-            extract_archive(archive(layer.repository, commit, [prefix] if prefix else []), folder)
+            extract_archive(archive(place, commit, [prefix] if prefix else []), folder)
     except GitError as error:
         raise BlueprintError(f"The layer at {ref} cannot be read: {error}") from error
     root = folder / prefix if prefix else folder
     root.mkdir(parents=True, exist_ok=True)
-    return Layer(layer.kind, f"{layer.label} at {ref}", root, folder, layer.prefix)
+    return Layer(layer.kind, f"{layer.label} at {ref}", root, folder, layer.prefix, layer.environment_id)

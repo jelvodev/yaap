@@ -2,7 +2,7 @@
 
 import shutil
 import stat
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -10,7 +10,10 @@ from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.environments.service import slugify
-from app.git.service import clone_repository, init_repository, validate_remote_url
+from app.git.common import GitError
+from app.git.place import git_place
+from app.git.remote import clone_repository, validate_remote_url
+from app.git.service import init_repository
 from app.storage.models import AgentRunRecord, Attachment, Conversation, Environment, Message, Project, Setting
 
 
@@ -86,9 +89,21 @@ def create_empty_project(session: Session, workspace_dir: Path, environment: Env
     folder = project_path(workspace_dir, project)
     if folder.exists() and any(folder.iterdir()):
         raise ProjectError(f"The folder {project.folder} already exists and is not empty.")
-    init_repository(folder)
-    session.commit()
+    folder.mkdir(parents=True, exist_ok=True)
+    with_repository(session, project, lambda: init_repository(git_place(environment.id, folder)))
     return project
+
+
+def with_repository(session: Session, project: Project, make: Callable[[], None]) -> None:
+    """Make the new project's repository, with the project row committed first: git in the runner records its use
+    of the runner in sessions of its own, which would wait on this session's lock. A failure removes the row again."""
+    session.commit()
+    try:
+        make()
+    except GitError:
+        session.delete(project)
+        session.commit()
+        raise
 
 
 def create_cloned_project(
@@ -107,8 +122,9 @@ def create_cloned_project(
         raise ProjectError(f"The folder {project.folder} already exists and is not empty.")
     if folder.exists():
         folder.rmdir()
-    clone_repository(url, folder, github_token)
-    session.commit()
+    with_repository(
+        session, project, lambda: clone_repository(url, folder, github_token, checkout=git_place(environment.id, folder))
+    )
     return project
 
 

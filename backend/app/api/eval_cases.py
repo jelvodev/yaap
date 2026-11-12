@@ -12,7 +12,7 @@ from app.blueprint.levels import project_layer
 from app.checkpoints.pins import case_owner, pin_checkpoint
 from app.checkpoints.service import CheckpointStore
 from app.core.utility import UtilitySkipped, run_utility_or_skip
-from app.evals.case_writer import CaseExistsError, CaseWriteError, save_case
+from app.evals.case_writer import CaseExistsError, CaseWriteError, case_repository, save_case
 from app.evals.cases import DEFAULT_COMMAND_TIMEOUT
 from app.evals.conversation_facts import CaseFromConversationError
 from app.evals.from_conversation import CaseProposal, ChecksFrom, propose_for_conversation
@@ -241,7 +241,8 @@ def save_eval_case(
             status.HTTP_422_UNPROCESSABLE_CONTENT, f"The project has no checkpoint {case.start.checkpoint}."
         )
     try:
-        saved = save_case(project_layer(workspace_dir, project), case)
+        layer = project_layer(workspace_dir, project)
+        saved = save_case(layer, case, repository=case_repository(layer, project.environment_id))
     except CaseExistsError as error:
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
     except CaseWriteError as error:

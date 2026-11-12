@@ -37,7 +37,7 @@ async def update_memory(run: AgentRun, arguments: dict[str, Any]) -> str:
     section = text_argument(arguments, "section")
     entry = text_argument(arguments, "entry")
     try:
-        await anyio.to_thread.run_sync(remember, project_root(run), section, entry)
+        await anyio.to_thread.run_sync(remember, project_root(run), run.environment_id, section, entry)
     except ProjectMemoryError as error:
         raise ToolError(str(error)) from error
     return f"Remembered under {section}. The entry is in .blueprint/memory.md and committed on its own."

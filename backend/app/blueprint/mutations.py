@@ -11,7 +11,9 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING
 
+from app.git.place import GitPlace, git_place, git_place_kind
 from app.git.service import GitError, init_repository, run_git
+from app.runner.service import RUNNERS
 from app.targets.safe_root import SafeRoot
 
 if TYPE_CHECKING:
@@ -24,6 +26,17 @@ class MutationResult:
 
     committed: bool
     error: str | None = None
+
+
+def layer_place(layer: Layer) -> GitPlace:
+    """Where git runs for the layer's repository. A project layer in the workspace goes to its environment's runner;
+    the global and environment layers are outside the workspace and stay in YAAP. Synchronous: call it from a worker
+    thread. Raises GitError when the runner is needed and cannot be used, also for a layer without an environment."""
+    if layer.environment_id is None:
+        if git_place_kind(layer.repository, RUNNERS.workspace_dir, RUNNERS.enabled) == "runner":
+            raise GitError("This Blueprint layer is in the workspace but does not name its environment.")
+        return GitPlace(layer.repository)
+    return git_place(layer.environment_id, layer.repository)
 
 
 def ensure_repository(layer: Layer) -> None:
@@ -118,9 +131,10 @@ def commit_paths(layer: Layer, paths: list[str], message: str) -> MutationResult
     """Commit only the requested paths, leaving unrelated staged work alone."""
     pathspecs = [f"{layer.prefix}{path}" for path in paths]
     try:
-        run_git(["add", "--all", "--", *pathspecs], layer.repository)
-        if run_git(["status", "--porcelain", "--", *pathspecs], layer.repository).stdout.strip():
-            run_git(["commit", "-m", message, "--", *pathspecs], layer.repository)
+        place = layer_place(layer)
+        run_git(["add", "--all", "--", *pathspecs], place)
+        if run_git(["status", "--porcelain", "--", *pathspecs], place).stdout.strip():
+            run_git(["commit", "-m", message, "--", *pathspecs], place)
     except GitError as error:
         return MutationResult(False, str(error))
     return MutationResult(True)

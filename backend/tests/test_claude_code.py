@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -265,3 +266,12 @@ def test_a_claude_code_reply_records_what_the_cli_reports(fake_claude):
     assert step.model == "claude-opus-5-5" and step.model_calls == 3
     reported = TokenUsage(input_tokens=12, output_tokens=7, cache_read_tokens=100, cache_write_tokens=50)
     assert step.usage == events[-1].usage == reported
+
+
+def test_claude_code_in_a_project_folder_finds_no_repository(tmp_path):
+    folder = tmp_path / "site"
+    folder.mkdir()
+    environment = claude_code_provider.claude_code_environment(None, folder)
+    assert environment["GIT_DIR"] == os.devnull
+    assert environment["GIT_CEILING_DIRECTORIES"] == str(folder.resolve().parent)
+    assert "GIT_DIR" not in claude_code_provider.claude_code_environment()

@@ -15,6 +15,7 @@ from app.agent.runs import RunConfig, RunRegistry
 from app.agent.gate import call_tool
 from app.agent.tools import tools_for
 from app.github import client as github_client
+from app.git.place import GitPlace
 from app.vault.store import save_entry
 from tests.test_tool_guard import answer_approvals
 
@@ -225,16 +226,16 @@ def test_a_pull_request_is_created_opened_and_merged(client, github, project_rep
     (folder / "index.html").write_text("b\n")
     git("-c", "user.name=T", "-c", "user.email=t@example.com", "commit", "-am", "Change the page", cwd=folder)
     point_at_github(folder)
-    pushed: list[Path] = []
+    pushed: list[GitPlace] = []
     monkeypatch.setattr("app.api.github.push", lambda path, token: pushed.append(path))
-    fetched: list[Path] = []
+    fetched: list[GitPlace] = []
     monkeypatch.setattr("app.api.github.fetch", lambda path, token: fetched.append(path))
     base = f"/api/v1/environments/1/git/repositories/project-{project['id']}/pulls"
 
     created = client.post(base, json={"title": "Change the page", "body": "Why"})
     assert created.status_code == 201, created.text
     assert created.json()["head"] == "feature" and created.json()["base"] == "main"
-    assert pushed == [folder]  # The branch had no upstream, so it was pushed first.
+    assert [place.folder for place in pushed] == [folder]  # The branch had no upstream, so it was pushed first.
 
     listed = client.get(base).json()
     assert listed["repository"] == "me/site" and listed["current_branch"] == "feature"
@@ -246,7 +247,7 @@ def test_a_pull_request_is_created_opened_and_merged(client, github, project_rep
     assert merged == {"sha": "merged123", "branch_deleted": True}
     assert ("PUT", "/repos/me/site/pulls/1/merge", {"merge_method": "squash"}) in github.requests
     assert github.deleted_branches == ["feature"]
-    assert fetched == [folder]  # YAAP fetches after merging, so the panel shows the merge.
+    assert [place.folder for place in fetched] == [folder]  # YAAP fetches after merging, so the panel shows the merge.
 
 
 def test_a_refusal_names_the_permission_the_token_lacks(client, github, project_repo, monkeypatch):

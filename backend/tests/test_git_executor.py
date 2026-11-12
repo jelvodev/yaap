@@ -1,4 +1,5 @@
 import asyncio
+from collections.abc import Callable
 import os
 import shlex
 import shutil
@@ -6,20 +7,26 @@ import subprocess
 import sys
 from pathlib import Path
 
+import anyio
 import pytest
 
 from app.git import executor as git_executor
+from app.git.branches import list_branches
 from app.git.executor import command_environment, run_worktree_git
-from app.git.service import GitError, init_repository
+from app.git.place import GitPlace
+from app.git.service import GitError, commit_all, init_repository, repository_diff, repository_status
 from app.git.safety import UnsafeRepository, check_repository
-from app.git.worktree import commit_all, list_branches, repository_diff, repository_status
 from app.agent.git_tools import git_status
 from app.agent.runs import RunConfig, RunRegistry
 from app.agent.tools import tools_for
 from app.runner.service import RunnerTarget
 from app.sandbox.service import SandboxManager, SandboxSpec
-from app.targets.base import CommandResult
+from app.targets.base import CapturedResult, CommandResult
 from app.targets.ssh import SshExecutor, SshSettings
+
+
+def captured(result: CommandResult) -> CapturedResult:
+    return CapturedResult(result.exit_code, result.output.encode(), b"", result.timed_out)
 
 
 class RecordingExecutor:
@@ -28,19 +35,19 @@ class RecordingExecutor:
         self.timeout = 0.0
         self.result = result or CommandResult(0, "ok")
 
-    async def run(
-        self,
-        command: str,
-        env: dict[str, str],
-        timeout: float,
-        session: object = None,
-        silence: float | None = None,
-        on_output: object = None,
-    ) -> CommandResult:
+    async def capture(self, command: str, timeout: float) -> CapturedResult:
         self.command = command
         self.timeout = timeout
-        assert env == {}
-        return self.result
+        return captured(self.result)
+
+
+def in_worker(function: Callable[..., object], *arguments: object) -> object:
+    """Call a sync git service function the way a router does: from a worker thread of the event loop."""
+
+    async def call() -> object:
+        return await anyio.to_thread.run_sync(function, *arguments)
+
+    return asyncio.run(call())
 
 
 class ScriptedExecutor(RecordingExecutor):
@@ -49,21 +56,12 @@ class ScriptedExecutor(RecordingExecutor):
         self.responses = responses
         self.commands: list[str] = []
 
-    async def run(
-        self,
-        command: str,
-        env: dict[str, str],
-        timeout: float,
-        session: object = None,
-        silence: float | None = None,
-        on_output: object = None,
-    ) -> CommandResult:
+    async def capture(self, command: str, timeout: float) -> CapturedResult:
         self.command = command
         self.commands.append(command)
-        assert env == {}
         expected, result = self.responses.pop(0)
         assert expected in command
-        return result
+        return captured(result)
 
 
 class LocalGitExecutor:
@@ -72,16 +70,7 @@ class LocalGitExecutor:
     def __init__(self, folder: Path) -> None:
         self.folder = folder
 
-    async def run(
-        self,
-        command: str,
-        env: dict[str, str],
-        timeout: float,
-        session: object = None,
-        silence: float | None = None,
-        on_output: object = None,
-    ) -> CommandResult:
-        assert env == {}
+    async def capture(self, command: str, timeout: float) -> CapturedResult:
         words = shlex.split(command)
         assert words[:2] == ["env", "-i"]
         git_index = words.index("git")
@@ -103,7 +92,7 @@ class LocalGitExecutor:
             timeout=timeout,
             check=False,
         )
-        return CommandResult(completed.returncode, completed.stdout + completed.stderr)
+        return CapturedResult(completed.returncode, completed.stdout.encode(), completed.stderr.encode())
 
 
 class FilterRaceExecutor(LocalGitExecutor):
@@ -112,15 +101,7 @@ class FilterRaceExecutor(LocalGitExecutor):
         self.marker = marker
         self.inserted = False
 
-    async def run(
-        self,
-        command: str,
-        env: dict[str, str],
-        timeout: float,
-        session: object = None,
-        silence: float | None = None,
-        on_output: object | None = None,
-    ) -> CommandResult:
+    async def capture(self, command: str, timeout: float) -> CapturedResult:
         if not self.inserted:
             python_code = (
                 "import sys; from pathlib import Path; Path(" + repr(str(self.marker)) + ").write_text('ran'); "
@@ -135,7 +116,7 @@ class FilterRaceExecutor(LocalGitExecutor):
             )
             (self.folder / ".gitattributes").write_text("*.txt filter=race\n", encoding="utf-8")
             self.inserted = True
-        return await super().run(command, env, timeout, session, silence, on_output)
+        return await super().capture(command, timeout)
 
 
 def test_worktree_git_uses_a_clean_fixed_environment_and_quotes_arguments() -> None:
@@ -190,10 +171,9 @@ def test_runner_status_and_branch_output_are_parsed_like_local_git() -> None:
         ]
     )
 
-    async def read() -> tuple[object, list[object]]:
-        return await repository_status(executor), await list_branches(executor)
-
-    status, branches = asyncio.run(read())
+    place = GitPlace(Path("/project"), executor)
+    status = in_worker(repository_status, place)
+    branches = in_worker(list_branches, place)
 
     assert status.branch == "main" and status.has_commits is False
     assert status.remote_url == "https://github.com/acme/site.git"
@@ -228,12 +208,9 @@ def test_runner_diff_and_commit_use_only_the_target_executor() -> None:
         ]
     )
 
-    async def change() -> tuple[str, str]:
-        diff = await repository_diff(executor)
-        commit = await commit_all(executor, "Save changes", ("Reviewer", "reviewer@example.com"))
-        return diff, commit
-
-    diff, commit = asyncio.run(change())
+    place = GitPlace(Path("/project"), executor)
+    diff = in_worker(repository_diff, place)
+    commit = in_worker(commit_all, place, "Save changes", ("Reviewer", "reviewer@example.com"))
 
     assert diff == "tracked diff\nnew file diff\n"
     assert commit == "deadbee"
@@ -261,19 +238,11 @@ def test_agent_git_status_uses_the_runner_executor_when_target_root_is_none(
         ]
     )
 
-    async def run_on_target(
-        target_executor: SshExecutor,
-        command: str,
-        env: dict[str, str],
-        timeout: float,
-        session: object = None,
-        silence: float | None = None,
-        on_output: object = None,
-    ) -> CommandResult:
+    async def capture_on_target(target_executor: SshExecutor, command: str, timeout: float) -> CapturedResult:
         assert target_executor.root == "/workspace/site"
-        return await executor.run(command, env, timeout, session, silence, on_output)
+        return await executor.capture(command, timeout)
 
-    monkeypatch.setattr(SshExecutor, "run", run_on_target)
+    monkeypatch.setattr(SshExecutor, "capture", capture_on_target)
     runner = RunnerTarget(
         "runner-test",
         SshSettings("runner", 22, "yaap", "private-key", "host-key"),
@@ -324,10 +293,11 @@ def test_real_git_status_handles_unicode_newlines_and_stderr(tmp_path: Path, mon
     monkeypatch.setattr(git_executor, "command_environment", test_environment)
     executor = LocalGitExecutor(repository)
 
-    status = asyncio.run(repository_status(executor))
+    place = GitPlace(repository, executor)
+    status = in_worker(repository_status, place)
     assert {change.path for change in status.changes} == paths
     assert status.remote_url is None
-    committed = asyncio.run(commit_all(executor, "Save unusual paths"))
+    committed = in_worker(commit_all, place, "Save unusual paths")
     assert len(committed) == 7
     identity = asyncio.run(
         run_worktree_git(executor, ["log", "-1", "--format=%an <%ae>|%cn <%ce>"])

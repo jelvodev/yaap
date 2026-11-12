@@ -15,7 +15,9 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.credentials.crypto import CredentialCipher, CredentialDecryptionError
 from app.credentials.store import read_credential_value
 from app.blueprint.levels import environment_layer, global_layer
-from app.git.service import GitError, fetch, remote_url
+from app.git.place import GitPlace
+from app.git.remote import fetch
+from app.git.service import GitError, remote_url
 from app.projects.service import project_path
 from app.storage.models import Environment, Project
 
@@ -26,9 +28,12 @@ FETCH_INTERVAL_SECONDS = 15 * 60
 
 def repositories_with_remotes(
     session: Session, cipher: CredentialCipher, blueprint_dir: Path, workspace_dir: Path
-) -> list[tuple[Path, str | None]]:
-    """Each repository that has a remote, with the GitHub token of the environment it belongs to."""
-    found: list[tuple[Path, str | None]] = []
+) -> list[tuple[GitPlace, str | None]]:
+    """Each repository that has a remote, with the GitHub token of the environment it belongs to. The remote is read
+    in YAAP, where the fetch itself runs: both read only the repository's config (checked first, with git's fixed safe
+    settings) and never the work tree, so no filter can run, and asking the runner would wake every environment's
+    runner each pass. Synchronous: call it from a worker thread."""
+    found: list[tuple[GitPlace, str | None]] = []
     tokens: list[str] = []
     for environment in session.scalars(select(Environment).order_by(Environment.id)):
         try:
@@ -42,11 +47,16 @@ def repositories_with_remotes(
             project_path(workspace_dir, project)
             for project in session.scalars(select(Project).where(Project.environment_id == environment.id))
         ]
-        found += [(folder, token) for folder in folders if (folder / ".git").is_dir() and remote_url(folder)]
-    # The global layer belongs to no environment; it is fetched with the first GitHub token there is.
+        for folder in folders:
+            if not (folder / ".git").is_dir():
+                continue
+            if remote_url(folder):
+                found.append((GitPlace(folder), token))
+    # The global layer belongs to no environment and is outside the workspace; it is fetched with the first GitHub
+    # token there is.
     global_root = global_layer(blueprint_dir).root
     if (global_root / ".git").is_dir() and remote_url(global_root):
-        found.insert(0, (global_root, tokens[0] if tokens else None))
+        found.insert(0, (GitPlace(global_root), tokens[0] if tokens else None))
     return found
 
 
@@ -54,12 +64,12 @@ def fetch_all(session_factory: sessionmaker[Session], cipher: CredentialCipher, 
     with session_factory() as session:
         repositories = repositories_with_remotes(session, cipher, blueprint_dir, workspace_dir)
     fetched = 0
-    for folder, token in repositories:
+    for place, token in repositories:
         try:
-            fetch(folder, token)
+            fetch(place, token)
             fetched += 1
         except GitError as error:
-            logger.info("Periodic fetch of %s skipped: %s", folder.name, error)
+            logger.info("Periodic fetch of %s skipped: %s", place.folder.name, error)
     return fetched
 
 

@@ -112,7 +112,7 @@ def test_the_checks_fail_at_the_start_and_pass_on_the_solution(
     folder, _ = built
     workspace = tmp_path / name
     assert case.start.commit is not None
-    clone_at(folder, workspace, case.start.commit)
+    clone_at(folder, workspace, case.start.commit, 1)
     try:
         at_start = statuses(case, workspace)
         assert at_start, "the case has no command or file check to run here"

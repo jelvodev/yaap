@@ -229,14 +229,14 @@ def test_save_case_refuses_an_existing_name_and_a_folder_without_git(tmp_path):
     layer = Layer("project", "Project", folder / ".blueprint", folder, ".blueprint/")
     case = EvalCase("one", "Do it.", StartState(commit="abcdef1"), (RubricCheck("good", "It is good."),))
     with pytest.raises(CaseWriteError, match="not a git repository"):
-        save_case(layer, case)
+        save_case(layer, case, repository=folder)
     assert not (folder / ".blueprint" / "evals" / "one.md").exists()
 
     run_git(["init", "-b", "main"], folder)
-    saved = save_case(layer, case)
+    saved = save_case(layer, case, repository=folder)
     assert saved.path == ".blueprint/evals/one.md" and saved.case == case
     with pytest.raises(CaseExistsError):
-        save_case(layer, case)
+        save_case(layer, case, repository=folder)
 
 
 @pytest.mark.parametrize(

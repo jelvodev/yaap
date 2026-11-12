@@ -15,10 +15,12 @@ from app.agent.policy import ToolPolicy
 from app.agent.processes import ProcessManager
 from app.agent.tools import tools_for
 from app.checkpoints.service import CheckpointStore
+from app.git.place import GitPlace
 from app.mcp_client.config import ServerConfig
 from app.mcp_client.manager import McpManager
 from app.mcp_client.remote import LAUNCHER, launch_script
 from app.mcp_client.runs import server_place
+from app.projects import service as project_service
 from app.providers.fake_provider import ScriptedResponse
 from app.runner.service import RUNNERS, find_runner, runner_path
 from app.sandbox.service import SANDBOXES, public_key
@@ -44,6 +46,9 @@ def runner(world, client, monkeypatch):  # noqa: F811 - the fixture
 
     monkeypatch.setattr(LocalExecutor, "run", no_local_command)
     monkeypatch.setattr(LocalExecutor, "spawn", no_local_command)
+    # The test SSH server answers scripts without running git; that a new project's git goes to the runner is
+    # checked in test_git_routing_panel.py.
+    monkeypatch.setattr(project_service, "git_place", lambda _environment_id, folder: GitPlace(folder))
     RUNNERS.enabled = True
     yield world
     RUNNERS.enabled = False

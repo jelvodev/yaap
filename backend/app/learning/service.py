@@ -32,6 +32,8 @@ from app.blueprint.rules import unified_diff
 from app.core.settings import resolve_languages
 from app.core.utility import UtilityContext, run_utility
 from app.evals.cases import read_cases
+from app.git.place import GitPlace, git_place
+from app.git.service import GitError
 from app.learning.branches import branch_name, is_repository, remove_branch, write_branch
 from app.learning.changes import BlueprintKind, blueprint_change
 from app.learning.proposals import (
@@ -78,6 +80,13 @@ class ProjectScope:
         if index is None:
             raise LearningError(f"This project has no {level} Blueprint layer.")
         return self.layers[: index + 1]
+
+    def repository(self, layer: Layer) -> GitPlace:
+        """Where git runs for the layer's repository: the environment's runner for a project in the workspace."""
+        try:
+            return git_place(self.environment_id, layer.repository)
+        except GitError as error:
+            raise BlueprintError(str(error)) from error
 
 
 def project_scope(session: Session, blueprint_dir: Path, workspace_dir: Path, project_id: int) -> ProjectScope:
@@ -217,7 +226,8 @@ class LearningService:
             proposal.measurement, proposal.measurement_note = "not_measured", NO_REPOSITORY
             return proposal
         try:
-            write_branch(own, change.path, change.after, branch_name(proposal.id), commit_message(draft.text, own))
+            message = commit_message(draft.text, own)
+            write_branch(own, scope.repository(own), change.path, change.after, branch_name(proposal.id), message)
         except BlueprintError as error:
             proposal.measurement, proposal.measurement_note = "not_measured", str(error)
             return proposal
@@ -237,7 +247,9 @@ class LearningService:
             try:
                 if proposal.kind == "memory":
                     near = similar_entry(parse_entries(read_memory(scope.folder)), proposal.text)
-                    accept_entry(scope.folder, proposal.target, proposal.text, near.text if near else None)
+                    accept_entry(
+                        scope.folder, scope.environment_id, proposal.target, proposal.text, near.text if near else None
+                    )
                 else:
                     self.merge(scope, proposal)
             except (BlueprintError, ProjectMemoryError) as error:
@@ -253,7 +265,7 @@ class LearningService:
         if change.before != change.after:
             write_file(own, change.path, change.after, commit_message(proposal.text, own))
         if proposal.branch:
-            remove_branch(own, proposal.branch)
+            remove_branch(own, scope.repository(own), proposal.branch)
 
     def decline(self, project_id: int, proposal_id: int) -> None:
         """Leave the layer as it is and remove the proposal's branch."""
@@ -262,7 +274,8 @@ class LearningService:
             if proposal.branch:
                 scope = self.scope(session, project_id)
                 try:
-                    remove_branch(scope.level_layers(cast(LayerKind, proposal.level))[-1], proposal.branch)
+                    own = scope.level_layers(cast(LayerKind, proposal.level))[-1]
+                    remove_branch(own, scope.repository(own), proposal.branch)
                 except BlueprintError as error:
                     raise LearningError(str(error)) from error
             proposal.status, proposal.decided_at = "declined", datetime.now(UTC)

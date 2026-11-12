@@ -208,16 +208,17 @@ class Runners:
         runtime = RunnerTarget(connection_key(target), settings, manager, target.id, spec, environment_dir)
         return target, runtime
 
+    def runtime(self, environment_id: int, used_by: str) -> RunnerTarget:
+        """The runtime of the environment's runner, built in a session of its own. Synchronous (it reads the
+        database and the vault): call it from a worker thread."""
+        if self.session_factory is None:
+            raise RunnerUnavailable(UNAVAILABLE.format(reason="YAAP has not started its runners yet."))
+        with self.session_factory() as session:
+            return self.target(session, environment_id, used_by)[1]
+
     async def place(self, environment_id: int, used_by: str) -> RunnerTarget:
         """The runtime of the environment's runner, for MCP servers and the browser; built in a worker thread."""
-
-        def build() -> RunnerTarget:
-            if self.session_factory is None:
-                raise RunnerUnavailable(UNAVAILABLE.format(reason="YAAP has not started its runners yet."))
-            with self.session_factory() as session:
-                return self.target(session, environment_id, used_by)[1]
-
-        return await anyio.to_thread.run_sync(build)
+        return await anyio.to_thread.run_sync(self.runtime, environment_id, used_by)
 
 
 def new_runner(session: Session, cipher: CredentialCipher, environment: Environment) -> Target:

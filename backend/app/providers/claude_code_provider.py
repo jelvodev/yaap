@@ -18,10 +18,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import anyio
-
 from app.core.subprocess_env import safe_subprocess_env
-from app.git.safety import UnsafeRepository, check_repository, git_variables
+from app.git.safety import git_variables
 from app.providers.base import (
     AgentEvent,
     AgentRequest,
@@ -70,9 +68,14 @@ INHERITED_ENVIRONMENT = frozenset({"CLAUDE_CONFIG_DIR", "DISABLE_AUTOUPDATER"})
 
 
 def claude_code_environment(max_output_tokens: int | None = None, project_folder: Path | None = None) -> dict[str, str]:
-    """Claude Code runs git in its working folder for its own context; in a project folder that git gets the same
-    safe settings as YAAP's own (`app.git.safety`), since the project's .git can be written by the agent's commands."""
+    """Claude Code runs git in its working folder for its own context. In a project folder that git would run in
+    YAAP's process with YAAP's rights on a repository the agent's commands can write, so it is given no repository:
+    GIT_DIR names a path that cannot be one and git stops there, without reading the folder's configuration. YAAP's
+    own git tools serve the model. The ceiling and the safe settings stay as a second guard, should a git command
+    name its own repository."""
     extra = {"MCP_TOOL_TIMEOUT": str(MCP_TOOL_TIMEOUT_MS), **git_variables(project_folder)}
+    if project_folder is not None:
+        extra["GIT_DIR"] = os.devnull
     if max_output_tokens:
         # The preset's reply length; Claude Code reads it per request it makes.
         extra["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] = str(max_output_tokens)
@@ -273,11 +276,6 @@ class ClaudeCodeProvider:
                 yield event
 
     async def run_once(self, request: AgentRequest) -> AsyncIterator[AgentEvent]:
-        if request.working_folder is not None:
-            try:
-                await anyio.to_thread.run_sync(check_repository, request.working_folder)
-            except UnsafeRepository as error:
-                raise ProviderError(str(error)) from error
         turn = plan_turn(request.messages)
         workspace = workspace_directory()
         with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".md", dir=workspace, delete=False) as file:
