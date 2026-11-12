@@ -14,6 +14,7 @@ from app.api.dependencies import DataDirDependency, SessionDependency, Workspace
 from app.evals.case_writer import CaseExistsError, CaseWriteError
 from app.evals.variants import VariantError, checked_variant, stored_variant
 from app.projects.service import ProjectError
+from app.replays.blueprint import replay_layers_from_json
 from app.replays.service import ReplayError, ReplayNotFound, ReplayService, ReplayStart
 from app.replays.summary import EMPTY, SideSummary, side_summary
 from app.replays.to_case import CaseFromReplayError, case_from_replay
@@ -38,6 +39,17 @@ class ReplayVariantOut(ReplayIn):
     label: str
 
 
+class ReplayLayerOut(BaseModel):
+    """What the replay built for one Blueprint layer: the commit it was read at (or the variant's ref), whether the
+    layer had uncommitted changes then, and where the version came from."""
+
+    kind: LayerKind
+    commit: str | None
+    dirty: bool
+    source: Literal["original", "variant", "current"]
+    ref: str | None
+
+
 class ReplayOut(BaseModel):
     id: int
     source_conversation_id: int
@@ -46,6 +58,8 @@ class ReplayOut(BaseModel):
     step_position: int
     checkpoint_id: int | None
     variant: ReplayVariantOut
+    # Empty for a replay stored before the layers were kept.
+    blueprint: list[ReplayLayerOut]
     status: ReplayStatus
     detail: str | None
     # The replay's own archived conversation and its reply's run, whose trace is the replay's.
@@ -110,6 +124,10 @@ def replay_out(replay: Replay) -> ReplayOut:
         variant=ReplayVariantOut(
             preset=variant.preset, model=variant.model, layer=variant.layer, ref=variant.ref, label=variant.label
         ),
+        blueprint=[
+            ReplayLayerOut(kind=layer.kind, commit=layer.commit, dirty=layer.dirty, source=layer.source, ref=layer.ref)
+            for layer in replay_layers_from_json(replay.blueprint)
+        ],
         status=replay_status(replay.status),
         detail=replay.detail,
         conversation_id=replay.conversation_id,

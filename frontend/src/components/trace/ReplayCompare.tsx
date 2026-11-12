@@ -1,3 +1,4 @@
+import { blueprintLine } from "./replayBlueprint";
 import { REPLAY_STATUS_LABELS } from "./runLabels";
 import TraceTimeline from "./TraceTimeline";
 import { formatCost, type TraceRun } from "./traceOrder";
@@ -56,6 +57,9 @@ export default function ReplayCompare({ conversationId, replayId, original, onBa
           Saved as eval case <span className="mono">{saved.name}</span> in <span className="mono">{saved.path}</span>,
           starting at checkpoint {saved.checkpoint_id}.
         </p>
+      )}
+      {replay && replay.blueprint.length > 0 && (
+        <p className="faint small trace-pad">{blueprintLine(replay.blueprint)}</p>
       )}
       {replay?.detail && <p className="faint small trace-pad">{replay.detail}</p>}
       {!comparison && !error && <p className="faint trace-pad">Loading…</p>}

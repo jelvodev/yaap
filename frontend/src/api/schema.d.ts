@@ -7732,12 +7732,37 @@ export interface components {
             /** Ref */
             ref?: string | null;
         };
+        /**
+         * ReplayLayerOut
+         * @description What the replay built for one Blueprint layer: the commit it was read at (or the variant's ref), whether the
+         *     layer had uncommitted changes then, and where the version came from.
+         */
+        ReplayLayerOut: {
+            /** Commit */
+            commit: string | null;
+            /** Dirty */
+            dirty: boolean;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "global" | "environment" | "project";
+            /** Ref */
+            ref: string | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "original" | "variant" | "current";
+        };
         /** ReplayOut */
         ReplayOut: {
             /** Agent Run Id */
             agent_run_id: number | null;
             /** Asked */
             asked: number;
+            /** Blueprint */
+            blueprint: components["schemas"]["ReplayLayerOut"][];
             /** Checkpoint Id */
             checkpoint_id: number | null;
             /** Conversation Id */
@@ -8371,6 +8396,8 @@ export interface components {
         };
         /** SideOut */
         SideOut: {
+            /** Errors */
+            errors: number;
             /** Median Cost */
             median_cost: number | null;
             /** Median Steps */
@@ -8383,6 +8410,8 @@ export interface components {
             passed: number;
             /** Plays */
             plays: number;
+            /** Stopped */
+            stopped: number;
             /**
              * Verdict
              * @enum {string}

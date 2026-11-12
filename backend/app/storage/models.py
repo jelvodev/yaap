@@ -248,6 +248,8 @@ class AgentRunRecord(Base):
     transcript: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON)
     # The worker a sub-run was given: a preset's name, claude_code or codex; empty is the default.
     worker: Mapped[str | None] = mapped_column(String(40))
+    # The Blueprint commit of each layer when the run started (app/blueprint/versions.py).
+    blueprint_versions: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON)
 
 
 class RunStep(Base):
@@ -364,6 +366,8 @@ class Replay(Base):
     checkpoint_id: Mapped[int | None] = mapped_column(ForeignKey("checkpoints.id", ondelete="SET NULL"))
     # What differs from the original: preset, model, Blueprint layer and ref.
     variant: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    # The Blueprint the replay built: per layer its kind, commit, whether it had changes then, source and ref.
+    blueprint: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON)
     # queued, running, done, stopped or error
     status: Mapped[str] = mapped_column(String(20))
     detail: Mapped[str | None] = mapped_column(Text)

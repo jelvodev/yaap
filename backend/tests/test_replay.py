@@ -13,12 +13,12 @@ from app.core.shutdown import stop_replies_and_their_work
 from app.evals.cases import parse_case
 from app.evals.play import checkpoint_tree
 from app.evals.workspace import make_workspace
-from app.git.service import run_git
+from app.git.service import commit_all, run_git
 from app.providers.base import HistoryMessage, TokenUsage
 from app.providers.fake_provider import ScriptedResponse
 from app.replays.history import LEFT_OUT_NOTE, last_user_text, model_history, snapshot_messages
 from app.replays.service import workspace_folder
-from app.storage.models import Checkpoint, CheckpointPin, Conversation, Environment, Replay
+from app.storage.models import AgentRunRecord, Checkpoint, CheckpointPin, Conversation, Environment, Replay
 from app.tracing.snapshots import LEFT_OUT, SnapshotStore, trace_dir
 from tests.test_eval_runs import fixture_project
 
@@ -141,6 +141,32 @@ def test_a_replay_from_step_3_starts_with_its_messages_and_files_and_leaves_the_
     assert folder_state(folder) == before_files and run_git(["rev-parse", "HEAD"], folder).stdout == before_head
     # The run's pins are released.
     assert digest not in store.pinned()
+
+
+def test_a_replay_without_a_variant_rebuilds_the_blueprint_at_the_commit_of_the_original_run(client, fake):
+    project, folder, conversation_id, trace = fixture_run(client, fake)
+    run_head = run_git(["rev-parse", "HEAD"], folder).stdout.strip()
+    with client.app.state.session_factory() as session:
+        recorded = session.get_one(AgentRunRecord, trace["run"]["id"]).blueprint_versions
+    assert {"kind": "project", "commit": run_head, "dirty": False} in recorded
+    # A rule added to the project's Blueprint after the original run.
+    rules = folder / ".blueprint"
+    rules.mkdir(exist_ok=True)
+    (rules / "instructions.md").write_text("RULE-ADDED-AFTER-THE-RUN\n", encoding="utf-8")
+    commit_all(folder, "Add a rule")
+    fake.responses.append(REPLAYED)
+
+    started = start_replay(client, conversation_id, step_at(trace, 3)["id"])
+    replay = finished_replay(client, conversation_id, started["id"])["replay"]
+
+    assert replay["status"] == "done", replay
+    system = "\n\n".join(part.text for part in fake.requests[-1].system)
+    assert "RULE-ADDED-AFTER-THE-RUN" not in system
+    layers = {layer["kind"]: layer for layer in replay["blueprint"]}
+    expected = {"kind": "project", "commit": run_head, "dirty": False, "source": "original", "ref": None}
+    assert layers["project"] == expected
+    # The global and environment layers are not repositories here, so they are used as they are now.
+    assert layers["global"]["source"] == "current" and layers["global"]["commit"] is None
 
 
 def test_the_case_from_a_replay_starts_at_its_pinned_checkpoint_which_survives_the_cleanup(client, fake):

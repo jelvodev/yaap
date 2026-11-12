@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.evals.compare import Play, compare, verdict
+from app.evals.compare import Play, compare, overall_rate, summarise, verdict
 from app.evals.variants import Variant, VariantError, checked_variant, stored_variant
 
 
@@ -14,14 +14,41 @@ def play(case: str, status: str, cost: float = 0.1, tokens: int = 1000, steps: i
     ("statuses", "expected"),
     [
         ([], "missing"),
+        (["queued", "running"], "missing"),
         (["passed", "passed", "passed"], "passed"),
         (["passed", "failed", "passed"], "mixed"),
         (["failed", "error"], "failed"),
+        (["passed", "error", "stopped"], "passed"),
+        (["passed", "failed", "error"], "mixed"),
         (["error", "stopped"], "error"),
     ],
 )
 def test_the_verdict_over_the_repeats(statuses: list[str], expected: str) -> None:
     assert verdict(statuses) == expected
+
+
+@pytest.mark.parametrize(
+    ("statuses", "rate", "errors", "stopped", "cost", "expected_verdict"),
+    [
+        (["passed", "error", "stopped"], 1.0, 1, 1, 0.2, "passed"),
+        (["passed", "failed"], 0.5, 0, 0, 0.2, "mixed"),
+        (["error", "stopped"], None, 1, 1, None, "error"),
+        ([], None, 0, 0, None, "missing"),
+        (["failed", "error"], 0.0, 1, 0, 0.2, "failed"),
+    ],
+)
+def test_errors_and_stops_stay_out_of_the_rate_and_the_medians(
+    statuses: list[str], rate: float | None, errors: int, stopped: int, cost: float | None, expected_verdict: str
+) -> None:
+    plays = [play("c", status, 0.0 if status in ("error", "stopped") else 0.2) for status in statuses]
+
+    side = summarise(plays)
+
+    assert (side.pass_rate, side.errors, side.stopped, side.verdict) == (rate, errors, stopped, expected_verdict)
+    assert side.median_cost == (pytest.approx(cost) if cost is not None else None)
+    assert side.plays == sum(1 for status in statuses if status in ("passed", "failed"))
+    assert overall_rate(plays) == rate
+    assert (side.median_tokens is None) == (cost is None)
 
 
 def test_two_fixed_result_sets_give_the_expected_differences() -> None:
@@ -46,6 +73,7 @@ def test_two_fixed_result_sets_give_the_expected_differences() -> None:
     assert list(by_case) == ["dates", "only-a", "parser"]
     dates = by_case["dates"]
     assert (dates.a.verdict, dates.a.plays, dates.a.passed) == ("mixed", 3, 2)
+    assert (dates.a.errors, dates.a.stopped) == (0, 0)
     assert dates.a.pass_rate == pytest.approx(2 / 3) and dates.b.pass_rate == 1.0
     assert dates.a.median_cost == pytest.approx(0.20) and dates.b.median_cost == pytest.approx(0.10)
     assert dates.cost_difference == pytest.approx(-0.10)
@@ -54,8 +82,8 @@ def test_two_fixed_result_sets_give_the_expected_differences() -> None:
     assert (parser.a.verdict, parser.b.verdict) == ("passed", "failed")
     assert parser.cost_difference == pytest.approx(0.02) and parser.steps_difference == 4
     only_a = by_case["only-a"]
-    assert only_a.a.verdict == "error" and only_a.b.verdict == "missing" and only_a.cost_difference is None
-    assert result.pass_rate_a == pytest.approx(3 / 5) and result.pass_rate_b == pytest.approx(3 / 4)
+    assert only_a.a.verdict == "error" and only_a.a.errors == 1 and only_a.b.verdict == "missing" and only_a.cost_difference is None
+    assert result.pass_rate_a == pytest.approx(3 / 4) and result.pass_rate_b == pytest.approx(3 / 4)
 
 
 @pytest.mark.parametrize(

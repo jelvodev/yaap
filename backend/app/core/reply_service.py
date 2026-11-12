@@ -50,6 +50,7 @@ from app.core.reply_events import (
     with_steering_fallback,
     with_summary_check,
 )
+from app.core.reply_blueprint_versions import record_blueprint_versions
 from app.core.reply_repo_map import with_repo_map
 from app.core.reply_routing import route_reply
 from app.core.reply_run import reply_model_trace, run_folder, start_agent_run
@@ -211,6 +212,7 @@ class ReplyService:
             request.tools_by_name,
             on_step,
         )
+        record_blueprint_versions(session, setup, run)
         try:
             return run, replace(
                 agent_request,

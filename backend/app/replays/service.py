@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 
 from app.blueprint.layers import Layer
 from app.blueprint.levels import layers_for
+from app.blueprint.versions import versions_from_json
 from app.checkpoints.pins import pin_checkpoint, replay_owner, unpin_checkpoint
 from app.checkpoints.service import CheckpointStore
 from app.core.background import BackgroundWork
@@ -32,10 +33,11 @@ from app.core.reply_service import ReplyRequest, ReplyService
 from app.core.reply_services import ReplyServices
 from app.evals.models import StartState
 from app.evals.play import MAX_PLAY_SECONDS, PlayError, checkpoint_tree, play_setup, root_run
-from app.evals.variants import Variant, VariantError, stored_variant, variant_layers
+from app.evals.variants import Variant, VariantError, stored_variant
 from app.evals.workspace import WorkspaceError, make_workspace, remove_workspace, runs_folder
 from app.presets.service import find_preset_by_name
 from app.projects.service import ProjectError, project_path
+from app.replays.blueprint import build_replay_layers
 from app.replays.files import FilesError, files_checkpoint
 from app.replays.history import SnapshotMessagesError, last_user_text, model_history, snapshot_messages
 from app.replays.summary import asked_count
@@ -227,7 +229,7 @@ class ReplayService:
                     lambda number: checkpoint_tree(session, project.id, number),
                     environment.id,
                 )
-                layers = self.layers(services, replay_id, environment, project, variant)
+                layers = self.layers(services, session, replay, environment, project)
             except (WorkspaceError, VariantError, ProjectError) as error:
                 raise ReplayError(str(error)) from error
             conversation = replay_conversation(session, services, source, replay, variant)
@@ -255,12 +257,17 @@ class ReplayService:
             return Started(job, conversation.id)
 
     def layers(
-        self, services: ReplyServices, replay_id: int, environment: Environment, project: Project, variant: Variant
-    ) -> list[Layer] | None:
-        if variant.layer is None:
-            return None
+        self, services: ReplyServices, session: Session, replay: Replay, environment: Environment, project: Project
+    ) -> list[Layer]:
+        """Each Blueprint layer at the commit the original run had (the variant's at its ref), noted on the replay.
+        The caller commits."""
         layers = layers_for(services.blueprint_dir, services.workspace_dir, environment, project)
-        return variant_layers(layers, variant, replay_data_dir(services.data_dir, replay_id) / "layers")
+        original = session.get(AgentRunRecord, replay.source_run_id) if replay.source_run_id is not None else None
+        recorded = versions_from_json(original.blueprint_versions if original is not None else None)
+        folder = replay_data_dir(services.data_dir, replay.id) / "layers"
+        built, described = build_replay_layers(layers, stored_variant(replay.variant), recorded, folder)
+        replay.blueprint = [layer.as_json() for layer in described]
+        return built
 
     def finish(self, services: ReplyServices, replay_id: int, status: str, detail: str | None) -> None:
         with services.session_factory() as session:

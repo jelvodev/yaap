@@ -25,6 +25,8 @@ function SideCell({ side }: { side: Side }) {
       <span className="faint small">
         {" "}
         {side.passed}/{side.plays} · {money(side.median_cost)}
+        {side.errors > 0 && ` · ${side.errors} ${side.errors === 1 ? "error" : "errors"}`}
+        {side.stopped > 0 && ` · ${side.stopped} stopped`}
       </span>
     </td>
   );

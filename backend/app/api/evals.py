@@ -126,6 +126,8 @@ class SideOut(BaseModel):
     verdict: Verdict
     plays: int
     passed: int
+    errors: int
+    stopped: int
     pass_rate: float | None
     median_cost: float | None
     median_tokens: float | None

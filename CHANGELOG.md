@@ -13,6 +13,8 @@ yourself when you update; it says "None." when there is nothing.
 - A failed reply start now closes the model connection and revokes the run's tool-server token.
 - Git on project folders (status, diff, commits, branches, merges, reviews and the like) now runs in the environment's runner instead of in YAAP; fetch and push stay in YAAP because they use your GitHub token.
 - A queued `/compact` or `/eval` is now accepted from the queue and run in turn, instead of waiting as a message.
+- A replay without changes now rebuilds its instructions from each Blueprint layer at the version the original run used, and its header says which version each layer came from.
+- Eval comparisons count the pass rate and the median cost over plays that passed or failed only, and show errors and stopped plays apart.
 
 ### Action needed
 

@@ -9081,6 +9081,64 @@
         "title": "ReplayIn",
         "type": "object"
       },
+      "ReplayLayerOut": {
+        "description": "What the replay built for one Blueprint layer: the commit it was read at (or the variant's ref), whether the\nlayer had uncommitted changes then, and where the version came from.",
+        "properties": {
+          "commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commit"
+          },
+          "dirty": {
+            "title": "Dirty",
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "global",
+              "environment",
+              "project"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref"
+          },
+          "source": {
+            "enum": [
+              "original",
+              "variant",
+              "current"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "commit",
+          "dirty",
+          "source",
+          "ref"
+        ],
+        "title": "ReplayLayerOut",
+        "type": "object"
+      },
       "ReplayOut": {
         "properties": {
           "agent_run_id": {
@@ -9097,6 +9155,13 @@
           "asked": {
             "title": "Asked",
             "type": "integer"
+          },
+          "blueprint": {
+            "items": {
+              "$ref": "#/components/schemas/ReplayLayerOut"
+            },
+            "title": "Blueprint",
+            "type": "array"
           },
           "checkpoint_id": {
             "anyOf": [
@@ -9209,6 +9274,7 @@
           "step_position",
           "checkpoint_id",
           "variant",
+          "blueprint",
           "status",
           "detail",
           "conversation_id",
@@ -11065,6 +11131,10 @@
       },
       "SideOut": {
         "properties": {
+          "errors": {
+            "title": "Errors",
+            "type": "integer"
+          },
           "median_cost": {
             "anyOf": [
               {
@@ -11117,6 +11187,10 @@
             "title": "Plays",
             "type": "integer"
           },
+          "stopped": {
+            "title": "Stopped",
+            "type": "integer"
+          },
           "verdict": {
             "enum": [
               "passed",
@@ -11133,6 +11207,8 @@
           "verdict",
           "plays",
           "passed",
+          "errors",
+          "stopped",
           "pass_rate",
           "median_cost",
           "median_tokens",
