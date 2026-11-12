@@ -25,7 +25,8 @@ DEFAULT_READ_LINES = 400
 MAX_READ_LINES = 2000
 # Longer lines (minified code, data) are cut so one line cannot fill the context.
 MAX_LINE_CHARS = 2000
-SKIPPED_FOLDERS = {".git", "node_modules", ".venv", "__pycache__", "dist", "build", ".next"}
+# The folders the file tools, search and the repository map leave out; `.yaap` holds YAAP's build copies.
+SKIPPED_FOLDERS = {".git", ".yaap", "node_modules", ".venv", "__pycache__", "dist", "build", ".next"}
 # Where outlines come from; a language server's document symbols can take this place.
 OUTLINER: Outliner = ParserOutliner()
 
