@@ -149,6 +149,12 @@ Ideas without a version.
     - Still open: a hub for the board, the Blueprint and the numbers first, or a YAAP for several people in the
       browser right away; whether personal YAAPs and a server can share one board; how the overnight builds share a
       budget and a subscription's limits; what licences and terms allow for coding CLIs on a shared server.
+78. **Skills from your own work.** When the same way of working comes back in a project, YAAP proposes a new skill
+    for it. It is measured with the evals before you accept it, and skills that no longer help are proposed for
+    removal. Nothing is written without you.
+79. **YAAP in your editor.** YAAP speaks the Agent Client Protocol (ACP), so you can work with it from Zed, JetBrains
+    and other editors, with your Blueprint, permissions and runner.
+    - Still open: other agents that speak ACP as workers, only when they can run in the runner or a sandbox.
 
 For the code base itself:
 
