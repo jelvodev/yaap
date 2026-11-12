@@ -10,14 +10,17 @@ from typing import Any
 
 from app.agent.file_tools import DEFAULT_READ_LINES
 from app.core.chat_history import is_part_of_history
-from app.core.context_control import resolve_context_control
+from app.core.context_control import ContextControl, resolve_context_control
 from app.core.context_savings import context_savings_on
+from app.core.reply_notes import TRIM_TEXT, note_on_reply
 from app.core.summaries import KEEP_TURNS, latest_summary
+from app.core.why import Why, WhySource
 from app.providers.anthropic_provider import TURNS_BLOCK_TYPE
 from app.providers.base import HistoryMessage
 from app.providers.openai_provider import ITEMS_BLOCK_TYPE
 from app.providers.registry import ProviderRegistry
 from app.storage.models import Conversation, Message
+from app.tracing.notes import Note
 
 LONG_OUTPUT = 2000
 KEEP_CHARS = 600
@@ -200,7 +203,7 @@ def context_savings_for(session: Any, branch: list[Message]) -> bool:
     return conversation is not None and context_savings_on(session, conversation.environment_id)
 
 
-def mark_trim(session: Any, branch: list[Message]) -> bool:
+def mark_trim(session: Any, branch: list[Message], why: Why | None = None) -> bool:
     point = trim_point(branch)
     if point is None:
         return False
@@ -211,9 +214,36 @@ def mark_trim(session: Any, branch: list[Message]) -> bool:
         block["stale"] = sorted(stale_reads(branch) & reads_up_to_point)
     message.content = [*(item for item in message.content if item.get("type") != "trim"), block]
     session.commit()
+    note_on_reply(session, message.conversation_id, branch[-1].id, Note("trim", TRIM_TEXT, why))
     return True
 
 
-def needs_trim(session: Any, providers: ProviderRegistry, conversation: Conversation, used: int) -> bool:
-    """Whether the last reply filled trim_at percent of the context limit, with auto_compact on."""
-    return resolve_context_control(session, providers, conversation).needs_trim(used)
+def reached_why(control: ContextControl, used: int | None, percent: int, setting: str, source: WhySource) -> Why:
+    """The rule for a context that reached percent of the limit, naming the percentage, the limit and the threshold."""
+    limit = control.limit or 0
+    share = round(used * 100 / limit) if used is not None and limit else 0
+    action = "old tool output is shortened" if source == "trim" else "the earlier messages are summarised"
+    rule = (
+        f"The context reached {share}% of the {limit:,}-token limit, past the {percent}% threshold, "
+        f"so {action}."
+    )
+    return Why(rule, source, setting)
+
+
+def trim_why(control: ContextControl, used: int | None) -> Why | None:
+    """Why old tool output is shortened now, or None when the context has not reached trim_at."""
+    if not control.needs_trim(used):
+        return None
+    return reached_why(control, used, control.trim_at, "trim_at", "trim")
+
+
+def summary_why(control: ContextControl, used: int | None) -> Why | None:
+    """Why the earlier messages are summarised now, or None when the context has not reached compact_at."""
+    if not control.needs_summary(used):
+        return None
+    return reached_why(control, used, control.compact_at, "compact_at", "summary")
+
+
+def needs_trim(session: Any, providers: ProviderRegistry, conversation: Conversation, used: int) -> Why | None:
+    """The reason the last reply filled trim_at percent of the context limit (auto_compact on), or None."""
+    return trim_why(resolve_context_control(session, providers, conversation), used)

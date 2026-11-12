@@ -17,6 +17,7 @@ from app.core.audit import NO_PROJECT_DATA, ProjectData, record_request, reply_e
 from app.core.model_choice import ForReply, ModelChoiceError, PolicyForbids, read_key, resolve_provider
 from app.core.outgoing_checks import OutgoingRules, outgoing_rules
 from app.core.prompts import Languages
+from app.core.reply_notes import memory_note
 from app.core.reply_errors import ReplyUnavailable
 from app.core.reply_services import ReplyServices
 from app.core.routing import Route
@@ -34,6 +35,7 @@ from app.secrets.service import list_secrets
 from app.storage.models import Conversation, Environment, Project
 from app.targets.base import TargetError
 from app.targets.service import RunTarget, conversation_run_target, describe_target
+from app.tracing.notes import Note
 
 
 @dataclass
@@ -63,6 +65,8 @@ class ReplySetup:
     workspace: Path | None = None
     # How the conversation's preset routed this reply; None when it does not route.
     route: Route | None = None
+    # Step notes made while preparing: the memory recalled.
+    notes: tuple[Note, ...] = ()
 
     def reply_model(self, conversation: Conversation) -> tuple[str, str]:
         """The model and effort of this reply: the routed ones, else the conversation's."""
@@ -94,8 +98,9 @@ def prepare_reply(services: ReplyServices, session: Session, conversation: Conve
     agent = find_agent(layers, conversation.agent)
     languages = resolve_languages(session, environment.id, project.id if project else None)
     project_text, recalled_memory, project_data = None, None, NO_PROJECT_DATA
+    notes: tuple[Note, ...] = ()
     if agent_project is not None:
-        project_text, recalled_memory, project_data = project_context(
+        project_text, recalled_memory, project_data, notes = project_context(
             services, session, agent_project, languages, query
         )
     system = build_system_parts(layers, project_text, agent_part(agent, layers) if agent else None, languages)
@@ -113,7 +118,7 @@ def prepare_reply(services: ReplyServices, session: Session, conversation: Conve
     outgoing = outgoing_rules(session, services.cipher, environment.id, conversation.project_id)
     return ReplySetup(
         provider_spec, api_key, environment, layers, agent_project, agent, system, project_text,
-        turn_context(session, recalled_memory), languages, on_target, outgoing, project_data,
+        turn_context(session, recalled_memory), languages, on_target, outgoing, project_data, notes=notes,
     )
 
 
@@ -127,9 +132,9 @@ def record_policy_refusal(services: ReplyServices, conversation: Conversation, r
 
 def project_context(
     services: ReplyServices, session: Session, project: Project, languages: Languages, query: str
-) -> tuple[str, str | None, ProjectData]:
-    """The project part of the system prompt, the memory recalled for this message when it is too large, and what
-    of the project they carry."""
+) -> tuple[str, str | None, ProjectData, tuple[Note, ...]]:
+    """The project part of the system prompt, the memory recalled for this message when it is too large, what of the
+    project they carry, and the step note about the memory."""
     secret_names = [secret.name for secret in list_secrets(session, project.environment_id, project.id)]
     knowledge_names = [document.name for document in project_documents(session, project.id)]
     memory = read_memory(project_path(services.workspace_dir, project))
@@ -139,4 +144,5 @@ def project_context(
     carried = ProjectData(has_entries(memory), bool(knowledge_names), tuple(sorted(secret_names)))
     host_folder = project_host_folder(services.host_data_dir, project.folder) if services.host_data_dir else None
     text = project_part(project, memory_text, secret_names, knowledge_names, languages.work, host_folder)
-    return text, recalled_memory, carried
+    found = memory_note(recalled)
+    return text, recalled_memory, carried, (found,) if found is not None else ()

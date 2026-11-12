@@ -12,6 +12,8 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Literal, get_args
 
+from app.core.why import Why
+
 RouteKind = Literal["question", "change", "planning", "review"]
 RouteRole = Literal["main", "worker", "utility"]
 
@@ -55,6 +57,7 @@ class Route:
     # The role that answers; main also when routing fell back.
     role: RouteRole
     reason: str
+    why: Why | None = None
 
     def stored(self) -> dict[str, str | None]:
         return {
@@ -64,6 +67,7 @@ class Route:
             "kind": self.kind,
             "role": self.role,
             "reason": self.reason,
+            "why": self.why.stored() if self.why else None,
         }
 
 
@@ -118,24 +122,43 @@ def decide_route(
     refusal says why a model cannot answer here (the policy, its connection, its key), or None; name gives a model's
     display name. Every way it cannot route ends on the main model with the reason."""
 
-    def fallback(kind: RouteKind | None, reason: str) -> Route:
+    def fallback(kind: RouteKind | None, reason: str, rule: str, setting: str | None = None) -> Route:
         ending = " The main model answers."
         reason = reason if len(reason) + len(ending) <= MAX_REASON else reason[: MAX_REASON - len(ending) - 1] + "…"
-        return Route(main.model, main.effort, name(main.model), kind, "main", reason + ending)
+        why = Why(rule + ending, "route", setting)
+        return Route(main.model, main.effort, name(main.model), kind, "main", reason + ending, why)
 
     kind = classify(answer)
     if kind is None:
         if answer:
-            return fallback(None, "The utility model's answer named no kind of message.")
-        return fallback(None, "The utility model gave no answer.")
+            return fallback(
+                None,
+                "The utility model's answer named no kind of message.",
+                "Routing needs the utility model to name one kind of message, and its answer named none.",
+            )
+        return fallback(None, "The utility model gave no answer.", "Routing needs an answer from the utility model.")
     phrase, role = KIND_PHRASES[kind], routes.get(kind, "main")
     if role == "main":
-        return Route(main.model, main.effort, name(main.model), kind, "main", f"{phrase}: the main model answers.")
+        rule = f"The preset sends {kind} messages to the main model."
+        why = Why(rule, "route", "routes")
+        return Route(main.model, main.effort, name(main.model), kind, "main", f"{phrase}: the main model answers.", why)
     candidate = roles.get(role)
     if candidate is None:
-        return fallback(kind, f"{phrase} goes to the {role} model, which this preset does not have.")
+        return fallback(
+            kind,
+            f"{phrase} goes to the {role} model, which this preset does not have.",
+            f"The preset sends {kind} messages to its {role} model, but the preset has none.",
+            "routes",
+        )
     problem = refusal(candidate)
     if problem is not None:
-        return fallback(kind, f"{phrase} goes to {name(candidate.model)}, which cannot answer here: {problem}")
+        return fallback(
+            kind,
+            f"{phrase} goes to {name(candidate.model)}, which cannot answer here: {problem}",
+            f"The preset sends {kind} messages to its {role} model, but this connection, the model policy or the key "
+            "does not allow it here.",
+            "routes",
+        )
     reason = f"{phrase}: the {role} model answers."
-    return Route(candidate.model, candidate.effort, name(candidate.model), kind, role, reason)
+    why = Why(f"The preset sends {kind} messages to its {role} model.", "route", "routes")
+    return Route(candidate.model, candidate.effort, name(candidate.model), kind, role, reason, why)

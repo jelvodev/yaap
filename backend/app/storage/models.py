@@ -260,7 +260,7 @@ class RunStep(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     run_id: Mapped[int] = mapped_column(ForeignKey("agent_runs.id"), index=True)
     position: Mapped[int] = mapped_column(Integer)
-    # "model" or "tool"
+    # "model", "tool" or "note"
     kind: Mapped[str] = mapped_column(String(10))
     started_at: Mapped[datetime] = mapped_column(UtcDateTime())
     duration_ms: Mapped[int] = mapped_column(Integer, default=0)
@@ -283,6 +283,8 @@ class RunStep(Base):
     # (the user's reason, the test command, the Blueprint item that already held what was searched for).
     signal: Mapped[str | None] = mapped_column(String(20))
     signal_note: Mapped[str | None] = mapped_column(String(500))
+    # A note's kind, text, reason and cost; for a tool call that asked or was refused, its reason and call key.
+    detail: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
 
 class EvalRun(Base):

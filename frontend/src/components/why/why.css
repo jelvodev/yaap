@@ -1,0 +1,50 @@
+.why {
+  position: relative;
+  display: inline-block;
+}
+
+.why-button {
+  padding: 0 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.why-button:hover,
+.why-button[aria-expanded="true"] {
+  color: var(--text);
+  background: var(--hover-strong);
+}
+
+.why-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 15;
+  width: min(300px, calc(100vw - 32px));
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--raised);
+  box-shadow: 0 12px 30px var(--shadow);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: normal;
+  text-align: left;
+}
+
+.why-text p {
+  margin: 0 0 4px;
+}
+
+.why-text p:last-child {
+  margin-bottom: 0;
+}
+
+.why-meta {
+  color: var(--muted);
+}

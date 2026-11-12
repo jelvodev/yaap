@@ -11,6 +11,7 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from app.agent.outputs import OutputStore
+from app.api.behind import WhyOut, why_out
 from app.api.conversations import ConversationDependency, conversation_layers
 from app.api.dependencies import (
     BlueprintDirDependency,
@@ -141,6 +142,7 @@ class HintOut(BaseModel):
     text: str
     remedy: str
     roadmap_item: int
+    why: WhyOut | None = None
 
 
 class TokenUsageOut(BaseModel):
@@ -221,7 +223,13 @@ def tool_result_out(result: ToolResultTokens) -> ToolResultTokensOut:
 
 
 def hint_out(hint: Hint) -> HintOut:
-    return HintOut(**vars(hint))
+    return HintOut(
+        kind=hint.kind,
+        text=hint.text,
+        remedy=hint.remedy,
+        roadmap_item=hint.roadmap_item,
+        why=why_out(hint.why) if hint.why is not None else None,
+    )
 
 
 def report_out(report: TokenReport) -> TokenUsageOut:

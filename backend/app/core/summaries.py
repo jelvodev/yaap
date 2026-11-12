@@ -23,6 +23,7 @@ from app.core.utility import UtilityContext, UtilitySkipped, run_utility_or_skip
 from app.providers.base import HistoryMessage
 from app.providers.registry import ProviderRegistry
 from app.storage.models import Conversation, Message, UsageRecord
+from app.tracing.notes import Note
 
 logger = logging.getLogger(__name__)
 
@@ -271,7 +272,8 @@ async def summarise_if_needed(context: UtilityContext, conversation_id: int) -> 
         with context.session_factory() as session:
             conversation = session.get_one(Conversation, conversation_id)
             from app.core.context_control import resolve_context_control
-            from app.core.trimming import mark_trim
+            from app.core.reply_notes import SUMMARY_TEXT, note_on_reply
+            from app.core.trimming import mark_trim, summary_why, trim_why
 
             branch = load_branch(session, conversation_id, conversation.head_message_id)
             control = resolve_context_control(session, context.providers, conversation)
@@ -279,9 +281,12 @@ async def summarise_if_needed(context: UtilityContext, conversation_id: int) -> 
             if not control.needs_summary(used) or cover_point(branch) is None:
                 # The cheaper step first: shorten old tool output.
                 if control.needs_trim(used):
-                    mark_trim(session, branch)
+                    mark_trim(session, branch, trim_why(control, used))
                 return False
+            why, reply_id = summary_why(control, used), branch[-1].id
         await summarise(context, conversation_id)
+        with context.session_factory() as session:
+            note_on_reply(session, conversation_id, reply_id, Note("summary", SUMMARY_TEXT, why))
         return True
     except SummaryError as error:
         logger.info("No summary for conversation %s: %s", conversation_id, error)

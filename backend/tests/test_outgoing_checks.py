@@ -14,7 +14,7 @@ from app.agent.gate import call_tool
 from app.agent.tools import tools_for
 from app.core.model_policy import ListedPattern, ModelPolicy, PolicySource
 from app.core.model_policy_store import resolve_model_policy
-from app.core.outgoing_checks import OutgoingRules, checked_provider, request_refusal, text_refusal
+from app.core.outgoing_checks import OutgoingRules, checked_provider, request_refusal, text_block, text_refusal
 from app.providers.base import AgentRequest, HistoryMessage, ProviderError, SystemPart
 from app.providers.fake_provider import FakeProvider, ScriptedResponse
 from tests.conftest import VALID_KEY, parse_events
@@ -179,3 +179,19 @@ def test_an_outgoing_a2a_message_with_a_secret_is_blocked(client, monkeypatch, t
     output, is_error = asyncio.run(scenario())
     assert is_error and "the secret DB_PASSWORD" in str(output) and SECRET not in str(output)
     assert agent.requests == []
+
+
+@pytest.mark.parametrize(
+    ("text", "setting", "layer", "needle"),
+    [
+        (f"The password is {SECRET}.", None, None, "DB_PASSWORD"),
+        ("Pay with 1234-5678-9012-3456 please.", "model_policy", "environment", "Work"),
+    ],
+)
+def test_a_block_carries_its_rule_and_never_the_secret_value(text, setting, layer, needle):
+    block = text_block(text, RULES)
+    assert block is not None and block.message == text_refusal(text, RULES)
+    assert (block.why.source, block.why.setting, block.why.layer) == ("outgoing", setting, layer)
+    assert needle in block.why.rule
+    assert SECRET not in block.why.rule and "1234-5678" not in block.why.rule
+    assert text_block("Nothing special here.", RULES) is None

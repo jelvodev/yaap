@@ -118,3 +118,17 @@ def test_session_hints_are_empty_for_empty_facts_and_ordered_otherwise():
 
 def test_each_hint_kind_points_at_its_public_roadmap_item():
     assert ROADMAP_ITEM == {"repeated_read": 58, "cold_cache": 64, "tool_results_heavy": 58, "mcp_share": 58}
+
+
+@pytest.mark.parametrize(
+    ("hint", "needle"),
+    [
+        (repeated_read(facts(reads={"a.py": 2})), "2 times or more"),
+        (cold_cache(facts(gaps=[ReplyGap(900, 0, 500)])), "more than 5 minutes"),
+        (tool_results_heavy(facts(context=context(results=900))), "over 50%"),
+        (mcp_share(facts(context=context(definitions={"mcp:docs": 10}))), "over 30%"),
+    ],
+)
+def test_each_hint_names_the_threshold_that_raised_it(hint, needle):
+    assert hint is not None and hint.why is not None
+    assert hint.why.source == "hint" and needle in hint.why.rule

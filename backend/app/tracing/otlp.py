@@ -373,7 +373,9 @@ def steps_of(session: Session, run_ids: Sequence[int]) -> dict[int, list[RunStep
     for start in range(0, len(run_ids), 500):
         chunk = run_ids[start : start + 500]
         rows = session.scalars(
-            select(RunStep).where(RunStep.run_id.in_(chunk)).order_by(RunStep.run_id, RunStep.position, RunStep.id)
+            select(RunStep)
+            .where(RunStep.run_id.in_(chunk), RunStep.kind != "note")
+            .order_by(RunStep.run_id, RunStep.position, RunStep.id)
         )
         for row in rows:
             steps.setdefault(row.run_id, []).append(row)

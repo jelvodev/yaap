@@ -3,6 +3,7 @@ import { useState } from "react";
 import { api, errorMessage } from "../api/client";
 import type { ApprovalDecision } from "../api/message-stream";
 import type { ReplyBlock } from "./message/replyBlock";
+import { WhyPopover } from "./why/WhyPopover";
 
 const DECISION_LABELS: Record<ApprovalDecision, string> = { approve: "Approved", deny: "Declined" };
 
@@ -32,6 +33,7 @@ export default function ApprovalBlock({ block }: { block: Extract<ReplyBlock, { 
       <div className="approval-head">
         <strong>{block.decision ? DECISION_LABELS[block.decision] : "Approval needed"}</strong>
         <span>{block.summary}</span>
+        {block.why && <WhyPopover why={block.why} />}
       </div>
       {block.suspicion && (
         <p className="approval-suspicion" role="alert">

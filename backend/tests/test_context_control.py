@@ -1,8 +1,10 @@
 """Context control: the context limit, the reply length, automatic compaction and /compact."""
 
+import pytest
 from sqlalchemy import select
 
-from app.core.context_control import resolve_context_control
+from app.core.context_control import ContextControl, resolve_context_control
+from app.core.trimming import summary_why, trim_why
 from app.providers.base import TokenUsage
 from app.providers.claude_code_provider import claude_code_environment
 from app.providers.fake_provider import ScriptedResponse
@@ -271,3 +273,29 @@ def test_compact_is_refused_where_the_connection_compacts_itself(client, fake):
     chat_turns(client, fake, conversation_id, 6)
     refused = client.post(f"/api/v1/conversations/{conversation_id}/messages", json={"text": "/compact"})
     assert refused.status_code == 409 and "compact their own" in refused.json()["detail"]
+
+
+@pytest.mark.parametrize(
+    ("control", "used", "trim", "summary"),
+    [
+        (ContextControl(None, 100_000, "default"), 49_000, False, False),
+        (ContextControl(None, 100_000, "default"), 50_000, True, False),
+        (ContextControl(None, 100_000, "default"), 70_000, True, True),
+        (ContextControl(None, 100_000, "default", auto_compact=False), 90_000, False, False),
+        (ContextControl(None, 100_000, "default", compacts_itself=True), 90_000, False, False),
+        (ContextControl(None, None, "default"), 90_000, False, False),
+        (ContextControl(None, 100_000, "default"), None, False, False),
+        (ContextControl(None, 100_000, "default", compact_at=80, trim_at=60), 65_000, True, False),
+    ],
+)
+def test_trim_and_summary_reasons_exist_exactly_when_the_thresholds_are_reached(control, used, trim, summary):
+    trimmed, summarised = trim_why(control, used), summary_why(control, used)
+    assert (trimmed is not None, summarised is not None) == (trim, summary)
+    assert (trimmed is None) == (not control.needs_trim(used))
+    assert (summarised is None) == (not control.needs_summary(used))
+    if trimmed:
+        assert (trimmed.source, trimmed.setting) == ("trim", "trim_at")
+        assert f"{control.trim_at}%" in trimmed.rule and f"{control.limit:,}" in trimmed.rule
+    if summarised:
+        assert (summarised.source, summarised.setting) == ("summary", "compact_at")
+        assert f"{control.compact_at}%" in summarised.rule

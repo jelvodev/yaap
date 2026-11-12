@@ -1,4 +1,5 @@
 import { formatTokens } from "../composer/modelSetup";
+import { WhyPopover } from "../why/WhyPopover";
 import TokenBar from "./TokenBar";
 import { TOKEN_KINDS, largestTotal, percent } from "./tokenBars";
 import { formatCost } from "./traceOrder";
@@ -80,6 +81,12 @@ export default function TokensTab({ conversationId, onOpenStep }: TokensTabProps
             {usage.hints.map((hint) => (
               <li key={hint.kind}>
                 {hint.text} <span className="faint">{hint.remedy}</span>
+                {hint.why && (
+                  <>
+                    {" "}
+                    <WhyPopover why={hint.why} />
+                  </>
+                )}
               </li>
             ))}
           </ul>

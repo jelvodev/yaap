@@ -198,3 +198,21 @@ def test_an_unknown_classifier_answer_lets_the_main_model_answer(client, fake):
     assert fake.requests[1].model == OPUS
     route = events[-1][1]["message"]["route"]
     assert route["kind"] is None and "named no kind" in route["reason"]
+
+
+@pytest.mark.parametrize(
+    ("answer", "roles", "refusal", "setting", "needle"),
+    [
+        ("question", {"worker": WORKER, "utility": UTILITY}, allowed, "routes", "its utility model"),
+        ("planning", {"worker": WORKER}, allowed, "routes", "main model"),
+        ("change", {"worker": None}, allowed, "routes", "the preset has none"),
+        ("change", {"worker": WORKER}, lambda _: "no key", "routes", "does not allow it here"),
+        ("banana", {"worker": WORKER}, allowed, None, "name one kind"),
+        (None, {"worker": WORKER}, allowed, None, "an answer from the utility model"),
+    ],
+)
+def test_every_route_carries_the_rule_that_chose_it(answer, roles, refusal, setting, needle):
+    route = decide_route(answer, ROUTES, MAIN, roles, refusal, str)
+    assert route.why is not None and route.why.source == "route" and route.why.setting == setting
+    assert needle in route.why.rule
+    assert route.stored()["why"] == route.why.stored()
