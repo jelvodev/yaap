@@ -44,6 +44,7 @@
 
 .context-table {
   width: 100%;
+  table-layout: fixed;
   margin-top: 8px;
   border-collapse: collapse;
 }
