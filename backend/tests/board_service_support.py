@@ -5,6 +5,9 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from app.board.card import render_card
+from app.board.paths import card_path
+from app.board.repository import Put
 from app.board.service import BoardService
 from app.storage.models import Project
 
@@ -61,3 +64,21 @@ def set_repository_url(client: TestClient, project_id: int, url: str) -> None:
         assert project is not None
         project.repository_url = url
         session.commit()
+
+
+def hand_edit(client: TestClient, project_id: int, card_id: int, **changes: object) -> None:
+    """Change a card on the board's branch from outside the service, as an edit by hand would; the next read syncs it."""
+    service = board_service(client)
+    opened = service.opened(project_id)
+    head = opened.repository.head()
+    card = BoardService.read_card(opened.repository, card_id, head)
+    opened.repository.commit_changes(
+        [Put(card_path(card_id), render_card(card.model_copy(update=changes)))], "Edit by hand", head, False
+    )
+
+
+def write_raw(client: TestClient, project_id: int, path: str, text: str) -> None:
+    """Put a file with this exact text on the board's branch (to make a broken card)."""
+    service = board_service(client)
+    opened = service.opened(project_id)
+    opened.repository.commit_changes([Put(path, text)], "Raw file", opened.repository.head(), False)
