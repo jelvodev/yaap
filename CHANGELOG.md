@@ -56,6 +56,8 @@ yourself when you update; it says "None." when there is nothing.
 - Backups include the boards kept in separate repositories.
 - YAAP now checks the configuration of a bare repository it uses (such as the git transport) the same way as any
 
+- **Board triggers.** A project's board settings have *Triggers*: things YAAP checks on a schedule that put a card in
+
 ### Action needed
 
 - `git push --all` and `git push --mirror` also push the `yaap-board` branch, and with it every card, specification and plan. On a public repository, push your branches one by one.
