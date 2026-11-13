@@ -43,7 +43,7 @@ from app.evals.checks import output_tail
 from app.git.place import run_from_worker
 from app.github.client import GitHubClient, GitHubError, Issue, PullRequest
 from app.projects.service import ProjectError, project_path
-from app.runner.service import RUNNERS, Runners, runner_path
+from app.runner.service import RUNNERS, Runners
 from app.storage.models import Project, ScheduledRun, ScheduledTask
 from app.targets.base import CommandExecutor, TargetError
 
@@ -152,7 +152,9 @@ def runner_executor(runners: Runners, project: Project) -> CommandExecutor:
         raise PollFailed("A trigger's command runs only in the runner, and the runner is off.")
     try:
         runtime = runners.runtime(project.environment_id, f"Board trigger in {project.name}")
-        return runtime.executor(runner_path(runtime.environment_dir, str(project_path(runners.workspace_dir, project))))
+        # `executor` maps the local folder into the runner itself (`runner_path`); a runner path given here would be
+        # mapped twice and refused.
+        return runtime.executor(str(project_path(runners.workspace_dir, project)))
     except (TargetError, ProjectError) as error:
         raise PollFailed(str(error)) from error
 

@@ -23,8 +23,10 @@ from app.scheduling.board_trigger import (
     cards_in_summary,
     day_start,
     run_summary,
+    runner_executor,
 )
-from app.storage.models import ScheduledRun, ScheduledTask
+from app.runner.service import Runners, runner_path
+from app.storage.models import Project, ScheduledRun, ScheduledTask
 from app.targets.base import CommandResult
 from tests.board_service_support import (
     add_card,
@@ -442,3 +444,18 @@ def test_a_project_without_a_github_repository_fails_the_poll_without_a_card(cli
 
     assert status == "failed" and "not on GitHub" in summary
     assert trigger.cards() == []
+
+
+class StubRuntime:
+    def __init__(self, environment_dir):
+        self.environment_dir = environment_dir
+
+    def executor(self, root):
+        return runner_path(self.environment_dir, root)
+
+
+def test_a_command_trigger_runs_in_the_projects_folder_of_the_runner(tmp_path):
+    runners = Runners(workspace_dir=tmp_path)
+    runners.runtime = lambda environment_id, used_by: StubRuntime(tmp_path / "private")
+    project = Project(name="Stockroom", folder="private/stockroom", environment_id=1)
+    assert runner_executor(runners, project) == "/workspace/stockroom"
