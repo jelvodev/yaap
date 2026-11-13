@@ -39,7 +39,7 @@ yourself when you update; it says "None." when there is nothing.
 - After a restart, a card whose build was cut off shows *Continue the build* with the step it will go on from. A review that was cut off can be run again.
 - In a conversation that belongs to a card, the agent can read the card and set its specification or ask the user a question on it. It cannot change anything else on the card.
 - Added: the project board page. Clicking a project in the chat sidebar opens its board in the main area: seven
-- Added: a project without cards opens with one field to start a conversation or note a first idea.
+- Added: a project without cards shows the board's empty columns with a slim bar above them to start a conversation or note a first idea. Where the board is kept is asked when the first card is added, or from *Where the board is kept* in the header.
 - Added: the board can be switched on or off per project in its settings; switched off, a project click behaves as
 
 - The agent can put a card in a project board's Inbox for something it noticed outside its task (`add_card`). It

@@ -17,6 +17,8 @@ interface HeaderProps {
   view: BoardView;
   setView: (view: BoardView) => void;
   reload: () => Promise<void>;
+  /** Before the board started: open the choice of where it is kept. */
+  onChooseStorage?: () => void;
 }
 
 /** The version the meters describe: the filtered one, else the board's current version. */
@@ -121,6 +123,11 @@ export default function BoardHeader(props: HeaderProps) {
       <div className="board-header-row">
         {shown && <Meters version={shown} />}
         <div className="board-header-end">
+          {props.onChooseStorage && (
+            <button type="button" className="link-button small" onClick={props.onChooseStorage}>
+              Where the board is kept
+            </button>
+          )}
           {shown && (
             <button
               type="button"
@@ -130,13 +137,15 @@ export default function BoardHeader(props: HeaderProps) {
               Edit version
             </button>
           )}
-          <button
-            type="button"
-            className="button button-ghost board-small"
-            onClick={() => setDialog({ version: null })}
-          >
-            + Version
-          </button>
+          {board.state === "ready" && (
+            <button
+              type="button"
+              className="button button-ghost board-small"
+              onClick={() => setDialog({ version: null })}
+            >
+              + Version
+            </button>
+          )}
         </div>
       </div>
       {dialog && (

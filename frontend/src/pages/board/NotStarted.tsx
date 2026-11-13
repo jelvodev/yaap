@@ -9,8 +9,11 @@ export default function NotStarted({
   start,
   onStarted,
   onCancel,
+  pendingTitle = null,
 }: {
   projectId: number;
+  /** The card that waits for the board to start. */
+  pendingTitle?: string | null;
   start: (choice: BoardStartChoice) => Promise<BoardProblem | null>;
   onStarted: () => void;
   onCancel?: () => void;
@@ -35,7 +38,10 @@ export default function NotStarted({
 
   return (
     <div className="board-start">
-      <h3>Where the cards are kept</h3>
+      <h3>Where the board is kept</h3>
+      {pendingTitle !== null && (
+        <p className="faint small board-start-note">"{pendingTitle}" is added once the board starts.</p>
+      )}
       <label className="board-start-choice">
         <input type="radio" name="board-storage" checked={storage === "branch"} onChange={() => setStorage("branch")} />
         <span>

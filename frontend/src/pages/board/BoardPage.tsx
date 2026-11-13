@@ -10,12 +10,14 @@ import BrokenCards from "./BrokenCards";
 import CardDetail from "./CardDetail";
 import EmptyBoard from "./EmptyBoard";
 import ListView from "./ListView";
+import NotStarted from "./NotStarted";
 import PullBoard from "./PullBoard";
 import type { Board } from "./boardApi";
 import { useBoard } from "./useBoard";
 import type { BoardHandle } from "./useBoard";
 import { useBoardColumns } from "./useBoardColumns";
 import { useBoardDnd } from "./useBoardDnd";
+import { type BoardStart, useBoardStart } from "./useBoardStart";
 import { type BoardPrefs, useBoardPrefs, useNarrow } from "./useBoardPrefs";
 
 interface BoardPageProps {
@@ -53,10 +55,50 @@ interface LoadedProps {
   projectId: number;
   cardId: number | null;
   project: Project | null;
+  onScope: (projectId: number | null) => void;
 }
 
-/** A started board with cards: header, columns or list, broken cards, and the open card's detail. */
-function LoadedBoard({ handle, board, prefs, projectId, cardId, project }: LoadedProps) {
+/** Above the columns: the storage choice while it is open, else the start bar while the board has no cards. */
+function BoardStartArea({
+  handle,
+  starter,
+  projectId,
+  onScope,
+}: {
+  handle: BoardHandle;
+  starter: BoardStart;
+  projectId: number;
+  onScope: (projectId: number | null) => void;
+}) {
+  if (starter.choosing) {
+    return (
+      <div className="board-start-area">
+        <NotStarted
+          projectId={projectId}
+          start={handle.start}
+          pendingTitle={starter.pending?.title ?? null}
+          onStarted={() => void starter.started()}
+          onCancel={starter.cancel}
+        />
+      </div>
+    );
+  }
+  if (handle.cards.length > 0) return null;
+  return (
+    <EmptyBoard
+      projectId={projectId}
+      onScope={onScope}
+      onAddIdea={async (title) => {
+        await starter.addCard(newCard(title, "idea"));
+      }}
+    />
+  );
+}
+
+/** The board, started or not: header, start area, columns or list, broken cards, and the open card's detail. */
+function LoadedBoard({ handle, board, prefs, projectId, cardId, project, onScope }: LoadedProps) {
+  const starter = useBoardStart(handle);
+  const ready = board.state === "ready";
   const dnd = useBoardDnd(handle);
   const narrow = useNarrow();
   const { openBoard, openCard } = useBoardLinks();
@@ -70,13 +112,14 @@ function LoadedBoard({ handle, board, prefs, projectId, cardId, project }: Loade
     onMove: dnd.moveTo,
     onAdd: async (title, column) => {
       const version = column === "idea" && prefs.filter.kind === "version" ? prefs.filter.name : null;
-      await handle.addCard(newCard(title, column, version));
+      await starter.addCard(newCard(title, column, version));
     },
     onDragStart: dnd.start,
     onDragEnd: dnd.end,
     onDrop: dnd.drop,
     dragging: dnd.dragging,
-    onImported: () => void handle.reload(),
+    // Importing writes to the board, so it waits until the board started.
+    onImported: ready ? () => void handle.reload() : undefined,
   };
 
   const detail = cardId !== null && (
@@ -113,7 +156,9 @@ function LoadedBoard({ handle, board, prefs, projectId, cardId, project }: Loade
         view={prefs.view}
         setView={prefs.setView}
         reload={handle.reload}
+        onChooseStorage={ready ? undefined : starter.choose}
       />
+      <BoardStartArea handle={handle} starter={starter} projectId={projectId} onScope={onScope} />
       {message && (
         <p className="board-notice" role="status">
           <span>{message}</span>
@@ -176,14 +221,15 @@ export default function BoardPage({ projectId, cardId, projects, onScope, onProj
     const pull = board.storage === "repository" ? <PullBoard projectId={projectId} reload={handle.reload} /> : undefined;
     return <Unreadable message={board.message} retry={handle.reload} pull={pull} />;
   }
-  if (board.state === "not_started" || handle.cards.length === 0) {
-    return (
-      <div className="board-page">
-        <EmptyBoard board={handle} projectId={projectId} onScope={onScope} />
-      </div>
-    );
-  }
   return (
-    <LoadedBoard handle={handle} board={board} prefs={prefs} projectId={projectId} cardId={cardId} project={project} />
+    <LoadedBoard
+      handle={handle}
+      board={board}
+      prefs={prefs}
+      projectId={projectId}
+      cardId={cardId}
+      project={project}
+      onScope={onScope}
+    />
   );
 }
