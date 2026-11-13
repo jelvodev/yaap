@@ -9,8 +9,11 @@ import type { CardActionName } from "./cardLogic";
 export type CardDetail = components["schemas"]["CardDetailOut"];
 export type CardActionResult = components["schemas"]["CardActionOut"];
 export type ReviewDetail = components["schemas"]["ReviewOut"];
-/** What to send a card back with: a finding of its review (by index) or an unmet criterion (by number). */
-export type SendBackChoice = { finding: number } | { criterion: number };
+/**
+ * What to send a card back with: a finding of its review (by index) or an unmet criterion (by number); nothing for a
+ * card whose build failed or was interrupted.
+ */
+export type SendBackChoice = { finding: number } | { criterion: number } | Record<string, never>;
 
 export interface CardState {
   card: CardDetail | null;

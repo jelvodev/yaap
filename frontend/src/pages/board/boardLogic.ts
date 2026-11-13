@@ -188,3 +188,56 @@ export function originLabel(type: string | null): string {
 export function trustedOrigin(type: string | null): boolean {
   return type === "user" || type === "chat";
 }
+
+/** A button of a card's column part in the card detail: a stage action, or a step the board takes itself. */
+export type ColumnButton =
+  | "specify"
+  | "plan"
+  | "move_to_idea"
+  | "build"
+  | "edit_plan"
+  | "ask_change"
+  | "stop"
+  | "continue"
+  | "send_back"
+  | "review"
+  | "mark_done";
+
+/** What decides a card's column buttons: its column, its plan and review, and the cards it waits for. */
+export interface ColumnButtonFacts {
+  column: BoardColumn | null;
+  broken: boolean;
+  planStatus: PlanStatus | null;
+  /** The card names a plan that does not exist any more. */
+  planMissing: boolean;
+  review: "none" | "running" | "done";
+  /** Cards this one waits for that are not done yet. */
+  blockedBy: readonly number[];
+}
+
+/**
+ * The buttons of a card's column, in order, the first being the step that is due. Mirrors the backend's actions: a
+ * button that would be refused for the card as it is (a second review while one runs, approving while cards it waits
+ * for are open) is left out; the server still decides.
+ */
+export function columnButtons(facts: ColumnButtonFacts): ColumnButton[] {
+  if (facts.broken) return [];
+  switch (facts.column) {
+    case "idea":
+      return ["specify"];
+    case "design":
+      return ["plan", "move_to_idea"];
+    case "plan":
+      if (facts.planMissing || facts.planStatus === null || facts.planStatus === "cancelled") return ["plan"];
+      if (facts.planStatus !== "draft") return [];
+      return facts.blockedBy.length > 0 ? ["edit_plan", "ask_change"] : ["build", "edit_plan", "ask_change"];
+    case "build":
+      if (facts.planStatus === "building") return ["stop"];
+      if (facts.planStatus === "failed" || facts.planStatus === "interrupted") return ["continue", "send_back"];
+      return [];
+    case "review":
+      return facts.review === "running" ? ["mark_done"] : ["review", "mark_done"];
+    default:
+      return [];
+  }
+}
