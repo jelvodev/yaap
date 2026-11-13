@@ -73,6 +73,16 @@ class FinalCheckOut(BaseModel):
     output: str
 
 
+class OutsideStepOut(BaseModel):
+    """A step whose commit changed files the plan does not name."""
+
+    step: int
+    # The first of those paths (capped).
+    paths: list[str]
+    # How many there were.
+    total: int
+
+
 class BuildApprovalOut(BaseModel):
     approval_id: str
     tool: str
@@ -97,6 +107,9 @@ class PlanBuildOut(BaseModel):
     # Why the approved plan waits to build (a full build slot, shared files, an unfinished card, a rate limit); None
     # when it builds or has built.
     queued: str | None = None
+    # The steps that changed files outside the plan: other builds of the project then wait for this one as if it
+    # touched the whole project.
+    outside_plan: list[OutsideStepOut] = []
 
 
 class BuildRefusalOut(BaseModel):
@@ -164,6 +177,9 @@ def build_out(view: PlanView, plans: PlanService, runner: BuildRunner) -> PlanBu
             for approval in runner.waiting_approvals(view.id)
         ],
         queued=info.queued,
+        outside_plan=[
+            OutsideStepOut(step=item.step, paths=list(item.paths), total=item.total) for item in info.outside_plan
+        ],
     )
 
 

@@ -1,7 +1,8 @@
 """Who may build now: the rules of the build queue as pure functions. No I/O and no clock (the caller passes `now`).
 
 A plan starts when its card waits for nothing open, no provider rate limit holds new builds, the project has a free
-build slot and no running build names files that overlap its own. Otherwise it waits, with a reason to show.
+build slot and no running build names files that overlap its own. A build whose steps changed files outside its plan
+counts as the whole project. Otherwise it waits, with a reason to show.
 """
 
 from collections.abc import Mapping, Sequence
@@ -29,6 +30,8 @@ class BuildSlot:
     card_id: int | None
     # None: some step names no files, so the plan counts as the whole project.
     files: frozenset[str] | None
+    # A step changed files the plan does not name, so the build may have touched anything.
+    outside_plan: bool = False
 
 
 @dataclass(frozen=True)
@@ -83,6 +86,11 @@ def paths_overlap(a: str, b: str) -> bool:
     return a.startswith(b + "/") or b.startswith(a + "/")
 
 
+def slot_files(slot: BuildSlot) -> frozenset[str] | None:
+    """The files the queue holds the build to: None (the whole project) once it changed files outside its plan."""
+    return None if slot.outside_plan else slot.files
+
+
 def files_overlap(a: frozenset[str] | None, b: frozenset[str] | None) -> bool:
     if a is None or b is None:
         return True
@@ -123,11 +131,17 @@ def can_start(
     if len(running) >= limits.parallel:
         return Wait("limit", f"All {limits.parallel} build slots of the project are in use.")
     for other in running:
-        if not files_overlap(plan.files, other.files):
+        if not files_overlap(slot_files(plan), slot_files(other)):
             continue
         name = slot_name(other)
+        if other.outside_plan:
+            reason = f"Waits for {name}: it changed files outside its plan, so it may have touched the whole project."
+            return Wait("files", reason, (other.plan_id,))
         if other.files is None:
             reason = f"Waits for {name}: one of its steps names no files, so it may touch the whole project."
+            return Wait("files", reason, (other.plan_id,))
+        if plan.outside_plan:
+            reason = f"Waits for {name}: this build changed files outside its plan, so it needs the whole project."
             return Wait("files", reason, (other.plan_id,))
         if plan.files is None:
             reason = f"Waits for {name}: a step of this plan names no files, so it needs the whole project."
