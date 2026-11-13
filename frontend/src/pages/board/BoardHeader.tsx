@@ -19,6 +19,8 @@ interface HeaderProps {
   reload: () => Promise<void>;
   /** Before the board started: open the choice of where it is kept. */
   onChooseStorage?: () => void;
+  /** Open a new conversation in this project. */
+  onNewConversation: () => void;
 }
 
 /** The version the meters describe: the filtered one, else the board's current version. */
@@ -103,6 +105,9 @@ export default function BoardHeader(props: HeaderProps) {
           <Segment label="All" active={filter.kind === "all"} onClick={() => setFilter({ kind: "all" })} />
         </div>
         <div className="board-header-end">
+          <button type="button" className="button button-primary board-small" onClick={props.onNewConversation}>
+            New conversation
+          </button>
           <div className="board-segments" role="group" aria-label="View">
             <Segment label="Board" active={view === "board"} onClick={() => setView("board")} />
             <Segment label="List" active={view === "list"} onClick={() => setView("list")} />

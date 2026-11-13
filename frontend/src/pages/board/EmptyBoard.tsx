@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+
+import { useNewConversation } from "./useNewConversation";
 
 /** The slim bar above the columns of a board without cards: start a conversation as before, or note the first idea. */
 export default function EmptyBoard({
@@ -11,14 +12,9 @@ export default function EmptyBoard({
   onScope: (projectId: number | null) => void;
   onAddIdea: (title: string) => Promise<void>;
 }) {
-  const navigate = useNavigate();
   const [text, setText] = useState("");
-
-  function startConversation() {
-    // The typed text cannot be carried into the new conversation yet.
-    onScope(projectId);
-    navigate("/chat");
-  }
+  // The typed text cannot be carried into the new conversation yet; Start opens it as the header's button does.
+  const startConversation = useNewConversation(projectId, onScope);
 
   async function addIdea() {
     const title = text.trim();

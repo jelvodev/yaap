@@ -18,6 +18,7 @@ import type { BoardHandle } from "./useBoard";
 import { useBoardColumns } from "./useBoardColumns";
 import { useBoardDnd } from "./useBoardDnd";
 import { type BoardStart, useBoardStart } from "./useBoardStart";
+import { useNewConversation } from "./useNewConversation";
 import { type BoardPrefs, useBoardPrefs, useNarrow } from "./useBoardPrefs";
 
 interface BoardPageProps {
@@ -98,6 +99,7 @@ function BoardStartArea({
 /** The board, started or not: header, start area, columns or list, broken cards, and the open card's detail. */
 function LoadedBoard({ handle, board, prefs, projectId, cardId, project, onScope }: LoadedProps) {
   const starter = useBoardStart(handle);
+  const newConversation = useNewConversation(projectId, onScope);
   const ready = board.state === "ready";
   const dnd = useBoardDnd(handle);
   const narrow = useNarrow();
@@ -157,6 +159,7 @@ function LoadedBoard({ handle, board, prefs, projectId, cardId, project, onScope
         setView={prefs.setView}
         reload={handle.reload}
         onChooseStorage={ready ? undefined : starter.choose}
+        onNewConversation={newConversation}
       />
       <BoardStartArea handle={handle} starter={starter} projectId={projectId} onScope={onScope} />
       {message && (
