@@ -8,7 +8,8 @@ type Evidence = components["schemas"]["EvidenceOut"];
 type Criterion = components["schemas"]["CriterionEvidenceOut"];
 type CheckRun = components["schemas"]["CheckRunOut"];
 
-const HOW_LABELS = { command: "by command", file: "by file", reviewer: "by the reviewer", none: "not checked" } as const;
+// A criterion nothing checked already says "not checked" as its status, so it gets no second label.
+const HOW_LABELS = { command: ", by command", file: ", by file", reviewer: ", by the reviewer", none: "" } as const;
 
 interface Opened {
   title: string;
@@ -131,7 +132,8 @@ export default function EvidencePart({
                   <div className="evidence-body">
                     <span>{criterion.text}</span>
                     <span className="card-muted evidence-how">
-                      {view.label}, {HOW_LABELS[criterion.how]}
+                      {view.label}
+                      {HOW_LABELS[criterion.how]}
                     </span>
                     {criterion.note && <p className="card-muted evidence-note">{criterion.note}</p>}
                     <CriterionSource criterion={criterion} checks={checks} onOpen={setOpened} />
