@@ -11,6 +11,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/jelvodev/yaap/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://github.com/jelvodev/yaap/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-6272a4" alt="MIT licence"></a>
   <img src="https://img.shields.io/badge/models-Claude%20%C2%B7%20OpenAI%20%C2%B7%20Ollama-7aa2f7" alt="Claude, OpenAI and Ollama">
   <img src="https://img.shields.io/badge/runs%20in-Docker-6272a4" alt="Runs in Docker">

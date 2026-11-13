@@ -6,6 +6,8 @@ yourself when you update; it says "None." when there is nothing.
 
 ## Unreleased
 
+- Every push and pull request on GitHub runs the checks: the backend tests (in parallel) with the migration check, the frontend typecheck, unit tests and build, and whether the generated API types are up to date. The README shows their state.
+
 ### Action needed
 
 None.

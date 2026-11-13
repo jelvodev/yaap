@@ -1,16 +1,24 @@
 name: CI
 
 on:
+  # Branches only: a release tag points at a commit that was checked on its branch.
   push:
+    branches: ["**"]
   pull_request:
 
 permissions:
   contents: read
 
+# A newer push to the same branch makes the running checks of the older one pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend:
     name: Backend tests and migrations
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -20,14 +28,16 @@ jobs:
           cache-dependency-path: backend/requirements-dev.txt
       - run: pip install -r requirements-dev.txt
         working-directory: backend
+      # The migration check first, so a schema drift shows on its own.
       - run: python -m pytest tests/test_schema.py
         working-directory: backend
-      - run: python -m pytest
+      - run: python -m pytest -n auto --durations=20
         working-directory: backend
 
   frontend:
     name: Frontend checks
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -47,6 +57,7 @@ jobs:
   generated-api:
     name: Generated API types
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
