@@ -47,18 +47,15 @@ export function InboxPart({
   );
 }
 
-/** Design and later: read-only, with the hand move to the next column when the flow allows it. */
+/** Design to Done: the hand move to the next column when the flow allows it (the stage buttons are CardActions). */
 export function LaterPart({ card, handle }: { card: CardDetail; handle: CardDetailHandle }) {
   const next = nextColumn(card);
+  if (next === null) return null;
   return (
     <div className="card-detail-actions">
-      {next !== null && (
-        <button type="button" className="button" disabled={handle.busy} onClick={() => void handle.move(next)}>
-          Move to {COLUMN_LABELS[next]}
-        </button>
-      )}
-      {/* Stage actions: the buttons of each column (Specify, Plan, Approve and build, Continue, Review, Mark done,
-          Send back) are added here, built from components/card/. */}
+      <button type="button" className="button" disabled={handle.busy} onClick={() => void handle.move(next)}>
+        Move to {COLUMN_LABELS[next]}
+      </button>
     </div>
   );
 }

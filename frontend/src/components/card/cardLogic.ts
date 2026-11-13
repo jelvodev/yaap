@@ -4,7 +4,7 @@ export const STAGES = ["inbox", "idea", "design", "plan", "build", "review", "do
 
 export type Stage = (typeof STAGES)[number];
 
-export type CardActionName = "plan" | "build" | "continue" | "stop" | "review" | "mark_done";
+export type CardActionName = "specify" | "plan" | "build" | "continue" | "stop" | "review" | "mark_done";
 
 export interface NextButton {
   action: CardActionName;
@@ -36,6 +36,8 @@ export function nextButtons(input: NextInput): NextButton[] {
   if (input.planMissing) return [{ action: "plan", label: "Plan" }];
   if (input.planStatus === "building") return [{ action: "stop", label: "Stop" }];
   switch (input.nextAction) {
+    case "specify":
+      return [{ action: "specify", label: "Specify" }];
     case "plan":
       return [{ action: "plan", label: "Plan" }];
     case "approve":

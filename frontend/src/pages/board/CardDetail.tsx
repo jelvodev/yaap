@@ -5,6 +5,7 @@ import { Markdown } from "../../components/message/Markdown";
 import { useConfirm } from "../../components/dialog/ConfirmDialog";
 import type { BoardVersion, CardDetail as CardDetailData } from "./boardApi";
 import { trustedOrigin } from "./boardLogic";
+import CardActions from "./CardActions";
 import { BrokenPart, Footer, StageBar, StateLine } from "./CardDetailParts";
 import { InboxPart, LaterPart } from "./CardColumnPart";
 import { TextEditor, TitleEditor } from "./CardEditors";
@@ -45,7 +46,18 @@ function Body({
       {column === "inbox" && (
         <InboxPart card={card} currentVersion={props.currentVersion} handle={handle} onDrop={onDrop} />
       )}
-      {column !== null && column !== "inbox" && column !== "idea" && <LaterPart card={card} handle={handle} />}
+      {column !== null && column !== "inbox" && (
+        <CardActions
+          key={card.updated ?? ""}
+          projectId={props.projectId}
+          card={card}
+          onMove={handle.move}
+          onChanged={props.onChanged}
+        />
+      )}
+      {column !== null && column !== "inbox" && column !== "idea" && column !== "review" && (
+        <LaterPart card={card} handle={handle} />
+      )}
       <TextEditor
         heading="Description"
         value={card.description}

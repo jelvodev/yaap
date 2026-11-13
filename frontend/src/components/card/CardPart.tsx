@@ -16,7 +16,7 @@ export default function CardPart({ projectId, cardId }: { projectId: number; car
 
   async function act(action: CardActionName): Promise<void> {
     const result = await state.act(action);
-    if (action === "plan" && result?.conversation_id) navigate(`/chat/${result.conversation_id}`);
+    if ((action === "specify" || action === "plan") && result?.conversation_id) navigate(`/chat/${result.conversation_id}`);
   }
 
   if (!card) {
