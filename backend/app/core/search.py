@@ -13,6 +13,8 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.embeddings import to_blob
+from app.core.search_index import SearchIndexer
+from app.projects.memory import RECALL_TOKENS, Recall, estimate_tokens, recall
 
 # Markers around matched words in a snippet; the interface turns them into highlights.
 MATCH_START = "\x02"
@@ -267,9 +269,9 @@ def found_item(
     )
 
 
-def embed_query(indexer: object | None, session: Session, query: str) -> QueryVector | None:
+def embed_query(indexer: SearchIndexer | None, session: Session, query: str) -> QueryVector | None:
     """The query's embedding, or None when there is no embedding model (full-text only)."""
-    embedder = indexer.embedder(session) if indexer is not None and query.strip() else None  # type: ignore[attr-defined]
+    embedder = indexer.embedder(session) if indexer is not None and query.strip() else None
     if embedder is None:
         return None
     vector = to_blob(embedder.embed([query.strip()], "query").vectors[0])
@@ -277,12 +279,10 @@ def embed_query(indexer: object | None, session: Session, query: str) -> QueryVe
 
 
 def recall_project_memory(
-    session: Session, indexer: object | None, environment_id: int, project_id: int, memory: str, query: str
-):
+    session: Session, indexer: SearchIndexer | None, environment_id: int, project_id: int, memory: str, query: str
+) -> Recall:
     """The project memory as it goes into the prompt: whole while small, else the entries that matter
     for this message, found by meaning through the memory's search chunks when there is a model."""
-    from app.projects.memory import RECALL_TOKENS, estimate_tokens, recall
-
     chunks: list[str] = []
     if estimate_tokens(memory) > RECALL_TOKENS and query.strip():
         vector = embed_query(indexer, session, query)

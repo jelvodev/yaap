@@ -19,6 +19,7 @@ import sqlite3
 import tempfile
 import time
 import zipfile
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
@@ -96,7 +97,7 @@ def decrypts(database: Path, cipher: CredentialCipher) -> bool | None:
         connection.close()
 
 
-def check_backup(path: Path, cipher: CredentialCipher, known_revision) -> RestoreCheck:  # type: ignore[no-untyped-def]
+def check_backup(path: Path, cipher: CredentialCipher, known_revision: Callable[[str], bool]) -> RestoreCheck:
     """What a restore of this backup would bring back, and every reason it cannot."""
     try:
         archive = zipfile.ZipFile(path)
@@ -137,7 +138,9 @@ def check_backup(path: Path, cipher: CredentialCipher, known_revision) -> Restor
     return check
 
 
-def stage_restore(data_dir: Path, path: Path, cipher: CredentialCipher, known_revision) -> BackupInfo:  # type: ignore[no-untyped-def]
+def stage_restore(
+    data_dir: Path, path: Path, cipher: CredentialCipher, known_revision: Callable[[str], bool]
+) -> BackupInfo:
     """Unpack the backup next to the live data, make a fresh backup of the current state, and mark the restore for
     the next start. Returns the fresh backup."""
     check = check_backup(path, cipher, known_revision)

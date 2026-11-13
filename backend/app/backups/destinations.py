@@ -281,7 +281,7 @@ def fetch_from(destination: Destination, name: str, target_folder: Path) -> Path
     except DestinationError:
         partial.unlink(missing_ok=True)
         raise
-    except Exception as error:  # noqa: BLE001
+    except Exception as error:  # noqa: BLE001 - whatever the destination's reader or the disk raises is reported
         partial.unlink(missing_ok=True)
         raise DestinationError(f"The copy failed: {error}") from error
     return target

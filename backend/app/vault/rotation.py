@@ -30,7 +30,8 @@ class KeyState:
 
 
 def rows(session: Session, table: str, column: str) -> list[tuple[int, bytes]]:
-    return [(row[0], row[1]) for row in session.execute(text(f"SELECT id, {column} FROM {table}"))]  # noqa: S608
+    statement = text(f"SELECT id, {column} FROM {table}")  # noqa: S608 - names come from ENCRYPTED, not from input
+    return [(row[0], row[1]) for row in session.execute(statement)]
 
 
 def rotate_all(session: Session, cipher: CredentialCipher) -> KeyState:
@@ -48,7 +49,8 @@ def rotate_all(session: Session, cipher: CredentialCipher) -> KeyState:
             except CredentialDecryptionError:
                 state.unreadable += 1
                 continue
-            session.execute(text(f"UPDATE {table} SET {column} = :value WHERE id = :id"), {"value": new_token, "id": row_id})  # noqa: S608
+            statement = text(f"UPDATE {table} SET {column} = :value WHERE id = :id")  # noqa: S608 - names from ENCRYPTED
+            session.execute(statement, {"value": new_token, "id": row_id})
             state.rotated += 1
     session.commit()
     if state.rotated:

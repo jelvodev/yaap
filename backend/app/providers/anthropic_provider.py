@@ -6,6 +6,7 @@ from typing import Any
 
 import anthropic
 import httpx2
+from anthropic.lib.streaming import AsyncMessageStreamManager, BetaAsyncMessageStreamManager
 
 from app.providers.base import (
     AgentEvent,
@@ -188,7 +189,9 @@ class AnthropicProvider:
             params["tools"] = tool_definitions(request.tool_box)
         return params
 
-    def _open_stream(self, request: AgentRequest, messages: list[dict[str, Any]]):  # type: ignore[no-untyped-def]
+    def _open_stream(
+        self, request: AgentRequest, messages: list[dict[str, Any]]
+    ) -> AsyncMessageStreamManager | BetaAsyncMessageStreamManager:
         params = self._build_params(request, messages)
         if request.model in self._server_side_fallback_models:
             # On a policy refusal the API re-runs the request on a recommended fallback model.

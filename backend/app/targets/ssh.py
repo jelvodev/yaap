@@ -20,7 +20,8 @@ import posixpath
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from pathlib import PurePosixPath
+from typing import Any, Literal
 
 import asyncssh
 
@@ -363,8 +364,6 @@ def sftp_entry(relative: str, attributes: asyncssh.SFTPAttrs) -> FileEntry:
 
 
 def fnmatch_path(path: str, glob: str) -> bool:
-    from pathlib import PurePosixPath  # noqa: PLC0415
-
     return PurePosixPath(path).match(glob or "*")
 
 
@@ -425,7 +424,7 @@ class SshExecutor:
         deadline = loop.time() + timeout
         decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
         collected = Collected()
-        stopped: str | None = None
+        stopped: Literal["total", "silence"] | None = None
         while True:
             remaining = deadline - loop.time()
             if remaining <= 0:
@@ -447,7 +446,7 @@ class SshExecutor:
         collected.add(decoder.decode(b"", final=True))
         if stopped is not None:
             process.close()
-            return CommandResult(None, collected.text(), timed_out=True, stopped=stopped)  # type: ignore[arg-type]
+            return CommandResult(None, collected.text(), timed_out=True, stopped=stopped)
         completed = await process.wait(check=False)
         return CommandResult(completed.exit_status, collected.text())
 

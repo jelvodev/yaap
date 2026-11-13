@@ -19,6 +19,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 from xml.etree import ElementTree
 
+from app.attachments.ocr import OCR_NOTE, read_scanned_pages
 from app.core.skipped_folders import SKIPPED_FOLDERS
 
 MAX_UPLOAD_BYTES = 100 * 1024 * 1024
@@ -233,9 +234,6 @@ def image_for_model(folder: Path, media_type: str) -> tuple[bytes, str]:
         if (folder / name).exists():
             return (folder / name).read_bytes(), scaled_type
     return original_file(folder).read_bytes(), media_type
-
-
-from app.attachments.ocr import OCR_NOTE, read_scanned_pages  # noqa: E402
 
 
 # --- PDF -----------------------------------------------------------------------------------------------------------

@@ -11,10 +11,11 @@ import hmac
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
-from sqlalchemy import delete, select
+from sqlalchemy import CursorResult, delete, select
 from sqlalchemy.orm import Session
 
 from app.storage.models import Account, AuthSession
@@ -144,7 +145,8 @@ def end_other_sessions(session: Session, keep_id: str | None = None) -> int:
     query = delete(AuthSession)
     if keep_id is not None:
         query = query.where(AuthSession.id != keep_id)
-    return int(session.execute(query).rowcount or 0)  # type: ignore[attr-defined]
+    result = cast(CursorResult[Any], session.execute(query))  # a DML result carries rowcount
+    return int(result.rowcount or 0)
 
 
 def session_count(session: Session) -> int:

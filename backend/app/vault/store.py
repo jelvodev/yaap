@@ -11,13 +11,15 @@ placeholders: project, then environment, then global, the nearest level winning 
 
 import re
 from datetime import UTC, datetime, timedelta
+from typing import Any, TypeVar, cast
 
-from sqlalchemy import delete, select
+from sqlalchemy import CursorResult, Select, delete, select
 from sqlalchemy.orm import Session
 
 from app.credentials.crypto import CredentialCipher
 from app.storage.models import VaultEntry, VaultUse
 
+SelectT = TypeVar("SelectT", bound=Select[Any])
 GENERIC = "generic"
 # YAAP's own keys that belong to the whole installation, not to an environment: a network share for backups, and
 # the API tokens.
@@ -45,8 +47,10 @@ def level_of(entry: VaultEntry) -> str:
     return "project" if entry.project_id is not None else "environment" if entry.environment_id is not None else "global"
 
 
-def at_level(query, environment_id: int | None, project_id: int | None):  # type: ignore[no-untyped-def]
-    query = query.where(VaultEntry.environment_id.is_(None) if environment_id is None else VaultEntry.environment_id == environment_id)
+def at_level(query: SelectT, environment_id: int | None, project_id: int | None) -> SelectT:
+    query = query.where(
+        VaultEntry.environment_id.is_(None) if environment_id is None else VaultEntry.environment_id == environment_id
+    )
     return query.where(VaultEntry.project_id.is_(None) if project_id is None else VaultEntry.project_id == project_id)
 
 
@@ -190,7 +194,7 @@ def as_utc(moment: datetime) -> datetime:
 def prune_uses(session: Session) -> int:
     result = session.execute(delete(VaultUse).where(VaultUse.used_at < now() - USES_KEPT))
     session.commit()
-    return int(result.rowcount or 0)  # type: ignore[attr-defined]
+    return int(cast(CursorResult[Any], result).rowcount or 0)  # a DML result carries rowcount
 
 
 _last_prune: list[datetime] = []

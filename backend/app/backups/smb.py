@@ -6,7 +6,7 @@ kind smb_password at the global level, named by the destination. Files are strea
 not fill memory.
 """
 
-from typing import Any, BinaryIO
+from typing import Any, BinaryIO, cast
 
 import smbclient
 from smbprotocol.exceptions import SMBException
@@ -95,14 +95,14 @@ class SmbDestination:
     def open_write(self, name: str) -> BinaryIO:
         self.connect()
         try:
-            return smbclient.open_file(self.path(name), mode="wb")  # type: ignore[return-value]
+            return cast(BinaryIO, smbclient.open_file(self.path(name), mode="wb"))
         except FAILURES as error:
             raise DestinationError(f"{self.describe()} cannot be written: {error}") from error
 
     def open_read(self, name: str) -> BinaryIO:
         self.connect()
         try:
-            return smbclient.open_file(self.path(name), mode="rb")  # type: ignore[return-value]
+            return cast(BinaryIO, smbclient.open_file(self.path(name), mode="rb"))
         except FAILURES as error:
             raise DestinationError(f"{name} cannot be read at {self.describe()}: {error}") from error
 

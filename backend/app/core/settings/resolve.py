@@ -15,10 +15,11 @@ def resolve_tool_policy(session: Session, environment_id: int, project_id: int |
     def value(key: str) -> object:
         return resolve_setting(session, SETTING_DEFINITIONS[key], environment_id, project_id).value
 
+    permissions = value("tool_permissions")
     commands = value("command_allowlist")
     domains = value("web_allowlist")
     return ToolPolicy(
-        permissions=dict(value("tool_permissions") or {}),  # type: ignore[call-overload]
+        permissions=dict(permissions) if isinstance(permissions, dict) else {},
         commands=tuple(commands) if isinstance(commands, list) else (),
         domains=tuple(domain.lower().strip() for domain in domains) if isinstance(domains, list) else (),
     )
