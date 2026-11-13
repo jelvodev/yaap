@@ -18162,6 +18162,14 @@
       "ToolCallBlockOut": {
         "description": "What the agent did and what came back.",
         "properties": {
+          "call_key": {
+            "title": "Call Key",
+            "type": "string"
+          },
+          "checkpointable": {
+            "title": "Checkpointable",
+            "type": "boolean"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -18206,13 +18214,23 @@
           "type",
           "id",
           "name",
-          "input"
+          "input",
+          "call_key",
+          "checkpointable"
         ],
         "title": "ToolCallBlockOut",
         "type": "object"
       },
       "ToolCallEvent": {
         "properties": {
+          "call_key": {
+            "title": "Call Key",
+            "type": "string"
+          },
+          "checkpointable": {
+            "title": "Checkpointable",
+            "type": "boolean"
+          },
           "event": {
             "const": "tool_call",
             "default": "tool_call",
@@ -18231,13 +18249,20 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "writes_files": {
+            "title": "Writes Files",
+            "type": "boolean"
           }
         },
         "required": [
           "event",
           "id",
           "name",
-          "input"
+          "input",
+          "call_key",
+          "checkpointable",
+          "writes_files"
         ],
         "title": "ToolCallEvent",
         "type": "object"

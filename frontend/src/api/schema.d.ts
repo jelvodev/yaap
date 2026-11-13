@@ -11400,6 +11400,10 @@ export interface components {
          * @description What the agent did and what came back.
          */
         ToolCallBlockOut: {
+            /** Call Key */
+            call_key: string;
+            /** Checkpointable */
+            checkpointable: boolean;
             /** Id */
             id: string;
             /**
@@ -11428,6 +11432,10 @@ export interface components {
         };
         /** ToolCallEvent */
         ToolCallEvent: {
+            /** Call Key */
+            call_key: string;
+            /** Checkpointable */
+            checkpointable: boolean;
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -11441,6 +11449,8 @@ export interface components {
             };
             /** Name */
             name: string;
+            /** Writes Files */
+            writes_files: boolean;
         };
         /**
          * ToolOutputEvent
