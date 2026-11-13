@@ -29,7 +29,6 @@ export default function EmptyBoard({
 
   return (
     <div className="board-empty-bar">
-      <span className="muted small">No cards yet. A small project works as before:</span>
       <input
         value={text}
         placeholder="Start a conversation, or note an idea…"
