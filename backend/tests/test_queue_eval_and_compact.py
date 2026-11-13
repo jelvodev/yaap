@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.core.chat_events import server_sent_event
+from app.core.reply_event_models import CompactedEvent
 from app.core.queue_commands import eval_claim
 from app.core.reply_commands import QueuedCommand, ReplyCommands
 from app.core.reply_errors import CommandRefused
@@ -89,7 +90,7 @@ def slow_compact(monkeypatch, started: threading.Event, release: threading.Event
         started.set()
         while not release.is_set():
             await anyio.sleep(0.02)
-        yield server_sent_event("compacted", {"message_id": 1, "covered": 1, "focus": None})
+        yield server_sent_event(CompactedEvent(message_id=1, covered=1, focus=None))
 
     monkeypatch.setattr("app.core.reply_commands.compact_events", events)
 

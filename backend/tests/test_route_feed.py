@@ -8,7 +8,6 @@ from datetime import UTC, datetime
 import anyio
 import pytest
 
-from app.core.chat_events import server_sent_event
 from app.core.reply_events import with_stage_events
 from app.tracing.notes import Note
 from app.tracing.recorder import ModelStep, NoteStep, ToolStep
@@ -159,6 +158,11 @@ def test_only_new_or_different_stops_are_chosen(sent_before, expected, monkeypat
     assert changed_stops(stops, sent) == []
 
 
+def raw_event(name: str, data: dict[str, object]) -> str:
+    """A hand-made event: the feed only reads the event line and the data of the strings it passes on."""
+    return f"event: {name}\ndata: {json.dumps(data)}\n\n"
+
+
 def test_stage_events_are_interleaved_with_the_replys_events():
     anyio.run(check_interleaving)
 
@@ -167,10 +171,10 @@ async def check_interleaving() -> None:
     feed = started()
 
     async def events() -> AsyncIterator[str]:
-        yield server_sent_event("text_delta", {})
+        yield raw_event("text_delta", {})
         feed.on_step(MAIN, model(1))
         await asyncio.sleep(0.05)
-        yield server_sent_event("done", {})
+        yield raw_event("done", {})
 
     received = [item async for item in with_stage_events(feed, events())]
     names = [item.splitlines()[0] for item in received]
@@ -190,7 +194,7 @@ async def check_order_at_end() -> None:
 
     async def events() -> AsyncIterator[str]:
         feed.on_step(MAIN, model(1))
-        yield server_sent_event("done", {})
+        yield raw_event("done", {})
 
     names = [item.splitlines()[0] async for item in with_stage_events(feed, events())]
     assert names.index("event: done") == len(names) - 1
@@ -207,9 +211,9 @@ async def check_waiting() -> None:
     drain(feed)
 
     async def events() -> AsyncIterator[str]:
-        yield server_sent_event("approval_request", {"summary": "ls", "tool": "run_command"})
+        yield raw_event("approval_request", {"summary": "ls", "tool": "run_command"})
         await asyncio.sleep(0.05)
-        yield server_sent_event("approval_resolved", {"decision": "allow"})
+        yield raw_event("approval_resolved", {"decision": "allow"})
 
     received = [item async for item in with_stage_events(feed, events())]
     states = [json.loads(i.split("data: ", 1)[1])["state"] for i in received if i.startswith("event: stage" + chr(10))]

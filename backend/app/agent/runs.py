@@ -18,7 +18,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from app.agent.outputs import OutputStore
 from app.agent.policy import AccessLevel, ToolPolicy
@@ -29,7 +29,13 @@ from app.core.goals import GoalHandle
 from app.core.model_policy import ModelPolicy
 from app.plans.service import PlanService
 from app.core.search import RunSearch
-from app.core.why import Why
+from app.core.reply_event_models import (
+    ApprovalDecision,
+    ApprovalRequestEvent,
+    ApprovalResolvedEvent,
+    RunEvent,
+)
+from app.core.why import Why, why_out
 from app.targets.ssh import SshTarget
 from app.tracing.recorder import TraceRecorder
 from app.websearch.service import SearchProvider
@@ -47,9 +53,6 @@ if TYPE_CHECKING:
     from app.lsp.service import CodeIntel
 
 APPROVAL_TIMEOUT_SECONDS = 30 * 60
-Decision = Literal["approve", "deny"]
-# An event for the chat (an approval card, live output, a checkpoint): a JSON object with its kind under "event".
-RunEvent = dict[str, object]
 # Records in the vault's log that secrets were filled in: called with their names and what used them.
 SecretUseRecorder = Callable[[list[str], str], None]
 
@@ -61,7 +64,7 @@ class PendingApproval:
     tool: str
     summary: str
     detail: str
-    future: asyncio.Future[Decision]
+    future: asyncio.Future[ApprovalDecision]
     # Why a tool that normally runs by itself asks (the injection guard), and what the optional check found.
     reason: str | None = None
     suspicion: str | None = None
@@ -73,7 +76,7 @@ class PendingApproval:
 class ApprovalAnswer:
     """The user's decision on an approval, with the reason they gave for it (optional)."""
 
-    decision: Decision
+    decision: ApprovalDecision
     reason: str | None = None
 
 
@@ -506,7 +509,7 @@ class RunRegistry:
     ) -> ApprovalAnswer:
         return await ask_approval_answer(run, tool, summary, detail, reason, suspicion, why)
 
-    def decide(self, approval_id: str, decision: Decision, reason: str | None = None) -> bool:
+    def decide(self, approval_id: str, decision: ApprovalDecision, reason: str | None = None) -> bool:
         """The user's decision, with the reason they gave (kept on the tool's step as a learning signal)."""
         found = self.find_approval(approval_id)
         if found is None:
@@ -520,7 +523,7 @@ class RunRegistry:
 
 async def ask_approval(
     run: AgentRun, tool: str, summary: str, detail: str, reason: str | None = None, suspicion: str | None = None
-) -> Decision:
+) -> ApprovalDecision:
     """Show an approval card in the run's chat and wait for the user's decision (denied after 30 minutes).
 
     Tools whose handler must ask itself (install_skill) call this directly, with the review as the detail.
@@ -554,16 +557,15 @@ async def ask_approval_answer(
     )
     run.state.approvals[approval.id] = approval
     await run.events.put(
-        {
-            "event": "approval_request",
-            "approval_id": approval.id,
-            "tool": tool,
-            "summary": summary,
-            "detail": detail,
-            "reason": reason,
-            "suspicion": suspicion,
-            "why": why.stored() if why else None,
-        }
+        ApprovalRequestEvent(
+            approval_id=approval.id,
+            tool=tool,
+            summary=summary,
+            detail=detail,
+            reason=reason,
+            suspicion=suspicion,
+            why=why_out(why) if why else None,
+        )
     )
     try:
         decision = await asyncio.wait_for(asyncio.shield(approval.future), timeout=APPROVAL_TIMEOUT_SECONDS)
@@ -581,5 +583,5 @@ async def ask_approval_answer(
             **({"answer": approval.answer_reason} if approval.answer_reason else {}),
         }
     )
-    await run.events.put({"event": "approval_resolved", "approval_id": approval.id, "decision": decision})
+    await run.events.put(ApprovalResolvedEvent(approval_id=approval.id, decision=decision))
     return ApprovalAnswer(decision, approval.answer_reason)

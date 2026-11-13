@@ -86,7 +86,7 @@ def test_command_waits_for_approval_and_hides_secrets(project, monkeypatch):
     command = f'"{sys.executable}" -c "import os; print(os.environ.get(\'YAAP_MASTER_KEY\', \'hidden\'))"'
 
     async def approve_when_asked():
-        event = await run.events.get()
+        event = (await run.events.get()).model_dump()
         assert event["event"] == "approval_request" and event["tool"] == "run_command"
         registry.decide(event["approval_id"], "approve")
 
@@ -107,7 +107,7 @@ def test_declined_action_is_not_run(project):
 
     async def scenario():
         async def deny():
-            event = await run.events.get()
+            event = (await run.events.get()).model_dump()
             registry.decide(event["approval_id"], "deny")
 
         task = asyncio.create_task(deny())

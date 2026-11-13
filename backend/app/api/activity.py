@@ -4,7 +4,6 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
@@ -12,13 +11,13 @@ from app.agent.runs import RunRegistry
 from app.api.conversations import (
     ConversationDependency,
     ReplyServiceDependency,
-    event_stream,
     reply_http_error,
 )
 from app.api.dependencies import (
     EnvironmentDependency,
     SessionDependency,
 )
+from app.api.reply_stream import EventStreamResponse, event_stream, reply_stream_responses
 from app.core.message_queue import (
     MAX_MESSAGE_ATTACHMENTS,
     MAX_MESSAGE_LENGTH,
@@ -162,15 +161,15 @@ def remove_from_queue(item_id: int, conversation: ConversationDependency, sessio
 
 @router.post(
     "/conversations/{conversation_id}/queue/send",
-    response_class=StreamingResponse,
-    responses={200: {"content": {"text/event-stream": {}}, "description": "The accepted reply stream."}},
+    response_class=EventStreamResponse,
+    responses=reply_stream_responses("The accepted reply stream."),
 )
 def send_queued(
     payload: QueueSend,
     conversation: ConversationDependency,
     session: SessionDependency,
     service: ReplyServiceDependency,
-) -> StreamingResponse:
+) -> EventStreamResponse:
     """Send selected queue rows with the user message that consumes them."""
     try:
         stream = service.send_queued(session, conversation, payload.item_id, payload.all)

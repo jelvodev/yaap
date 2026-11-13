@@ -24,6 +24,7 @@ from app.core.chat_history import build_history
 from app.core.conversation_schemas import ConversationSummaryOut, message_to_out
 from app.core.model_choice import Billing
 from app.core.prompts import base_system_parts
+from app.core.reply_event_models import DoneEvent, TitleEvent, UserMessageEvent, UtilitySkippedEvent
 from app.core.stopped_usage import StoppedRun, store_stopped_usage
 from app.core.summaries import apply_summary
 from app.core.trimming import apply_trim
@@ -197,7 +198,7 @@ def store_unfinished_usage(
     store_stopped_usage(session_factory, stopped_run)
 
 
-def conversation_summary(conversation: Conversation) -> dict[str, Any]:
+def conversation_summary(conversation: Conversation) -> ConversationSummaryOut:
     return ConversationSummaryOut(
         id=conversation.id,
         project_id=conversation.project_id,
@@ -211,7 +212,7 @@ def conversation_summary(conversation: Conversation) -> dict[str, Any]:
         scheduled=conversation.scheduled_task_id is not None,
         unread=bool(conversation.unread),
         imported=conversation.imported_from or None,
-    ).model_dump(mode="json")
+    )
 
 
 async def apply_title(
@@ -219,7 +220,7 @@ async def apply_title(
     conversation_id: int,
     title_task: Callable[[str], Awaitable[str | None]],
     reply_text: str,
-) -> dict[str, Any] | None:
+) -> ConversationSummaryOut | None:
     try:
         title = await title_task(reply_text)
     except Exception:  # noqa: BLE001 - a title is a nicety; the reply is already stored
@@ -258,7 +259,7 @@ async def stream_reply(
     After the first reply of a conversation, title_task proposes a better title; it arrives as a "title" event
     after "done", so the user is not kept waiting for it.
     """
-    yield server_sent_event("user_message", message_to_out(user_message).model_dump(mode="json"))
+    yield server_sent_event(UserMessageEvent(**dict(message_to_out(user_message))))
     reply = ReplyContent()
     completed: Completed | None = None
     stored = False
@@ -273,7 +274,7 @@ async def stream_reply(
                     continue
                 converted = reply_event(event, reply)
                 if converted is not None:
-                    yield server_sent_event(*converted)
+                    yield server_sent_event(converted)
             outcome = (
                 outcome_from_completion(completed)
                 if completed
@@ -310,20 +311,16 @@ async def stream_reply(
             except SQLAlchemyError:
                 logger.warning("Storing unfinished reply usage failed.", exc_info=True)
         yield server_sent_event(
-            "done",
-            {
-                "message": message_to_out(message).model_dump(mode="json"),
-                "conversation": conversation_summary(conversation),
-            },
+            DoneEvent(message=message_to_out(message), conversation=conversation_summary(conversation))
         )
         if title_task is not None and outcome.status == "complete":
             reply_text = "".join(block["text"] for block in reply.content() if block["type"] == "text")
             summary = await apply_title(session_factory, conversation_id, title_task, reply_text)
             if summary is not None:
-                yield server_sent_event("title", {"conversation": summary})
+                yield server_sent_event(TitleEvent(conversation=summary))
         # Utility tasks of this exchange that the model policy skipped (routing, outside-content checks, the title).
         for skip in skipped_since(session_factory, conversation_id, user_message.created_at):
-            yield server_sent_event("utility_skipped", skip.model_dump(mode="json"))
+            yield server_sent_event(UtilitySkippedEvent(**dict(skip)))
     finally:
         # YAAP runs replies in the background; only a stop or failure leaves this path incomplete.
         try:

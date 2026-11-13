@@ -187,7 +187,7 @@ def test_the_approval_reason_is_stored_on_the_step(client, tmp_path):
 
     async def scenario():
         async def deny():
-            event = await run.events.get()
+            event = (await run.events.get()).model_dump()
             registry.decide(str(event["approval_id"]), "deny", f"  {REASON}  ")
 
         task = asyncio.create_task(deny())

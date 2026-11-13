@@ -197,7 +197,7 @@ def test_a_call_to_a_remote_agent_is_recorded_with_its_token_by_name(client, mon
     async def scenario():
         async def approve():
             while True:
-                event = await run.events.get()
+                event = (await run.events.get()).model_dump()
                 if event["event"] == "approval_request":
                     registry.decide(event["approval_id"], "approve")
 
