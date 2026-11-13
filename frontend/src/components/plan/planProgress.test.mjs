@@ -109,3 +109,8 @@ test("shortCommit is the first seven characters", () => {
   assert.equal(shortCommit("0123456789abcdef"), "0123456");
   assert.equal(shortCommit("abc"), "abc");
 });
+
+test("parseCheckLine reads a check written as a code span without its backticks", () => {
+  assert.deepEqual(parseCheckLine("It answers `run: pytest -q`"), { text: "It answers", run: "pytest -q" });
+  assert.deepEqual(parseCheckLine("`run: pytest -q`"), { text: "pytest -q", run: "pytest -q" });
+});
