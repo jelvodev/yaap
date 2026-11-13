@@ -19,8 +19,9 @@ function Invoke-Git {
     return $output
 }
 
-# The workflow .github/workflows/release.yml publishes the GitHub Release when the tag arrives; the public API shows
-# when it is there, so this needs no token. Unauthenticated, GitHub allows 60 requests an hour: one every 30 seconds.
+# The workflow .github/workflows/release.yml builds the images and then publishes the GitHub Release when the tag
+# arrives; the public API shows when it is there, so this needs no token. Unauthenticated, GitHub allows 60 requests an
+# hour: one every 90 seconds, for up to 90 minutes. Without a Release by then, it says how to make one by hand.
 function Wait-ForRelease {
     $Remote = Invoke-Git remote get-url origin
     if ($Remote -notmatch '^(?:https://(?:[^@/]*@)?github\.com/|git@github\.com:)(?<repo>[^/]+/[^/]+?)(?:\.git)?$') {
@@ -29,7 +30,7 @@ function Wait-ForRelease {
     }
     $Repo = $Matches['repo']
     $Url = "https://api.github.com/repos/$Repo/releases/tags/$Tag"
-    Write-Host "Waiting for the GitHub Release of $Tag (Actions: https://github.com/$Repo/actions)..."
+    Write-Host "Waiting for the images and the GitHub Release of $Tag (Actions: https://github.com/$Repo/actions)..."
     for ($Try = 0; $Try -lt 60; $Try++) {
         try {
             Invoke-RestMethod -Uri $Url -ErrorAction Stop | Out-Null
@@ -37,11 +38,15 @@ function Wait-ForRelease {
             return
         } catch {
             # A 404 until the workflow has run, or a network hiccup: both mean "not yet". The exception types differ
-            # between Windows PowerShell 5.1 and PowerShell 7, so this catches all; the loop ends after 30 minutes.
-            Start-Sleep -Seconds 30
+            # between Windows PowerShell 5.1 and PowerShell 7, so this catches all; the loop ends after 90 minutes.
+            Start-Sleep -Seconds 90
         }
     }
-    Write-Host "No Release of $Tag after 30 minutes; see https://github.com/$Repo/actions." -ForegroundColor Yellow
+    Write-Host "No GitHub Release of $Tag after 90 minutes; see https://github.com/$Repo/actions." -ForegroundColor Yellow
+    Write-Host "To make it by hand, open https://github.com/$Repo/releases/new?tag=$Tag with the title"
+    Write-Host "`"YAAP $Version`" and this text:"
+    Write-Host ''
+    Write-Host $Notes
 }
 
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { Fail "'$Version' is not a version like 1.2.3." }
