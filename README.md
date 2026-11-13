@@ -106,8 +106,9 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1
 ./scripts/setup.sh
 ```
 
-The script creates `.env` with a new master key, builds and starts YAAP and asks for a password. The first build
-downloads a few GB and takes several minutes.
+The script creates `.env` with a new master key, downloads YAAP's ready-made images (a few GB, once), starts YAAP
+and asks for a password. To build the images from the source in this folder instead, add `--build` (`-Build` on
+Windows); see [building the images yourself](docs/install.md#building-the-images-yourself).
 
 Then open <http://127.0.0.1:8080>. The first start connects a model (an API key, or a button to sign in with your
 Claude or ChatGPT subscription), creates a first project and offers YAAP's starter Blueprint. New to YAAP? Read
