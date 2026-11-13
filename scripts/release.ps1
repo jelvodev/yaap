@@ -74,7 +74,14 @@ try {
 Invoke-Git add -A
 Invoke-Git commit --quiet -m "Set the version to $Version"
 $Message = "YAAP $Version`n`n$Notes"
-Invoke-Git tag -a $Tag -m $Message
+# Through a file: Windows PowerShell 5.1 splits an argument with double quotes in it, which the notes can have.
+$MessageFile = [System.IO.Path]::GetTempFileName()
+try {
+    [System.IO.File]::WriteAllText($MessageFile, $Message, (New-Object System.Text.UTF8Encoding $false))
+    Invoke-Git tag -a $Tag --cleanup=whitespace -F $MessageFile
+} finally {
+    Remove-Item -LiteralPath $MessageFile -ErrorAction SilentlyContinue
+}
 Write-Host ''
 Write-Host "Committed and tagged ${Tag}:"
 Invoke-Git show --no-patch --format='%h %s' HEAD
