@@ -108,7 +108,11 @@ def modified_at(timestamp: float | None) -> datetime | None:
 
 
 def location_out(located: ProjectFiles) -> FilesLocationOut:
-    return FilesLocationOut(kind=located.location, label=located.label, checkpoints=located.folder is not None)  # type: ignore[arg-type]
+    return FilesLocationOut(
+        kind=located.location,  # type: ignore[arg-type]  # a plain string in the service; the schema narrows it
+        label=located.label,
+        checkpoints=located.folder is not None,
+    )
 
 
 @asynccontextmanager
@@ -187,7 +191,7 @@ async def read_file(
             name=name_of(opened.entry.path),
             size=opened.entry.size,
             modified=modified_at(opened.entry.modified),
-            kind=opened.kind,  # type: ignore[arg-type]
+            kind=opened.kind,  # type: ignore[arg-type]  # a plain string in the service; the schema narrows it
             media_type=opened.media_type,
             hash=opened.hash,
             text=opened.text,

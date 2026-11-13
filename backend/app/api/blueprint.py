@@ -349,10 +349,10 @@ async def check_package_update(
         items=[
             PackageItemUpdateOut(
                 path=update.target,
-                kind=update.kind,  # type: ignore[arg-type]
+                kind=update.kind,  # type: ignore[arg-type]  # the service's kind is one of the schema's values
                 name=update.name,
                 installed_commit=update.installed_commit,
-                status=update.status,  # type: ignore[arg-type]
+                status=update.status,  # type: ignore[arg-type]  # the service's status is one of the schema's values
                 upstream_diff=update.upstream_diff,
                 local_diff=update.local_diff,
                 changed_locally=update.changed_locally,

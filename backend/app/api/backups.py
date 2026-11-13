@@ -2,6 +2,7 @@ import shutil
 import zipfile
 from dataclasses import asdict
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, UploadFile, status
@@ -9,13 +10,15 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.api.dependencies import CipherDependency, DataDirDependency, SessionDependency
 from app.api.schemas import BackupOut
-from app.backups.destinations import DestinationError, fetch_from
+from app.backups.destinations import DestinationConfig, DestinationError, fetch_from
 from app.backups.runs import BackupBusy, backup_running, make_destination, next_backup_at, read_destinations, run_backup
 from app.core.backup import BackupError, backup_path, backups_dir, info, list_backups
 from app.storage.models import BackupRun
+from app.credentials.crypto import CredentialCipher
 from app.core.restore import RestoreError, check_backup, read_manifest, stage_restore
 from app.storage.db import known_revision
 
@@ -106,7 +109,7 @@ def backup_status(request: Request, session: SessionDependency) -> BackupStatusO
     )
 
 
-def destination_state(config, session, cipher) -> DestinationStateOut:  # type: ignore[no-untyped-def]
+def destination_state(config: DestinationConfig, session: Session, cipher: CredentialCipher) -> DestinationStateOut:
     try:
         destination = make_destination(config, session, cipher)
         where = destination.describe()
@@ -129,7 +132,7 @@ def info_time(name: str) -> datetime:
     return datetime.strptime(name[len("yaap-backup-") : -len(".zip")], "%Y%m%d-%H%M%S").replace(tzinfo=UTC)
 
 
-def find_destination(session, name: str):  # type: ignore[no-untyped-def]
+def find_destination(session: Session, name: str) -> DestinationConfig:
     for config in read_destinations(session):
         if config.name == name:
             return config
@@ -154,8 +157,9 @@ def test_destination(name: str, session: SessionDependency, cipher: CipherDepend
         destination.remove(probe)
     except DestinationError as error:
         return destination_state(config, session, cipher).model_copy(update={"ok": False, "message": str(error)})
-    except Exception as error:  # noqa: BLE001
-        return destination_state(config, session, cipher).model_copy(update={"ok": False, "message": f"The test failed: {error}"})
+    except Exception as error:  # noqa: BLE001 - any failure of a third-party destination is the test's result
+        message = f"The test failed: {error}"
+        return destination_state(config, session, cipher).model_copy(update={"ok": False, "message": message})
     state = destination_state(config, session, cipher)
     return state.model_copy(update={"message": f"Writing works. {state.message}"}) if state.ok else state
 
@@ -222,7 +226,7 @@ class RestoreOut(BaseModel):
     restarting: bool
 
 
-def find_backup(data_dir: Any, name: str):  # type: ignore[no-untyped-def]
+def find_backup(data_dir: Path, name: str) -> Path:
     try:
         return backup_path(data_dir, name)
     except BackupError as error:

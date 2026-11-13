@@ -110,7 +110,7 @@ def target_out(session: Session, target: Target) -> TargetOut:
         whole_computer=target.whole_computer,
         last_tested_at=target.last_tested_at,
         last_test_result=target.last_test_result,
-        state=state,  # type: ignore[arg-type]
+        state=state,  # type: ignore[arg-type]  # a plain string here; the schema narrows it
     )
 
 

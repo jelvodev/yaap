@@ -1,6 +1,7 @@
 """Project knowledge: reference documents the agent can search and read."""
 
 from datetime import datetime
+from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request, Response, UploadFile, status
@@ -77,7 +78,7 @@ def document_out(document: KnowledgeDocument, state: str, ocr: bool = False) -> 
         size=document.size,
         chars=document.chars,
         created_at=document.created_at,
-        index_state=state,  # type: ignore[arg-type]
+        index_state=state,  # type: ignore[arg-type]  # a plain string here; the schema narrows it
         partly_indexed=document.chars > MAX_INDEXED_CHARS,
         source_url=document.source_url,
         source_path=document.source_path,
@@ -102,7 +103,7 @@ def list_knowledge(project: ProjectDependency, session: SessionDependency, reque
     ]
 
 
-def read_with_ocr(data_dir, document: KnowledgeDocument) -> bool:  # type: ignore[no-untyped-def]
+def read_with_ocr(data_dir: Path, document: KnowledgeDocument) -> bool:
     if document.kind not in ("pdf", "image"):
         return False
     return OCR_NOTE in read_text(data_dir, document)[:200_000]
