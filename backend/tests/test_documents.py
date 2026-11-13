@@ -159,7 +159,7 @@ def test_the_agents_write_shows_as_a_diff_and_can_be_rolled_back(client, fake):
     assert names.index("document_writing") < names.index("document_change")
     change = next(data for name, data in events if name == "document_change")
     after = file.read_bytes()
-    assert change == {"path": "notes.md", "hash": hashlib.sha256(after).hexdigest()}
+    assert change == {"event": "document_change", "path": "notes.md", "hash": hashlib.sha256(after).hexdigest()}
     shown = document(client, conversation_id)
     review = shown["review"]
     assert " One idea." in review["diff"] and "+Two ideas." in review["diff"]

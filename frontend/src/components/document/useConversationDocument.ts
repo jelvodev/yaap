@@ -91,10 +91,10 @@ export function useConversationDocument(conversationId: number | null, inProject
 
   const onEvent = useCallback(
     (event: DocumentEvent) => {
-      if (event.kind === "writing") setWriting(true);
-      if (event.kind === "seen") setDelivered((count) => count + 1);
-      if (event.kind === "open" || event.kind === "change") {
-        if (event.kind === "change") {
+      if (event.event === "document_writing") setWriting(true);
+      if (event.event === "document_seen") setDelivered((count) => count + 1);
+      if (event.event === "document_open" || event.event === "document_change") {
+        if (event.event === "document_change") {
           setWriting(false);
           setVersion((count) => count + 1);
         }

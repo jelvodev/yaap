@@ -1,12 +1,11 @@
 import logging
-from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Literal
 
 import anyio
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
+from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -19,6 +18,7 @@ from app.api.dependencies import (
     SessionDependency,
     WorkspaceDirDependency,
 )
+from app.api.reply_stream import EventStreamResponse, event_stream, reply_stream_responses
 from app.api.schemas import (
     ContextControlOut,
     ConversationCreate,
@@ -473,15 +473,15 @@ def utility_context(request: Request) -> UtilityContext:
 
 @router.post(
     "/conversations/{conversation_id}/messages",
-    response_class=StreamingResponse,
-    responses={200: {"content": {"text/event-stream": {}}, "description": "Server-sent events with the reply."}},
+    response_class=EventStreamResponse,
+    responses=reply_stream_responses("Server-sent events with the reply."),
 )
 def send_message(
     payload: MessageCreate,
     conversation: ConversationDependency,
     session: SessionDependency,
     service: ReplyServiceDependency,
-) -> StreamingResponse:
+) -> EventStreamResponse:
     """Send a message after the current head, or, with edit_of, as a new version of an earlier message."""
     message = NewMessage(payload.text, payload.edit_of, tuple(payload.attachment_ids))
     try:
@@ -493,12 +493,12 @@ def send_message(
 
 @router.post(
     "/conversations/{conversation_id}/messages/{message_id}/retry",
-    response_class=StreamingResponse,
-    responses={200: {"content": {"text/event-stream": {}}, "description": "The reply to the stored message."}},
+    response_class=EventStreamResponse,
+    responses=reply_stream_responses("The reply to the stored message."),
 )
 def retry_message(
     message_id: int, conversation: ConversationDependency, session: SessionDependency, service: ReplyServiceDependency
-) -> StreamingResponse:
+) -> EventStreamResponse:
     """Retry a reply start against its existing latest user message, without storing the message twice."""
     try:
         job = service.retry_user_message(session, conversation, message_id)
@@ -509,12 +509,12 @@ def retry_message(
 
 @router.post(
     "/conversations/{conversation_id}/messages/{message_id}/regenerate",
-    response_class=StreamingResponse,
-    responses={200: {"content": {"text/event-stream": {}}, "description": "Server-sent events with the new reply."}},
+    response_class=EventStreamResponse,
+    responses=reply_stream_responses("Server-sent events with the new reply."),
 )
 def regenerate_reply(
     message_id: int, conversation: ConversationDependency, session: SessionDependency, service: ReplyServiceDependency
-) -> StreamingResponse:
+) -> EventStreamResponse:
     """A new version of a reply: the same question answered again, next to the earlier answer."""
     try:
         job = service.regenerate(session, conversation, message_id)
@@ -549,19 +549,11 @@ def switch_branch(
     return read_conversation(conversation, session, providers)
 
 
-def event_stream(events: AsyncIterator[str]) -> StreamingResponse:
-    return StreamingResponse(
-        events,
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
-
-
 @router.get(
     "/conversations/{conversation_id}/reply",
-    response_class=StreamingResponse,
+    response_class=EventStreamResponse,
     responses={
-        200: {"content": {"text/event-stream": {}}, "description": "The running reply, from its first event."},
+        **reply_stream_responses("The running reply, from its first event."),
         204: {"description": "No reply is running."},
     },
 )

@@ -11,6 +11,7 @@ from app.agent.test_output import essentials, recognise_runner
 from app.agent.tool_context import commands_remote, executor, on_target
 from app.agent.toolkit import STRING, Tool, ToolError, schema, text_argument
 from app.checkpoints.service import call_key
+from app.core.reply_event_models import ToolOutputEvent
 from app.core.subprocess_env import safe_subprocess_env
 from app.secrets.service import SecretError, mask, placeholder_names, substitute
 from app.targets.base import CommandResult
@@ -53,7 +54,7 @@ class LiveOutput:
         if not self.pending:
             return
         text = mask(self.pending, self.run.secrets) if self.run.secrets else self.pending
-        self.run.events.put_nowait({"event": "tool_output", "call_key": self.key, "text": text[-20_000:]})
+        self.run.events.put_nowait(ToolOutputEvent(call_key=self.key, text=text[-20_000:]))
         self.pending = ""
         self.sent_at = time.monotonic()
 

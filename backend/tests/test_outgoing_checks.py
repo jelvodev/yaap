@@ -166,7 +166,7 @@ def test_an_outgoing_a2a_message_with_a_secret_is_blocked(client, monkeypatch, t
     async def scenario() -> tuple[object, bool]:
         async def approve() -> None:
             while True:
-                event = await run.events.get()
+                event = (await run.events.get()).model_dump()
                 if event["event"] == "approval_request":
                     registry.decide(str(event["approval_id"]), "approve")
 

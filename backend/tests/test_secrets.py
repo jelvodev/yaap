@@ -46,7 +46,7 @@ def test_a_command_with_a_secret_always_asks_and_its_output_is_masked(project): 
     asked: list[dict] = []
 
     async def approve_when_asked():
-        event = await run.events.get()
+        event = (await run.events.get()).model_dump()
         asked.append(event)
         registry.decide(event["approval_id"], "approve")
 

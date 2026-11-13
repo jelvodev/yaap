@@ -33,7 +33,7 @@ def test_the_next_tool_result_carries_the_message(project):  # noqa: F811
     run.state.steering.append("Use blue, not red.")
     output, _ = asyncio.run(call_tool(registry, run, "list_files", {}))
     assert output.endswith(f"{STEERING_NOTE}\nUse blue, not red.") and run.state.steering == []
-    event = run.events.get_nowait()
+    event = run.events.get_nowait().model_dump()
     assert event["event"] == "steering" and event["text"] == "Use blue, not red."
     again, _ = asyncio.run(call_tool(registry, run, "list_files", {}))
     assert STEERING_NOTE not in again

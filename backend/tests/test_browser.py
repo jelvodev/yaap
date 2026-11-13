@@ -77,7 +77,7 @@ def test_other_sites_ask_count_as_outside_content_and_take_secrets(tmp_path):
 
         async def approve_all():
             while True:
-                event = await run.events.get()
+                event = (await run.events.get()).model_dump()
                 if event["event"] == "approval_request":
                     asked.append(event)
                     registry.decide(event["approval_id"], "approve")

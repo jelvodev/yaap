@@ -198,7 +198,7 @@ def test_an_approval_request_carries_the_reason_and_the_step_keeps_it(tmp_path):
 
         async def approve():
             nonlocal event
-            event = await run.events.get()
+            event = (await run.events.get()).model_dump()
             registry.decide(event["approval_id"], "approve")
 
         task = asyncio.create_task(approve())

@@ -21,6 +21,7 @@ from app.core.background import BackgroundWork
 from app.core.builtin_prompts import utility_instructions
 from app.core.chat_events import server_sent_event
 from app.core.chat_history import is_part_of_history, load_branch
+from app.core.reply_event_models import CompactedEvent, CompactFailedEvent
 from app.core.utility import UtilityContext, UtilitySkipped, run_utility_or_skip
 from app.providers.base import HistoryMessage
 from app.providers.registry import ProviderRegistry
@@ -299,14 +300,16 @@ async def compact_events(context: UtilityContext, conversation_id: int, focus: s
     try:
         result = await summarise(context, conversation_id, focus or None)
     except SummaryError as error:
-        yield server_sent_event("compact_failed", {"detail": str(error)})
+        yield server_sent_event(CompactFailedEvent(detail=str(error)))
         return
     except Exception:  # noqa: BLE001
         logger.warning("Compacting conversation %s failed.", conversation_id, exc_info=True)
-        yield server_sent_event("compact_failed", {"detail": "The summary could not be made; see the server log."})
+        yield server_sent_event(
+            CompactFailedEvent(detail="The summary could not be made; see the server log.")
+        )
         return
     yield server_sent_event(
-        "compacted", {"message_id": result.covered_message_id, "covered": result.covered, "focus": focus or None}
+        CompactedEvent(message_id=result.covered_message_id, covered=result.covered, focus=focus or None)
     )
 
 

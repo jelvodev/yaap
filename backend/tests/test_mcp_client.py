@@ -65,7 +65,7 @@ def test_tools_are_named_disabled_tools_left_out_and_calls_ask():
         assert not is_error and output and run.state.outside_sources[0].label == "MCP server test"
 
         async def approve():
-            event = await run.events.get()
+            event = (await run.events.get()).model_dump()
             assert event["event"] == "approval_request" and event["summary"].startswith("test: echo")
             registry.decide(event["approval_id"], "approve")
 
