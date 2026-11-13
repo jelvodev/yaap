@@ -216,6 +216,8 @@ class TriggerServices:
             observations = self.observe(session, opened.project, task, record, config)
         except PollFailed as error:
             return "failed", f"0 new cards. {error}"
+        # Reading the token logs its use; commit it before the board writes in sessions of its own.
+        session.commit()
         known = known_refs(session, task.project_id)
         room = CardIntake(self.board).room_in_inbox(session, task.project_id)
         cards = trigger_cards(config.kind, observations, known, max(0, min(budget, room)))
