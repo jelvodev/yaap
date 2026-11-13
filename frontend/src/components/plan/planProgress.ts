@@ -53,12 +53,19 @@ export function checkLine(check: CheckLike): string {
   return check.run ? `${check.text} ${RUN_MARK} ${check.run}` : check.text;
 }
 
-/** An editor line as a check: everything after the first `run:` is the command. */
+/**
+ * An editor line as a check: everything after the first `run:` is the command. The check may also be written as a
+ * code span (`` `run: pytest -q` ``), as specifications write it; the backticks are not part of the command.
+ */
 export function parseCheckLine(line: string): CheckLike {
   const at = line.indexOf(RUN_MARK);
   if (at === -1) return { text: line.trim(), run: null };
-  const text = line.slice(0, at).trim();
-  const run = line.slice(at + RUN_MARK.length).trim();
+  let text = line.slice(0, at).trim();
+  let run = line.slice(at + RUN_MARK.length).trim();
+  if (text.endsWith("`") && run.endsWith("`")) {
+    text = text.slice(0, -1).trim();
+    run = run.slice(0, -1).trim();
+  }
   return { text: text || run, run: run || null };
 }
 

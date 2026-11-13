@@ -133,6 +133,25 @@ def test_a_continuation_line_joins_the_criterion_text():
     assert isinstance(criterion.check, CommandCheck)
 
 
+@pytest.mark.parametrize(
+    ("line", "text", "run"),
+    [
+        (
+            "- [ ] Tests in `tests/test_report.py` pass `run: python3 -m unittest tests.test_report`",
+            "Tests in `tests/test_report.py` pass",
+            "python3 -m unittest tests.test_report",
+        ),
+        ("- [ ] The `a` and `b` fields work ``run: grep -c `a` x.py``", "The `a` and `b` fields work", "grep -c `a` x.py"),
+    ],
+)
+def test_a_check_after_other_code_spans_is_still_the_check(line, text, run):
+    criterion = parse_criteria(spec(line))[0]
+
+    assert not isinstance(criterion, str) and criterion.text == text
+    assert isinstance(criterion.check, CommandCheck)
+    assert criterion.check.run == run
+
+
 def test_a_code_span_that_is_not_a_check_stays_in_the_text():
     found = parse_criteria(spec("- [ ] The `title` field is required"))
 

@@ -1384,11 +1384,11 @@ kbd {
   font-size: 13px;
 }
 
-/* The hint gives way first: it shrinks with an ellipsis, and disappears when the box is narrow, so the send
-   button stays on the same line as the controls. */
+/* The hint gives way first: it shrinks with an ellipsis, wraps to its own line rather than shrink below the
+   words "Enter to send", and disappears when the box is narrow. */
 .composer-hint {
   flex: 1 1 0;
-  min-width: 0;
+  min-width: 14ch;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;

@@ -84,6 +84,13 @@ def test_a_plan_without_files_waits_for_every_other_build_and_says_why() -> None
     assert "#5" in outcome.reason
 
 
+def test_a_plan_waiting_for_a_build_without_files_says_the_other_build_needs_the_whole_project() -> None:
+    outcome = can_start(slot(9, ("a.py",)), [slot(1, None, card_id=5)], {}, limits(4))
+    assert isinstance(outcome, Wait)
+    assert "one of its steps names no files" in outcome.reason
+    assert "#5" in outcome.reason
+
+
 def test_a_plan_without_files_starts_when_nothing_else_builds() -> None:
     assert isinstance(can_start(slot(9, None), [], {}, limits(4)), Start)
 

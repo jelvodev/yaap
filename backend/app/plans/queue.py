@@ -126,7 +126,11 @@ def can_start(
         if not files_overlap(plan.files, other.files):
             continue
         name = slot_name(other)
-        if plan.files is None or other.files is None:
-            return Wait("files", f"Waits for {name}: a plan without files needs the whole project.", (other.plan_id,))
+        if other.files is None:
+            reason = f"Waits for {name}: one of its steps names no files, so it may touch the whole project."
+            return Wait("files", reason, (other.plan_id,))
+        if plan.files is None:
+            reason = f"Waits for {name}: a step of this plan names no files, so it needs the whole project."
+            return Wait("files", reason, (other.plan_id,))
         return Wait("files", f"Waits for {name}'s files.", (other.plan_id,))
     return Start()

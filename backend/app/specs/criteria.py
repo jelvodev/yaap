@@ -26,7 +26,9 @@ FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
 ITEM = re.compile(r"^[ \t]*[-*+][ \t]+\[([ xX])\][ \t]?(.*)$")
 OTHER_ITEM = re.compile(r"^[ \t]*(?:[-*+]|\d+[.)])[ \t]")
 # One code span at the very end of the item, as in `run: pytest`; a span may cross a line break in Markdown.
-TRAILING_SPAN = re.compile(r"(`+)(.+?)\1\s*$", re.DOTALL)
+# The last code span of an item: its content may not hold its own fence, so an earlier span in the text (such as
+# `tests/test_page.py`) does not swallow everything up to the check.
+TRAILING_SPAN = re.compile(r"(`+)((?:(?!\1).)+?)\1\s*$", re.DOTALL)
 FILE_CHECK = re.compile(r"^file:\s*(\S+)\s+(?:(exists)|contains\s+(.+))$", re.DOTALL)
 
 
