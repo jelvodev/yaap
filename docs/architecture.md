@@ -64,7 +64,7 @@ flowchart TB
 
 - **Frontend.** React and Vite, built into the image and served by FastAPI. Commands are plain HTTP requests; replies, tool calls and approvals stream back as server-sent events.
 - **Backend.** One FastAPI process. Replies run on the server, apart from the browser connection, so closing the tab does not stop them.
-- **Web fetch.** Each destination, including redirects, is resolved and checked for public IP addresses before connecting; the connection uses a checked address while retaining the host for TLS.
+- **Web fetch.** `web_fetch` runs where the run's commands run: in the environment's runner, the project's sandbox or on its computer over SSH, with that place's Python 3; an offline runner or sandbox refuses it. Only a run without a runner (a conversation outside a project, or `YAAP_RUNNER=off`) fetches in YAAP's process. In each place the same code resolves every destination, including redirects, and checks it for public IP addresses before connecting; the connection uses a checked address while retaining the host for TLS. Adding knowledge or a skill from a URL you give fetches in YAAP, with the same checks.
 - **Models.** Claude and OpenAI through an API key, or through the vendors' own CLIs (Claude Code, Codex) signed in with your subscription; local models through Ollama.
 - **Data.** SQLite for state, git repositories for the Blueprint and projects, plain folders for files. One folder to back up.
 
