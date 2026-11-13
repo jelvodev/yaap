@@ -51,6 +51,11 @@ yourself when you update; it says "None." when there is nothing.
 - *Send back with the finding* returns a card to Design with a review finding or an unmet criterion in its description, so the next plan fixes it.
 - Screenshots before and after are not taken yet. The evidence says "No preview for this project".
 
+- A project's board can be kept in a separate private repository instead of the project's own `yaap-board` branch,
+- New project settings `board_storage` and `board_repository_url`. The board's repository must be an https URL
+- Backups include the boards kept in separate repositories.
+- YAAP now checks the configuration of a bare repository it uses (such as the git transport) the same way as any
+
 ### Action needed
 
 - `git push --all` and `git push --mirror` also push the `yaap-board` branch, and with it every card, specification and plan. On a public repository, push your branches one by one.
