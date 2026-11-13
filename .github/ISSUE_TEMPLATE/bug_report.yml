@@ -1,0 +1,115 @@
+name: Bug report
+description: Something in YAAP does not work as it should, and you can make it happen again.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this.
+
+        - **Security problem?** Do not file it here. Use **Report a vulnerability** on the Security tab, as
+          [SECURITY.md](https://github.com/jelvodev/yaap/blob/main/SECURITY.md) explains.
+        - **A question or not sure it is a bug?** Ask in [Q&A](https://github.com/jelvodev/yaap/discussions/categories/q-a).
+        - **Never paste API keys, tokens, passwords or session files.** Check logs and screenshots before you post.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the problem in a few sentences.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The smallest set of steps that makes it happen again.
+      placeholder: |
+        1. Open a project in the environment ...
+        2. Run /plan with ...
+        3. Approve and build
+        4. See ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: YAAP version
+      description: Shown in Settings, or the image tag you run.
+      placeholder: "0.8.1"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows (Docker Desktop)
+        - macOS (Docker Desktop)
+        - Linux
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Provider
+      description: Which provider was in use when it happened? Pick all that apply.
+      multiple: true
+      options:
+        - Claude (API key)
+        - Claude (subscription / Claude Code)
+        - OpenAI (API key)
+        - ChatGPT (subscription / Codex)
+        - Ollama
+        - Other OpenAI-compatible server
+        - Not related to a model
+  - type: input
+    id: model
+    attributes:
+      label: Model
+      description: The model name, if the problem happened during a conversation or build.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Chat and approvals
+        - Board, plan and build
+        - Review and checks
+        - Blueprint
+        - Runner, sandbox or targets
+        - Git and branches
+        - Traces, replay and evals
+        - Settings, sign-in and tokens
+        - Installation and updates
+        - Plugins, MCP or A2A
+        - Other
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Relevant output, for example from `docker compose logs yaap`. Remove secrets first.
+        This is rendered as code automatically.
+      render: text
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Screenshots, your setup, or what you already tried.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you submit
+      options:
+        - label: I searched the existing issues and this is not a duplicate.
+          required: true
+        - label: I removed API keys, tokens, passwords and other secrets from everything above.
+          required: true

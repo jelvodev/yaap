@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or help with setup
+    url: https://github.com/jelvodev/yaap/discussions/categories/q-a
+    about: Ask in Q&A on Discussions instead of opening an issue.
+  - name: Idea to discuss
+    url: https://github.com/jelvodev/yaap/discussions/categories/ideas
+    about: Not sure yet what it should look like? Start in Ideas.
+  - name: Security problem
+    url: https://github.com/jelvodev/yaap/security/advisories/new
+    about: Report vulnerabilities privately, never in a public issue.

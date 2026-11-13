@@ -1,0 +1,31 @@
+name: Documentation
+description: Something in the docs or README is wrong, unclear or missing.
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: input
+    id: page
+    attributes:
+      label: Which page?
+      description: A link to the page or the file name, such as docs/install.md.
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What is the problem?
+      options:
+        - Wrong or outdated
+        - Unclear
+        - Missing
+        - Broken link or image
+        - Typo or wording
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: Quote the part you mean and say what should change.
+    validations:
+      required: true

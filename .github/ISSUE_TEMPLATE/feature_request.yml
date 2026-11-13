@@ -1,0 +1,65 @@
+name: Feature request
+description: Suggest something YAAP should do, or do differently.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea! Check the [roadmap](https://github.com/jelvodev/yaap/blob/main/docs/roadmap.md) first:
+        if it is already there, say so below and add your use case. Ideas that still need shaping can start in
+        [Ideas](https://github.com/jelvodev/yaap/discussions/categories/ideas).
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe what you are trying to do and what gets in the way today.
+      placeholder: When I ..., I have to ..., which ...
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: What would you like to happen?
+      description: How it could work, from your point of view as a user.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+      description: Workarounds you use now, or how other tools solve it.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Chat and approvals
+        - Board, plan and build
+        - Review and checks
+        - Blueprint
+        - Runner, sandbox or targets
+        - Git and branches
+        - Traces, replay and evals
+        - Providers and models
+        - Settings, sign-in and tokens
+        - Installation and updates
+        - Plugins, MCP or A2A
+        - Other
+  - type: input
+    id: roadmap
+    attributes:
+      label: Roadmap item
+      description: The number of a related roadmap item, if there is one.
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Mockups, examples or links.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you submit
+      options:
+        - label: I searched the existing issues and the roadmap.
+          required: true
