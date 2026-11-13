@@ -10,7 +10,8 @@ import math
 from dataclasses import dataclass
 
 from app.agent.policy import CaseApprovals
-from app.blueprint.layers import MAX_FILE_BYTES, BlueprintError, Layer, commit
+from app.blueprint.layers import MAX_FILE_BYTES, BlueprintError, Layer, commit, layer_has_file
+from app.blueprint.mutations import remove, write_bytes
 from app.blueprint.rules import render
 from app.evals.cases import DEFAULT_COMMAND_TIMEOUT, EVALS_FOLDER, parse_case
 from app.evals.models import Budget, Check, CommandCheck, EvalCase, FileCheck, StartState
@@ -161,17 +162,20 @@ def save_case(layer: Layer, case: EvalCase, message: str | None = None, *, repos
     if not (layer.repository / ".git").exists():
         raise CaseWriteError("The project is not a git repository, so the case cannot be committed.")
     relative = f"{EVALS_FOLDER}/{case.name}.md"
-    file = layer.root / relative
-    file.parent.mkdir(parents=True, exist_ok=True)
+    # The project folder is written only through SafeRoot (mutations), which never follows a link out of it.
     try:
-        with file.open("x", encoding="utf-8", newline="\n") as handle:
-            handle.write(text)
-    except FileExistsError as error:
-        raise CaseExistsError(f"The project already has an eval case named {case.name}.") from error
+        if layer_has_file(layer, relative):
+            raise CaseExistsError(f"The project already has an eval case named {case.name}.")
+        write_bytes(layer, relative, text.encode("utf-8"))
+    except OSError as error:
+        raise CaseWriteError(f"The case could not be written: {error}") from error
     try:
         commit(layer, relative, message or f"Add eval case {case.name}")
     except BlueprintError as error:
-        file.unlink(missing_ok=True)
+        try:
+            remove(layer, relative)
+        except OSError:
+            pass  # The commit error is the one to report; a case file left behind is shown as uncommitted.
         raise CaseWriteError(f"The case could not be committed: {error}") from error
     return SavedCase(found.case, f"{layer.prefix}{relative}", head_commit(repository))
 

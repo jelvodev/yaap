@@ -155,14 +155,6 @@ def parse_document(text: str) -> Document:
     return Document({}, normalized)
 
 
-def read_document(path: Path) -> Document:
-    try:
-        return parse_document(path.read_text(encoding="utf-8"))
-    except BlueprintError:
-        # A broken file in one layer must not hide the rest; show it as body only.
-        return Document({}, path.read_text(encoding="utf-8", errors="replace"))
-
-
 def layer_relative(layer: Layer, path: str) -> str:
     """A file relative to the filesystem root used for this layer."""
     return f"{layer.prefix}{path}" if layer.kind == "project" else path

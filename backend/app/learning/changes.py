@@ -22,6 +22,7 @@ from app.blueprint.layers import (
     layer_files,
     merge_layers,
     parse_document,
+    read_layer_text,
     validate_path,
 )
 from app.blueprint.rules import MAX_RULE_CHARS, render, target_path, with_rule
@@ -53,9 +54,8 @@ def with_skill_step(layers: list[Layer], path: str, step: str) -> FileChange:
     """The skill at path with the step added, in the last layer of `layers` (the level's own)."""
     step = clean_line(step)
     own = layers[-1]
-    file = own.root / path
     if path in layer_files(own):
-        before = file.read_text(encoding="utf-8")
+        before = read_layer_text(own, path)
         if f"- {step}" in before.splitlines():
             raise BlueprintError("This step is already in the skill.")
         return FileChange(path, before, f"{before.rstrip()}\n- {step}\n")
@@ -69,10 +69,9 @@ def without_rule(layer: Layer, path: str, rule: str) -> FileChange:
     """The file with the rule taken out; BlueprintError when this level's file does not have it."""
     validate_path(path)
     rule = " ".join(rule.split())
-    file = layer.root / path
     if path not in layer_files(layer):
         raise BlueprintError(f"{layer.label} has no file {path}.")
-    before = file.read_text(encoding="utf-8")
+    before = read_layer_text(layer, path)
     if path == "instructions.md":
         lines = before.replace("\r\n", "\n").split("\n")
         kept = [line for line in lines if " ".join(line.lstrip("-* ").split()) != rule]

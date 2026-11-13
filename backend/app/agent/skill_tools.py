@@ -11,7 +11,7 @@ import anyio
 from app.agent.guard import guard_reason
 from app.agent.runs import AgentRun, ask_approval
 from app.agent.toolkit import STRING, Tool, ToolError, schema, text_argument, truncate
-from app.blueprint.layers import BlueprintError, Layer
+from app.blueprint.layers import BlueprintError, Layer, layer_has_directory
 from app.blueprint.skill_install import Candidate, GitHubSkills, Source, install_at_commit, preview
 
 LEVELS = ("global", "environment", "project")
@@ -28,7 +28,7 @@ def target_layer(run: AgentRun, level: str) -> Layer:
 def review(source: Source, candidate: Candidate, layer: Layer) -> str:
     files = "\n".join(f"  {file.path} ({file.size} bytes)" for file in candidate.files)
     warnings = "\n".join(f"- {warning}" for warning in candidate.warnings) or "- none"
-    exists = (layer.root / "skills" / candidate.name).exists()
+    exists = layer_has_directory(layer, f"skills/{candidate.name}")
     return (
         f"Skill: {candidate.name}\n"
         f"Description: {candidate.description or '(none)'}\n"
