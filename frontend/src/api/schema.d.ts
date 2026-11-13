@@ -3623,7 +3623,8 @@ export interface paths {
         put?: never;
         /**
          * Card Action
-         * @description Run one of the card's stage actions; the card's next step says which one is due.
+         * @description Run one of the card's stage actions; the card's next step says which one is due. Specify and Plan answer 202:
+         *     they start a conversation, whose id is in the answer.
          */
         post: operations["card_action_api_v1_projects__project_id__board_cards__card_id__actions__action__post"];
         delete?: never;
@@ -3677,7 +3678,8 @@ export interface paths {
         put?: never;
         /**
          * Send Back Card
-         * @description Send the card back to Design with one finding or unmet criterion of its review in its description.
+         * @description Send the card back to Design: from Review with one finding or unmet criterion of its review in its description,
+         *     from Build when its build failed or was interrupted.
          */
         post: operations["send_back_card_api_v1_projects__project_id__board_cards__card_id__send_back_post"];
         delete?: never;
@@ -18261,7 +18263,7 @@ export interface operations {
             path: {
                 project_id: number;
                 card_id: number;
-                action: "plan" | "build" | "continue" | "stop" | "review" | "mark_done";
+                action: "specify" | "plan" | "build" | "continue" | "stop" | "review" | "mark_done";
             };
             cookie?: never;
         };
@@ -18269,6 +18271,15 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardActionOut"];
+                };
+            };
+            /** @description Accepted */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };

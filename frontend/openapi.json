@@ -29845,7 +29845,7 @@
     },
     "/api/v1/projects/{project_id}/board/cards/{card_id}/actions/{action}": {
       "post": {
-        "description": "Run one of the card's stage actions; the card's next step says which one is due.",
+        "description": "Run one of the card's stage actions; the card's next step says which one is due. Specify and Plan answer 202:\nthey start a conversation, whose id is in the answer.",
         "operationId": "card_action_api_v1_projects__project_id__board_cards__card_id__actions__action__post",
         "parameters": [
           {
@@ -29872,6 +29872,7 @@
             "required": true,
             "schema": {
               "enum": [
+                "specify",
                 "plan",
                 "build",
                 "continue",
@@ -29894,6 +29895,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardActionOut"
+                }
+              }
+            },
+            "description": "Accepted"
           },
           "409": {
             "content": {
@@ -30046,7 +30057,7 @@
     },
     "/api/v1/projects/{project_id}/board/cards/{card_id}/send-back": {
       "post": {
-        "description": "Send the card back to Design with one finding or unmet criterion of its review in its description.",
+        "description": "Send the card back to Design: from Review with one finding or unmet criterion of its review in its description,\nfrom Build when its build failed or was interrupted.",
         "operationId": "send_back_card_api_v1_projects__project_id__board_cards__card_id__send_back_post",
         "parameters": [
           {
