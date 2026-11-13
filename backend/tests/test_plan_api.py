@@ -2,7 +2,6 @@
 
 import shutil
 import stat
-import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +9,7 @@ import pytest
 
 from app.plans.service import PlanService
 from tests.test_commands_and_skills import start
+from tests.test_plan_workspace import host_git
 
 STEP = {"title": "Add the route", "details": "Return ok.", "files": ["app.py"], "checks": [{"text": "ok", "run": "true"}]}
 
@@ -32,15 +32,6 @@ def force_remove(function: Any, path: str, _error: Any) -> None:
     """Git marks its object files read only, which Windows will not delete."""
     Path(path).chmod(stat.S_IWRITE)
     function(path)
-
-
-def host_git(*arguments: str, cwd: Path) -> None:
-    subprocess.run(
-        ["git", "-c", "user.name=T", "-c", "user.email=t@example.com", *arguments],
-        cwd=cwd,
-        capture_output=True,
-        check=True,
-    )
 
 
 def test_a_plan_is_read_with_its_steps_checks_and_warnings(client):
