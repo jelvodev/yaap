@@ -1,9 +1,10 @@
 """The board's settings: their keys and validation. Kept free of imports from `app.core.settings`, which uses them,
-and from `app.git.remote`, which imports the settings through the runner."""
+and from `app.git.remote`, which imports the settings through the runner; the URL rule comes from `app.git.common`."""
 
 from typing import Any, Literal
 from urllib.parse import urlsplit
 
+from app.git.common import is_plain_https_remote
 from app.providers.registry import ProviderRegistry
 
 PROJECT_BOARD_KEY = "project_board"
@@ -37,18 +38,8 @@ def validate_repository_url(value: Any, _providers: ProviderRegistry) -> str | N
 
 
 def plain_https(url: str) -> bool:
-    """An https URL with a host and a path, and no user name, password or whitespace."""
-    try:
-        parts = urlsplit(url.strip())
-    except ValueError:
-        return False
-    return (
-        parts.scheme == "https"
-        and bool(parts.hostname)
-        and "@" not in parts.netloc
-        and parts.path not in ("", "/")
-        and not any(character.isspace() for character in url.strip())
-    )
+    """An https URL with a host and a path, and no user name, password or whitespace: the rule every remote follows."""
+    return is_plain_https_remote(url)
 
 
 def remote_identity(url: str) -> str | None:
