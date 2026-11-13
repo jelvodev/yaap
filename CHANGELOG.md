@@ -15,6 +15,14 @@ yourself when you update; it says "None." when there is nothing.
 - Extra packages for the runner build on the published image (`docker/sandbox/Dockerfile.extra`); the example in `docker-compose.override.example.yml` and in the configuration guide shows how.
 - The images pick up the fixed `zlib1g` (Debian security update) and a newer Node base, and the app and helper images no longer carry pip. The remaining findings in a vulnerability scan are Debian packages without a fix yet and the copies bundled inside npm, for which no npm release has a fix.
 - The app image carries npm 12.2.2, pinned, instead of the npm that ships with Node: its bundled `undici` and `brace-expansion` are fixed versions. `tools/package.json` allows the install script of Claude Code, which npm 12 no longer runs by default.
+- Security: a project folder that is swapped for another folder or a link while a run works on it is now caught on the folder YAAP actually opens, not only by a check just before it.
+- Security: restoring a checkpoint removes files added since only inside the project folder: a folder link planted in the project no longer lets the restore delete files elsewhere.
+- Security: learning proposals, eval cases saved from a conversation and the skill install review read and write a project's Blueprint files only through the same link-safe file access as the agent's file tools.
+- Security: the agent's `web_fetch` now runs where its commands run (the environment's runner, the project's sandbox or its computer over SSH) with the same public-address and redirect checks there, so it can no longer reach services that only YAAP's own container can reach. When the runner has no network access, fetching a page is refused. Outside a project, and with `YAAP_RUNNER=off`, it still fetches from YAAP's process.
+- A computer over SSH needs Python 3 for `web_fetch`; without it the fetch is refused with a clear message.
+- The API description now lists every event of the reply stream, so clients can generate types for it.
+- Goal and message statuses are checked when they are stored; the database adds a check on them during the upgrade when its existing rows allow it, and logs any value it could not place.
+- Message blocks are checked by their kind when a reply is stored; older conversations still load, with a tool call that lacks an id given a placeholder.
 
 ### Action needed
 
