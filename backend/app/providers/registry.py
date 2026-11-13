@@ -1,12 +1,12 @@
 """Registry of model providers, the ways YAAP connects to them, and the models they offer."""
 
-from collections.abc import Awaitable, Callable, Iterable
-from dataclasses import dataclass
+from collections.abc import Awaitable, Callable, Iterable, Mapping
+from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from app.providers.base import ModelProvider
-from app.providers.catalog import ModelInfo
+from app.providers.catalog import ANTHROPIC_DEFAULT_MODELS, OPENAI_DEFAULT_MODELS, ModelInfo, ModelRole
 from app.providers.cli_sign_in import SignInSpec
 
 if TYPE_CHECKING:
@@ -40,6 +40,11 @@ class ProviderSpec:
     signed_in: Callable[[], Awaitable[bool]] | None = None
     # How a subscription CLI is signed in from the browser, when it can be.
     sign_in: SignInSpec | None = None
+    # Whether the connection keeps its own session and compacts it itself (the subscription CLIs); YAAP then neither
+    # trims nor summarises its conversations.
+    compacts_itself: bool = False
+    # The vendor's model per role, for presets, workers and the utility model when nothing else names one.
+    default_models: Mapping[ModelRole, str] = field(default_factory=dict)
 
 
 class ProviderRegistry:
@@ -74,6 +79,17 @@ class ProviderRegistry:
         """The vendor's name, for grouping: Anthropic for both of its connections."""
         spec = self.find_provider(name)
         return spec.display_name if spec is not None else name
+
+    def default_model(self, role: ModelRole, provider: str | None = None) -> str | None:
+        """The model for a role of a provider's first spec that names one; without a provider, of the first spec."""
+        return next(
+            (
+                spec.default_models[role]
+                for spec in self.specs
+                if provider in (None, spec.name) and role in spec.default_models
+            ),
+            None,
+        )
 
     def find_model(self, model_id: str) -> ModelInfo | None:
         return next((model for model in self.models if model.id == model_id), None)
@@ -116,6 +132,7 @@ def default_provider_registry() -> ProviderRegistry:
         long_cache=True,
         # The hour applies when the cache policy chose it; return_notice handles that.
         cache_lifetime=timedelta(minutes=5),
+        default_models=ANTHROPIC_DEFAULT_MODELS,
     )
     claude_code = ProviderSpec(
         name="anthropic",
@@ -129,7 +146,10 @@ def default_provider_registry() -> ProviderRegistry:
         cache_lifetime=timedelta(hours=1),
         signed_in=claude_code_signed_in,
         sign_in=claude_code_sign_in_spec(),
+        default_models=ANTHROPIC_DEFAULT_MODELS,
+        compacts_itself=True,
     )
+
     def create_openai_provider(api_key: str | None) -> ModelProvider:
         assert api_key is not None
         return OpenAIProvider(api_key)
@@ -143,6 +163,7 @@ def default_provider_registry() -> ProviderRegistry:
         runs_agents=True,
         # OpenAI caches by itself for a few minutes.
         cache_lifetime=timedelta(minutes=5),
+        default_models=OPENAI_DEFAULT_MODELS,
     )
     codex = ProviderSpec(
         name="openai",
@@ -156,6 +177,8 @@ def default_provider_registry() -> ProviderRegistry:
         cache_lifetime=timedelta(hours=1),
         signed_in=codex_signed_in,
         sign_in=codex_sign_in_spec(),
+        default_models=OPENAI_DEFAULT_MODELS,
+        compacts_itself=True,
     )
     from app.providers.endpoints import EndpointState
     from app.providers.ollama_provider import OllamaProvider, OllamaState

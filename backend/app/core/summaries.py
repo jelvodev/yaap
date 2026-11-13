@@ -237,10 +237,10 @@ async def summarise(context: UtilityContext, conversation_id: int, focus: str | 
 
 
 def yaap_compacts(session: Session, providers: ProviderRegistry, conversation: Conversation) -> bool:
-    """Whether YAAP summarises this conversation: every connection but Claude Code and Codex."""
-    from app.core.context_control import compacts_itself
+    """Whether YAAP summarises this conversation: every connection but those that compact their own sessions."""
+    from app.core.context_control import resolve_context_control
 
-    return not compacts_itself(session, providers, conversation)
+    return not resolve_context_control(session, providers, conversation).compacts_itself
 
 
 def needs_summary(session: Session, providers: ProviderRegistry, conversation: Conversation) -> bool:

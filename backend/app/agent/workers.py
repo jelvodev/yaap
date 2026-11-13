@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.orm import Session
 
+from app.providers.catalog import default_model
 from app.providers.registry import ProviderRegistry
 
 if TYPE_CHECKING:  # The model choice imports CLI_WORKERS from this module at run time.
@@ -27,15 +28,18 @@ class CliWorker:
     connection: str
     # The setting with its model and effort.
     setting: str
-    default_model: str
     default_effort: str
+
+    @property
+    def default_model(self) -> str:
+        return default_model("worker", self.provider)
 
 
 CLI_WORKERS: dict[str, CliWorker] = {
     worker.name: worker
     for worker in (
-        CliWorker("claude_code", "Claude Code", "anthropic", "claude_code", "claude_code_worker", "claude-sonnet-5-5", "medium"),
-        CliWorker("codex", "Codex", "openai", "codex", "codex_worker", "gpt-6.1-sol", "medium"),
+        CliWorker("claude_code", "Claude Code", "anthropic", "claude_code", "claude_code_worker", "medium"),
+        CliWorker("codex", "Codex", "openai", "codex", "codex_worker", "medium"),
     )
 }
 

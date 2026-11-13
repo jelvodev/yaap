@@ -5,7 +5,9 @@ prices and models on 2026-11-05 (developers.openai.com/api/docs/pricing and /mod
 pricing page when they change.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Literal
 
 from app.providers.base import TokenUsage
@@ -19,6 +21,8 @@ DEFAULT_MAX_OUTPUT = 64_000
 CLAUDE_5_MAX_OUTPUT = 128_000
 # A model's place in its vendor's line-up: switching presets to another vendor picks the model of the same size.
 ModelSize = Literal["large", "medium", "small"]
+# The roles a provider names a default model for.
+ModelRole = Literal["main", "fast", "worker", "utility"]
 
 
 @dataclass(frozen=True)
@@ -182,3 +186,23 @@ OPENAI_MODELS = [
         pricing=openai_pricing(0.10, 0.01, 0.50),
     ),
 ]
+
+# The vendor's model for each role YAAP fills by itself: the seeded presets (main, fast, utility for the cheap one),
+# delegated work (worker) and the utility model when no setting names one. The specs carry these.
+ANTHROPIC_DEFAULT_MODELS: Mapping[ModelRole, str] = MappingProxyType(
+    {"main": "claude-opus-5-5", "fast": "claude-sonnet-5-5", "worker": "claude-sonnet-5-5", "utility": "claude-haiku-5-5"}
+)
+OPENAI_DEFAULT_MODELS: Mapping[ModelRole, str] = MappingProxyType(
+    {"main": "gpt-6-astra", "fast": "gpt-6.1-sol", "worker": "gpt-6.1-sol", "utility": "gpt-6-luna"}
+)
+# Per built-in vendor, in the order the registry lists them: the first is YAAP's default vendor.
+BUILTIN_DEFAULT_MODELS: Mapping[str, Mapping[ModelRole, str]] = MappingProxyType(
+    {"anthropic": ANTHROPIC_DEFAULT_MODELS, "openai": OPENAI_DEFAULT_MODELS}
+)
+
+
+def default_model(role: ModelRole, provider: str | None = None) -> str:
+    """A built-in vendor's model for a role; without a vendor, the default vendor's. For code that runs before a
+    registry exists (setting defaults, seeded presets); with a registry, ask ProviderRegistry.default_model."""
+    models = BUILTIN_DEFAULT_MODELS[provider] if provider is not None else next(iter(BUILTIN_DEFAULT_MODELS.values()))
+    return models[role]

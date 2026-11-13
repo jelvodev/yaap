@@ -44,11 +44,14 @@ from app.providers.base import (
     ToolCallFinished,
     ToolCallStarted,
 )
-from app.providers.catalog import ANTHROPIC_MODELS
-from app.providers.registry import ProviderRegistry, ProviderSpec
+from app.providers.catalog import ANTHROPIC_MODELS, default_model
+from app.providers.registry import ProviderRegistry, ProviderSpec, default_provider_registry
 from app.websearch.service import SearxngSearch
 
-MODEL = "claude-opus-5-5"
+MODEL = default_model("main", "anthropic")
+# The first Anthropic spec is the API key connection, which the stand-in replaces.
+_ANTHROPIC_SPEC = default_provider_registry().find_provider("anthropic")
+ANTHROPIC_CONNECTION = _ANTHROPIC_SPEC.connection if _ANTHROPIC_SPEC else ""
 API = "/api/v1"
 UNUSED_SEARCH_URL = "http://127.0.0.1:9"
 STAND_IN_KEY = "footprint-stand-in-not-a-key"
@@ -145,7 +148,7 @@ def recording_app(script: list[ToolCalls], recorded: list[Recorded], python: str
     credential = CredentialType("anthropic_api_key", "Anthropic API key", "Stand-in.", accept_any_key)
     spec = ProviderSpec(
         "anthropic", "Anthropic", "anthropic_api_key", lambda _key: RecordingProvider(script, recorded),
-        connection="api_key", runs_agents=True,
+        connection=ANTHROPIC_CONNECTION, runs_agents=True,
     )
     providers = ProviderRegistry([spec], ANTHROPIC_MODELS)
     app = create_app(credential_types={credential.kind: credential}, providers=providers)
@@ -171,7 +174,7 @@ def sign_in(client: TestClient) -> None:
 
 
 def configure(client: TestClient, python: str, source: Path) -> None:
-    client.put(f"{API}/settings/anthropic_connection", json={"value": "api_key"}).raise_for_status()
+    client.put(f"{API}/settings/anthropic_connection", json={"value": ANTHROPIC_CONNECTION}).raise_for_status()
     client.put(f"{API}/environments/1/credentials/anthropic_api_key", json={"value": STAND_IN_KEY}).raise_for_status()
     tracker = {
         "transport": "stdio",

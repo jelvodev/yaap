@@ -7,6 +7,7 @@ from app.core.context_control import validate_output_tokens
 from app.core.routing import check_routes, preset_routes
 from app.core.settings import find_setting_row, resolve_text
 from app.presets.delegation import DEFAULT_DELEGATION, DELEGATION_MODES, DelegationMode, delegation_mode
+from app.providers.catalog import default_model
 from app.providers.registry import ProviderRegistry
 from app.storage.models import ModelPreset, Project, Setting
 
@@ -15,13 +16,13 @@ from types import EllipsisType
 from typing import Literal
 
 DEFAULT_PRESETS = (
-    ("Fast", "claude-sonnet-5-5", "low", False),
-    ("Balanced", "claude-opus-5-5", "medium", True),
-    ("Deep", "claude-opus-5-5", "high", False),
-    ("Cheap", "claude-haiku-5-5", "low", False),
+    ("Fast", default_model("fast"), "low", False),
+    ("Balanced", default_model("main"), "medium", True),
+    ("Deep", default_model("main"), "high", False),
+    ("Cheap", default_model("utility"), "low", False),
 )
-# Worker models of the seeded presets: delegated work runs on Sonnet.
-DEFAULT_WORKERS = {"Balanced": ("claude-sonnet-5-5", "low"), "Deep": ("claude-sonnet-5-5", "medium")}
+# Worker models of the seeded presets: delegated work runs on the vendor's worker model.
+DEFAULT_WORKERS = {"Balanced": (default_model("worker"), "low"), "Deep": (default_model("worker"), "medium")}
 
 Role = Literal["main", "worker", "utility"]
 # The environment setting naming the preset of conversations outside a project.
