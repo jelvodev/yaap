@@ -1,9 +1,12 @@
-"""Who gives a second opinion, and what it costs.
+"""Who reviews changes or gives a second opinion, and what a second opinion costs.
 
-The reviewer is a model of another vendor than the one that wrote the reply (other_vendor_choice()). When no other
-vendor is allowed, the strongest other model of the writer's own vendor that the policy, the connection, the key and
-the budget allow is offered instead, marked as the same vendor, with the reason why no other vendor could be used;
-using it is the person's choice. The ordering and the estimate are pure.
+One rule for every review: the reviewer is a model of another vendor than the one that wrote the work
+(other_vendor_choice()). When no other vendor is allowed and the kind of review may fall back (a second opinion, a
+card's review), the strongest other model of the writer's own vendor that the policy, the connection, the key and the
+budget allow is used instead, marked as the same vendor, with the reason why no other vendor could be used. For a
+second opinion using it is the person's choice; a card's review uses it on its own, so the card is not left without a
+review. The other reviews (after a goal, of a conversation or of the uncommitted changes) do not fall back and are
+skipped with the reason. Which kinds fall back, the ordering and the estimate are pure.
 """
 
 from collections.abc import Collection, Iterable
@@ -15,11 +18,15 @@ from app.core.model_choice import ForUtility, ModelChoice, ModelChoiceError, con
 from app.core.other_vendor import NoOtherVendor, other_vendor_choice
 from app.providers.catalog import ModelInfo, ModelPricing
 from app.providers.registry import ProviderRegistry
+from app.reviews.scope import ReviewSource
 
 # A token is about this many characters of text.
 CHARS_PER_TOKEN = 4
 # The effort of the same-vendor reviewer, when its model has it: the strongest model deserves some thinking.
 SAME_VENDOR_EFFORT = "medium"
+# The reviews that fall back to the writer's own vendor when no other vendor is allowed: a second opinion (after the
+# person's yes) and a card's review, which would otherwise leave the card stuck in Review.
+SAME_VENDOR_FALLBACK: frozenset[ReviewSource] = frozenset({"reply", "answer", "build"})
 
 
 @dataclass(frozen=True)
@@ -48,19 +55,28 @@ def same_vendor_order(models: Iterable[ModelInfo], vendors: Collection[str], wri
     return [model.id for model in own]
 
 
-def second_opinion_reviewer(
+def falls_back_to_same_vendor(source: ReviewSource) -> bool:
+    """Whether a review of this kind may use the writer's own vendor when no other vendor is allowed."""
+    return source in SAME_VENDOR_FALLBACK
+
+
+def choose_reviewer(
     session: Session,
     providers: ProviderRegistry,
     environment_id: int,
     request: ForUtility,
     vendors: Collection[str],
     written_by: Collection[str],
+    source: ReviewSource,
 ) -> ReviewerPlan:
-    """Another vendor's model; else the writer's vendor's strongest other model; else no reviewer, with the reasons."""
+    """Another vendor's model; else, when the kind of review falls back, the writer's vendor's strongest other model;
+    else no reviewer, with the reasons."""
     try:
         return ReviewerPlan(other_vendor_choice(session, providers, environment_id, request, vendors), False, None)
     except NoOtherVendor as error:
         why = str(error)
+    if not falls_back_to_same_vendor(source):
+        return ReviewerPlan(None, False, why)
     refusals: dict[str, str] = {}
     for model in same_vendor_order(providers.fixed_models, vendors, written_by):
         try:

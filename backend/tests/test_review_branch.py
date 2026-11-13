@@ -3,11 +3,16 @@
 import subprocess
 from pathlib import Path
 
+import anyio
 import pytest
 
+from app.core.reply_services import ReplyServices
+from app.providers.fake_provider import ScriptedResponse
 from app.reviews.scope import BuildTarget, NothingToReview, branch_scope
+from app.reviews.service import ReviewService
 from app.storage.models import Project
 from tests.test_chat import add_key
+from tests.test_reviews import REPORT, Backend, two_vendor_registry
 
 
 def git(folder: Path, *arguments: str) -> str:
@@ -120,3 +125,27 @@ def test_a_very_large_diff_is_cut_with_a_note(client):
     scope = scope_of(client, project, BuildTarget(base, "build/cards"))
 
     assert scope is not None and scope.diff.endswith("[The diff is longer than this; the rest is not shown.]")
+
+
+def test_a_card_review_with_only_the_writers_vendor_is_done_by_that_vendor_and_marked_so(client, fake):
+    other = Backend()
+    client.app.state.providers = two_vendor_registry(fake, other)
+    project, _, base = project_with_branch(client)
+    conversation_id = client.post(
+        "/api/v1/environments/1/conversations",
+        json={"model": "claude-opus-5-5", "effort": "medium", "project_id": project.id},
+    ).json()["id"]
+    fake.responses.append(ScriptedResponse(text=REPORT))
+    service = ReviewService(ReplyServices.from_state(client.app.state))
+    with client.app.state.session_factory() as session:
+        scope = branch_scope(
+            session, Path(client.app.state.workspace_dir), project, BuildTarget(base, "build/cards", None, conversation_id)
+        )
+        assert scope is not None and scope.writer_vendors == ("anthropic",)
+        review_id = service.create(session, scope)
+
+    anyio.run(service.run, review_id)
+
+    review = client.get(f"/api/v1/projects/{project.id}/reviews/{review_id}").json()
+    assert (review["status"], review["same_vendor"], review["reviewer_provider"]) == ("done", True, "anthropic")
+    assert review["reviewer_model"] != "claude-opus-5-5" and other.requests == []

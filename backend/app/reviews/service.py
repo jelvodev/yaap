@@ -1,10 +1,11 @@
 """Reviews by another vendor: start, run and store a review.
 
 A review is stored as `running` the moment it starts, with the diff it looks at, so the changes view and the
-conversation can show it; the model call runs in the background. The reviewer is chosen by other_vendor_choice():
-the review task's own utility model when it is of none of the vendors that wrote the changes, else the
-cheapest allowed catalog model of another vendor. When the policy, the connections, the keys or the budget allow
-none, the review ends as `skipped` with the reason. The request goes through the utility model's path, so the audit
+conversation can show it; the model call runs in the background. The reviewer is chosen by choose_reviewer(), the
+rule a second opinion follows too: the review task's own utility model when it is of none of the vendors that wrote
+the changes, else the cheapest allowed catalog model of another vendor; a card's review then falls back to the
+writer's own vendor's strongest other model, marked as the same vendor. When the policy, the connections, the keys or
+the budget allow none, the review ends as `skipped` with the reason. The request goes through the utility model's path, so the audit
 log, the outgoing check and the usage records (task `review`) see it like every other model call. Secret values in
 the diff and the rules are replaced by placeholders before anything is stored or sent. Nothing is ever applied.
 """
@@ -28,7 +29,6 @@ from app.core.background import BackgroundWork
 from app.core.builtin_prompts import utility_instructions
 from app.core.goals import OPEN_STATUSES, latest_goal
 from app.core.model_choice import ForUtility, ModelChoiceError, read_key
-from app.core.other_vendor import other_vendor_choice
 from app.core.outgoing_checks import outgoing_rules, request_refusal
 from app.core.reply_services import ReplyServices
 from app.core.settings import SETTING_DEFINITIONS, resolve_setting
@@ -62,6 +62,7 @@ from app.reviews.report import (
     review_prompt,
     split_files,
 )
+from app.reviews.reviewer import choose_reviewer
 from app.reviews.scope import (
     BuildTarget,
     NothingToReview,
@@ -253,14 +254,27 @@ class ReviewService:
                 self.end_in(session, review, "skipped", SWITCHED_OFF_REASON)
                 return None
             request = ForUtility(conversation.preset if conversation else None, "utility", project.id, REVIEW_TASK)
-            vendors = set(review.writer_vendors)
+            written_by = (conversation.model,) if conversation is not None and conversation.model else ()
+            plan = choose_reviewer(
+                session,
+                services.providers,
+                review.environment_id,
+                request,
+                set(review.writer_vendors),
+                written_by,
+                review.source,
+            )
+            choice = plan.choice
+            if choice is None:
+                self.end_in(session, review, "skipped", plan.reason or "No model can review these changes.")
+                return None
             try:
-                choice = other_vendor_choice(session, services.providers, review.environment_id, request, vendors)
                 api_key = read_key(session, services.cipher, services.credential_types, choice)
             except ModelChoiceError as error:
                 self.end_in(session, review, "skipped", str(error))
                 return None
             review.reviewer_provider, review.reviewer_model = choice.spec.name, choice.model
+            review.same_vendor = plan.same_vendor
             outgoing = outgoing_rules(session, services.cipher, review.environment_id, project.id)
             rules = mask(self.project_rules(session, project) or "", outgoing.secrets)
             parts = plan_parts(split_files(review.diff))

@@ -3,8 +3,8 @@
 The reply decides what is checked: when it changed files, those changes are reviewed like a conversation's changes
 (reviews/service.py); when it changed nothing, its answer is checked against the question and the project files it
 names. The reviewer is another vendor's model, or after the person agreed to it the writer's own vendor's strongest
-other model (reviews/reviewer.py). Nothing is applied and nothing is added to the conversation; the report is stored
-as a review that belongs to the reply.
+other model (choose_reviewer(), the rule a card's review follows too). Nothing is applied and nothing is added to the
+conversation; the report is stored as a review that belongs to the reply.
 """
 
 import logging
@@ -25,7 +25,7 @@ from app.reviews.answer import AnswerReport, FileMaterial, answer_prompt, named_
 from app.reviews.answer_files import read_named_files
 from app.reviews.report import ReportError, ordered, plan_parts, split_files
 from app.reviews.reply_scope import answer_scope, reply_scope
-from app.reviews.reviewer import Estimate, ReviewerPlan, estimate_cost, second_opinion_reviewer
+from app.reviews.reviewer import Estimate, ReviewerPlan, choose_reviewer, estimate_cost
 from app.reviews.scope import NothingToReview, ReviewScope
 from app.reviews.service import (
     REVIEW_MAX_TOKENS,
@@ -108,13 +108,14 @@ class SecondOpinions:
         except NothingToReview as error:
             raise SecondOpinionRefused(str(error)) from error
         request = ForUtility(conversation.preset, "utility", scope.project_id, REVIEW_TASK)
-        reviewer = second_opinion_reviewer(
+        reviewer = choose_reviewer(
             session,
             services.providers,
             scope.environment_id,
             request,
             scope.writer_vendors,
             scope.writer_models,
+            scope.source,
         )
         return OpinionPlan(scope, reviewer)
 
