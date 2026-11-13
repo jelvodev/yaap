@@ -232,8 +232,9 @@ export function columnButtons(facts: ColumnButtonFacts): ColumnButton[] {
       if (facts.planStatus !== "draft") return [];
       return facts.blockedBy.length > 0 ? ["edit_plan", "ask_change"] : ["build", "edit_plan", "ask_change"];
     case "build":
-      if (facts.planStatus === "building") return ["stop"];
+      if (facts.planStatus === "building" || facts.planStatus === "queued") return ["stop"];
       if (facts.planStatus === "failed" || facts.planStatus === "interrupted") return ["continue", "send_back"];
+      if (facts.planStatus === "done" || facts.planStatus === "cancelled") return ["send_back"];
       return [];
     case "review":
       return facts.review === "running" ? ["mark_done"] : ["review", "mark_done"];

@@ -34,7 +34,7 @@ export function stageIndex(column: string | null): number {
 /** The buttons for a card's next step: usually one, none when the step is not the user's to take here. */
 export function nextButtons(input: NextInput): NextButton[] {
   if (input.planMissing) return [{ action: "plan", label: "Plan" }];
-  if (input.planStatus === "building") return [{ action: "stop", label: "Stop" }];
+  if (input.planStatus === "building" || input.planStatus === "queued") return [{ action: "stop", label: "Stop" }];
   switch (input.nextAction) {
     case "specify":
       return [{ action: "specify", label: "Specify" }];

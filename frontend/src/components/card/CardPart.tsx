@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 
 import PlanChecklist from "../plan/PlanChecklist";
+import BuildNotice, { showsChecklist } from "./BuildNotice";
 import CardNextStep from "./CardNextStep";
 import CardReviewPart from "./CardReviewPart";
 import CardStageBar from "./CardStageBar";
@@ -39,7 +40,8 @@ export default function CardPart({ projectId, cardId }: { projectId: number; car
       <Link className="card-board-link" to={`/chat/projects/${projectId}/cards/${card.id}`}>
         Open on the board
       </Link>
-      {(card.column === "plan" || card.column === "build") && plan && (
+      {card.column === "build" && plan && <BuildNotice plan={plan} />}
+      {(card.column === "plan" || card.column === "build") && plan && showsChecklist(plan) && (
         <PlanChecklist plan={plan} busy={state.busy} onAnswer={state.answer} />
       )}
       {card.column === "review" && (
