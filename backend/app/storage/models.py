@@ -862,6 +862,8 @@ class ScheduledTask(Base):
     action: Mapped[str] = mapped_column(String(20), default="prompt")
     # For action eval: only this case; empty is every case.
     eval_case: Mapped[str | None] = mapped_column(String(60))
+    # For action board_trigger: its settings (app.board.triggers.TriggerConfig).
+    config: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     # cron, moments or manual
     schedule_kind: Mapped[str] = mapped_column(String(20))
     cron: Mapped[str] = mapped_column(String(120), default="")
