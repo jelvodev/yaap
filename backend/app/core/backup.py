@@ -1,8 +1,8 @@
 """Backups of YAAP's data folder.
 
 A backup is one zip in `data/backups`: a consistent copy of the database (SQLite's online backup API, so it is safe
-while YAAP runs), the Blueprint layers with their git history, the attachments, the plugins and the
-project folders. Left out:
+while YAAP runs), the Blueprint layers with their git history, the attachments, the plugins, the
+project folders and the boards kept in separate repositories. Left out:
 the Claude Code sign-in (sign in again after a restore), heavy rebuildable folders such as node_modules, and the
 master key, which lives outside the data folder and is backed up separately. Restoring: core.restore.
 """
@@ -24,7 +24,7 @@ DEFAULT_KEEP = 7
 SKIPPED_FOLDERS = frozenset(
     {"node_modules", ".venv", "venv", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", ".next", "dist", "build", "target"}
 )
-INCLUDED_FOLDERS = ("blueprint", "files", "knowledge", "plugins", "workspace")
+INCLUDED_FOLDERS = ("blueprint", "boards", "files", "knowledge", "plugins", "workspace")
 
 
 class BackupError(Exception):
