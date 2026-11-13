@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import type { Message } from "../../api/client";
 import CardPart from "../card/CardPart";
-import AttachmentList from "./AttachmentList";
+import AttachmentList, { type AttachmentBlock } from "./AttachmentList";
 import { type MessageActions, UserMessageActions } from "./MessageActions";
 
 /** The element id and focus mark that a search result opens a message at. */
@@ -66,7 +66,7 @@ export default function UserMessage({
     .filter((block) => block.type === "text")
     .map((block) => block.text)
     .join("");
-  const attachments = message.content.filter((block) => block.type === "attachment");
+  const attachments = message.content.filter((block): block is AttachmentBlock => block.type === "attachment");
   const command = message.content.find((block) => block.type === "command");
   const cardId = command?.name === "card" ? (command.card_id ?? null) : null;
   const projectId = actions?.ruleTarget?.projectId ?? null;

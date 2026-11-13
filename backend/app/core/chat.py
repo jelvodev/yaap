@@ -22,6 +22,7 @@ from app.core.chat_events import (
 )
 from app.core.chat_history import build_history
 from app.core.conversation_schemas import ConversationSummaryOut, message_to_out
+from app.core.message_blocks import validate_blocks
 from app.core.model_choice import Billing
 from app.core.prompts import base_system_parts
 from app.core.stopped_usage import StoppedRun, store_stopped_usage
@@ -128,7 +129,7 @@ def store_assistant_reply(
             conversation_id=conversation_id,
             parent_id=parent_id,
             role="assistant",
-            content=content,
+            content=validate_blocks(content),
             provider_raw=completed.provider_raw if completed else None,
             status=outcome.status,
             stop_reason=outcome.stop_reason,
