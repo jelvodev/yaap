@@ -23,6 +23,13 @@ yourself when you update; it says "None." when there is nothing.
 - The API description now lists every event of the reply stream, so clients can generate types for it.
 - Goal and message statuses are checked when they are stored; the database adds a check on them during the upgrade when its existing rows allow it, and logs any value it could not place.
 - Message blocks are checked by their kind when a reply is stored; older conversations still load, with a tool call that lacks an id given a placeholder.
+- Fixed: a tool call with a whole-number decimal argument (such as `timeout_seconds: 5.0`) now shows its live output, checkpoint and reason in the chat; the server now gives each tool call its key.
+- A conversation title no longer repeats its first words when the model's answer was cut off and started again; the report of a delegated task no longer repeats such text either.
+- A queued /compact sent with *Send now* while a reply runs now makes the summary instead of staying marked as pending until YAAP restarts.
+- *Send now* hands the queued message over reliably when the running reply stops before the server answers the request.
+- Security: YAAP now reads only a bounded amount of output from a git command or web fetch in the runner or on a target computer, so a misbehaving runner cannot fill YAAP's memory.
+- SECURITY.md describes how project files, web fetches, remotes and the GitHub token are protected, and what remains open (code in an online runner, a narrow race on project files).
+- The repository has a gitleaks configuration, so a secret scan of the code and its history starts clean.
 
 ### Action needed
 
