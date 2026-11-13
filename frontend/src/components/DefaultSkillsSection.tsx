@@ -1,21 +1,19 @@
-import { useCallback, useEffect, useState } from "react";
-
-import type { Setting } from "../api/client";
-import { ListCard, type PermissionLevel, settingsUrl } from "./PermissionsSection";
+import { ListCard, type PermissionLevel, scopeOf } from "./PermissionsSection";
+import { useScopedSettings } from "../pages/settings/useScopedSettings";
 
 /** The skills every new conversation starts with pinned, at one level. */
 export default function DefaultSkillsSection({ level }: { level: PermissionLevel }) {
-  const [setting, setSetting] = useState<Setting | null>(null);
-
-  const load = useCallback(async () => {
-    const list = (await fetch(settingsUrl(level)).then((response) => response.json())) as Setting[];
-    setSetting(list.find((item) => item.key === "default_skills") ?? null);
-  }, [level.kind, level.kind === "global" ? 0 : level.id]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const { find, set, reset } = useScopedSettings(scopeOf(level));
+  const setting = find("default_skills");
 
   if (!setting) return null;
-  return <ListCard setting={setting} level={level} placeholder="caveman" onChange={setSetting} />;
+  return (
+    <ListCard
+      setting={setting}
+      level={level}
+      placeholder="caveman"
+      onSave={(lines) => set(setting.key, lines)}
+      onReset={() => reset(setting.key)}
+    />
+  );
 }
