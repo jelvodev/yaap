@@ -11,6 +11,7 @@ from app.agent.brief import Brief, BriefError, parse_brief
 from app.agent.escalation import Role
 from app.agent.runs import AgentRun
 from app.agent.toolkit import STRING, Tool, ToolError, schema, text_argument
+from app.core.conversation_types import EndedGoalStatus
 
 
 async def delegate(run: AgentRun, arguments: dict[str, Any]) -> str:
@@ -48,11 +49,15 @@ def _brief_and_role(arguments: dict[str, Any], by_brief: bool) -> tuple[Brief, R
     return Brief(task=text_argument(arguments, "task")), role
 
 
+# The statuses the agent may end a goal with; the mapping narrows the model's string to the typed status.
+FINISH_STATUSES: dict[str, EndedGoalStatus] = {"done": "done", "blocked": "blocked"}
+
+
 async def finish_goal(run: AgentRun, arguments: dict[str, Any]) -> str:
     if run.goal is None:
         raise ToolError("This conversation has no open goal.")
-    status = str(arguments.get("status") or "")
-    if status not in ("done", "blocked"):
+    status = FINISH_STATUSES.get(str(arguments.get("status") or ""))
+    if status is None:
         raise ToolError("status must be done or blocked.")
     return await anyio.to_thread.run_sync(run.goal.finish, status, text_argument(arguments, "summary"))
 

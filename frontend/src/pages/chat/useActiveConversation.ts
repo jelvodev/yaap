@@ -212,7 +212,7 @@ function messageEdits(setConversation: SetConversation) {
     const shown: Message = {
       id: -Date.now(),
       role: "user",
-      content: [{ type: "text", text: text.trim(), is_error: false }],
+      content: [{ type: "text", text: text.trim() }],
       created_at: new Date().toISOString(),
       error: null,
       parent_id: null,
