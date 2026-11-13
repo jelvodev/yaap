@@ -54,6 +54,7 @@ function Pages() {
       <Route path="/" element={<Navigate to="/chat" replace />} />
       <Route path="/chat" element={<ChatPage key={active.id} environment={active} />} />
       <Route path="/chat/:conversationId" element={<ChatPage key={active.id} environment={active} />} />
+      <Route path="/chat/waiting" element={<ChatPage key={active.id} environment={active} />} />
       <Route path="/chat/projects/:projectId" element={<ChatPage key={active.id} environment={active} />} />
       <Route
         path="/chat/projects/:projectId/cards/:cardId"

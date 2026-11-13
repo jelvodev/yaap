@@ -1,0 +1,180 @@
+/* Waiting for me: the sidebar's entry and the overview in the main area. */
+
+.waiting-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--text-strong);
+  text-decoration: none;
+}
+
+.waiting-entry:hover,
+.waiting-entry.active {
+  background: var(--raised);
+}
+
+.waiting-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--warning);
+  color: #1b1b1b;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.waiting-page {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 28px 28px 40px;
+  background: var(--bg);
+}
+
+.waiting-page h1 {
+  margin: 0 0 4px;
+  color: var(--text-strong);
+  font-size: 22px;
+}
+
+.waiting-section {
+  margin-top: 22px;
+}
+
+.waiting-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.waiting-none {
+  margin-top: 22px;
+}
+
+.waiting-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.waiting-row:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.waiting-row:disabled {
+  cursor: default;
+}
+
+.waiting-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.waiting-row-title {
+  color: var(--text-strong);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.waiting-card-number {
+  margin-right: 6px;
+}
+
+.waiting-row-meta {
+  color: var(--faint);
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+.waiting-action {
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.waiting-projects {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.waiting-project {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.waiting-project:hover {
+  background: var(--hover);
+}
+
+.waiting-project h3 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 15px;
+}
+
+.waiting-bar {
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--raised);
+  overflow: hidden;
+}
+
+.waiting-bar b {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.waiting-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.waiting-stats b {
+  color: var(--text-strong);
+}
+
+@media (max-width: 720px) {
+  .waiting-page {
+    padding: 20px 16px 32px;
+  }
+
+  .waiting-row {
+    flex-wrap: wrap;
+  }
+}

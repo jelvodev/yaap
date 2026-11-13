@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useMatch, useNavigate } from "react-router-dom";
 
 import type { Environment } from "../api/client";
 import BoardPage from "./board/BoardPage";
@@ -19,6 +19,8 @@ import { useProjectRail, useRailSelection } from "./chat/useProjectRail";
 import { useProjectScope } from "./chat/useProjectScope";
 import { useRunningReplies } from "./chat/useRunningReplies";
 import { useUsage } from "./chat/useUsage";
+import WaitingPage from "./waiting/WaitingPage";
+import { WAITING_PATH } from "./waiting/WaitingEntry";
 
 // The rail is always on screen in a project: its counts (and the header chip's) are read while the panels are closed.
 const WATCH_RAIL_COUNTS = true;
@@ -30,6 +32,8 @@ const WATCH_RAIL_COUNTS = true;
 export default function ChatPage({ environment }: { environment: Environment }) {
   const navigate = useNavigate();
   const { selectedId, focusMessageId, boardProjectId, cardId } = useChatAddress();
+  // /chat/waiting shows Waiting for me in place of the conversation.
+  const waitingOpen = useMatch(WAITING_PATH) !== null;
   const basics = useChatCatalog(environment.id);
   const usage = useUsage(environment.id);
   const list = useConversationList(environment.id);
@@ -120,7 +124,8 @@ export default function ChatPage({ environment }: { environment: Environment }) 
           onProjectChanged={catalog.replaceProject}
         />
       )}
-      {boardProjectId === null && <ChatMain
+      {waitingOpen && <WaitingPage environmentId={environment.id} projects={catalog.projects} />}
+      {boardProjectId === null && !waitingOpen && <ChatMain
         environment={environment}
         catalog={catalog}
         active={active}
