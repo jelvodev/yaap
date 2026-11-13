@@ -7,36 +7,6 @@ Where YAAP is going. Each version has a theme. The order is what is intended, no
 
 The current version is **0.7.0**.
 
-## 0.8.0: the project board
-
-Plan, build and review the work of a project, steered from one board.
-
-75. **A specification to start from.** Templates for a specification with acceptance criteria, so every piece of
-    work starts the same way. The review checks the result against those criteria.
-18. **Plan, then build.** `/plan` makes a plan without changing anything: steps, files and checks. After you approve
-    it, the worker model carries it out and ticks the steps off.
-19. **Current state per project.** The project memory keeps a short *Current state*: where the work stands, what is
-    open, the next step. A new conversation starts from it.
-54. **One card from start to finish first.** A request in the chat becomes a card. You approve its plan, one build runs
-    in a temporary clone, and you review the diff and the checks that ran. After a restart the card shows where the
-    work stands and what is needed next. The rest of the board builds on this route.
-20. **The project board.** Clicking a project opens its board.
-    - The columns are Inbox, Idea, Design, Plan, Build, Review and Done.
-    - Cards belong to a version, which shows its progress and budget.
-    - Each column has one action that carries out its step: specify, plan, build, review.
-21. **Cards in git.** Cards are Markdown files kept on a branch of the project's repository, or in a separate private
-    repository. They never mix with the work on other branches.
-22. **Cards from the agent.** The agent adds what it notices to the Inbox, checks first for a similar card, and names
-    where each card came from. GitHub issues can be imported as cards.
-23. **Building in parallel.** Each card is built in its own copy of the project. Cards that touch the same files never
-    run at the same time. A review by an agent that did not write the code comes before you merge.
-55. **A review with evidence.** A card's review shows the diff, the acceptance criteria, the tests that ran, the trace
-    and, with a preview, a screenshot before and after. Per criterion it shows what YAAP actually checked, with a link
-    to the source.
-24. **Waiting for me.** One overview across projects of what needs you: plans to approve, reviews, questions and new
-    cards.
-25. **Triggers.** A failing CI run, a new issue or a dependency update becomes a card in the Inbox, within a budget.
-
 ## 0.8.1: public and easier to start
 
 The remaining security and code work first, then making the repository public once the project board is in,
@@ -94,6 +64,12 @@ The direction after 0.8, not yet in a version.
 34. **A model policy at the global level.**
 81. **Independent tool calls together.** The agent runs tool calls that do not depend on each other in one turn, so
     an answer needs fewer model calls.
+
+90. **Tidy build branches.** Branches of failed or discarded builds are removed with their copy, after a while or
+    with one click, so a project does not collect `yaap/plan-*` branches.
+91. **Screenshots in a review.** A card's review shows the project's preview before and after the change, when the
+    project has a preview command.
+92. **Board details.** A trigger shows when its last run failed; *Waiting for me* names the model that asks.
 
 ## Wish list
 

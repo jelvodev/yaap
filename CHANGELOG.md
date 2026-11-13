@@ -72,6 +72,8 @@ yourself when you update; it says "None." when there is nothing.
 
 ### Action needed
 
+- The project board is on by default: clicking a project opens its board. Switch it off per project in the project's settings (*Board*), or for an environment or everything under Settings (*Project board*); switched off, a project click behaves as before and the board's files are kept.
+- The board lives on a local branch `yaap-board` in the project's repository. YAAP pushes it only with *Push board* (and only when the project allows it), or keep the board in a separate private repository instead.
 - `git push --all` and `git push --mirror` also push the `yaap-board` branch, and with it every card, specification and plan. On a public repository, push your branches one by one.
 
 ## 0.7.0 (2026-11-12)
