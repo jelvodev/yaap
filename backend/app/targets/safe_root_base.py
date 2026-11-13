@@ -90,6 +90,10 @@ class SafeRootBase(ABC):
     def _remove_tree(self, parts: tuple[str, ...]) -> None: ...
 
     @abstractmethod
+    def _remove_empty_dir(self, parts: tuple[str, ...]) -> bool:
+        """Remove the folder if it is a real, empty folder below the root; False when it is not (or is gone)."""
+
+    @abstractmethod
     def _replace_folder(self, parts: tuple[str, ...], files: dict[str, bytes]) -> None: ...
 
     @abstractmethod
@@ -154,6 +158,15 @@ class SafeRootBase(ABC):
         if not parts:
             raise SafeRootError("The project root cannot be removed.")
         self._remove(parts)
+
+    def remove_empty_dirs(self, path: str) -> None:
+        """Remove the folder at path and then each parent left empty, up to but not including the root."""
+        parts = relative_parts(path)
+        while parts:
+            self._reject_git_path(parts)
+            if not self._remove_empty_dir(parts):
+                return
+            parts = parts[:-1]
 
     def remove_tree(self, path: str) -> None:
         parts = relative_parts(path)

@@ -76,6 +76,18 @@ class WindowsSafeRoot(SafeRootBase):
         else:
             target.unlink(missing_ok=True)
 
+    def _remove_empty_dir(self, parts: tuple[str, ...]) -> bool:
+        target = self.path.joinpath(*parts)
+        if not target.parent.resolve().is_relative_to(self.path):
+            raise SafeRootError("The path leaves the project folder.")
+        if target.is_symlink() or target.is_junction():
+            return False
+        try:
+            target.rmdir()
+        except OSError:
+            return False
+        return True
+
     def _replace_folder(self, parts: tuple[str, ...], files: dict[str, bytes]) -> None:
         target = self.path.joinpath(*parts)
         if not target.resolve().is_relative_to(self.path):

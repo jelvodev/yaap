@@ -300,6 +300,25 @@ class PosixSafeRoot(SafeRootBase):
         finally:
             os.close(parent_fd)
 
+    def _remove_empty_dir(self, parts: tuple[str, ...]) -> bool:
+        try:
+            parent_fd, leaf, canonical = self._resolve(parts, follow_final=False)
+        except SafeRootError:
+            raise
+        except OSError:
+            return False
+        try:
+            self._verify_parent_link(parent_fd, canonical[:-1])
+            # rmdir refuses a link and a folder that is not empty, so nothing is checked first and then removed.
+            os.rmdir(leaf, dir_fd=parent_fd)
+            return True
+        except SafeRootError:
+            raise
+        except OSError:
+            return False
+        finally:
+            os.close(parent_fd)
+
     def _replace_folder(self, parts: tuple[str, ...], files: dict[str, bytes]) -> None:
         parent_parts = parts[:-1]
         parent_fd = self._directory(parent_parts, create=True)

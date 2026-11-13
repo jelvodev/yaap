@@ -361,3 +361,41 @@ def test_opened_root_must_be_the_pinned_folder(tmp_path: Path, swapped: bool) ->
         with SafeRoot(root, pin) as safe:
             assert safe.read_bytes("file.txt") == b"pinned"
         assert LocalFiles(str(root), pin).safe.read_bytes("file.txt") == b"pinned"
+
+
+@pytest.mark.parametrize(
+    ("folders", "remove", "left"),
+    [
+        (["a/b/c"], "a/b/c", []),
+        (["a/b/c", "a/keep"], "a/b/c", ["a", "a/keep"]),
+        (["a/b"], "a", ["a", "a/b"]),
+        (["a"], "a/missing", ["a"]),
+    ],
+)
+def test_remove_empty_dirs_stops_at_the_first_folder_that_is_not_empty(
+    tmp_path: Path, folders: list[str], remove: str, left: list[str]
+) -> None:
+    for folder in folders:
+        (tmp_path / folder).mkdir(parents=True)
+    with SafeRoot(tmp_path) as safe:
+        safe.remove_empty_dirs(remove)
+    found = sorted(path.relative_to(tmp_path).as_posix() for path in tmp_path.rglob("*"))
+    assert found == left
+
+
+@POSIX_ONLY
+@pytest.mark.parametrize("link", ["empty-link", "parent-link/empty"])
+def test_remove_empty_dirs_leaves_folders_outside_through_links(tmp_path: Path, link: str) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    outside = tmp_path / "outside"
+    (outside / "empty").mkdir(parents=True)
+    (root / "empty-link").symlink_to(outside / "empty")
+    (root / "parent-link").symlink_to(outside)
+    with SafeRoot(root) as safe:
+        try:
+            safe.remove_empty_dirs(link)
+        except SafeRootError:
+            pass
+    assert (outside / "empty").is_dir()
+    assert (root / "empty-link").is_symlink()
