@@ -120,6 +120,20 @@ Claude or ChatGPT subscription), creates a first project and offers YAAP's start
 Updating is one command (`scripts/update.ps1` or `scripts/update.sh`) with a backup first and a way back. Other
 providers, updating and troubleshooting are in [docs/install.md](docs/install.md).
 
+### How much memory and CPU it needs
+
+At rest, YAAP takes about **2 GB of memory** and next to no CPU. The models do their thinking at Claude or OpenAI,
+so more conversations and sub-agents cost tokens, not your computer's memory.
+
+What grows is what the agent runs: tests, builds, dev servers and the browser. That happens in a runner, one per
+environment and shared by its projects, plus one per project that has its own sandbox. Each is capped at **2 CPUs and
+4 GB** by default (`YAAP_SANDBOX_CPUS`, `YAAP_SANDBOX_MEMORY`), so work that runs at the same time shares the cap
+instead of adding up, and what nobody uses stops by itself.
+
+As a rule of thumb, at most **2 GB + 4 GB for each environment and each project with a sandbox**. Two environments
+without sandboxes stay under 10 GB, and usually well below it: 16 GB of memory and 4 cores is plenty. Local models
+through Ollama come on top of that.
+
 ## What it does
 
 | | |
