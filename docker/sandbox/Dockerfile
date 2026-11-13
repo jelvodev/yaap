@@ -8,9 +8,10 @@ FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f0
 # The helper creates sandboxes only from an image with this label.
 LABEL org.yaap.sandbox.image="1"
 
+# zlib1g is named so the fixed Debian security build is installed even when the base image is older than that build.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        openssh-server sudo ca-certificates curl wget git git-lfs \
+        zlib1g openssh-server sudo ca-certificates curl wget git git-lfs \
         build-essential pkg-config make cmake \
         python3 python3-dev python3-venv python3-pip \
         nodejs npm \
