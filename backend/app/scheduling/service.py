@@ -28,6 +28,7 @@ from app.updates.background import update_tick
 from app.reviews.service import ReviewService
 from app.vault.store import prune_uses_daily
 from app.scheduling.active import RUNNING
+from app.scheduling.board_trigger import BOARD_TRIGGER_ACTION, run_board_trigger
 from app.scheduling.cron import CronError, next_time, parse
 from app.scheduling.eval_action import EVAL_ACTION, finish_eval_record, start_eval
 from app.evals.runs import prune_workspaces as prune_eval_workspaces
@@ -153,7 +154,7 @@ def run_conversation(session: Session, task: ScheduledTask, now: datetime) -> Co
 @dataclass
 class Started:
     run_id: int
-    # None for an eval run, which plays its cases in conversations of its own.
+    # None for an eval run, which plays its cases in conversations of its own, and for a board trigger.
     conversation_id: int | None
 
 
@@ -174,6 +175,10 @@ def start_run(app: Any, task_id: int, trigger: str) -> Started | None:
             if problem is not None:
                 fail(session, task, record, problem)
                 return None
+            return Started(record.id, None)
+        if task.action == BOARD_TRIGGER_ACTION:
+            session.commit()
+            run_board_trigger(ReplyServices.from_state(state), session, task, record)
             return Started(record.id, None)
         model = state.providers.find_model(task.model)
         if model is None:

@@ -10,7 +10,9 @@ from sqlalchemy import select
 
 from app.agent.policy import check_commands, check_domains
 from app.api.dependencies import EnvironmentDependency, ProjectDependency, SessionDependency
+from app.board.triggers import TriggerConfig, trigger_refusal
 from app.core.settings import validate_timezone
+from app.scheduling.board_trigger import cards_this_week
 from app.scheduling.cron import CronError, describe, parse
 from app.scheduling.service import TaskError, check_schedule, run_now, schedule_next, upcoming
 from app.storage.models import Conversation, Project, ScheduledRun, ScheduledTask
@@ -22,10 +24,12 @@ MAX_TASKS = 50
 
 class TaskIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
-    # What a run does: a goal-mode run of the prompt, or an eval run of the project's cases (all, or eval_case).
-    action: Literal["prompt", "eval"] = "prompt"
+    # What a run does: a goal-mode run of the prompt, an eval run of the project's cases (all, or eval_case), or a
+    # board trigger that polls and makes cards in Inbox without a model (config; model and effort are not used).
+    action: Literal["prompt", "eval", "board_trigger"] = "prompt"
     prompt: str = Field(default="", max_length=20_000)
     eval_case: str | None = Field(default=None, max_length=60)
+    config: TriggerConfig | None = None
     model: str
     effort: str
     agent: str | None = None
@@ -50,6 +54,8 @@ class TaskOut(TaskIn):
     running: bool
     last_run_at: datetime | None
     conversation_id: int | None
+    # For a board trigger: the cards its runs made in the last seven days.
+    cards_this_week: int = 0
 
 
 class TaskRunOut(BaseModel):
@@ -77,7 +83,7 @@ def schedule_text(task: ScheduledTask) -> str:
         return task.cron
 
 
-def task_out(task: ScheduledTask) -> TaskOut:
+def task_out(task: ScheduledTask, cards: int = 0) -> TaskOut:
     return TaskOut(
         id=task.id,
         project_id=task.project_id,
@@ -85,6 +91,7 @@ def task_out(task: ScheduledTask) -> TaskOut:
         action=task.action,  # type: ignore[arg-type]  # stored as one of the Literal's values
         prompt=task.prompt,
         eval_case=task.eval_case,
+        config=TriggerConfig.model_validate(task.config) if task.config else None,
         model=task.model,
         effort=task.effort,
         agent=task.agent,
@@ -104,6 +111,7 @@ def task_out(task: ScheduledTask) -> TaskOut:
         running=task.running,
         last_run_at=task.last_run_at,
         conversation_id=task.conversation_id,
+        cards_this_week=cards,
     )
 
 
@@ -123,15 +131,33 @@ def run_out(run: ScheduledRun, task: ScheduledTask) -> TaskRunOut:
     )
 
 
-def apply(task: ScheduledTask, payload: TaskIn, request: Request) -> None:
+def model_and_effort(payload: TaskIn, request: Request) -> tuple[str, str]:
+    """The task's model and effort; a board trigger makes no model call, so it keeps what it was given."""
+    if payload.action == "board_trigger":
+        return payload.model, payload.effort
     model = request.app.state.providers.find_model(payload.model)
     if model is None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Unknown model.")
     if payload.effort not in model.efforts:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"Effort must be one of: {', '.join(model.efforts)}.")
+    return model.id, payload.effort
+
+
+def action_problem(payload: TaskIn, allowed_commands: list[str]) -> str | None:
+    if payload.action == "prompt" and not payload.prompt.strip():
+        return "Give the prompt the task runs."
+    if payload.action == "board_trigger":
+        if payload.config is None:
+            return "Give the trigger's settings."
+        return trigger_refusal(payload.config, allowed_commands)
+    return None
+
+
+def apply(task: ScheduledTask, payload: TaskIn, request: Request) -> None:
+    model_id, effort = model_and_effort(payload, request)
+    allowed_commands = [" ".join(command.split()) for command in payload.allowed_commands if command.strip()]
     problem = validate_timezone(payload.timezone, None) or check_commands(payload.allowed_commands) or check_domains(payload.allowed_domains)
-    if not problem and payload.action == "prompt" and not payload.prompt.strip():
-        problem = "Give the prompt the task runs."
+    problem = problem or action_problem(payload, allowed_commands)
     if problem:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, problem)
     try:
@@ -143,12 +169,13 @@ def apply(task: ScheduledTask, payload: TaskIn, request: Request) -> None:
     task.name, task.prompt = payload.name.strip(), payload.prompt.strip()
     task.action = payload.action
     task.eval_case = ((payload.eval_case or "").strip() or None) if payload.action == "eval" else None
-    task.model, task.effort = model.id, payload.effort
+    task.config = payload.config.model_dump() if payload.action == "board_trigger" and payload.config else None
+    task.model, task.effort = model_id, effort
     task.agent, task.preset = payload.agent or None, payload.preset or None
     task.schedule_kind, task.cron = payload.schedule_kind, " ".join(payload.cron.split())
     task.timezone, task.moments = payload.timezone or "UTC", payload.moments
     task.max_turns, task.max_cost = payload.max_turns, payload.max_cost
-    task.allowed_commands = [" ".join(command.split()) for command in payload.allowed_commands if command.strip()]
+    task.allowed_commands = allowed_commands
     task.allowed_domains = [domain.strip().lower() for domain in payload.allowed_domains if domain.strip()]
     task.conversation_mode, task.enabled = payload.conversation_mode, payload.enabled
     schedule_next(task, datetime.now(UTC))
@@ -164,7 +191,7 @@ def find_task(session: SessionDependency, project: Project, task_id: int) -> Sch
 @router.get("/projects/{project_id}/tasks", response_model=list[TaskOut])
 def list_tasks(project: ProjectDependency, session: SessionDependency) -> list[TaskOut]:
     tasks = session.scalars(select(ScheduledTask).where(ScheduledTask.project_id == project.id).order_by(ScheduledTask.name))
-    return [task_out(task) for task in tasks]
+    return [task_out(task, cards_this_week(session, task.id) if task.action == "board_trigger" else 0) for task in tasks]
 
 
 @router.post("/projects/{project_id}/tasks", response_model=TaskOut, status_code=status.HTTP_201_CREATED)
