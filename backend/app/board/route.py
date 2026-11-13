@@ -311,8 +311,8 @@ class CardRoute:
         return await anyio.to_thread.run_sync(self.board.get_card, project_id, card_id)
 
     def review(self, project_id: int, card_id: int) -> int:
-        """*Review* (and *Review again*): the build branch since its base commit, by another vendor. Returns the
-        review's id. Call it from a worker thread."""
+        """*Review* (and *Review again*): the build branch since its base commit, by another vendor, else by the same
+        vendor's strongest other model (choose_reviewer()). Returns the review's id. Call it from a worker thread."""
         card, _facts = self.card_and_facts(project_id, card_id)
         if card.column != "review":
             raise MoveRefused("wrong_column", "Review works on a card in Review.")
