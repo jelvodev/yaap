@@ -8,8 +8,9 @@ from app.board.card import render_card
 from app.board.errors import BoardCheckedOut, BoardConflict, BoardExists, BoardNotStarted, CardChanged, MoveRefused
 from app.board.operations import NewCard
 from app.board.paths import card_path
+from app.board.planning import Planned
 from app.board.repository import Put
-from app.board.service import BoardService, Planned
+from app.board.service import BoardService
 from app.storage.models import Conversation, UsageRecord
 from tests.board_service_support import add_card, board_service, board_url, git, project_folder, start_board
 
