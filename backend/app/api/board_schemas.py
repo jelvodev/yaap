@@ -18,9 +18,11 @@ from app.plans.model import PlanStatus
 
 
 class BoardStart(BaseModel):
-    storage: Literal["branch"] = "branch"
-    # Make an empty git repository in the project folder when it has none.
+    storage: StorageKind = "branch"
+    # Make an empty git repository in the project folder when it has none (branch storage).
     create_repository: bool = False
+    # The https URL of the separate private repository (repository storage).
+    repository_url: str | None = Field(default=None, max_length=500)
 
 
 class CardCreate(BaseModel):

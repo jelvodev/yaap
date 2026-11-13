@@ -45,6 +45,8 @@ STATUS_BY_CODE: dict[BoardErrorCode, int] = {
     "path_refused": status.HTTP_422_UNPROCESSABLE_CONTENT,
     "board_unavailable": status.HTTP_503_SERVICE_UNAVAILABLE,
     "push_failed": status.HTTP_502_BAD_GATEWAY,
+    "pull_failed": status.HTTP_502_BAD_GATEWAY,
+    "invalid_repository_url": status.HTTP_422_UNPROCESSABLE_CONTENT,
 }
 
 
@@ -81,7 +83,9 @@ def read_board(
 @router.post("", response_model=BoardOut, status_code=status.HTTP_201_CREATED)
 def start_board(project_id: int, payload: BoardStart, board: BoardDependency) -> BoardOut:
     try:
-        return board_out(board.enable(project_id, payload.storage, payload.create_repository))
+        return board_out(
+            board.enable(project_id, payload.storage, payload.create_repository, payload.repository_url)
+        )
     except BoardError as error:
         raise board_http_error(error) from error
 
