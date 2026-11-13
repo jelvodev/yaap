@@ -1,4 +1,4 @@
-import { attemptsLabel, progressLine, shortCommit, uncommittedSentence } from "./planProgress";
+import { attemptsLabel, outsidePlanSentence, progressLine, shortCommit, uncommittedSentence } from "./planProgress";
 import type { PlanOut } from "./usePlan";
 
 type Step = PlanOut["steps"][number];
@@ -42,6 +42,11 @@ export default function PlanChecklist({
           they are. {uncommitted}
         </p>
       )}
+      {build?.outside_plan.map((item) => (
+        <p key={item.step} className="plan-build-info plan-outside" role="note">
+          {outsidePlanSentence(item)}
+        </p>
+      ))}
       <ol className="plan-steps">
         {plan.steps.map((step) => {
           const attempts = attemptsLabel(build?.attempts[String(step.number)] ?? []);

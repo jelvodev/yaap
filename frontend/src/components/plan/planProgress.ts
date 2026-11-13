@@ -114,3 +114,22 @@ export function progressLine(done: number, total: number, cost: number | null): 
 export function shortCommit(sha: string): string {
   return sha.slice(0, 7);
 }
+
+export interface OutsideStepLike {
+  step: number;
+  paths: readonly string[];
+  total: number;
+}
+
+/**
+ * The note for a step whose commit changed files outside the plan: "Step 2 changed files outside the plan: a.py,
+ * b.py and 3 more. Other builds wait for this one as if it touched the whole project."
+ */
+export function outsidePlanSentence(item: OutsideStepLike): string {
+  const more = item.total - item.paths.length;
+  const listed = item.paths.join(", ") + (more > 0 ? ` and ${more} more` : "");
+  return (
+    `Step ${item.step} changed files outside the plan: ${listed}. ` +
+    "Other builds wait for this one as if it touched the whole project."
+  );
+}
