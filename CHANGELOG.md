@@ -14,6 +14,7 @@ yourself when you update; it says "None." when there is nothing.
 - The `sandbox-image` service is gone. The helper downloads the runner's image (about 2.8 GB, once) when the first command needs it; until it is there the command says *Preparing the runner* and can be tried again. It pulls only the configured image, and only uses one that carries YAAP's sandbox label.
 - Extra packages for the runner build on the published image (`docker/sandbox/Dockerfile.extra`); the example in `docker-compose.override.example.yml` and in the configuration guide shows how.
 - The images pick up the fixed `zlib1g` (Debian security update) and a newer Node base, and the app and helper images no longer carry pip. The remaining findings in a vulnerability scan are Debian packages without a fix yet and the copies bundled inside npm, for which no npm release has a fix.
+- The app image carries npm 12.2.2, pinned, instead of the npm that ships with Node: its bundled `undici` and `brace-expansion` are fixed versions. `tools/package.json` allows the install script of Claude Code, which npm 12 no longer runs by default.
 
 ### Action needed
 

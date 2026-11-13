@@ -49,6 +49,11 @@ COPY --from=frontend /usr/local/lib/node_modules/npm /usr/local/lib/node_modules
 RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
     && ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
     && node --version && npm --version
+# The npm that ships with Node bundles vulnerable copies of undici and brace-expansion; npm 12.2.2 bundles fixed ones.
+# Pinned so a rebuild does not change it; move it forward on purpose.
+RUN npm install --global --no-fund --no-audit npm@12.2.2 \
+    && rm -rf /root/.npm \
+    && npm --version
 
 # The two files that pin Claude Code and Codex (versions and integrity hashes). YAAP installs both from them into
 # /data/tools at the first sign-in, so neither CLI is part of this image.
