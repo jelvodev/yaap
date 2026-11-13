@@ -74,6 +74,7 @@ export default function CardReviewPart({
       <p className="card-review-status" data-status={review?.status ?? card.review}>
         {review ? REVIEW_STATUS[review.status] : card.review === "none" ? "Not reviewed yet" : "Review"}
       </p>
+      {review?.same_vendor && <p className="card-muted">Review by the same vendor (no other vendor available)</p>}
       {review?.reason && <p className="card-muted">{review.reason}</p>}
       {review?.summary && <p className="card-review-summary">{review.summary}</p>}
       {review && review.findings.length > 0 && (
