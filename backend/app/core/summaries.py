@@ -21,6 +21,7 @@ from app.core.background import BackgroundWork
 from app.core.builtin_prompts import utility_instructions
 from app.core.chat_events import server_sent_event
 from app.core.chat_history import is_part_of_history, load_branch
+from app.core.reply_event_models import CompactedEvent, CompactFailedEvent
 from app.core.utility import UtilityContext, UtilitySkipped, run_utility_or_skip
 from app.providers.base import HistoryMessage
 from app.providers.registry import ProviderRegistry
@@ -51,6 +52,12 @@ def summary_block(message: Message) -> dict[str, Any] | None:
     return next((block for block in message.content if block.get("type") == "summary"), None)
 
 
+def summary_text(message: Message) -> str:
+    """The text of the summary a message carries; only for a message latest_summary found."""
+    block = summary_block(message)
+    return str(block["text"]) if block is not None else ""
+
+
 def latest_summary(branch: list[Message]) -> int | None:
     """Index in the branch of the last message that carries a summary."""
     for index in range(len(branch) - 1, -1, -1):
@@ -71,7 +78,7 @@ def apply_summary(branch: list[Message], history: list[HistoryMessage]) -> list[
     after = {id(message) for message in branch[index + 1 :]}
     kept_count = sum(1 for message in branch if id(message) in after and _in_history(message))
     kept = history[len(history) - kept_count :] if kept_count else []
-    text = f"{SUMMARY_HEADING}\n\n{summary_block(branch[index])['text']}"  # type: ignore[index]
+    text = f"{SUMMARY_HEADING}\n\n{summary_text(branch[index])}"
     blocks = [{"type": "text", "text": text}, *({"type": "text", "text": part} for part in carried_texts(branch[: index + 1]))]
     if kept and kept[0].role == "user":
         first = kept[0]
@@ -212,7 +219,7 @@ async def summarise(context: UtilityContext, conversation_id: int, focus: str | 
         if point is None:
             raise SummaryError(TOO_LITTLE)
         previous_index = latest_summary(branch)
-        previous = summary_block(branch[previous_index])["text"] if previous_index is not None else None  # type: ignore[index]
+        previous = summary_text(branch[previous_index]) if previous_index is not None else None
         start = previous_index + 1 if previous_index is not None else 0
         messages = branch[start : point + 1]
         covered_id = branch[point].id
@@ -237,10 +244,10 @@ async def summarise(context: UtilityContext, conversation_id: int, focus: str | 
 
 
 def yaap_compacts(session: Session, providers: ProviderRegistry, conversation: Conversation) -> bool:
-    """Whether YAAP summarises this conversation: every connection but Claude Code and Codex."""
-    from app.core.context_control import compacts_itself
+    """Whether YAAP summarises this conversation: every connection but those that compact their own sessions."""
+    from app.core.context_control import resolve_context_control
 
-    return not compacts_itself(session, providers, conversation)
+    return not resolve_context_control(session, providers, conversation).compacts_itself
 
 
 def needs_summary(session: Session, providers: ProviderRegistry, conversation: Conversation) -> bool:
@@ -288,7 +295,7 @@ async def summarise_if_needed(context: UtilityContext, conversation_id: int) -> 
         return True
     except SummaryError as error:
         logger.info("No summary for conversation %s: %s", conversation_id, error)
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001 - a failed summary must not fail the reply; it is logged and skipped
         logger.warning("Summarising conversation %s failed.", conversation_id, exc_info=True)
     return False
 
@@ -299,14 +306,16 @@ async def compact_events(context: UtilityContext, conversation_id: int, focus: s
     try:
         result = await summarise(context, conversation_id, focus or None)
     except SummaryError as error:
-        yield server_sent_event("compact_failed", {"detail": str(error)})
+        yield server_sent_event(CompactFailedEvent(detail=str(error)))
         return
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001 - /compact reports any failure as an event; it is logged
         logger.warning("Compacting conversation %s failed.", conversation_id, exc_info=True)
-        yield server_sent_event("compact_failed", {"detail": "The summary could not be made; see the server log."})
+        yield server_sent_event(
+            CompactFailedEvent(detail="The summary could not be made; see the server log.")
+        )
         return
     yield server_sent_event(
-        "compacted", {"message_id": result.covered_message_id, "covered": result.covered, "focus": focus or None}
+        CompactedEvent(message_id=result.covered_message_id, covered=result.covered, focus=focus or None)
     )
 
 

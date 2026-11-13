@@ -8,6 +8,33 @@ cd "$(dirname "$0")/.."
 say() { printf '%s\n' "$*"; }
 fail() { printf 'Release stopped: %s\n' "$*" >&2; exit 1; }
 
+# The workflow .github/workflows/release.yml builds the images and then publishes the GitHub Release when the tag
+# arrives; the public API shows when it is there, so this needs no token. Unauthenticated, GitHub allows 60 requests an
+# hour: one every 90 seconds, for up to 90 minutes. Without a Release by then, it says how to make one by hand.
+wait_for_release() {
+  local remote repo url
+  remote="$(git remote get-url origin)"
+  repo="$(printf '%s' "$remote" | sed -E 's#^(https://([^@/]*@)?github\.com/|git@github\.com:)##; s#\.git$##')"
+  if [ "$repo" = "$remote" ]; then
+    say "origin is not on github.com, so there is no GitHub Release to wait for."
+    return 0
+  fi
+  url="https://api.github.com/repos/$repo/releases/tags/$tag"
+  say "Waiting for the images and the GitHub Release of $tag (Actions: https://github.com/$repo/actions)..."
+  for _ in $(seq 1 60); do
+    if curl -fsS -o /dev/null "$url" 2>/dev/null; then
+      say "Released: https://github.com/$repo/releases/tag/$tag"
+      return 0
+    fi
+    sleep 90
+  done
+  say "No GitHub Release of $tag after 90 minutes; see https://github.com/$repo/actions."
+  say "To make it by hand, open https://github.com/$repo/releases/new?tag=$tag with the title \"YAAP $version\" and"
+  say "this text:"
+  say ""
+  say "$notes"
+}
+
 [ $# -eq 1 ] || fail "usage: scripts/release.sh <version>, for example 0.6.0"
 version="$1"
 tag="v$version"
@@ -45,6 +72,7 @@ read -rp "Push main and $tag to origin now? [y/N] " answer
 if [ "$answer" = "y" ] || [ "$answer" = "Y" ]; then
   git push origin main "$tag"
   say "Pushed $tag."
+  wait_for_release
 else
   say "Not pushed. Push later with: git push origin main $tag"
 fi

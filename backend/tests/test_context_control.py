@@ -189,14 +189,14 @@ def test_compact_at_and_trim_at_replace_the_fixed_shares(client, fake):
 
 def test_yaap_compacts_ollama_but_not_claude_code_or_codex(client):
     from app.core.context_control import compacts_itself
+    from app.core.settings import resolve_connection
     from app.providers.registry import default_provider_registry
 
     registry = default_provider_registry()
-    local = Conversation(provider="ollama", model="ollama/qwen3:8b", environment_id=1)
     with client.app.state.session_factory() as session:
-        assert not compacts_itself(session, registry, local)
+        assert not compacts_itself(registry, "ollama", resolve_connection(session, "ollama", 1))
         client.put("/api/v1/environments/1/settings/openai_connection", json={"value": "codex"})
-        assert compacts_itself(session, registry, Conversation(provider="openai", model="gpt-6.1-sol", environment_id=1))
+        assert compacts_itself(registry, "openai", resolve_connection(session, "openai", 1))
     client.put("/api/v1/settings/anthropic_connection", json={"value": "claude_code"})
     conversation_id = start_conversation(client)
     shown = client.get(f"/api/v1/conversations/{conversation_id}").json()["context_control"]

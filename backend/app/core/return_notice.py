@@ -17,7 +17,6 @@ from sqlalchemy.orm import Session
 
 from app.core.cache_policy import CacheFacts, aware, choose_cache_ttl
 from app.core.chat_history import load_branch
-from app.core.context_control import compacts_itself
 from app.core.goals import ACTIVE, open_goal
 from app.core.settings import resolve_connection
 from app.core.summaries import context_used
@@ -117,7 +116,7 @@ def conversation_return_notice(
         context_tokens=context_used(session, conversation),
         pricing=model.pricing if model else None,
         metered=spec.metered,
-        own_loop=not compacts_itself(session, providers, conversation),
+        own_loop=not spec.compacts_itself,
         next_ttl=choose_cache_ttl(
             CacheFacts(
                 long_cache=spec.long_cache,

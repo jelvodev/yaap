@@ -13,12 +13,12 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 from pathlib import PurePosixPath
-from typing import Any
+from typing import Any, Literal
 
 import anyio
 
 from app.config import environment_value
-from app.targets.base import CapturedResult, CommandResult, FileEntry, TargetError
+from app.targets.base import CapturedResult, CommandResult, FileEntry, OutputTooLargeError, TargetError, read_outputs
 from app.targets.safe_root import RootReplacedError, SafeRoot, SafeRootError, relative_parts
 from app.targets.sessions import ShellState, bash_session
 
@@ -97,9 +97,13 @@ def local_entry(relative: str, path: Path, is_dir: bool | None = None) -> FileEn
 
 
 class LocalFiles:
-    def __init__(self, root: str) -> None:
+    def __init__(self, root: str, expected: tuple[int, int] | None = None) -> None:
+        """`expected` is the project folder's identity a run pinned; the folder opened must be that one."""
         self.root = Path(os.path.abspath(root))
-        self.safe = SafeRoot(self.root)
+        try:
+            self.safe = SafeRoot(self.root, expected)
+        except RootReplacedError as error:
+            raise TargetError("The project folder was replaced.") from error
 
     def absolute(self, path: str) -> Path:
         return self.root.joinpath(*relative_parts(path or "."))
@@ -256,7 +260,7 @@ class LocalExecutor:
         deadline = loop.time() + timeout
         decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
         collected = Collected()
-        stopped: str | None = None
+        stopped: Literal["total", "silence"] | None = None
         while True:
             remaining = deadline - loop.time()
             if remaining <= 0:
@@ -279,7 +283,7 @@ class LocalExecutor:
         if stopped is not None:
             stop_tree(process)
             await process.wait()
-            return CommandResult(None, collected.text(), timed_out=True, stopped=stopped)  # type: ignore[arg-type]
+            return CommandResult(None, collected.text(), timed_out=True, stopped=stopped)
         await process.wait()
         return CommandResult(process.returncode, collected.text())
 
@@ -288,12 +292,17 @@ class LocalExecutor:
         if sys.platform != "win32":
             options["start_new_session"] = True
         process = await self.start(command, options, None)
+        if process.stdout is None or process.stderr is None:
+            raise TargetError("The command's output could not be read.")
         try:
-            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
-        except TimeoutError:
+            async with asyncio.timeout(timeout):
+                stdout, stderr = await read_outputs(process.stdout, process.stderr)
+                await process.wait()
+        except (TimeoutError, OutputTooLargeError) as error:
             stop_tree(process)
             await process.wait()
-            return CapturedResult(None, b"", b"", timed_out=True)
+            too_large = isinstance(error, OutputTooLargeError)
+            return CapturedResult(None, b"", b"", timed_out=not too_large, too_large=too_large)
         return CapturedResult(process.returncode, stdout, stderr)
 
     async def spawn(

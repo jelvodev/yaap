@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 from app.core.chat_events import merge_events
+from app.core.reply_event_models import ApprovalRequestEvent
 from app.providers.base import (
     AgentRequest,
     Completed,
@@ -110,7 +111,7 @@ def test_merge_events_interleaves_run_events():
 
         async def provider_events():
             yield TextDelta("before ")
-            await queue.put({"event": "approval_request", "approval_id": "a1"})
+            await queue.put(ApprovalRequestEvent(approval_id="a1", tool="t", summary="s", detail="d"))
             await asyncio.sleep(0.05)
             yield TextDelta("after")
             yield Completed("end_turn", "m", TokenUsage())
@@ -118,7 +119,7 @@ def test_merge_events_interleaves_run_events():
         return [event async for event in merge_events(provider_events(), queue)]
 
     events = asyncio.run(scenario())
-    kinds = [event["event"] if isinstance(event, dict) else type(event).__name__ for event in events]
+    kinds = [event.event if isinstance(event, ApprovalRequestEvent) else type(event).__name__ for event in events]
     assert kinds == ["TextDelta", "approval_request", "TextDelta", "Completed"]
 
 

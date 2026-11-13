@@ -73,7 +73,7 @@ def run_all(registry, run, steps):
 
     async def approve():
         while True:
-            event = await run.events.get()
+            event = (await run.events.get()).model_dump()
             if event["event"] == "approval_request":
                 registry.decide(event["approval_id"], "approve")
 

@@ -10,20 +10,19 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Generic, TypeVar
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.blueprint.levels import layers_for
-from app.board.card import BrokenCard, Card, Column, Kind, parse_checklist, render_card
+from app.board.card import BrokenCard, Card, Column, Kind, render_card
+from app.board.card_detail import card_detail, existing_version, free_card_id
 from app.board.defaults import default_definition
 from app.board.errors import (
-    BoardError,
     BoardConflict,
+    BoardError,
     BoardExists,
-    BoardFull,
     BoardNotStarted,
     BoardOff,
     BoardUnavailable,
@@ -38,13 +37,11 @@ from app.board.errors import (
     ProjectNotFound,
     PushNotAllowed,
 )
-from app.board.flow import Actor, CardEvent, CardFacts, Refusal, review_from_status, step
+from app.board.flow import Actor, CardEvent, CardFacts, Refusal, step
 from app.board.index import BoardIndexer, parse_file_card
-from app.board.links import conversations_of, forget_card, record_conversation, with_conversation, with_plan
-from app.board.models import BoardCardRow, BoardState, BoardVersionRow, ConversationRole, StorageKind
+from app.board.links import forget_card, record_conversation, with_conversation, with_plan
+from app.board.models import BoardCardRow, BoardState, ConversationRole, StorageKind
 from app.board.operations import (
-    MAX_CARDS,
-    MAX_VERSIONS,
     NewCard,
     answered,
     checked_version_name,
@@ -54,53 +51,21 @@ from app.board.operations import (
     put_version,
     sent_back,
 )
+from app.board.overview import board_view, version_files
 from app.board.paths import card_path, version_path
+from app.board.plan_links import cancel_plan, card_facts, record_plan_card, stale_plan_links
+from app.board.planning import Opened, Planned, utc_now
 from app.board.publish import BoardPusher
 from app.board.repository import BoardRepository, Change, CommitInfo, Delete, Put
-from app.board.squash import Tally, board_message, should_squash, squash_message
 from app.board.settings import push_offered
+from app.board.squash import Tally, board_message, should_squash, squash_message
 from app.board.storage import BoardStorages
 from app.board.switch import board_enabled, board_push_allowed
-from app.board.versions import BrokenVersion, Version, parse_version, render_version
-from app.board.views import (
-    BoardView,
-    CardDetail,
-    LinkedConversation,
-    PushView,
-    Related,
-    VersionView,
-    card_view,
-    columns_of,
-    current_version,
-    version_views,
-)
-from app.core.settings import Source
-from app.plans.model import next_status
-from app.plans.models import PlanRecord
-from app.plans.store import PlanStore
-from app.storage.models import Environment, Project, Review
+from app.board.versions import render_version
+from app.board.views import BoardView, CardDetail, VersionView
+from app.storage.models import Environment, Project
 
-Result = TypeVar("Result")
 logger = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class Planned(Generic[Result]):
-    """A change built from what was read at a head: the files to write, what it counts as, and what to return."""
-
-    changes: tuple[Change, ...]
-    tally: Tally
-    result: Result
-
-
-def utc_now() -> datetime:
-    return datetime.now(UTC).replace(microsecond=0)
-
-
-@dataclass(frozen=True)
-class Opened:
-    project: Project
-    repository: BoardRepository
 
 
 @dataclass(frozen=True)
@@ -185,21 +150,7 @@ class BoardService:
 
     def facts(self, project_id: int, card: Card) -> CardFacts:
         """The flow's facts for a card as just read, with its plan, review and the cards it waits for."""
-        with self.session_factory() as session:
-            plan = session.get(PlanRecord, card.links.plan_id) if card.links.plan_id is not None else None
-            review = session.get(Review, card.links.review_id) if card.links.review_id is not None else None
-            query = select(BoardCardRow.card_id, BoardCardRow.board_column).where(
-                BoardCardRow.project_id == project_id, BoardCardRow.card_id.in_(card.waits_for)
-            )
-            columns = {card_id: column for card_id, column in session.execute(query)}
-        return CardFacts(
-            column=card.column,
-            plan_status=plan.status if plan is not None else None,
-            review=review_from_status(review.status if review is not None else None),
-            open_waits=tuple(card_id for card_id in card.waits_for if columns.get(card_id, "done") != "done"),
-            open_questions=sum(1 for question in card.questions if question.answer is None),
-            has_specification=bool(card.specification.strip()),
-        )
+        return card_facts(self.session_factory, project_id, card)
 
     def write_card(self, opened: Opened, card_id: int, change: Callable[[Card], Card | None], tally: Tally) -> None:
         """Read the card at the head, change it and write it; `change` returning None writes nothing."""
@@ -267,7 +218,7 @@ class BoardService:
             if since is not None and since == head:
                 return BoardView(True, switch.source, "ready", info.kind, info.location, head, unchanged=True)
             self.indexer.sync(project.id, repository)
-            versions = self.version_files(repository, head)
+            versions = version_files(repository, head)
         except BoardUnavailable as error:
             return BoardView(True, switch.source, "unavailable", info.kind, info.location, message=str(error))
         if reconcile and since is None and head is not None:
@@ -275,57 +226,9 @@ class BoardService:
                 self.reconcile_plans(project_id)
             except BoardError as error:  # the board is shown as it is; the next opening tries again
                 logger.warning("Board of project %s not reconciled with its plans: %s", project_id, error.code)
-        return self.board_view(
+        return board_view(
+            self.session_factory,
             project.id, switch.source, info.kind, info.location, head, versions, push_allowed, last_pushed
-        )
-
-    @staticmethod
-    def version_files(repository: BoardRepository, head: str | None) -> dict[str, Version | BrokenVersion]:
-        if head is None:
-            return {}
-        files = [entry.path for entry in repository.list_files(head) if entry.path.startswith("versions/")]
-        found: dict[str, Version | BrokenVersion] = {}
-        for path, content in repository.read_many(files, head).items():
-            name = path.removeprefix("versions/").removesuffix(".md")
-            found[name] = (
-                parse_version(content.text, path)
-                if content.text is not None
-                else BrokenVersion(path, name, "The file could not be read.")
-            )
-        return found
-
-    def board_view(
-        self,
-        project_id: int,
-        source: Source,
-        storage: StorageKind,
-        location: str,
-        head: str | None,
-        versions: Mapping[str, Version | BrokenVersion],
-        push_allowed: bool,
-        last_pushed: str | None,
-    ) -> BoardView:
-        with self.session_factory() as session:
-            # Without a head the branch is gone; its rows are kept for when it comes back, but not shown.
-            query = select(BoardCardRow).where(BoardCardRow.project_id == project_id)
-            rows = list(session.scalars(query)) if head is not None else []
-            version_query = select(BoardVersionRow).where(BoardVersionRow.project_id == project_id)
-            version_rows = list(session.scalars(version_query))
-            related = Related.read(session, project_id, rows)
-        views = sorted((card_view(row, related) for row in rows), key=lambda view: view.id)
-        version_list = version_views(version_rows, versions, [view for view in views if not view.broken])
-        return BoardView(
-            enabled=True,
-            enabled_source=source,
-            state="ready",
-            storage=storage,
-            location=location,
-            head=head,
-            columns=columns_of(view for view in views if not view.broken),
-            broken=tuple(view for view in views if view.broken),
-            versions=version_list,
-            current_version=current_version(version_list),
-            push=PushView(push_allowed, head is not None and head == last_pushed),
         )
 
     # --- cards ---------------------------------------------------------------------------------------------------
@@ -342,17 +245,8 @@ class BoardService:
         definition = self.definition_for(opened.project, request.kind)
 
         def build(head: str | None) -> Planned[int]:
-            with self.session_factory() as session:
-                count = session.scalar(
-                    select(func.count()).select_from(BoardCardRow).where(BoardCardRow.project_id == project_id)
-                )
-                state = session.get(BoardState, project_id)
-                next_id = state.next_card_id if state is not None else 1
-            if (count or 0) >= MAX_CARDS:
-                raise BoardFull(f"A board holds at most {MAX_CARDS} cards.")
-            on_branch = [entry.path for entry in opened.repository.list_files(head) if entry.path.startswith("cards/")]
-            highest = max((int(path.removeprefix("cards/").removesuffix(".md")) for path in on_branch), default=0)
-            card = new_card(max(next_id, highest + 1), request, definition, self.clock())
+            next_id = free_card_id(self.session_factory, opened.repository, project_id, head)
+            card = new_card(next_id, request, definition, self.clock())
             return Planned((Put(card_path(card.id), render_card(card)),), {"added": 1}, card.id)
 
         card_id = self.write(opened, build)
@@ -362,24 +256,7 @@ class BoardService:
         return self.detail(self.opened(project_id), card_id)
 
     def detail(self, opened: Opened, card_id: int) -> CardDetail:
-        project_id = opened.project.id
-        with self.session_factory() as session:
-            row = session.scalar(
-                select(BoardCardRow).where(BoardCardRow.project_id == project_id, BoardCardRow.card_id == card_id)
-            )
-            if row is None:
-                raise CardNotFound(card_id)
-            related = Related.read(session, project_id, [row])
-            linked = conversations_of(session, project_id, card_id)
-            conversations = tuple(LinkedConversation(*found) for found in linked)
-        view = card_view(row, related)
-        content = opened.repository.read(card_path(card_id))
-        parsed = parse_file_card(content) if content is not None else None
-        card = parsed if isinstance(parsed, Card) else None
-        broken_text = parsed.text if isinstance(parsed, BrokenCard) else None
-        items = tuple(parse_checklist(card.definition_of_done)) if card is not None else ()
-        location = self.storage.describe(opened.project).location
-        return CardDetail(view, card, broken_text, items, conversations, location)
+        return card_detail(self.session_factory, self.storage, opened, card_id)
 
     def update_card(
         self, project_id: int, card_id: int, patch: Mapping[str, object], expected_updated: datetime | None = None
@@ -459,17 +336,8 @@ class BoardService:
 
         self.write_card(opened, card_id, change, {"moved": 1})
         for plan_id in plan_to_cancel:
-            self.cancel_plan(plan_id)
+            cancel_plan(self.session_factory, plan_id)
         return self.detail(opened, card_id)
-
-    def cancel_plan(self, plan_id: int) -> None:
-        """The plan of a card sent back is made again, so the old one is cancelled when its status allows it."""
-        with self.session_factory() as session:
-            store = PlanStore(session)
-            record = store.get(plan_id)
-            if record is not None and next_status(record.status, "replan") == "cancelled":
-                store.set_status(record.id, record.status, "cancelled")
-                session.commit()
 
     def drop_card(self, project_id: int, card_id: int, actor: Actor = "user") -> None:
         """Delete the card's file (its history keeps it). The id is never given out again."""
@@ -506,34 +374,13 @@ class BoardService:
     def link_plan(self, project_id: int, card_id: int, plan_id: int) -> None:
         opened = self.opened(project_id)
         self.write_card(opened, card_id, lambda card: with_plan(card, plan_id), {"changed": 1})
-        with self.session_factory() as session:
-            record = session.get(PlanRecord, plan_id)
-            if record is not None and record.project_id == project_id:
-                record.card_id = card_id
-                session.commit()
+        record_plan_card(self.session_factory, project_id, card_id, plan_id)
 
     def reconcile_plans(self, project_id: int) -> int:
         """Bring cards up to date with plans that changed while the board was off: a card's newest plan is linked
         on the card. No card moves. Returns how many cards were written."""
         opened = self.opened(project_id)
-        with self.session_factory() as session:
-            query = select(BoardCardRow.card_id, BoardCardRow.plan_id).where(
-                BoardCardRow.project_id == project_id, BoardCardRow.broken.is_(False)
-            )
-            linked = {card_id: plan_id for card_id, plan_id in session.execute(query)}
-            newest: dict[int, int] = {}
-            for plan_id, card_id in session.execute(
-                select(PlanRecord.id, PlanRecord.card_id)
-                .where(
-                    PlanRecord.project_id == project_id,
-                    PlanRecord.card_id.is_not(None),
-                    PlanRecord.status != "cancelled",
-                )
-                .order_by(PlanRecord.id)
-            ):
-                if card_id is not None and card_id in linked:
-                    newest[card_id] = plan_id
-        stale = {card_id: plan_id for card_id, plan_id in newest.items() if linked.get(card_id) != plan_id}
+        stale = stale_plan_links(self.session_factory, project_id)
         if not stale:
             return 0
 
@@ -557,17 +404,7 @@ class BoardService:
         path = version_path(name)
 
         def build(head: str | None) -> Planned[None]:
-            content = opened.repository.read(path, head) if head is not None else None
-            existing: Version | None = None
-            if content is not None:
-                parsed = parse_version(content.text, path) if content.text is not None else None
-                if not isinstance(parsed, Version):
-                    raise InvalidVersion("The version's file cannot be read; fix it on the board's branch first.")
-                existing = parsed
-            else:
-                versions = [entry for entry in opened.repository.list_files(head) if entry.path.startswith("versions/")]
-                if len(versions) >= MAX_VERSIONS:
-                    raise BoardFull(f"A board holds at most {MAX_VERSIONS} versions.")
+            existing = existing_version(opened.repository, path, head)
             version = put_version(existing, name, changes, self.clock())
             return Planned((Put(path, render_version(version)),), {"versions": 1}, None)
 

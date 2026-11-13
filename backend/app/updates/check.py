@@ -33,7 +33,8 @@ logger = logging.getLogger(__name__)
 API = "https://api.github.com"
 RAW = "https://raw.githubusercontent.com"
 TIMEOUT = 15.0
-TAGS_PER_PAGE = 100
+# GitHub's limit per page; far more Releases than YAAP will have in a long time.
+RELEASES_PER_PAGE = 100
 MAX_NOTES_CHARS = 20_000
 STATE_KEY = "update_state"
 PRIVATE_HINT = (
@@ -194,15 +195,15 @@ class UpdateService:
             headers["Authorization"] = f"Bearer {token}"
         with httpx.Client(transport=self.transport, timeout=TIMEOUT, headers=headers) as http:
             try:
-                tags = self.read_tags(http, source, last.etag, token is not None)
-                if tags is None:
+                releases = self.read_releases(http, source, last.etag, token is not None)
+                if releases is None:
                     # 304: nothing changed since the last answer.
                     unchanged = {**asdict(last), "checked_at": datetime.now(UTC), "error": None, "source": source}
                     return CheckOutcome(UpdateState(**unchanged))
-                names, etag = tags
+                names, etag = releases
                 newest = newest_tag(names)
                 if newest is None:
-                    return CheckOutcome(self.fail(last, f"{source} has no release tag like v1.2.3."))
+                    return CheckOutcome(self.fail(last, f"{source} has no GitHub Release of a tag like v1.2.3."))
                 known = newest == last.newest_version and last.notes
                 read = last.notes if known else self.read_notes(http, source, newest)
             except UpdateCheckError as error:
@@ -222,13 +223,17 @@ class UpdateService:
         self.remember(state)
         return CheckOutcome(state, announce)
 
-    def read_tags(
+    def read_releases(
         self, http: httpx.Client, source: str, etag: str | None, with_token: bool
     ) -> tuple[list[str], str | None] | None:
-        """The tag names of the repository and the ETag of the answer; None when GitHub says nothing changed."""
+        """The tags of the repository's published GitHub Releases and the ETag of the answer; None when GitHub says
+        nothing changed. Releases, not bare tags: a Release is published only after the version's images are, so a
+        version is never offered before it can be installed. Drafts and pre-releases are not offered."""
         headers = {"If-None-Match": etag} if etag else {}
         try:
-            response = http.get(f"{API}/repos/{source}/tags", params={"per_page": TAGS_PER_PAGE}, headers=headers)
+            response = http.get(
+                f"{API}/repos/{source}/releases", params={"per_page": RELEASES_PER_PAGE}, headers=headers
+            )
         except httpx.HTTPError as error:
             raise UpdateCheckError(f"GitHub cannot be reached: {error}") from error
         if response.status_code == httpx.codes.NOT_MODIFIED:
@@ -243,7 +248,14 @@ class UpdateService:
             raise UpdateCheckError("GitHub sent an answer YAAP cannot read.") from error
         if not isinstance(items, list):
             raise UpdateCheckError("GitHub sent an answer YAAP cannot read.")
-        names = [str(item["name"]) for item in items if isinstance(item, dict) and isinstance(item.get("name"), str)]
+        names = [
+            item["tag_name"]
+            for item in items
+            if isinstance(item, dict)
+            and isinstance(item.get("tag_name"), str)
+            and not item.get("draft")
+            and not item.get("prerelease")
+        ]
         return names, response.headers.get("ETag")
 
     def read_notes(self, http: httpx.Client, source: str, version: str) -> str | None:

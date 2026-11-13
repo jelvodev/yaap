@@ -1,6 +1,7 @@
 """Credential management per environment. Values are write-only: no endpoint returns them."""
 
 from fastapi import APIRouter, HTTPException, Response, status
+from sqlalchemy.orm import Session
 
 from app.api.dependencies import (
     CipherDependency,
@@ -24,7 +25,7 @@ def require_credential_type(kind: str, credential_types: dict[str, CredentialTyp
     return credential_type
 
 
-def build_status(credential_type: CredentialType, environment_id: int, session) -> CredentialStatusOut:  # type: ignore[no-untyped-def]
+def build_status(credential_type: CredentialType, environment_id: int, session: Session) -> CredentialStatusOut:
     credential = find_credential(session, environment_id, credential_type.kind)
     return CredentialStatusOut(
         kind=credential_type.kind,

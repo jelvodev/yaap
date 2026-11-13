@@ -50,7 +50,7 @@ def test_the_gate_follows_the_policy(tmp_path: Path):
 
         async def deny_everything() -> None:
             while True:
-                event = await run.events.get()
+                event = (await run.events.get()).model_dump()
                 if event.get("event") == "approval_request":
                     asked.append(event["tool"])
                     for approval in run.state.approvals.values():

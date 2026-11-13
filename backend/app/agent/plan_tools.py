@@ -10,6 +10,7 @@ import anyio
 
 from app.agent.runs import AgentRun
 from app.agent.toolkit import STRING, Tool, ToolError, schema
+from app.core.reply_event_models import PlanSubmittedEvent
 from app.plans.service import InvalidPlan, PlanConflict
 
 CHECK_SCHEMA = {
@@ -48,7 +49,7 @@ async def submit_plan(run: AgentRun, arguments: dict[str, Any]) -> str:
         raise ToolError(f"The plan was not accepted. Fix all of these and call submit_plan again:\n{listed}") from error
     except PlanConflict as error:
         raise ToolError(str(error)) from error
-    run.events.put_nowait({"event": "plan_submitted", "plan_id": view.id})
+    run.events.put_nowait(PlanSubmittedEvent(plan_id=view.id))
     warnings = "".join(f"\nNote: {warning}" for warning in view.warnings)
     return f"Plan {view.id} is shown to the user as a draft.{warnings}"
 

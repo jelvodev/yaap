@@ -17,6 +17,11 @@ class RootReplacedError(SafeRootError):
     """The pinned project folder, or a folder below it that was already opened, is no longer the same folder."""
 
 
+def same_root(pinned: tuple[int, int] | None, opened: tuple[int, int]) -> bool:
+    """Whether an opened folder, as `(st_dev, st_ino)`, is the pinned one; without a pin any folder is accepted."""
+    return pinned is None or pinned == opened
+
+
 def relative_parts(path: str) -> tuple[str, ...]:
     """Normalize a relative path and refuse absolute paths or traversal above the root."""
     clean = path.replace("\\", "/")
@@ -39,9 +44,12 @@ def relative_parts(path: str) -> tuple[str, ...]:
 class SafeRootBase(ABC):
     """A pinned directory. The checks every platform shares live here; how a path is resolved is per platform."""
 
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, expected: tuple[int, int] | None = None) -> None:
+        """`expected` is the folder's `(st_dev, st_ino)` as a run pinned it; where the platform opens the root as a
+        descriptor, that descriptor must be this folder."""
         # Set first so close() is safe when opening the root fails.
         self._root_fd = -1
+        self.expected = expected
         self.path = self._pinned_path(Path(os.path.abspath(root)))
 
     @staticmethod
@@ -80,6 +88,10 @@ class SafeRootBase(ABC):
 
     @abstractmethod
     def _remove_tree(self, parts: tuple[str, ...]) -> None: ...
+
+    @abstractmethod
+    def _remove_empty_dir(self, parts: tuple[str, ...]) -> bool:
+        """Remove the folder if it is a real, empty folder below the root; False when it is not (or is gone)."""
 
     @abstractmethod
     def _replace_folder(self, parts: tuple[str, ...], files: dict[str, bytes]) -> None: ...
@@ -146,6 +158,15 @@ class SafeRootBase(ABC):
         if not parts:
             raise SafeRootError("The project root cannot be removed.")
         self._remove(parts)
+
+    def remove_empty_dirs(self, path: str) -> None:
+        """Remove the folder at path and then each parent left empty, up to but not including the root."""
+        parts = relative_parts(path)
+        while parts:
+            self._reject_git_path(parts)
+            if not self._remove_empty_dir(parts):
+                return
+            parts = parts[:-1]
 
     def remove_tree(self, path: str) -> None:
         parts = relative_parts(path)

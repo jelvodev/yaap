@@ -150,7 +150,8 @@ def test_the_reply_stream_says_which_utility_task_the_policy_skipped(client, fak
     assert (skip["task"], skip["label"]) == ("title", "Conversation titles")
     assert POLICY_REASON in skip["reason"]
     # Opening the conversation shows the same skip, from its audit row.
-    assert client.get(f"/api/v1/conversations/{conversation_id}/utility-skips").json() == [skip]
+    shown = client.get(f"/api/v1/conversations/{conversation_id}/utility-skips").json()
+    assert shown == [{key: value for key, value in skip.items() if key != "event"}]
 
     # The next exchange starts without it: no title is proposed after the first reply.
     fake.responses.append(ScriptedResponse(text="Sure."))

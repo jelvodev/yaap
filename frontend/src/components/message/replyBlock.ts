@@ -12,6 +12,10 @@ export type ReplyBlock =
       input: Record<string, unknown>;
       output: string | null;
       is_error: boolean;
+      // The server's key for the call: its checkpoint, live output and reason carry it too.
+      call_key: string;
+      // A checkpoint is taken before the call.
+      checkpointable: boolean;
       // While a delegate call runs: who works on it and the tool it is using now.
       progress?: string;
       // While a command runs: the newest part of its output.
@@ -46,23 +50,31 @@ export function appendLive(live: string | undefined, text: string): string {
 
 export function blocksFromMessage(message: Message): ReplyBlock[] {
   return message.content.flatMap((block): ReplyBlock[] => {
-    if (block.type === "steering") return [{ type: "steering", text: block.text ?? "" }];
-    if (block.type === "plan") return block.plan_id != null ? [{ type: "plan", planId: block.plan_id }] : [];
-    if (block.type !== "text" && block.type !== "reasoning" && block.type !== "tool_call") return [];
-    if (block.type === "tool_call") {
-      return [
-        {
-          type: "tool_call",
-          id: block.id ?? "",
-          name: block.name ?? "tool",
-          input: block.input ?? {},
-          output: block.output ?? null,
-          is_error: block.is_error,
-          imported: block.imported ?? false,
-        },
-      ];
+    switch (block.type) {
+      case "steering":
+        return [{ type: "steering", text: block.text }];
+      case "plan":
+        return [{ type: "plan", planId: block.plan_id }];
+      case "tool_call":
+        return [
+          {
+            type: "tool_call",
+            id: block.id,
+            name: block.name,
+            input: block.input,
+            output: block.output ?? null,
+            is_error: block.is_error,
+            call_key: block.call_key,
+            checkpointable: block.checkpointable,
+            imported: block.imported,
+          },
+        ];
+      case "text":
+      case "reasoning":
+        return [{ type: block.type, text: block.text }];
+      default:
+        return [];
     }
-    return [{ type: block.type, text: block.text }];
   });
 }
 

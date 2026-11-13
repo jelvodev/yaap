@@ -32,7 +32,7 @@ The script:
 
 1. checks that Docker and Compose run;
 2. creates `.env` from `.env.example` with a new master key, unless `.env` already exists (it never changes an existing one);
-3. builds and starts YAAP with `docker compose up -d --build`;
+3. downloads YAAP's ready-made images (`docker compose pull`, a few GB, once) and starts them with `docker compose up -d`. Run it with `--build` (`-Build` on Windows) to build the images from this folder instead, as [Building the images yourself](#building-the-images-yourself) describes;
 4. waits until <http://127.0.0.1:8080> answers;
 5. asks for YAAP's password (twice, not shown while you type) when none is set yet. Press Enter to skip it and set the password in the browser instead;
 6. shows how to connect a model.
@@ -52,7 +52,8 @@ The script:
 3. Start YAAP:
 
    ```bash
-   docker compose up -d --build
+   docker compose pull
+   docker compose up -d
    ```
 
 4. Open <http://127.0.0.1:8080>, set a password on the first-run screen, and follow [the first start](#the-first-start).
@@ -150,17 +151,40 @@ The script:
 2. looks for the newest release (`git fetch --tags`). The *stable* channel is the default and takes the newest tag; `-Channel main` (`--channel main` for the shell script) takes the newest commit of `main`. When you already run it, it says so and stops;
 3. shows what changed between your version and the new one, **Action needed** first, and asks to go on (`-Yes` or `--yes` skips the question);
 4. asks YAAP what is working (replies, goals, eval runs, replays, scheduled tasks due in the next ten minutes). When something is, it names it and asks whether to update anyway; with `-Yes` it stops instead;
-5. makes a backup (it counts toward the seven that are kept) and keeps the current images as `:previous`;
-6. checks out the new version, builds and starts it with `docker compose up -d --build`, waits up to three minutes for YAAP to answer and checks that it reports the new version;
+5. makes a backup (it counts toward the seven that are kept);
+6. checks out the new version, downloads its images (`docker compose pull`) and starts them with `docker compose up -d`, waits up to three minutes for YAAP to answer and checks that it reports the new version. The images of the version you leave stay, so going back needs no download; the ones before them are removed. When you build the images yourself, it keeps the current images as `:previous` and builds the new ones instead;
 7. writes a line to `data/update.log`.
 
-When the new version does not work, the script shows the last 40 lines of the log and offers to go back: the old code, the `:previous` images and, only when the new version already changed the database in a way the old one cannot read, the backup. If the script is interrupted, `data/update-state.json` remembers where it was and the next run offers to go back.
+When the new version does not work (also when its images cannot be downloaded), the script shows the last 40 lines of the log and offers to go back: the old code, the old images and, only when the new version already changed the database in a way the old one cannot read, the backup. If the script is interrupted, `data/update-state.json` remembers where it was and the next run offers to go back.
 
-An update that works but turns out bad can be undone later with `-Rollback` (`--rollback`). It goes back to the version before the last update. Work done since then is lost when the database was restored from the backup; the replaced data stays in `data/.restore-previous`. The `:previous` images stay until the next update.
+An update that works but turns out bad can be undone later with `-Rollback` (`--rollback`). It goes back to the version before the last update. Work done since then is lost when the database was restored from the backup; the replaced data stays in `data/.restore-previous`. The old images stay until the next update.
+
+The `main` channel has no ready-made images, because they are published for releases only: it works when you build the images yourself.
 
 Your data folder, `.env` and `docker-compose.override.yml` are not touched, and the database is migrated by YAAP itself on start. Claude Code and Codex are pinned to the versions in `tools/package-lock.json` and change with YAAP's updates: when a release pins other versions, YAAP installs them again in the background at its next start, if you had installed them. They live in `data/tools`, outside the image and outside backups; you can remove that folder, and the next sign-in installs them again.
 
-By hand, `git pull` and `docker compose up -d --build` still work.
+By hand, `git pull`, `docker compose pull` and `docker compose up -d` do the same (with `--build` instead of the pull when you build the images yourself).
+
+## Building the images yourself
+
+The ready-made images are published to `ghcr.io/jelvodev` for every release, for Intel/AMD and ARM computers (Apple silicon, Linux on ARM). Build them from this folder instead when you change YAAP, when the computer cannot reach that registry, or to try the newest commit:
+
+```bash
+./scripts/setup.sh --build
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\setup.ps1 -Build
+```
+
+This adds two lines to `.env` and builds as before (the first build downloads a few GB and takes several minutes). The lines make Compose read `docker-compose.build.yml` as well, which holds the `build:` sections and the local image names (`yaap:local`, `yaap-sandbox:local` and so on):
+
+```
+COMPOSE_PATH_SEPARATOR=,
+COMPOSE_FILE=docker-compose.yml,docker-compose.build.yml
+```
+
+Name `docker-compose.override.yml` there too when you have one (`docker-compose.yml,docker-compose.build.yml,docker-compose.override.yml`): Compose reads that file by itself only while `COMPOSE_FILE` is not set. The update script sees the line and builds the new version instead of downloading it. To go back to the ready-made images, remove both lines and run `docker compose pull` and `docker compose up -d`.
 
 ## Backups
 
@@ -183,11 +207,11 @@ On Linux or macOS, put the public key from the target screen in `~/.ssh/authoriz
 
 Everything the agent runs (commands, background processes such as a dev server, MCP servers over stdio and its browser) runs in the *runner* of its environment: a Debian container with common build tools (gcc, make, Python, Node.js, git) and Chromium, in which the agent may install what it needs with `sudo`. The runner holds only that environment's project folders (as `/workspace`, so the files stay in YAAP's data folder) and cannot reach YAAP itself, so a command cannot read YAAP's database, master key, sign-ins or another environment's projects. It has internet access unless you switch that off in Settings › Targets. It starts on the first command and stops after an hour without use. See [architecture.md](architecture.md#1a-where-commands-run-the-runner-and-its-networks).
 
-`docker compose up -d --build` builds and starts it with YAAP. Next to `yaap` and `searxng` you then see:
+`docker compose up -d` starts the helper that makes it with YAAP. Next to `yaap` and `searxng` you then see:
 
 - `yaap-sandbox`, a small helper that alone starts, stops and removes runner and sandbox containers, and only those with YAAP's sandbox label. YAAP talks to it with a token the helper writes into a volume only the two share; YAAP itself never gets the Docker socket.
 - `docker-proxy` (`tecnativa/docker-socket-proxy`), which gives the helper the container and image parts of the Docker API and nothing else (no networks, volumes, exec or system calls). Only the helper can reach it.
-- `sandbox-image`, which only builds the image `yaap-sandbox:local` and exits at once; that is expected.
+- the runner's image, `ghcr.io/jelvodev/yaap-sandbox:<version>` (about 2.8 GB), which the helper downloads when the first command needs it; that command answers *Preparing the runner* until the download is done, then try again. A build setup has the service `sandbox-image` instead, which only builds the image `yaap-sandbox:local` and exits at once; that is expected.
 - per environment that ran a command, a container `<project>-sandbox-e<number>` (and `<project>-sandbox-p<number>` per project that chose its own sandbox), where `<project>` is the Compose project name, normally `yaap`.
 
 Docker gives the proxy the socket of your Docker engine, which is as much as administrator rights on the computer; that is why the helper is a separate container behind a filter. On Docker Desktop for Windows the helper turns the workspace folder it sees (such as `C:\YAAP\data\workspace`) into the path Docker's engine uses (`/run/desktop/mnt/host/c/YAAP/data/workspace`); if your setup differs, set `YAAP_SANDBOX_WORKSPACE_HOST` for the `yaap-sandbox` service in `docker-compose.override.yml`.
@@ -198,7 +222,7 @@ To remove runners and sandboxes by hand: `docker rm -f $(docker ps -aq --filter 
 
 ## A sandbox per project
 
-A project can also let its agent work in a container of its own instead of the environment's runner, the *sandbox*: the same image, but with only the project folder as `/workspace` and without network unless you switch it on for that project. Choose **Sandbox** under *Where the agent works* in a project's settings (see [usage.md](usage.md#the-project-rail)). After a `git pull` and `docker compose up -d --build`, a sandbox is made again from the new image on its next use; *Rebuild* does it at once.
+A project can also let its agent work in a container of its own instead of the environment's runner, the *sandbox*: the same image, but with only the project folder as `/workspace` and without network unless you switch it on for that project. Choose **Sandbox** under *Where the agent works* in a project's settings (see [usage.md](usage.md#the-project-rail)). After an update, a sandbox is made again from the new image on its next use; *Rebuild* does it at once.
 
 ## Moving to another computer
 
@@ -211,7 +235,7 @@ A project can also let its agent work in a container of its own instead of the e
 
 - Stop: `docker compose down`. Start again: `docker compose up -d`.
 - Runners and sandboxes are started by YAAP's helper, not by Compose, so `docker compose down` leaves them; they stop by themselves after an hour without use. To remove them at once: `docker rm -f $(docker ps -aq --filter label=org.yaap.sandbox=1)`.
-- Uninstall: remove the runners and sandboxes as above, then `docker compose down --rmi local`, then remove the YAAP folder. The data folder goes with it unless you moved it with `YAAP_DATA_HOST`; keep a backup first if you may want it back.
+- Uninstall: remove the runners and sandboxes as above, then `docker compose down --rmi all`, then remove the YAAP folder. The data folder goes with it unless you moved it with `YAAP_DATA_HOST`; keep a backup first if you may want it back.
 
 ## Troubleshooting
 
@@ -226,9 +250,10 @@ A project can also let its agent work in a container of its own instead of the e
 | Claude Code says it is not signed in | Use *Sign in with your Claude subscription* in Settings › Connections › Providers, which also shows the status. Without the browser: run `docker compose exec -it yaap claude auth login` again. |
 | A model is shown with "(no key)" | That connection has no key or sign-in in the active environment; add one in Settings › Connections › Providers. |
 | Web search finds nothing | `docker compose logs searxng`; the search engines SearXNG asks may limit requests for a while. |
+| The download of the images fails | Run `docker compose pull` again; a download resumes where it stopped. Behind a proxy or without access to `ghcr.io`, [build the images yourself](#building-the-images-yourself). |
 | The first build fails while downloading | Run `docker compose up -d --build` again; downloads are checked against pinned hashes and resume from the cache. |
 | The microphone says the speech model could not be downloaded | YAAP needs to reach `huggingface.co` once. Click the microphone to try again, or place the files by hand (see [The speech model](#the-speech-model)). |
 | The microphone cannot record | Open YAAP at `http://localhost:8080` or `http://127.0.0.1:8080` (browsers allow the microphone only there or over https) and allow the microphone in the browser's site settings. |
-| A command says the runner cannot start, or the project settings say the sandbox helper is not running | Run `docker compose up -d --build` in YAAP's folder. `docker compose logs yaap-sandbox` shows whether the helper found Docker, its workspace folder and the image `yaap-sandbox:local`. |
+| A command says the runner cannot start, or the project settings say the sandbox helper is not running | Run `docker compose up -d` in YAAP's folder. `docker compose logs yaap-sandbox` shows whether the helper found Docker, its workspace folder and the runner's image, and how its download goes. A command that says *Preparing the runner* waits for that download (about 2.8 GB, once); try again in a few minutes. |
 | A command cannot find a tool | Commands run in the environment's runner, not in YAAP's container; install it in the runner (`sudo apt-get install …`, `npm install -g …`) or add it as an [extra package](configuration.md#extra-packages-for-the-runner). |
 | Port 8080 is in use | Use another port in `docker-compose.override.yml`: under `services: yaap:` put `ports: !override ["127.0.0.1:8082:8080", "127.0.0.1:8081:8081"]` (Compose 2.24 or later), then open <http://127.0.0.1:8082>. Port 8081 is the preview (`YAAP_PREVIEW_PORT`); when that one is in use, set another in `.env` and name it twice in the second entry. |

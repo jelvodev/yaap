@@ -8,7 +8,19 @@ from typing import Any, TypeVar
 
 import anyio
 
+from app.checkpoints.service import CHANGING_TOOLS, FILE_WRITING_TOOLS, call_key
 from app.core.background import BackgroundWork
+from app.core.reply_event_models import (
+    CallRestartedEvent,
+    PlanSubmittedEvent,
+    ReasoningDeltaEvent,
+    ReplyEvent,
+    RunEvent,
+    SteeringEvent,
+    TextDeltaEvent,
+    ToolCallEvent,
+    ToolResultEvent,
+)
 from app.providers.base import (
     AgentEvent,
     CallRestarted,
@@ -21,11 +33,12 @@ from app.providers.base import (
 
 
 ProviderEvent = TypeVar("ProviderEvent")
-RunEvent = TypeVar("RunEvent")
+QueuedEvent = TypeVar("QueuedEvent")
 
 
-def server_sent_event(name: str, payload: dict[str, Any]) -> str:
-    return f"event: {name}\ndata: {json.dumps(payload)}\n\n"
+def server_sent_event(event: ReplyEvent) -> str:
+    """The event on the wire: its name on the event line, the whole model (the name included) as the data."""
+    return f"event: {event.event}\ndata: {json.dumps(event.model_dump(mode='json'))}\n\n"
 
 
 @dataclass
@@ -61,9 +74,29 @@ class ReplyContent:
         else:
             self.blocks.append({"type": kind, "text": text})
 
-    def start_tool(self, event: ToolCallStarted) -> None:
+    def start_tool(self, event: ToolCallStarted) -> ToolCallEvent:
+        """Add the call's block and return the event for the browser; both carry the server's call key."""
+        key = call_key(event.name, event.input)
+        checkpointable = event.name in CHANGING_TOOLS
         self.blocks.append(
-            {"type": "tool_call", "id": event.id, "name": event.name, "input": event.input, "output": None, "is_error": False}
+            {
+                "type": "tool_call",
+                "id": event.id,
+                "name": event.name,
+                "input": event.input,
+                "output": None,
+                "is_error": False,
+                "call_key": key,
+                "checkpointable": checkpointable,
+            }
+        )
+        return ToolCallEvent(
+            id=event.id,
+            name=event.name,
+            input=event.input,
+            call_key=key,
+            checkpointable=checkpointable,
+            writes_files=event.name in FILE_WRITING_TOOLS,
         )
 
     def drop_unfinished_call(self) -> None:
@@ -91,40 +124,35 @@ class ReplyContent:
         return blocks
 
 
-def reply_event(event: AgentEvent | dict[str, Any], reply: ReplyContent) -> tuple[str, dict[str, Any]] | None:
+def reply_event(event: AgentEvent | RunEvent, reply: ReplyContent) -> ReplyEvent | None:
     """Apply a model or run event to the reply and return the event sent to the browser."""
     if isinstance(event, TextDelta):
         reply.add_text("text", event.text)
-        return "text_delta", {"text": event.text}
+        return TextDeltaEvent(text=event.text)
     if isinstance(event, ReasoningDelta):
         reply.add_text("reasoning", event.text)
-        return "reasoning_delta", {"text": event.text}
+        return ReasoningDeltaEvent(text=event.text)
     if isinstance(event, ToolCallStarted):
-        reply.start_tool(event)
-        return "tool_call", {"id": event.id, "name": event.name, "input": event.input}
+        return reply.start_tool(event)
     if isinstance(event, ToolCallFinished):
         reply.finish_tool(event)
-        return "tool_result", {
-            "id": event.id,
-            "output": event.output[:MAX_STORED_TOOL_OUTPUT],
-            "is_error": event.is_error,
-        }
+        return ToolResultEvent(id=event.id, output=event.output[:MAX_STORED_TOOL_OUTPUT], is_error=event.is_error)
     if isinstance(event, CallRestarted):
         reply.drop_unfinished_call()
-        return "call_restarted", {"attempt": event.attempt, "reason": event.reason}
-    if isinstance(event, dict):
-        name = event.pop("event")
-        if name == "steering":
-            reply.blocks.append({"type": "steering", "text": event["text"]})
-        elif name == "plan_submitted":
-            # The plan card shows where the agent handed it over; the plan itself is read from its row.
-            reply.blocks.append({"type": "plan", "plan_id": event["plan_id"]})
-        return name, event
+        return CallRestartedEvent(attempt=event.attempt, reason=event.reason)
+    if isinstance(event, SteeringEvent):
+        reply.blocks.append({"type": "steering", "text": event.text})
+    elif isinstance(event, PlanSubmittedEvent):
+        # The plan card shows where the agent handed it over; the plan itself is read from its row.
+        reply.blocks.append({"type": "plan", "plan_id": event.plan_id})
+    if isinstance(event, RunEvent):
+        return event
     return None
 
+
 async def merge_events(
-    provider_events: AsyncIterator[ProviderEvent], run_events: "asyncio.Queue[RunEvent] | None"
-) -> AsyncIterator[ProviderEvent | RunEvent]:
+    provider_events: AsyncIterator[ProviderEvent], run_events: "asyncio.Queue[QueuedEvent] | None"
+) -> AsyncIterator[ProviderEvent | QueuedEvent]:
     """The model's events, interleaved with the run's own events (approval requests) as they happen."""
     if run_events is None:
         async for event in provider_events:

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { formatSize } from "../../api/attachments";
 import { api, errorMessage } from "../../api/client";
 import type { components } from "../../api/schema";
+import { useScopedSettings } from "../../pages/settings/useScopedSettings";
 
 type KnowledgeDocument = components["schemas"]["KnowledgeDocumentOut"];
 
@@ -33,15 +34,11 @@ export default function KnowledgeTab({ projectId }: { projectId: number }) {
   const input = useRef<HTMLInputElement>(null);
   const [pageUrl, setPageUrl] = useState("");
   const [folder, setFolder] = useState("");
-  const [savedFolder, setSavedFolder] = useState("");
+  const { find, set, reset } = useScopedSettings({ kind: "project", id: projectId });
+  const savedFolder = String(find("knowledge_folder")?.value ?? "");
 
-  useEffect(() => {
-    void api.GET("/api/v1/projects/{project_id}/settings", { params: { path: { project_id: projectId } } }).then(({ data }) => {
-      const value = String(data?.find((item) => item.key === "knowledge_folder")?.value ?? "");
-      setFolder(value);
-      setSavedFolder(value);
-    });
-  }, [projectId]);
+  // Show the stored folder whenever it loads or changes.
+  useEffect(() => setFolder(savedFolder), [savedFolder]);
 
   async function addPage() {
     setBusy(pageUrl);
@@ -68,19 +65,11 @@ export default function KnowledgeTab({ projectId }: { projectId: number }) {
 
   async function saveFolder() {
     const value = folder.trim();
-    const { error } = value
-      ? await api.PUT("/api/v1/projects/{project_id}/settings/{key}", {
-          params: { path: { project_id: projectId, key: "knowledge_folder" } },
-          body: { value },
-        })
-      : await api.DELETE("/api/v1/projects/{project_id}/settings/{key}", {
-          params: { path: { project_id: projectId, key: "knowledge_folder" } },
-        });
+    const error = value ? await set("knowledge_folder", value) : await reset("knowledge_folder");
     if (error) {
-      setNotice({ error: true, text: errorMessage(error) });
+      setNotice({ error: true, text: error });
       return;
     }
-    setSavedFolder(value);
     await syncFolder();
   }
 

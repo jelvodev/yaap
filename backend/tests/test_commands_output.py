@@ -46,7 +46,7 @@ def test_run_command_explains_a_stop_and_spots_a_question(project):  # noqa: F81
     # The live output reached the chat while the command ran.
     events = []
     while not run.events.empty():
-        events.append(run.events.get_nowait())
+        events.append(run.events.get_nowait().model_dump())
     assert any(event["event"] == "tool_output" and "Overwrite" in event["text"] for event in events)
 
 
@@ -69,7 +69,7 @@ def test_long_output_is_stored_and_read_back(project):  # noqa: F811
 
     async def scenario():
         async def approve():
-            event = await run.events.get()
+            event = (await run.events.get()).model_dump()
             registry.decide(event["approval_id"], "approve")
 
         approver = asyncio.create_task(approve())

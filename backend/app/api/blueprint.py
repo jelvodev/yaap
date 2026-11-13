@@ -3,116 +3,56 @@
 A level is global (no environment), an environment, or a project in an environment.
 """
 
-from typing import Annotated, Literal
+from typing import Annotated
 
 import anyio
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.api.dependencies import CipherDependency, BlueprintDirDependency, SessionDependency, WorkspaceDirDependency
-from app.blueprint import package_updates, packages, skill_install
-from app.blueprint.layers import (
-    BlueprintError,
-    Item,
-    Layer,
-    delete_file,
-    layer_has_directory,
-    layer_has_file,
-    merge_layers,
-    read_layer_text,
-    validate_path,
-    write_file,
+from app.api.blueprint_mapping import (
+    candidate_out,
+    item_to_out,
+    mutation_status,
+    package_index,
+    package_item_out,
+    source_out,
 )
-from app.blueprint.mutations import MutationResult
-from app.blueprint.skill_install import GitHubSkills, read_origin
+from app.api.blueprint_schemas import (
+    BlueprintFileOut,
+    BlueprintFileWrite,
+    BlueprintItemOut,
+    GitHubInstallIn,
+    GitHubPreviewIn,
+    GitHubPreviewOut,
+    InstalledPackageOut,
+    InstalledSkillOut,
+    InstalledSkillsOut,
+    MutationStatusesOut,
+    MutationStatusOut,
+    PackageAcceptIn,
+    PackageInfoOut,
+    PackageInstalledItemOut,
+    PackageInstallIn,
+    PackageInstallOut,
+    PackageItemUpdateOut,
+    PackagePreviewOut,
+    PackageUpdateOut,
+    RuleIn,
+    RuleOut,
+    SkillUpdateOut,
+)
+from app.api.dependencies import BlueprintDirDependency, CipherDependency, SessionDependency, WorkspaceDirDependency
+from app.blueprint import operations, package_updates, packages, skill_install
+from app.blueprint.errors import BlueprintConflictError, BlueprintNotFoundError
+from app.blueprint.layers import BlueprintError, Layer, merge_layers, read_layer_text, validate_path
 from app.blueprint.levels import layers_for
-from app.blueprint.rules import target_path, unified_diff, with_rule
+from app.blueprint.skill_install import GitHubSkills
 from app.github.token import github_token_for
 from app.storage.models import Environment, Project
 
 router = APIRouter(prefix="/blueprint", tags=["blueprint"])
 
-SWITCHED_OFF = "---\ndisabled: true\n---\n"
-
-
-class MutationStatusOut(BaseModel):
-    path: str
-    committed: bool
-    error: str | None = None
-
-
-class MutationStatusesOut(BaseModel):
-    statuses: list[MutationStatusOut]
-
-
-def mutation_status(path: str, result: MutationResult) -> MutationStatusOut:
-    return MutationStatusOut(path=path, committed=result.committed, error=result.error)
-
-
-class SkillOriginOut(BaseModel):
-    """Where an installed skill comes from."""
-
-    url: str
-    repository: str
-    ref: str
-    commit: str
-    path: str
-    # The skill's folder on GitHub at the installed commit.
-    commit_url: str
-    installed_at: str
-    # The files differ from what was installed.
-    changed_locally: bool
-
-
-class PackageOriginOut(BaseModel):
-    """The package an item was installed from."""
-
-    name: str
-    url: str
-    repository: str
-    ref: str
-    commit: str
-    # The item's file or folder on GitHub at the installed commit.
-    commit_url: str
-    installed_at: str
-    # The files differ from what was installed.
-    changed_locally: bool
-
-
-class BlueprintItemOut(BaseModel):
-    path: str
-    kind: Literal["instructions", "standard", "engineering", "skill", "command", "agent"]
-    name: str
-    summary: str
-    rules: list[str]
-    disabled: bool
-    # Where the effective file lives: global, environment or project, with that level's name.
-    source: Literal["global", "environment", "project"]
-    source_label: str
-    # The level being viewed has its own file for this path.
-    defined_here: bool
-    # A level above also defines this path, so removing this level's file brings that one back.
-    inherited_from: str | None
-    origin: SkillOriginOut | None = None
-    package: PackageOriginOut | None = None
-    # Levels that add to this skill instead of replacing it, top first.
-    extended_by: list[str] = Field(default_factory=list)
-    # The level being viewed adds to the inherited skill with its own file.
-    extended_here: bool = False
-    # This level's file extends a skill that no level above has; it is not used.
-    orphan_extension: bool = False
-    mutation: MutationStatusOut | None = None
-
-
-class BlueprintFileOut(BlueprintItemOut):
-    # This level's own file when it has one (an override or an extension), else the effective file.
-    content: str
-    # For an extension: the skill as the levels above give it, shown read-only above the additions.
-    inherited_content: str | None = None
-
-
-class BlueprintFileWrite(BaseModel):
-    content: str = Field(max_length=512 * 1024)
+# The names the sibling Blueprint routers import from here.
+__all__ = ["LayersDependency", "MutationStatusOut", "mutation_status", "router", "unprocessable"]
 
 
 def resolve_layers(
@@ -136,83 +76,19 @@ def resolve_layers(
 LayersDependency = Annotated[list[Layer], Depends(resolve_layers)]
 
 
-def origin_out(item: Item) -> SkillOriginOut | None:
-    if item.kind != "skill":
-        return None
-    origin = read_origin(item.source, item.name)
-    if origin is None or origin.record.get("package"):
-        # A skill from a package shows and updates through its package.
-        return None
-    record = origin.record
-    return SkillOriginOut(
-        url=str(record.get("url") or ""),
-        repository=record["repository"],
-        ref=record["ref"],
-        commit=record["commit"],
-        path=record["path"],
-        commit_url=origin.source.tree_url(record["path"]),
-        installed_at=str(record.get("installed_at") or ""),
-        changed_locally=origin.changed_locally,
-    )
-
-
-PackageIndex = dict[Layer, dict[str, packages.InstalledItem]]
-
-
-def package_index(layers: list[Layer]) -> PackageIndex:
-    """Every item that came from a package, per layer; read once per listing."""
-    return {layer: packages.installed_items(layer) for layer in layers}
-
-
-def package_out(item: Item, index: PackageIndex | None = None) -> PackageOriginOut | None:
-    found = (index if index is not None else package_index([item.source])).get(item.source, {})
-    installed = found.get(item.path)
-    if installed is None:
-        return None
-    return PackageOriginOut(
-        name=installed.record["name"],
-        url=installed.record["url"],
-        repository=installed.record["repository"],
-        ref=installed.record["ref"],
-        commit=installed.commit,
-        commit_url=installed.commit_url(),
-        installed_at=str(installed.entry.get("installed_at") or ""),
-        changed_locally=installed.changed_locally,
-    )
-
-
-def item_to_out(item: Item, own_layer: Layer, index: PackageIndex | None = None) -> BlueprintItemOut:
-    return BlueprintItemOut(
-        origin=origin_out(item),
-        package=package_out(item, index),
-        path=item.path,
-        kind=item.kind,
-        name=item.name,
-        summary=item.summary,
-        rules=item.rules,
-        disabled=item.document.disabled,
-        source=item.source.kind,
-        source_label=item.source.label,
-        defined_here=item.source == own_layer,
-        inherited_from=(item.overrides[-1].label if item.overrides else None)
-        if item.source == own_layer
-        else item.source.label,
-        extended_by=[layer.label for layer, _ in item.extensions],
-        extended_here=any(layer == own_layer for layer, _ in item.extensions)
-        or (item.orphan_extension and item.source == own_layer),
-        orphan_extension=item.orphan_extension,
-    )
-
-
-def find_item(layers: list[Layer], path: str) -> Item | None:
-    return next((item for item in merge_layers(layers) if item.path == path), None)
-
-
 def checked_path(path: str) -> str:
     try:
         return validate_path(path)
     except BlueprintError as error:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
+        raise unprocessable(error) from error
+
+
+def unprocessable(error: BlueprintError) -> HTTPException:
+    return HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error))
+
+
+def not_found(error: BlueprintNotFoundError) -> HTTPException:
+    return HTTPException(status.HTTP_404_NOT_FOUND, str(error))
 
 
 @router.get("/items", response_model=list[BlueprintItemOut])
@@ -223,7 +99,7 @@ def list_items(layers: LayersDependency) -> list[BlueprintItemOut]:
 
 @router.get("/file", response_model=BlueprintFileOut)
 def read_file(layers: LayersDependency, path: Annotated[str, Query()]) -> BlueprintFileOut:
-    item = find_item(layers, checked_path(path))
+    item = operations.find_item(layers, checked_path(path))
     if item is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No Blueprint file at this path.")
     own = layers[-1]
@@ -242,11 +118,10 @@ def save_file(
     layers: LayersDependency, path: Annotated[str, Query()], payload: BlueprintFileWrite
 ) -> BlueprintFileOut:
     """Create the file at this level, or override an inherited one."""
-    own = layers[-1]
     try:
-        result = write_file(own, checked_path(path), payload.content, f"Update {path} ({own.label})")
+        result = operations.save_file(layers[-1], path, payload.content)
     except BlueprintError as error:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
+        raise unprocessable(error) from error
     output = read_file(layers, path)
     output.mutation = mutation_status(path, result)
     return output
@@ -255,19 +130,13 @@ def save_file(
 @router.post("/switch-off", response_model=BlueprintItemOut)
 def switch_off(layers: LayersDependency, path: Annotated[str, Query()]) -> BlueprintItemOut:
     """Switch an inherited item off for this level and below, without touching the level that defines it."""
-    own = layers[-1]
-    item = find_item(layers, checked_path(path))
-    if item is None or (item.source == own and not item.overrides):
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "Only an inherited item can be switched off. Delete an item of this level instead."
-        )
     try:
-        result = write_file(own, path, SWITCHED_OFF, f"Switch off {path} ({own.label})")
+        switched, result = operations.switch_off(layers, path)
+    except BlueprintConflictError as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
     except BlueprintError as error:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
-    switched = find_item(layers, path)
-    assert switched is not None
-    output = item_to_out(switched, own)
+        raise unprocessable(error) from error
+    output = item_to_out(switched, layers[-1])
     output.mutation = mutation_status(path, result)
     return output
 
@@ -275,127 +144,17 @@ def switch_off(layers: LayersDependency, path: Annotated[str, Query()]) -> Bluep
 @router.delete("/file", response_model=MutationStatusesOut)
 def remove_file(layers: LayersDependency, path: Annotated[str, Query()]) -> MutationStatusesOut:
     """Remove this level's file: an override or switch-off is reset to inherited; an own item is deleted."""
-    own = layers[-1]
     try:
-        result = delete_file(own, checked_path(path), f"Remove {path} ({own.label})")
-        record_result = packages.forget_items(own, [path], f"Forget {path} in its package ({own.label})")
+        removed = operations.remove_file(layers[-1], checked_path(path))
     except BlueprintError as error:
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
-    statuses = [mutation_status(path, result)]
-    if record_result is not None:
-        statuses.append(mutation_status("packages/*.json", record_result))
+    statuses = [mutation_status(path, removed.file)]
+    if removed.package_record is not None:
+        statuses.append(mutation_status("packages/*.json", removed.package_record))
     return MutationStatusesOut(statuses=statuses)
 
 
 # --- Skills from GitHub --------------------------------------------------------------------
-
-
-class GitHubSourceOut(BaseModel):
-    repository: str
-    ref: str
-    commit: str
-    path: str
-    url: str
-
-
-class SkillFileOut(BaseModel):
-    path: str
-    size: int
-
-
-class SkillCandidateOut(BaseModel):
-    # The skill's folder in the repository; what install refers to.
-    path: str
-    name: str
-    description: str
-    text: str
-    # The text with each hidden character shown as a mark such as ⟦U+200B ZERO WIDTH SPACE⟧.
-    text_marked: str
-    files: list[SkillFileOut]
-    size: int
-    warnings: list[str]
-    # Why it cannot be installed (too large, too many files, hidden characters), if so.
-    error: str | None
-    # The level being viewed already has a skill with this name; installing replaces it.
-    exists: bool
-
-
-class GitHubPreviewIn(BaseModel):
-    url: str = Field(min_length=1, max_length=500)
-
-
-class GitHubPreviewOut(BaseModel):
-    source: GitHubSourceOut
-    candidates: list[SkillCandidateOut]
-
-
-class SkillChoiceIn(BaseModel):
-    path: str = Field(max_length=500)
-    name: str = Field(min_length=1, max_length=60)
-
-
-class GitHubInstallIn(BaseModel):
-    url: str = Field(min_length=1, max_length=500)
-    ref: str = Field(min_length=1, max_length=200)
-    # The commit that was reviewed; the install reads exactly this commit.
-    commit: str = Field(pattern=r"^[0-9a-f]{40}$")
-    skills: list[SkillChoiceIn] = Field(min_length=1, max_length=30)
-
-
-class InstalledSkillOut(BaseModel):
-    name: str
-    path: str
-
-
-class InstalledSkillsOut(BaseModel):
-    skills: list[InstalledSkillOut]
-    commits: list[MutationStatusOut]
-
-
-class SkillUpdateOut(BaseModel):
-    up_to_date: bool
-    installed_commit: str
-    latest_commit: str
-    ref: str
-    # Upstream changes between the installed and the newest commit.
-    upstream_diff: str
-    # Changes made in YAAP since the install.
-    local_diff: str
-    changed_locally: bool
-    candidate: SkillCandidateOut | None
-    source: GitHubSourceOut
-    url: str
-
-
-def candidate_out(candidate: skill_install.Candidate, own: Layer) -> SkillCandidateOut:
-    exists = layer_has_directory(own, f"skills/{candidate.name}")
-    replaces = [f"Replaces the skill '{candidate.name}' at this level."] if exists else []
-    return SkillCandidateOut(
-        path=candidate.path,
-        name=candidate.name,
-        description=candidate.description,
-        text=candidate.text,
-        text_marked=candidate.text_marked,
-        files=[SkillFileOut(path=file.path, size=file.size) for file in candidate.files],
-        size=candidate.size,
-        warnings=candidate.warnings + replaces,
-        error=candidate.error,
-        exists=exists,
-    )
-
-
-def source_out(source: skill_install.Source) -> GitHubSourceOut:
-    return GitHubSourceOut(
-        repository=source.repository,
-        ref=source.ref,
-        commit=source.commit,
-        path=source.path,
-        url=source.tree_url(source.path),
-    )
-
-
-def unprocessable(error: BlueprintError) -> HTTPException:
-    return HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error))
 
 
 @router.post("/skills/github/preview", response_model=GitHubPreviewOut)
@@ -426,9 +185,10 @@ async def install_github_skills(
     environment_id: Annotated[int | None, Query()] = None,
 ) -> InstalledSkillsOut:
     """Install the reviewed skills at the reviewed commit into this level, one commit per skill."""
-    names = [choice.name for choice in payload.skills]
-    if len(set(names)) != len(names):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Two skills would get the same name; rename one.")
+    try:
+        operations.check_distinct_names([choice.name for choice in payload.skills])
+    except BlueprintError as error:
+        raise unprocessable(error) from error
     github = GitHubSkills(github_token_for(session, cipher, environment_id))
     choices = [(choice.path, choice.name) for choice in payload.skills]
     try:
@@ -453,9 +213,10 @@ async def check_skill_update(
 ) -> SkillUpdateOut:
     """Compare an installed skill of this level with the newest commit of the ref it was installed from."""
     own = layers[-1]
-    origin = read_origin(own, name) if skill_install.SKILL_NAME.match(name) else None
-    if origin is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "This level has no skill with that name installed from GitHub.")
+    try:
+        origin = operations.installed_skill_origin(own, name)
+    except BlueprintNotFoundError as error:
+        raise not_found(error) from error
     github = GitHubSkills(github_token_for(session, cipher, environment_id))
     try:
         check = await anyio.to_thread.run_sync(skill_install.check_update, github, own, name, origin)
@@ -477,104 +238,7 @@ async def check_skill_update(
 
 # --- Packages -----------------------------------------------------------------------------
 
-
-PackageKind = Literal["standard", "engineering", "skill", "command", "agent"]
-
-
-class PackageFileOut(BaseModel):
-    path: str
-    size: int
-
-
-class PackageItemOut(BaseModel):
-    kind: PackageKind
-    # The item's file or folder in the package; what install refers to.
-    path: str
-    name: str
-    description: str
-    text: str
-    # The text with each hidden character shown as a mark such as ⟦U+200B ZERO WIDTH SPACE⟧.
-    text_marked: str
-    files: list[PackageFileOut]
-    size: int
-    warnings: list[str]
-    # Why it cannot be installed (scripts, binary files, hidden characters, too large, missing), if so.
-    error: str | None
-    # The Blueprint path it gets, and whether the chosen level already has a file there.
-    target: str
-    exists: bool
-
-
-class PackageInfoOut(BaseModel):
-    name: str
-    description: str
-
-
-class PackagePreviewOut(BaseModel):
-    source: GitHubSourceOut
-    package: PackageInfoOut
-    items: list[PackageItemOut]
-
-
-class PackageChoiceIn(BaseModel):
-    kind: PackageKind
-    path: str = Field(min_length=1, max_length=500)
-    name: str = Field(min_length=1, max_length=60)
-
-
-class PackageInstallIn(BaseModel):
-    url: str = Field(min_length=1, max_length=500)
-    ref: str = Field(min_length=1, max_length=200)
-    # The commit that was reviewed; the install reads exactly this commit.
-    commit: str = Field(pattern=r"^[0-9a-f]{40}$")
-    items: list[PackageChoiceIn] = Field(min_length=1, max_length=packages.MAX_ITEMS)
-
-
-class PackageInstallOut(BaseModel):
-    items: list[str]
-    commit: MutationStatusOut
-
-
-class PackageInstalledItemOut(BaseModel):
-    path: str
-    kind: PackageKind
-    name: str
-    commit: str
-    changed_locally: bool
-
-
-class InstalledPackageOut(BaseModel):
-    name: str
-    description: str
-    url: str
-    repository: str
-    ref: str
-    items: list[PackageInstalledItemOut]
-
-
-def package_item_out(
-    item: packages.PackageItem, own: Layer, installed: dict[str, packages.InstalledItem], replacing: bool = True
-) -> PackageItemOut:
-    exists = layer_has_directory(own, item.target) or layer_has_file(own, item.target)
-    warnings = list(item.warnings)
-    if exists and replacing:
-        owner = installed.get(item.target)
-        source = f" from the package '{owner.record['name']}'" if owner else ""
-        warnings.append(f"Replaces the {item.kind} '{item.name}'{source} at this level.")
-    return PackageItemOut(
-        kind=item.kind,  # type: ignore[arg-type]
-        path=item.path,
-        name=item.name,
-        description=item.description,
-        text=item.text,
-        text_marked=item.text_marked,
-        files=[PackageFileOut(path=file.path, size=file.size) for file in item.files],
-        size=item.size,
-        warnings=warnings,
-        error=item.error,
-        target=item.target,
-        exists=exists,
-    )
+# --- Packages -----------------------------------------------------------------------------
 
 
 @router.post("/packages/preview", response_model=PackagePreviewOut)
@@ -652,46 +316,6 @@ def list_packages(layers: LayersDependency) -> list[InstalledPackageOut]:
     ]
 
 
-class PackageItemUpdateOut(BaseModel):
-    # The item's Blueprint path at this level; what accepting refers to.
-    path: str
-    kind: PackageKind
-    name: str
-    installed_commit: str
-    # changed: an update to review and accept; removed: the newest version no longer lists it.
-    status: Literal["up_to_date", "changed", "removed"]
-    upstream_diff: str
-    # Changes made in YAAP since the install.
-    local_diff: str
-    changed_locally: bool
-    # The newest version for review, when it changed.
-    item: PackageItemOut | None
-
-
-class PackageUpdateOut(BaseModel):
-    name: str
-    ref: str
-    latest_commit: str
-    source: GitHubSourceOut
-    items: list[PackageItemUpdateOut]
-    # Items the newest version lists that this level has not installed; add them with "Add from a package".
-    new_items: list[PackageItemOut]
-
-
-class PackageAcceptIn(BaseModel):
-    # The commit that was reviewed; accepting writes exactly this commit.
-    commit: str = Field(pattern=r"^[0-9a-f]{40}$")
-    paths: list[str] = Field(min_length=1, max_length=packages.MAX_ITEMS)
-    # The ref the reviewed commit was read from, when the check named one (the starter moving to a newer tag); it is
-    # recorded instead of the old one. Without it the recorded ref stays.
-    ref: str | None = Field(default=None, min_length=1, max_length=200)
-
-
-def installed_package(own: Layer, name: str) -> None:
-    if not skill_install.SKILL_NAME.match(name) or packages.read_record(own, name) is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "This level has no package with that name.")
-
-
 @router.get("/packages/{name}/update", response_model=PackageUpdateOut)
 async def check_package_update(
     name: str,
@@ -706,7 +330,10 @@ async def check_package_update(
     `ref` reads another ref than the recorded one, such as the starter's tag of a newer YAAP version.
     """
     own = layers[-1]
-    installed_package(own, name)
+    try:
+        operations.require_installed_package(own, name)
+    except BlueprintNotFoundError as error:
+        raise not_found(error) from error
     github = GitHubSkills(github_token_for(session, cipher, environment_id))
     try:
         check = await anyio.to_thread.run_sync(package_updates.check_update, github, own, name, ref)
@@ -722,10 +349,10 @@ async def check_package_update(
         items=[
             PackageItemUpdateOut(
                 path=update.target,
-                kind=update.kind,  # type: ignore[arg-type]
+                kind=update.kind,  # type: ignore[arg-type]  # the service's kind is one of the schema's values
                 name=update.name,
                 installed_commit=update.installed_commit,
-                status=update.status,  # type: ignore[arg-type]
+                status=update.status,  # type: ignore[arg-type]  # the service's status is one of the schema's values
                 upstream_diff=update.upstream_diff,
                 local_diff=update.local_diff,
                 changed_locally=update.changed_locally,
@@ -750,7 +377,10 @@ async def accept_package_update(
 ) -> PackageInstallOut:
     """Write the accepted items exactly as they are at the reviewed commit, as one commit; returns their paths."""
     own = layers[-1]
-    installed_package(own, name)
+    try:
+        operations.require_installed_package(own, name)
+    except BlueprintNotFoundError as error:
+        raise not_found(error) from error
     github = GitHubSkills(github_token_for(session, cipher, environment_id))
     try:
         result = await anyio.to_thread.run_sync(
@@ -767,36 +397,16 @@ async def accept_package_update(
 # --- Remember as rule ------------------------------------------------------------------------------
 
 
-class RuleIn(BaseModel):
-    rule: str = Field(min_length=1, max_length=500)
-    # A standard, engineering standard or instructions.md this level owns; otherwise the level's rules standard.
-    path: str | None = None
-    # False only previews the change.
-    apply: bool = False
-
-
-class RuleOut(BaseModel):
-    path: str
-    diff: str
-    applied: bool
-    mutation: MutationStatusOut | None = None
-
-
 @router.post("/rule", response_model=RuleOut)
 def remember_rule(layers: LayersDependency, payload: RuleIn) -> RuleOut:
     """Add a rule to a file this level owns: preview the diff, then apply it as one commit."""
-    own = layers[-1]
-    result: MutationResult | None = None
     try:
-        path = target_path(own, payload.path)
-        before, after = with_rule(own, path, payload.rule)
-        if payload.apply:
-            result = write_file(own, path, after, f"Remember rule: {' '.join(payload.rule.split())[:60]} ({own.label})")
+        change = operations.remember_rule(layers[-1], payload.rule, payload.path, payload.apply)
     except BlueprintError as error:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
+        raise unprocessable(error) from error
     return RuleOut(
-        path=path,
-        diff=unified_diff(path, before, after),
+        path=change.path,
+        diff=change.diff,
         applied=payload.apply,
-        mutation=mutation_status(path, result) if result is not None else None,
+        mutation=mutation_status(change.path, change.mutation) if change.mutation is not None else None,
     )

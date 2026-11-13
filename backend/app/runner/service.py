@@ -59,7 +59,7 @@ RUNNER_NAME = "Runner"
 RUNNER_ROOT = SANDBOX_ROOT
 UNAVAILABLE = (
     "Commands run in this environment's runner, which YAAP cannot start: {reason} YAAP does not run them in its own "
-    "container. Start the runner with `docker compose up -d --build` in YAAP's folder (docs/install.md, \"The "
+    "container. Start the runner with `docker compose up -d` in YAAP's folder (docs/install.md, \"The "
     "runner\"), then try again."
 )
 

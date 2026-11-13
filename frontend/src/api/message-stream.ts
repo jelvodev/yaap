@@ -1,42 +1,25 @@
-import { type ConversationSummary, type Message, type RouteStopOut, type Why, errorMessage } from "./client";
+import { type ConversationSummary, type Message, type RouteStopOut, errorMessage } from "./client";
+import type { components } from "./schema";
 import type { UtilitySkip } from "./utility-skips";
 
-export interface ToolCallStart {
-  id: string;
-  name: string;
-  input: Record<string, unknown>;
-}
+type Schemas = components["schemas"];
 
-export interface ToolCallResult {
-  id: string;
-  output: string;
-  is_error: boolean;
-}
-
+/** One event of a reply stream, as the server publishes it: the `event` field names the kind. */
+export type ReplyEvent = Schemas["ReplyEvent"];
+export type ToolCallStart = Schemas["ToolCallEvent"];
+export type ToolCallResult = Schemas["ToolResultEvent"];
 /** An action of an agent run that waits for the user's decision. */
-export interface ApprovalRequest {
-  approval_id: string;
-  tool: string;
-  summary: string;
-  detail: string;
-  // Why a tool that normally runs by itself asks: the run read outside content (injection guard).
-  reason?: string | null;
-  // What the optional utility-model check found suspicious.
-  suspicion?: string | null;
-  // The rule behind the question, when a rule decided it.
-  why?: Why | null;
-}
-
-export type ApprovalDecision = "approve" | "deny";
-
+export type ApprovalRequest = Schemas["ApprovalRequestEvent"];
+export type ApprovalDecision = Schemas["ApprovalResolvedEvent"]["decision"];
 /**
  * The shared document beside the chat: the agent opened it, starts or finished a change of it, or got
  * the user's saved changes with a tool result.
  */
-export interface DocumentEvent {
-  kind: "open" | "writing" | "change" | "seen";
-  path: string;
-}
+export type DocumentEvent =
+  | Schemas["DocumentOpenEvent"]
+  | Schemas["DocumentWritingEvent"]
+  | Schemas["DocumentChangeEvent"]
+  | Schemas["DocumentSeenEvent"];
 
 /** Events of POST /api/v1/conversations/{id}/messages, sent as server-sent events. */
 export interface MessageStreamHandlers {
@@ -54,7 +37,7 @@ export interface MessageStreamHandlers {
   onCallRestarted?: () => void;
   // A delegated sub-run reports which tool it is using.
   onDelegateProgress?: (label: string, step: string) => void;
-  // Output of a running command, as it comes; the key is callKey(tool, input).
+  // Output of a running command, as it comes; the key is the call_key of its tool call.
   onToolOutput?: (callKey: string, text: string) => void;
   // A steering message reached the agent with a tool result.
   onSteering?: (text: string) => void;
@@ -72,6 +55,41 @@ export interface MessageStreamHandlers {
   onStageRemoved?: (id: string) => void;
 }
 
+// Checked against the union, so a new server event fails the typecheck until the client lists it.
+const EVENT_NAMES: Record<ReplyEvent["event"], true> = {
+  text_delta: true,
+  reasoning_delta: true,
+  tool_call: true,
+  tool_result: true,
+  call_restarted: true,
+  tool_output: true,
+  steering: true,
+  checkpoint: true,
+  delegate_progress: true,
+  plan_submitted: true,
+  approval_request: true,
+  approval_resolved: true,
+  document_open: true,
+  document_writing: true,
+  document_change: true,
+  document_seen: true,
+  user_message: true,
+  done: true,
+  title: true,
+  utility_skipped: true,
+  stage: true,
+  stage_removed: true,
+  compacted: true,
+  compact_failed: true,
+  eval_started: true,
+};
+
+/** Whether the parsed data is an event of a kind this client knows, named like the `event:` line. */
+function isReplyEvent(value: unknown, name: string): value is ReplyEvent {
+  if (typeof value !== "object" || value === null || !("event" in value)) return false;
+  return value.event === name && Object.hasOwn(EVENT_NAMES, name);
+}
+
 function dispatchEvent(chunk: string, handlers: MessageStreamHandlers): void {
   let name = "";
   let data = "";
@@ -80,67 +98,74 @@ function dispatchEvent(chunk: string, handlers: MessageStreamHandlers): void {
     else if (line.startsWith("data: ")) data += line.slice(6);
   }
   if (!name || !data) return;
-  const payload = JSON.parse(data);
-  switch (name) {
+  const payload: unknown = JSON.parse(data);
+  // An event of a newer server is ignored.
+  if (!isReplyEvent(payload, name)) return;
+  switch (payload.event) {
     case "user_message":
-      handlers.onUserMessage(payload as Message);
+      handlers.onUserMessage(payload);
       break;
     case "reasoning_delta":
-      handlers.onReasoningDelta(payload.text as string);
+      handlers.onReasoningDelta(payload.text);
       break;
     case "text_delta":
-      handlers.onTextDelta(payload.text as string);
+      handlers.onTextDelta(payload.text);
       break;
     case "tool_call":
-      handlers.onToolCall(payload as ToolCallStart);
+      handlers.onToolCall(payload);
       break;
     case "tool_result":
-      handlers.onToolResult(payload as ToolCallResult);
+      handlers.onToolResult(payload);
       break;
     case "approval_request":
-      handlers.onApprovalRequest(payload as ApprovalRequest);
+      handlers.onApprovalRequest(payload);
       break;
     case "approval_resolved":
-      handlers.onApprovalResolved(payload.approval_id as string, payload.decision as ApprovalDecision);
+      handlers.onApprovalResolved(payload.approval_id, payload.decision);
       break;
     case "call_restarted":
       handlers.onCallRestarted?.();
       break;
     case "delegate_progress":
-      handlers.onDelegateProgress?.(String(payload.label ?? "worker"), String(payload.step ?? ""));
+      handlers.onDelegateProgress?.(payload.label, payload.step);
       break;
     case "steering":
-      handlers.onSteering?.(String(payload.text ?? ""));
+      handlers.onSteering?.(payload.text);
       break;
     case "tool_output":
-      handlers.onToolOutput?.(String(payload.call_key ?? ""), String(payload.text ?? ""));
+      handlers.onToolOutput?.(payload.call_key, payload.text);
       break;
     case "title":
-      handlers.onTitle(payload.conversation as ConversationSummary);
+      handlers.onTitle(payload.conversation);
       break;
     case "document_open":
     case "document_writing":
     case "document_change":
     case "document_seen":
-      handlers.onDocument?.({ kind: name.slice("document_".length) as DocumentEvent["kind"], path: String(payload.path ?? "") });
+      handlers.onDocument?.(payload);
       break;
     case "eval_started":
-      handlers.onEvalStarted?.(Number(payload.run_id), Number(payload.project_id), String(payload.detail ?? ""));
+      handlers.onEvalStarted?.(payload.run_id, payload.project_id, payload.detail);
       break;
     case "utility_skipped":
-      handlers.onUtilitySkipped?.(payload as UtilitySkip);
+      handlers.onUtilitySkipped?.(payload);
       break;
     case "stage":
-      handlers.onStage?.(payload as RouteStopOut);
+      handlers.onStage?.(payload);
       break;
     case "stage_removed":
-      handlers.onStageRemoved?.(String(payload.id ?? ""));
+      handlers.onStageRemoved?.(payload.id);
       break;
     case "compact_failed":
-      handlers.onCompactFailed?.(String(payload.detail ?? "The conversation could not be compacted."));
+      handlers.onCompactFailed?.(payload.detail);
       break;
     case "done":
-      handlers.onDone(payload.message as Message, payload.conversation as ConversationSummary);
+      handlers.onDone(payload.message, payload.conversation);
+      break;
+    case "checkpoint":
+    case "plan_submitted":
+    case "compacted":
+      // The browser reloads the conversation when the stream ends; these need no live action.
       break;
   }
 }

@@ -118,7 +118,7 @@ def test_the_check_asks_like_any_command_when_the_policy_asks(tmp_path, monkeypa
 
     async def scenario():
         async def approve():
-            event = await run.events.get()
+            event = (await run.events.get()).model_dump()
             seen.append(event)
             registry.decide(event["approval_id"], "approve")
 

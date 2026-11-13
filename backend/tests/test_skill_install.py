@@ -242,7 +242,7 @@ def test_install_skill_tool_always_asks(tmp_path, github):
         seen: list[dict] = []
 
         async def decide():
-            event = await run.events.get()
+            event = (await run.events.get()).model_dump()
             seen.append(event)
             registry.decide(event["approval_id"], decision)
 

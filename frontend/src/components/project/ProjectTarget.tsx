@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { type Setting, api, errorMessage } from "../../api/client";
+import { api, errorMessage } from "../../api/client";
 import type { components } from "../../api/schema";
+import { useScopedSettings } from "../../pages/settings/useScopedSettings";
 
 type Target = components["schemas"]["TargetOut"];
 type Sandbox = components["schemas"]["SandboxOut"];
@@ -22,31 +23,34 @@ const SANDBOX = "sandbox";
 export default function ProjectTarget({ projectId, environmentId }: { projectId: number; environmentId: number }) {
   const [targets, setTargets] = useState<Target[]>([]);
   const [sandbox, setSandbox] = useState<Sandbox | null>(null);
-  const [stored, setStored] = useState<TargetValue>({});
+  const { find, set, reload } = useScopedSettings({ kind: "project", id: projectId });
   const [choice, setChoice] = useState<string>("");
   const [folder, setFolder] = useState("");
   const [network, setNetwork] = useState(false);
   const [message, setMessage] = useState<{ error: boolean; text: string } | null>(null);
-  const url = `/api/v1/projects/${projectId}/settings/target`;
+  // Bumped after a save so the form re-reads the stored value even when it did not change.
+  const [syncCount, setSyncCount] = useState(0);
+  const storedJson = JSON.stringify(find("target")?.value ?? {});
+  const stored = useMemo(() => JSON.parse(storedJson) as TargetValue, [storedJson]);
 
-  const load = useCallback(async () => {
-    const [{ data }, list, sandboxResult] = await Promise.all([
+  const loadChoices = useCallback(async () => {
+    const [{ data }, sandboxResult] = await Promise.all([
       api.GET("/api/v1/environments/{environment_id}/targets", { params: { path: { environment_id: environmentId } } }),
-      fetch(`/api/v1/projects/${projectId}/settings`).then((response) => response.json() as Promise<Setting[]>),
       api.GET("/api/v1/projects/{project_id}/sandbox", { params: { path: { project_id: projectId } } }),
     ]);
     setTargets(data ?? []);
     setSandbox(sandboxResult.data ?? null);
-    const value = (list.find((item) => item.key === "target")?.value ?? {}) as TargetValue;
-    setStored(value);
-    setChoice(value.sandbox ? SANDBOX : value.id ? String(value.id) : "");
-    setFolder(value.folder ?? "");
-    setNetwork(Boolean(value.network));
   }, [environmentId, projectId]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void loadChoices();
+  }, [loadChoices]);
+
+  useEffect(() => {
+    setChoice(stored.sandbox ? SANDBOX : stored.id ? String(stored.id) : "");
+    setFolder(stored.folder ?? "");
+    setNetwork(Boolean(stored.network));
+  }, [stored, syncCount]);
 
   async function save() {
     if (choice === SANDBOX) {
@@ -59,22 +63,19 @@ export default function ProjectTarget({ projectId, environmentId }: { projectId:
         return;
       }
       setMessage({ error: false, text: "Saved. New conversations work in the sandbox; it starts on first use." });
-      await load();
+      await Promise.all([reload(), loadChoices()]);
+      setSyncCount((count) => count + 1);
       return;
     }
     const value = choice === "" ? {} : { id: Number(choice), folder: folder.trim() };
-    const response = await fetch(url, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ value }),
-    });
-    const body = await response.json().catch(() => null);
-    if (!response.ok) {
-      setMessage({ error: true, text: errorMessage(body, `Saving failed (HTTP ${response.status}).`) });
+    const error = await set("target", value);
+    if (error) {
+      setMessage({ error: true, text: error });
       return;
     }
     setMessage({ error: false, text: "Saved. New conversations work there." });
-    await load();
+    await loadChoices();
+    setSyncCount((count) => count + 1);
   }
 
   const storedChoice = stored.sandbox ? SANDBOX : stored.id ? String(stored.id) : "";

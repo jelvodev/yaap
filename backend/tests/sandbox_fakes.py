@@ -1,6 +1,7 @@
 """A fake Docker Engine API for the sandbox helper's tests: containers and images in memory, served
 through httpx.MockTransport, so no test needs Docker."""
 
+import asyncio
 import json
 import re
 from dataclasses import dataclass, field
@@ -18,6 +19,13 @@ class FakeDocker:
     # Every request that changes something: (method, path).
     changes: list[tuple[str, str]] = field(default_factory=list)
     created: list[dict[str, Any]] = field(default_factory=list)
+    # What a registry would give: image name -> whether the pulled image carries the sandbox label.
+    registry: dict[str, bool] = field(default_factory=dict)
+    # The image names pulled, in order, and an error line the pull stream ends with, when set.
+    pulls: list[str] = field(default_factory=list)
+    pull_error: str = ""
+    # While set, a pull waits for it: a download that takes a while.
+    pull_gate: asyncio.Event | None = None
 
     def add_image(self, name: str = "yaap-sandbox:local", labelled: bool = True) -> None:
         labels = {IMAGE_LABEL: "1"} if labelled else {}
@@ -46,6 +54,19 @@ class FakeDocker:
         if found := re.fullmatch(r"/images/(.+)/json", path):
             image = self.images.get(found.group(1))
             return httpx.Response(200, json=image) if image else httpx.Response(404, json={"message": "no such image"})
+        if path == "/images/create" and method == "POST":
+            name = request.url.params["fromImage"]
+            self.pulls.append(name)
+            if name not in self.registry:
+                return httpx.Response(404, json={"message": f"pull access denied for {name}"})
+            if self.pull_error:
+                lines = [{"status": "Pulling"}, {"error": self.pull_error}]
+                return httpx.Response(200, text="".join(json.dumps(line) + "\n" for line in lines))
+            self.add_image(name, labelled=self.registry[name])
+            if name.endswith(":latest"):
+                # The engine finds an image given without a tag under :latest.
+                self.images[name.removesuffix(":latest")] = self.images[name]
+            return httpx.Response(200, text=json.dumps({"status": "Pull complete"}) + "\n")
         if path == "/containers/json":
             wanted = json.loads(request.url.params["filters"])["label"]
             listed = []
@@ -93,4 +114,9 @@ class FakeDocker:
         return httpx.Response(404, json={"message": "page not found"})
 
     def transport(self) -> httpx.MockTransport:
-        return httpx.MockTransport(self.handle)
+        async def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/images/create" and self.pull_gate is not None:
+                await self.pull_gate.wait()
+            return self.handle(request)
+
+        return httpx.MockTransport(handler)

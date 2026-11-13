@@ -19,6 +19,36 @@ function Invoke-Git {
     return $output
 }
 
+# The workflow .github/workflows/release.yml builds the images and then publishes the GitHub Release when the tag
+# arrives; the public API shows when it is there, so this needs no token. Unauthenticated, GitHub allows 60 requests an
+# hour: one every 90 seconds, for up to 90 minutes. Without a Release by then, it says how to make one by hand.
+function Wait-ForRelease {
+    $Remote = Invoke-Git remote get-url origin
+    if ($Remote -notmatch '^(?:https://(?:[^@/]*@)?github\.com/|git@github\.com:)(?<repo>[^/]+/[^/]+?)(?:\.git)?$') {
+        Write-Host 'origin is not on github.com, so there is no GitHub Release to wait for.'
+        return
+    }
+    $Repo = $Matches['repo']
+    $Url = "https://api.github.com/repos/$Repo/releases/tags/$Tag"
+    Write-Host "Waiting for the images and the GitHub Release of $Tag (Actions: https://github.com/$Repo/actions)..."
+    for ($Try = 0; $Try -lt 60; $Try++) {
+        try {
+            Invoke-RestMethod -Uri $Url -ErrorAction Stop | Out-Null
+            Write-Host "Released: https://github.com/$Repo/releases/tag/$Tag" -ForegroundColor Green
+            return
+        } catch {
+            # A 404 until the workflow has run, or a network hiccup: both mean "not yet". The exception types differ
+            # between Windows PowerShell 5.1 and PowerShell 7, so this catches all; the loop ends after 90 minutes.
+            Start-Sleep -Seconds 90
+        }
+    }
+    Write-Host "No GitHub Release of $Tag after 90 minutes; see https://github.com/$Repo/actions." -ForegroundColor Yellow
+    Write-Host "To make it by hand, open https://github.com/$Repo/releases/new?tag=$Tag with the title"
+    Write-Host "`"YAAP $Version`" and this text:"
+    Write-Host ''
+    Write-Host $Notes
+}
+
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { Fail "'$Version' is not a version like 1.2.3." }
 if ((Invoke-Git branch --show-current) -ne 'main') { Fail 'check out main first.' }
 if (Invoke-Git status --porcelain) { Fail 'the working copy has uncommitted changes.' }
@@ -55,6 +85,7 @@ $Answer = Read-Host "Push main and $Tag to origin now? [y/N]"
 if ($Answer -eq 'y' -or $Answer -eq 'Y') {
     Invoke-Git push origin main $Tag
     Write-Host "Pushed $Tag."
+    Wait-ForRelease
 } else {
     Write-Host "Not pushed. Push later with: git push origin main $Tag"
 }

@@ -127,7 +127,7 @@ def test_an_a2a_answer_asks_first_and_counts_as_outside_content(client, monkeypa
 
     async def approve_each():
         while True:
-            event = await run.events.get()
+            event = (await run.events.get()).model_dump()
             if event["event"] == "approval_request":
                 asked.append(event)
                 registry.decide(event["approval_id"], "approve")

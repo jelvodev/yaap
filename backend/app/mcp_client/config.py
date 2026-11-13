@@ -7,7 +7,7 @@ setting merges key by key). Values in `env` and `headers` may be `{{secret:NAME}
 import hashlib
 import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Literal
 
 from app.secrets.service import SecretError, fill_in
@@ -152,9 +152,7 @@ def with_secrets(server: ServerConfig, secrets: dict[str, str]) -> ServerConfig:
     def fill(pairs: tuple[tuple[str, str], ...]) -> tuple[tuple[str, str], ...]:
         return tuple((key, fill_in(value, secrets)) for key, value in pairs)
 
-    return ServerConfig(
-        **{**server.__dict__, "env": fill(server.env), "headers": fill(server.headers)}  # type: ignore[arg-type]
-    )
+    return replace(server, env=fill(server.env), headers=fill(server.headers))
 
 
 __all__ = ["SecretError", "ServerConfig", "parse_servers", "validate_servers", "with_secrets"]

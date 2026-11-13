@@ -6,11 +6,13 @@ so the project's own history is never touched. Git skips the project's own `.git
 without parent under `refs/checkpoints/<id>`, so dropping old checkpoints frees their objects.
 """
 
+import stat
 import subprocess
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from app.core.subprocess_env import safe_subprocess_env
 from app.git.safety import git_command, git_variables
+from app.targets.safe_root import RootReplacedError, SafeRoot, SafeRootError
 
 MAX_FILE_BYTES = 5 * 1024 * 1024
 DEFAULT_EXCLUDES = (
@@ -102,16 +104,32 @@ class ShadowRepository:
             raise CheckpointError("The project folder does not exist.")
         self.ensure()
         self.git("add", "--all", "--", ".")
-        too_large = [
-            path
-            for path in self.git("diff", "--cached", "--name-only", "-z", "--diff-filter=AM").split("\0")
-            if path and (self.work_tree / path).is_file() and (self.work_tree / path).stat().st_size > MAX_FILE_BYTES
-        ]
+        staged = self.git("diff", "--cached", "--name-only", "-z", "--diff-filter=AM").split("\0")
+        too_large = self.larger_than_limit([path for path in staged if path])
         if too_large:
             self.git("rm", "--cached", "--quiet", "--pathspec-from-file=-", "--pathspec-file-nul", input_text="\0".join(too_large))
             with (self.git_dir / "info" / "exclude").open("a", encoding="utf-8") as exclude:
                 exclude.writelines(f"/{path}\n" for path in too_large)
         return self.git("write-tree").strip()
+
+    def larger_than_limit(self, paths: list[str]) -> list[str]:
+        """The regular files among paths over MAX_FILE_BYTES, measured below the pinned work tree (a link is not
+        followed to a file elsewhere)."""
+        found: list[str] = []
+        try:
+            with SafeRoot(self.work_tree) as root:
+                for path in paths:
+                    try:
+                        info = root.stat(path)
+                    except RootReplacedError:
+                        raise
+                    except SafeRootError:
+                        continue
+                    if info is not None and stat.S_ISREG(info.st_mode) and info.st_size > MAX_FILE_BYTES:
+                        found.append(path)
+        except OSError as error:
+            raise CheckpointError("The project folder could not be read.") from error
+        return found
 
     def commit(self, tree: str, message: str) -> str:
         return self.git("commit-tree", tree, "-m", message).strip()
@@ -141,11 +159,27 @@ class ShadowRepository:
         ]
         self.git("read-tree", target_tree)
         self.git("checkout-index", "--all", "--force")
-        for path in added:
-            file = self.work_tree / path
-            if file.is_file() or file.is_symlink():
-                file.unlink()
-            parent = file.parent
-            while parent != self.work_tree and parent.is_dir() and not any(parent.iterdir()):
-                parent.rmdir()
-                parent = parent.parent
+        try:
+            with SafeRoot(self.work_tree) as root:
+                for path in added:
+                    remove_added(root, path)
+        except RootReplacedError as error:
+            raise CheckpointError("The project folder was replaced during the restore.") from error
+        except OSError as error:
+            raise CheckpointError(f"The restore could not remove added files: {error}") from error
+
+
+def remove_added(root: SafeRoot, path: str) -> None:
+    """Remove a file added since the checkpoint and the folders it leaves empty, all below the pinned work tree. A
+    path that leads out of the project through a link is left alone."""
+    try:
+        info = root.stat(path)
+        if info is not None and not stat.S_ISDIR(info.st_mode):
+            root.remove(path)
+        parent = PurePosixPath(path).parent.as_posix()
+        if parent != ".":
+            root.remove_empty_dirs(parent)
+    except RootReplacedError:
+        raise
+    except SafeRootError:
+        return

@@ -35,7 +35,7 @@ npm install
 npm run dev
 ```
 
-Some features need tools that the Docker images provide (Claude Code, Codex, Tesseract, the embedding model; Playwright and Chromium in the sandbox image). Run the whole application with `docker compose up -d --build` to try them. Outside Docker there is no runner, so the command above sets `YAAP_RUNNER=off`: the agent's commands then run in your backend process (with everything that process can read). The test suite does the same.
+Some features need tools that the Docker images provide (Claude Code, Codex, Tesseract, the embedding model; Playwright and Chromium in the sandbox image). Run the whole application to try them: `./scripts/setup.sh --build` (`scripts\setup.ps1 -Build`) names `docker-compose.build.yml` in `.env` once, so `docker compose up -d --build` builds the images from your checkout instead of pulling the published ones (see [Building the images yourself](docs/install.md#building-the-images-yourself)). Outside Docker there is no runner, so the command above sets `YAAP_RUNNER=off`: the agent's commands then run in your backend process (with everything that process can read). The test suite does the same.
 
 ## Checks
 
@@ -95,7 +95,7 @@ They check the frontend (`npm audit` on `frontend/package-lock.json`), both Pyth
 
 ## Releasing
 
-A release is an annotated tag (`v0.6.0`) plus a section in [CHANGELOG.md](CHANGELOG.md); there are no GitHub Releases. While you work, add each user-facing change to the `## Unreleased` section of the changelog, and write under `### Action needed` what a person must do themselves when updating (it says "None." when nothing).
+A release is an annotated tag (`v0.6.0`), a section in [CHANGELOG.md](CHANGELOG.md) and a GitHub Release with that section as its notes. While you work, add each user-facing change to the `## Unreleased` section of the changelog, and write under `### Action needed` what a person must do themselves when updating (it says "None." when nothing).
 
 To release, check out `main` (clean, equal to `origin/main`) and run the script with the new version:
 
@@ -104,7 +104,7 @@ To release, check out `main` (clean, equal to `origin/main`) and run the script 
 powershell -ExecutionPolicy Bypass -File scripts\release.ps1 0.6.0
 ```
 
-The script refuses a version that is not newer, sets it everywhere it lives (`backend/app/version.py`, `backend/pyproject.toml`, `frontend/package.json` and its lock file, `frontend/openapi.json` and the line in the roadmap) through `backend/app/scripts/set_version.py`, turns `Unreleased` into `## 0.6.0 (date)` with a fresh empty one above it, commits "Set the version to 0.6.0", and creates the tag with the changelog section as its message. It asks before it runs `git push origin main v0.6.0`.
+The script refuses a version that is not newer, sets it everywhere it lives (`backend/app/version.py`, `backend/pyproject.toml`, `frontend/package.json` and its lock file, `frontend/openapi.json` and the line in the roadmap) through `backend/app/scripts/set_version.py`, turns `Unreleased` into `## 0.6.0 (date)` with a fresh empty one above it, commits "Set the version to 0.6.0", and creates the tag with the changelog section as its message. It asks before it runs `git push origin main v0.6.0`. After the push, the workflow `.github/workflows/release.yml` publishes the GitHub Release from the changelog section with GitHub's own token; the script waits for it through the public API (up to 30 minutes) and prints its address. For a tag pushed before that workflow existed, run it by hand: *Actions › Release › Run workflow* with the tags, separated by spaces. A Release that exists already is left as it is.
 
 `GET /api/v1/version` answers with the running version. A build can also name the commit and the channel it comes from, with the environment variables `YAAP_COMMIT` and `YAAP_CHANNEL` (build arguments of the image); both are empty for a plain build.
 

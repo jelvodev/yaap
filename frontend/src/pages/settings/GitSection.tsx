@@ -182,9 +182,10 @@ export default function GitSection({ level, store }: { level: SettingsLevel; sto
     setRepositories((list) => list?.map((item) => (item.id === updated.id ? updated : item)) ?? null);
 
   async function run(repository: GitRepository, action: RemoteAction): Promise<string | null> {
+    if (environmentId === null) return `${repository.label}: no environment is selected.`;
     const { data, error } = await api.POST(
       `/api/v1/environments/{environment_id}/git/repositories/{repository_id}/${action}`,
-      { params: { path: { environment_id: environmentId!, repository_id: repository.id } } },
+      { params: { path: { environment_id: environmentId, repository_id: repository.id } } },
     );
     if (error || !data) return `${repository.label}: ${errorMessage(error)}`;
     replace(data);

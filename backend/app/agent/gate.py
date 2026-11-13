@@ -28,6 +28,7 @@ from app.agent.toolkit import Tool, ToolError, ToolOutput, truncate, with_text
 from app.agent.tools import find_tool
 from app.checkpoints.service import CHANGING_TOOLS, call_key
 from app.core.outgoing_checks import OutgoingRules, text_block
+from app.core.reply_event_models import CheckpointEvent, SteeringEvent
 from app.core.why import Why
 from app.git.service import GitError
 from app.learning.signals import step_signal
@@ -152,7 +153,7 @@ def deliver_steering(run: AgentRun, name: str, arguments: dict[str, Any], output
         run.state.steering = []
     if not texts:
         return output
-    run.events.put_nowait({"event": "steering", "call_key": call_key(name, arguments), "text": "\n\n".join(texts)})
+    run.events.put_nowait(SteeringEvent(call_key=call_key(name, arguments), text="\n\n".join(texts)))
     note = "".join(f"\n\n{STEERING_NOTE}\n{text}" for text in texts)
     return with_text(output, str(output) + note)
 
@@ -250,7 +251,7 @@ async def take_checkpoint(run: AgentRun, tool: Tool, name: str, arguments: dict[
         )
     )
     if checkpoint_id is not None:
-        run.events.put_nowait({"event": "checkpoint", "checkpoint_id": checkpoint_id, "call_key": key, "tool": name})
+        run.events.put_nowait(CheckpointEvent(checkpoint_id=checkpoint_id, call_key=key, tool=name))
 
 
 def attachment_label(run: AgentRun, arguments: dict[str, Any]) -> str:

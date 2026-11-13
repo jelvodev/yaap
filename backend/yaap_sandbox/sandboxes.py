@@ -15,13 +15,16 @@ internal sandbox network (no route outside) unless the project switched the netw
 import asyncio
 import base64
 import hashlib
+import logging
 import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from yaap_sandbox.docker_api import DockerApi, DockerError
+from yaap_sandbox.docker_api import DockerApi, DockerError, is_local_name
+
+log = logging.getLogger("yaap_sandbox")
 
 LABEL = "org.yaap.sandbox"
 KEY_LABEL = "org.yaap.sandbox.key"
@@ -63,6 +66,9 @@ class Config:
     cpus: float = 2.0
     memory: int = 4 * 1024**3
     pids: int = 2048
+    # How long a start waits for the runner's download before it answers that the download goes on; below the
+    # time YAAP waits for a start.
+    pull_wait: float = 150.0
 
     @classmethod
     def from_environment(cls) -> "Config":
@@ -156,6 +162,8 @@ class Sandboxes:
     docker: DockerApi
     config: Config
     locks: dict[str, asyncio.Lock] = field(default_factory=dict)
+    # The download of the configured image, shared by every start that needs it.
+    pull: "asyncio.Task[str | None] | None" = None
 
     async def discover(self, hostname: str | None = None) -> None:
         """Fill in the instance and the host's workspace folder from the helper's own container, when not set.
@@ -216,13 +224,46 @@ class Sandboxes:
             raise SandboxError(404, f"The folder {folder} does not exist in YAAP's workspace.")
         return docker_path(self.config.workspace_host) + "/" + folder
 
+    async def download_image(self) -> str | None:
+        """Pull the configured image; the error as text, None when it succeeded. Never raises, so a download that
+        nobody waits for any more cannot end as an unretrieved task exception."""
+        log.info("Preparing the runner: downloading %s (about 2.8 GB, once).", self.config.image)
+        try:
+            await self.docker.pull_image(self.config.image)
+        except DockerError as error:
+            log.warning("The download of %s failed: %s", self.config.image, error)
+            return str(error)
+        log.info("The runner image %s is downloaded.", self.config.image)
+        return None
+
+    async def pulled_image(self) -> dict[str, Any] | None:
+        """Download the missing image once, however many starts need it: they all wait for the same download, up to
+        `pull_wait`; the download itself goes on after that. Only the configured name is ever pulled."""
+        image = self.config.image
+        if is_local_name(image):
+            raise SandboxError(
+                503, f"The sandbox image {image} is built on this computer and is not there; build it with "
+                "docker compose up -d --build."
+            )
+        if self.pull is None or self.pull.done():
+            self.pull = asyncio.ensure_future(self.download_image())
+        finished, _ = await asyncio.wait({self.pull}, timeout=self.config.pull_wait)
+        if not finished:
+            raise SandboxError(
+                503, "Preparing the runner (about 2.8 GB, once): the download goes on; try again in a few minutes."
+            )
+        if (failure := self.pull.result()) is not None:
+            raise SandboxError(503, f"The sandbox image {image} could not be downloaded: {failure}")
+        return await self.docker.inspect_image(image)
+
     async def check_image(self) -> str:
-        """The sandbox image's id; refuses a missing image or one without the image label."""
+        """The sandbox image's id, after downloading it when it is missing; refuses an image without the image
+        label, also one that was just downloaded."""
         image = await self.docker.inspect_image(self.config.image)
         if image is None:
-            raise SandboxError(
-                503, f"The sandbox image {self.config.image} is not there; build it with docker compose up -d --build."
-            )
+            image = await self.pulled_image()
+        if image is None:
+            raise SandboxError(503, f"The sandbox image {self.config.image} is not there after its download.")
         labels = (image.get("Config") or {}).get("Labels") or {}
         if labels.get(IMAGE_LABEL) != "1":
             raise SandboxError(403, f"The image {self.config.image} is not YAAP's sandbox image.")

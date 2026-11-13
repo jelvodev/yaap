@@ -104,14 +104,15 @@ def guess_kind(document: ImportDocument) -> ItemKind:
     name = PurePosixPath(path).name
     if name == "skill.md" or "/skills/" in f"/{path}":
         return "skill"
-    for kind, words in (
+    candidates: tuple[tuple[ItemKind, tuple[str, ...]], ...] = (
         ("command", ("command",)),
         ("agent", ("agent", "role")),
         ("engineering", ("engineering",)),
         ("standard", ("standard", "rule", "convention", "guideline")),
-    ):
+    )
+    for kind, words in candidates:
         if any(word in path for word in words):
-            return kind  # type: ignore[return-value]
+            return kind
     if name in ("agents.md", "claude.md", "instructions.md"):
         return "instructions"
     return "standard" if len(document.body) < 6000 else "engineering"

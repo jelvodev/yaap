@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "description": "Command-line tools that YAAP installs into its data folder on first use",
+  "allowScripts": {
+    "@anthropic-ai/claude-code": true
+  },
   "dependencies": {
     "@anthropic-ai/claude-code": "2.1.311",
     "@openai/codex": "0.166.0"

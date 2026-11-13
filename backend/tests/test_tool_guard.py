@@ -43,7 +43,7 @@ def start_run(folder: Path, **values):
 
 async def answer_approvals(registry, run, decision: str, seen: list[dict]):
     while True:
-        event = await run.events.get()
+        event = (await run.events.get()).model_dump()
         if event["event"] == "approval_request":
             seen.append(event)
             registry.decide(event["approval_id"], decision)

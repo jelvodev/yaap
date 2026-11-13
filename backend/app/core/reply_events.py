@@ -18,6 +18,7 @@ from app.core.background import BackgroundWork
 from app.core.chat_events import merge_events, server_sent_event
 from app.core.goals import ACTIVE, open_goal
 from app.core.message_queue import queue_undelivered_steering
+from app.core.reply_event_models import StageEvent, StageRemovedEvent
 from app.core.reply_services import ReplyServices
 from app.core.summaries import start_background_summary, summarise_if_needed
 from app.core.builtin_prompts import utility_instructions
@@ -77,8 +78,8 @@ async def stops_before_the_end(
 
 def stage_event(item: RouteStopOut | RemovedStop) -> str:
     if isinstance(item, RemovedStop):
-        return server_sent_event("stage_removed", {"id": item.id})
-    return server_sent_event("stage", item.model_dump(mode="json"))
+        return server_sent_event(StageRemovedEvent(id=item.id))
+    return server_sent_event(StageEvent(**dict(item)))
 
 
 def tell_feed(feed: StageFeed, event: str) -> None:

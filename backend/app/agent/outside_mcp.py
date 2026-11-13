@@ -138,8 +138,8 @@ def client_conversation(session: Session, app: Any, grant: TokenGrant) -> Conver
     """The token's conversation, made on first use (and again when the user deleted it)."""
     link = session.get(McpClientConversation, grant.token_id)
     conversation = session.get(Conversation, link.conversation_id) if link is not None else None
-    if in_scope(conversation, grant.environment_id, grant.project_id):
-        return conversation  # type: ignore[return-value]
+    if conversation is not None and in_scope(conversation, grant.environment_id, grant.project_id):
+        return conversation
     scope = token_scope(session, grant.environment_id, grant.project_id)
     conversation = new_conversation(session, app.state.providers, scope, f"MCP client · token {grant.token_id}")
     if link is None:

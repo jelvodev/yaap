@@ -36,6 +36,7 @@ from app.core.context_control import output_tokens
 from app.core.model_choice import ForSubRun, ModelChoice, ModelChoiceError, PolicyForbids, read_key, resolve_provider
 from app.core.outgoing_checks import OutgoingRules, checked_provider, outgoing_rules, request_refusal
 from app.core.prompts import Languages
+from app.core.reply_event_models import DelegateProgressEvent
 from app.core.stopped_usage import StoppedRun, stopped_usage
 from app.credentials.crypto import CredentialCipher
 from app.credentials.types import CredentialType
@@ -47,6 +48,7 @@ from app.presets.delegation import DelegationMode
 from app.presets.service import delegation_of
 from app.providers.base import (
     AgentRequest,
+    CallRestarted,
     Completed,
     HistoryMessage,
     ModelProvider,
@@ -306,7 +308,7 @@ class Delegator:
         outcome = StreamOutcome()
 
         async def progress(step: str) -> None:
-            await parent.events.put({"event": "delegate_progress", "run_id": record_id, "label": label, "step": step})
+            await parent.events.put(DelegateProgressEvent(run_id=record_id, label=label, step=step))
 
         async def consume() -> None:
             calls: dict[str, dict[str, Any]] = {}
@@ -315,6 +317,8 @@ class Delegator:
                     raise ParentEnded("The run that started this task has ended.")
                 if isinstance(event, TextDelta):
                     outcome.texts.append(event.text)
+                elif isinstance(event, CallRestarted):
+                    outcome.texts.clear()  # The broken call's text is void; the new attempt writes it again.
                 elif isinstance(event, ToolCallStarted):
                     outcome.texts.clear()  # The report is the text after the last tool call.
                     calls[event.id] = {"type": "tool_call", "name": event.name, "input": event.input}

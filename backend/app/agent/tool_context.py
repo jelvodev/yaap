@@ -9,7 +9,7 @@ from pathlib import Path
 from app.agent.runs import AgentRun
 from app.agent.toolkit import ToolError
 from app.targets.base import CommandExecutor, TargetFiles
-from app.targets.container import CONTAINER
+from app.targets.container import CONTAINER, LocalFiles
 
 
 def project_root(run: AgentRun) -> Path:
@@ -32,7 +32,12 @@ def files(run: AgentRun) -> TargetFiles:
     """The run's working folder: on a computer over SSH the folder there, else the project folder in the container."""
     if run.target is not None and run.target_root is not None:
         return run.target.files(run.target_root)
-    return (run.target or CONTAINER).files(str(project_root(run)))
+    root = str(project_root(run))
+    if run.target is None or in_runner(run):
+        # Files on YAAP's disk: the folder opened must be the one the run pinned, so a swap after the check above
+        # is refused instead of followed.
+        return LocalFiles(root, run.project_identity)
+    return run.target.files(root)
 
 
 def executor(run: AgentRun) -> CommandExecutor:

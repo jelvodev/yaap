@@ -520,6 +520,163 @@
         "title": "ApprovalDecision",
         "type": "object"
       },
+      "ApprovalRequestEvent": {
+        "description": "An action of the run that waits for the user's decision.",
+        "properties": {
+          "approval_id": {
+            "title": "Approval Id",
+            "type": "string"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "event": {
+            "const": "approval_request",
+            "default": "approval_request",
+            "title": "Event",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "suspicion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suspicion"
+          },
+          "tool": {
+            "title": "Tool",
+            "type": "string"
+          },
+          "why": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WhyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "event",
+          "approval_id",
+          "tool",
+          "summary",
+          "detail",
+          "reason",
+          "suspicion",
+          "why"
+        ],
+        "title": "ApprovalRequestEvent",
+        "type": "object"
+      },
+      "ApprovalResolvedEvent": {
+        "properties": {
+          "approval_id": {
+            "title": "Approval Id",
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "approve",
+              "deny"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "event": {
+            "const": "approval_resolved",
+            "default": "approval_resolved",
+            "title": "Event",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "approval_id",
+          "decision"
+        ],
+        "title": "ApprovalResolvedEvent",
+        "type": "object"
+      },
+      "AttachmentBlockOut": {
+        "properties": {
+          "attachment_id": {
+            "title": "Attachment Id",
+            "type": "integer"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "media_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Media Type"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size"
+          },
+          "type": {
+            "const": "attachment",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "attachment_id",
+          "name"
+        ],
+        "title": "AttachmentBlockOut",
+        "type": "object"
+      },
       "AttachmentOut": {
         "properties": {
           "conversation_id": {
@@ -2357,6 +2514,32 @@
         "title": "BuiltinItemsOut",
         "type": "object"
       },
+      "CallRestartedEvent": {
+        "description": "A model call broke off and starts again: the text and reasoning it streamed are void.",
+        "properties": {
+          "attempt": {
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "event": {
+            "const": "call_restarted",
+            "default": "call_restarted",
+            "title": "Event",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "attempt",
+          "reason"
+        ],
+        "title": "CallRestartedEvent",
+        "type": "object"
+      },
       "CallWhyOut": {
         "properties": {
           "approval": {
@@ -3386,6 +3569,36 @@
         "title": "CheckpointDiffOut",
         "type": "object"
       },
+      "CheckpointEvent": {
+        "properties": {
+          "call_key": {
+            "title": "Call Key",
+            "type": "string"
+          },
+          "checkpoint_id": {
+            "title": "Checkpoint Id",
+            "type": "integer"
+          },
+          "event": {
+            "const": "checkpoint",
+            "default": "checkpoint",
+            "title": "Event",
+            "type": "string"
+          },
+          "tool": {
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "checkpoint_id",
+          "call_key",
+          "tool"
+        ],
+        "title": "CheckpointEvent",
+        "type": "object"
+      },
       "CheckpointOut": {
         "properties": {
           "call_key": {
@@ -3600,6 +3813,42 @@
         "title": "ColumnOut",
         "type": "object"
       },
+      "CommandBlockOut": {
+        "description": "What a /command expanded to; a /card command also names the card it made.",
+        "properties": {
+          "card_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Id"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "type": {
+            "const": "command",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "name",
+          "text"
+        ],
+        "title": "CommandBlockOut",
+        "type": "object"
+      },
       "CommandCheckIO": {
         "properties": {
           "kind": {
@@ -3690,6 +3939,26 @@
         "title": "CommitOut",
         "type": "object"
       },
+      "CompactFailedEvent": {
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "event": {
+            "const": "compact_failed",
+            "default": "compact_failed",
+            "title": "Event",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "detail"
+        ],
+        "title": "CompactFailedEvent",
+        "type": "object"
+      },
       "CompactIn": {
         "properties": {
           "focus": {
@@ -3706,6 +3975,44 @@
           }
         },
         "title": "CompactIn",
+        "type": "object"
+      },
+      "CompactedEvent": {
+        "description": "/compact summarised the conversation up to message_id.",
+        "properties": {
+          "covered": {
+            "title": "Covered",
+            "type": "integer"
+          },
+          "event": {
+            "const": "compacted",
+            "default": "compacted",
+            "title": "Event",
+            "type": "string"
+          },
+          "focus": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Focus"
+          },
+          "message_id": {
+            "title": "Message Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "event",
+          "message_id",
+          "covered",
+          "focus"
+        ],
+        "title": "CompactedEvent",
         "type": "object"
       },
       "ComparisonIn": {
@@ -3785,211 +4092,6 @@
           "pass_rate_b"
         ],
         "title": "ComparisonOut",
-        "type": "object"
-      },
-      "ContentBlockOut": {
-        "properties": {
-          "attachment_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Attachment Id"
-          },
-          "card_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Card Id"
-          },
-          "covered": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Covered"
-          },
-          "focus": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Focus"
-          },
-          "id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Id"
-          },
-          "imported": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Imported"
-          },
-          "input": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Input"
-          },
-          "is_error": {
-            "default": false,
-            "title": "Is Error",
-            "type": "boolean"
-          },
-          "kind": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Kind"
-          },
-          "max_turns": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Max Turns"
-          },
-          "media_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Media Type"
-          },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "output": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Output"
-          },
-          "plan_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Plan Id"
-          },
-          "size": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Size"
-          },
-          "text": {
-            "default": "",
-            "title": "Text",
-            "type": "string"
-          },
-          "turn": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Turn"
-          },
-          "type": {
-            "enum": [
-              "text",
-              "reasoning",
-              "tool_call",
-              "attachment",
-              "command",
-              "skill",
-              "skill_removed",
-              "goal",
-              "summary",
-              "trim",
-              "steering",
-              "note",
-              "repo_map",
-              "plan"
-            ],
-            "title": "Type",
-            "type": "string"
-          }
-        },
-        "required": [
-          "type"
-        ],
-        "title": "ContentBlockOut",
         "type": "object"
       },
       "ContextBreakdownOut": {
@@ -5365,6 +5467,37 @@
         "title": "DefaultSkillsOut",
         "type": "object"
       },
+      "DelegateProgressEvent": {
+        "description": "A delegated sub-run reports which tool it is using.",
+        "properties": {
+          "event": {
+            "const": "delegate_progress",
+            "default": "delegate_progress",
+            "title": "Event",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "integer"
+          },
+          "step": {
+            "title": "Step",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "run_id",
+          "label",
+          "step"
+        ],
+        "title": "DelegateProgressEvent",
+        "type": "object"
+      },
       "DestinationStateOut": {
         "properties": {
           "backups": {
@@ -5507,6 +5640,39 @@
         "title": "DiscardOut",
         "type": "object"
       },
+      "DocumentChangeEvent": {
+        "description": "The agent's change of the shared document ended; hash is the document's version after it (None: gone).",
+        "properties": {
+          "event": {
+            "const": "document_change",
+            "default": "document_change",
+            "title": "Event",
+            "type": "string"
+          },
+          "hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hash"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "path",
+          "hash"
+        ],
+        "title": "DocumentChangeEvent",
+        "type": "object"
+      },
       "DocumentDecisionIn": {
         "properties": {
           "hash": {
@@ -5525,6 +5691,27 @@
           "hash"
         ],
         "title": "DocumentDecisionIn",
+        "type": "object"
+      },
+      "DocumentOpenEvent": {
+        "description": "The agent opened the shared document.",
+        "properties": {
+          "event": {
+            "const": "document_open",
+            "default": "document_open",
+            "title": "Event",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "path"
+        ],
+        "title": "DocumentOpenEvent",
         "type": "object"
       },
       "DocumentOpenIn": {
@@ -5630,6 +5817,77 @@
           "checkpoint_id"
         ],
         "title": "DocumentReviewOut",
+        "type": "object"
+      },
+      "DocumentSeenEvent": {
+        "description": "The agent got the user's saved changes of the shared document with a tool result.",
+        "properties": {
+          "call_key": {
+            "title": "Call Key",
+            "type": "string"
+          },
+          "event": {
+            "const": "document_seen",
+            "default": "document_seen",
+            "title": "Event",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "call_key",
+          "path"
+        ],
+        "title": "DocumentSeenEvent",
+        "type": "object"
+      },
+      "DocumentWritingEvent": {
+        "description": "The agent starts a change of the shared document.",
+        "properties": {
+          "event": {
+            "const": "document_writing",
+            "default": "document_writing",
+            "title": "Event",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "path"
+        ],
+        "title": "DocumentWritingEvent",
+        "type": "object"
+      },
+      "DoneEvent": {
+        "description": "The reply is stored.",
+        "properties": {
+          "conversation": {
+            "$ref": "#/components/schemas/ConversationSummaryOut"
+          },
+          "event": {
+            "const": "done",
+            "default": "done",
+            "title": "Event",
+            "type": "string"
+          },
+          "message": {
+            "$ref": "#/components/schemas/MessageOut"
+          }
+        },
+        "required": [
+          "event",
+          "message",
+          "conversation"
+        ],
+        "title": "DoneEvent",
         "type": "object"
       },
       "EndpointModelOut": {
@@ -6665,6 +6923,37 @@
         "title": "EvalRunOut",
         "type": "object"
       },
+      "EvalStartedEvent": {
+        "description": "/eval started an eval run instead of a reply.",
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "event": {
+            "const": "eval_started",
+            "default": "eval_started",
+            "title": "Event",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "integer"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "event",
+          "run_id",
+          "project_id",
+          "detail"
+        ],
+        "title": "EvalStartedEvent",
+        "type": "object"
+      },
       "EvidenceOut": {
         "properties": {
           "checks_run": {
@@ -7496,6 +7785,36 @@
           "url"
         ],
         "title": "GitHubSourceOut",
+        "type": "object"
+      },
+      "GoalBlockOut": {
+        "description": "The marker of the goal turn a user message starts.",
+        "properties": {
+          "max_turns": {
+            "title": "Max Turns",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "turn": {
+            "title": "Turn",
+            "type": "integer"
+          },
+          "type": {
+            "const": "goal",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "text",
+          "turn",
+          "max_turns"
+        ],
+        "title": "GoalBlockOut",
         "type": "object"
       },
       "GoalOut": {
@@ -9281,7 +9600,69 @@
         "properties": {
           "content": {
             "items": {
-              "$ref": "#/components/schemas/ContentBlockOut"
+              "discriminator": {
+                "mapping": {
+                  "attachment": "#/components/schemas/AttachmentBlockOut",
+                  "command": "#/components/schemas/CommandBlockOut",
+                  "goal": "#/components/schemas/GoalBlockOut",
+                  "note": "#/components/schemas/NoteBlockOut",
+                  "plan": "#/components/schemas/PlanBlockOut",
+                  "reasoning": "#/components/schemas/ReasoningBlockOut",
+                  "repo_map": "#/components/schemas/RepoMapBlockOut",
+                  "skill": "#/components/schemas/SkillBlockOut",
+                  "skill_removed": "#/components/schemas/SkillRemovedBlockOut",
+                  "steering": "#/components/schemas/SteeringBlockOut",
+                  "summary": "#/components/schemas/SummaryBlockOut",
+                  "text": "#/components/schemas/TextBlockOut",
+                  "tool_call": "#/components/schemas/ToolCallBlockOut",
+                  "trim": "#/components/schemas/TrimBlockOut"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/TextBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/ReasoningBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolCallBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/AttachmentBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/CommandBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/SkillBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/SkillRemovedBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/GoalBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/SummaryBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/TrimBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/SteeringBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/NoteBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/RepoMapBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/PlanBlockOut"
+                }
+              ]
             },
             "title": "Content",
             "type": "array"
@@ -9587,6 +9968,26 @@
           "reason"
         ],
         "title": "NotImportedOut",
+        "type": "object"
+      },
+      "NoteBlockOut": {
+        "description": "A line YAAP added to the conversation, such as a move to another project.",
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "type": {
+            "const": "note",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "text"
+        ],
+        "title": "NoteBlockOut",
         "type": "object"
       },
       "OriginOut": {
@@ -10278,6 +10679,26 @@
         "title": "PinnedSkillsIn",
         "type": "object"
       },
+      "PlanBlockOut": {
+        "description": "A plan the agent handed over with submit_plan; the card reads the plan itself.",
+        "properties": {
+          "plan_id": {
+            "title": "Plan Id",
+            "type": "integer"
+          },
+          "type": {
+            "const": "plan",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "plan_id"
+        ],
+        "title": "PlanBlockOut",
+        "type": "object"
+      },
       "PlanBuildOut": {
         "description": "The build of an approved plan, beside its steps' state.",
         "properties": {
@@ -10685,6 +11106,26 @@
           "attempts"
         ],
         "title": "PlanStepOut",
+        "type": "object"
+      },
+      "PlanSubmittedEvent": {
+        "properties": {
+          "event": {
+            "const": "plan_submitted",
+            "default": "plan_submitted",
+            "title": "Event",
+            "type": "string"
+          },
+          "plan_id": {
+            "title": "Plan Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "event",
+          "plan_id"
+        ],
+        "title": "PlanSubmittedEvent",
         "type": "object"
       },
       "PluginOut": {
@@ -12335,6 +12776,45 @@
         "title": "QueuedMessageOut",
         "type": "object"
       },
+      "ReasoningBlockOut": {
+        "properties": {
+          "text": {
+            "default": "",
+            "title": "Text",
+            "type": "string"
+          },
+          "type": {
+            "const": "reasoning",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "ReasoningBlockOut",
+        "type": "object"
+      },
+      "ReasoningDeltaEvent": {
+        "properties": {
+          "event": {
+            "const": "reasoning_delta",
+            "default": "reasoning_delta",
+            "title": "Event",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "text"
+        ],
+        "title": "ReasoningDeltaEvent",
+        "type": "object"
+      },
       "RecalledEntryOut": {
         "properties": {
           "reason": {
@@ -12908,6 +13388,117 @@
         "title": "ReplayVariantOut",
         "type": "object"
       },
+      "ReplyEvent": {
+        "description": "One event of a reply stream: the `event:` line names it, the `data:` line holds it as JSON.",
+        "discriminator": {
+          "mapping": {
+            "approval_request": "#/components/schemas/ApprovalRequestEvent",
+            "approval_resolved": "#/components/schemas/ApprovalResolvedEvent",
+            "call_restarted": "#/components/schemas/CallRestartedEvent",
+            "checkpoint": "#/components/schemas/CheckpointEvent",
+            "compact_failed": "#/components/schemas/CompactFailedEvent",
+            "compacted": "#/components/schemas/CompactedEvent",
+            "delegate_progress": "#/components/schemas/DelegateProgressEvent",
+            "document_change": "#/components/schemas/DocumentChangeEvent",
+            "document_open": "#/components/schemas/DocumentOpenEvent",
+            "document_seen": "#/components/schemas/DocumentSeenEvent",
+            "document_writing": "#/components/schemas/DocumentWritingEvent",
+            "done": "#/components/schemas/DoneEvent",
+            "eval_started": "#/components/schemas/EvalStartedEvent",
+            "plan_submitted": "#/components/schemas/PlanSubmittedEvent",
+            "reasoning_delta": "#/components/schemas/ReasoningDeltaEvent",
+            "stage": "#/components/schemas/StageEvent",
+            "stage_removed": "#/components/schemas/StageRemovedEvent",
+            "steering": "#/components/schemas/SteeringEvent",
+            "text_delta": "#/components/schemas/TextDeltaEvent",
+            "title": "#/components/schemas/TitleEvent",
+            "tool_call": "#/components/schemas/ToolCallEvent",
+            "tool_output": "#/components/schemas/ToolOutputEvent",
+            "tool_result": "#/components/schemas/ToolResultEvent",
+            "user_message": "#/components/schemas/UserMessageEvent",
+            "utility_skipped": "#/components/schemas/UtilitySkippedEvent"
+          },
+          "propertyName": "event"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/TextDeltaEvent"
+          },
+          {
+            "$ref": "#/components/schemas/ReasoningDeltaEvent"
+          },
+          {
+            "$ref": "#/components/schemas/ToolCallEvent"
+          },
+          {
+            "$ref": "#/components/schemas/ToolResultEvent"
+          },
+          {
+            "$ref": "#/components/schemas/CallRestartedEvent"
+          },
+          {
+            "$ref": "#/components/schemas/ToolOutputEvent"
+          },
+          {
+            "$ref": "#/components/schemas/SteeringEvent"
+          },
+          {
+            "$ref": "#/components/schemas/CheckpointEvent"
+          },
+          {
+            "$ref": "#/components/schemas/DelegateProgressEvent"
+          },
+          {
+            "$ref": "#/components/schemas/PlanSubmittedEvent"
+          },
+          {
+            "$ref": "#/components/schemas/ApprovalRequestEvent"
+          },
+          {
+            "$ref": "#/components/schemas/ApprovalResolvedEvent"
+          },
+          {
+            "$ref": "#/components/schemas/DocumentOpenEvent"
+          },
+          {
+            "$ref": "#/components/schemas/DocumentWritingEvent"
+          },
+          {
+            "$ref": "#/components/schemas/DocumentChangeEvent"
+          },
+          {
+            "$ref": "#/components/schemas/DocumentSeenEvent"
+          },
+          {
+            "$ref": "#/components/schemas/UserMessageEvent"
+          },
+          {
+            "$ref": "#/components/schemas/DoneEvent"
+          },
+          {
+            "$ref": "#/components/schemas/TitleEvent"
+          },
+          {
+            "$ref": "#/components/schemas/UtilitySkippedEvent"
+          },
+          {
+            "$ref": "#/components/schemas/StageEvent"
+          },
+          {
+            "$ref": "#/components/schemas/StageRemovedEvent"
+          },
+          {
+            "$ref": "#/components/schemas/CompactedEvent"
+          },
+          {
+            "$ref": "#/components/schemas/CompactFailedEvent"
+          },
+          {
+            "$ref": "#/components/schemas/EvalStartedEvent"
+          }
+        ],
+        "title": "ReplyEvent"
+      },
       "ReplyRouteOut": {
         "description": "Which of the preset's models answered a reply, the kind of message the utility model named, and why.",
         "properties": {
@@ -12990,6 +13581,21 @@
           "utility"
         ],
         "title": "ReplyTokensOut",
+        "type": "object"
+      },
+      "RepoMapBlockOut": {
+        "description": "The repository map kept for the conversation; its store key is internal and not shown.",
+        "properties": {
+          "type": {
+            "const": "repo_map",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "RepoMapBlockOut",
         "type": "object"
       },
       "RepositoryCreateIn": {
@@ -15496,6 +16102,31 @@
         "title": "SignInOut",
         "type": "object"
       },
+      "SkillBlockOut": {
+        "description": "A pinned skill's full text.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "text": {
+            "default": "",
+            "title": "Text",
+            "type": "string"
+          },
+          "type": {
+            "const": "skill",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "name"
+        ],
+        "title": "SkillBlockOut",
+        "type": "object"
+      },
       "SkillCandidateOut": {
         "properties": {
           "description": {
@@ -15653,6 +16284,25 @@
           "changed_locally"
         ],
         "title": "SkillOriginOut",
+        "type": "object"
+      },
+      "SkillRemovedBlockOut": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "type": {
+            "const": "skill_removed",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "name"
+        ],
+        "title": "SkillRemovedBlockOut",
         "type": "object"
       },
       "SkillUpdateOut": {
@@ -15830,6 +16480,247 @@
         "title": "SpeechTextOut",
         "type": "object"
       },
+      "StageEvent": {
+        "description": "A stop of the reply's route was reached or changed; the same id replaces the earlier stop.",
+        "properties": {
+          "checks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RouteCheckOut"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "count": {
+            "default": 1,
+            "title": "Count",
+            "type": "integer"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "event": {
+            "const": "stage",
+            "default": "stage",
+            "title": "Event",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "items": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "lane": {
+            "enum": [
+              "main",
+              "tools",
+              "worker",
+              "afterwards"
+            ],
+            "title": "Lane",
+            "type": "string"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "stage": {
+            "enum": [
+              "message",
+              "route",
+              "context",
+              "model",
+              "tool",
+              "worker",
+              "answer",
+              "afterwards",
+              "note"
+            ],
+            "title": "Stage",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "state": {
+            "default": "ran",
+            "enum": [
+              "ran",
+              "skipped",
+              "failed",
+              "waiting"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "step_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Id"
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RouteTokensOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "why": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WhyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "stage",
+          "lane",
+          "line",
+          "parent",
+          "label",
+          "count",
+          "state",
+          "reason",
+          "detail",
+          "started_at",
+          "duration_ms",
+          "cost",
+          "tokens",
+          "why",
+          "checks",
+          "items",
+          "run_id",
+          "step_id",
+          "event"
+        ],
+        "title": "StageEvent",
+        "type": "object"
+      },
+      "StageRemovedEvent": {
+        "description": "A live stop is gone again.",
+        "properties": {
+          "event": {
+            "const": "stage_removed",
+            "default": "stage_removed",
+            "title": "Event",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "id"
+        ],
+        "title": "StageRemovedEvent",
+        "type": "object"
+      },
       "StartIO": {
         "description": "Exactly one of the two: a commit of the project, or a checkpoint's number.",
         "properties": {
@@ -15997,6 +16888,51 @@
         "title": "SteerOut",
         "type": "object"
       },
+      "SteeringBlockOut": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "type": {
+            "const": "steering",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "text"
+        ],
+        "title": "SteeringBlockOut",
+        "type": "object"
+      },
+      "SteeringEvent": {
+        "description": "A steering message reached the agent with a tool result.",
+        "properties": {
+          "call_key": {
+            "title": "Call Key",
+            "type": "string"
+          },
+          "event": {
+            "const": "steering",
+            "default": "steering",
+            "title": "Event",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "call_key",
+          "text"
+        ],
+        "title": "SteeringEvent",
+        "type": "object"
+      },
       "StepCheckIn": {
         "properties": {
           "run": {
@@ -16097,6 +17033,42 @@
           }
         },
         "title": "SuggestIn",
+        "type": "object"
+      },
+      "SummaryBlockOut": {
+        "description": "On the last message a summary covers; the model gets it instead of what it covers.",
+        "properties": {
+          "covered": {
+            "title": "Covered",
+            "type": "integer"
+          },
+          "focus": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Focus"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "type": {
+            "const": "summary",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "text",
+          "covered"
+        ],
+        "title": "SummaryBlockOut",
         "type": "object"
       },
       "SummaryOut": {
@@ -16928,6 +17900,65 @@
         "title": "TemplateIn",
         "type": "object"
       },
+      "TextBlockOut": {
+        "properties": {
+          "text": {
+            "default": "",
+            "title": "Text",
+            "type": "string"
+          },
+          "type": {
+            "const": "text",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "TextBlockOut",
+        "type": "object"
+      },
+      "TextDeltaEvent": {
+        "properties": {
+          "event": {
+            "const": "text_delta",
+            "default": "text_delta",
+            "title": "Event",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "text"
+        ],
+        "title": "TextDeltaEvent",
+        "type": "object"
+      },
+      "TitleEvent": {
+        "description": "A better title from the utility model, after the first reply.",
+        "properties": {
+          "conversation": {
+            "$ref": "#/components/schemas/ConversationSummaryOut"
+          },
+          "event": {
+            "const": "title",
+            "default": "title",
+            "title": "Event",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "conversation"
+        ],
+        "title": "TitleEvent",
+        "type": "object"
+      },
       "TokenCheckOut": {
         "properties": {
           "kind": {
@@ -17128,6 +18159,140 @@
         "title": "TokenUsageOut",
         "type": "object"
       },
+      "ToolCallBlockOut": {
+        "description": "What the agent did and what came back.",
+        "properties": {
+          "call_key": {
+            "title": "Call Key",
+            "type": "string"
+          },
+          "checkpointable": {
+            "title": "Checkpointable",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imported": {
+            "default": false,
+            "title": "Imported",
+            "type": "boolean"
+          },
+          "input": {
+            "additionalProperties": true,
+            "title": "Input",
+            "type": "object"
+          },
+          "is_error": {
+            "default": false,
+            "title": "Is Error",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "output": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output"
+          },
+          "type": {
+            "const": "tool_call",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "id",
+          "name",
+          "input",
+          "call_key",
+          "checkpointable"
+        ],
+        "title": "ToolCallBlockOut",
+        "type": "object"
+      },
+      "ToolCallEvent": {
+        "properties": {
+          "call_key": {
+            "title": "Call Key",
+            "type": "string"
+          },
+          "checkpointable": {
+            "title": "Checkpointable",
+            "type": "boolean"
+          },
+          "event": {
+            "const": "tool_call",
+            "default": "tool_call",
+            "title": "Event",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "input": {
+            "additionalProperties": true,
+            "title": "Input",
+            "type": "object"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "writes_files": {
+            "title": "Writes Files",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "event",
+          "id",
+          "name",
+          "input",
+          "call_key",
+          "checkpointable",
+          "writes_files"
+        ],
+        "title": "ToolCallEvent",
+        "type": "object"
+      },
+      "ToolOutputEvent": {
+        "description": "Output of a running command, as it comes.",
+        "properties": {
+          "call_key": {
+            "title": "Call Key",
+            "type": "string"
+          },
+          "event": {
+            "const": "tool_output",
+            "default": "tool_output",
+            "title": "Event",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "call_key",
+          "text"
+        ],
+        "title": "ToolOutputEvent",
+        "type": "object"
+      },
       "ToolPermissionOut": {
         "properties": {
           "default": {
@@ -17149,6 +18314,36 @@
           "default"
         ],
         "title": "ToolPermissionOut",
+        "type": "object"
+      },
+      "ToolResultEvent": {
+        "properties": {
+          "event": {
+            "const": "tool_result",
+            "default": "tool_result",
+            "title": "Event",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_error": {
+            "title": "Is Error",
+            "type": "boolean"
+          },
+          "output": {
+            "title": "Output",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "id",
+          "output",
+          "is_error"
+        ],
+        "title": "ToolResultEvent",
         "type": "object"
       },
       "ToolResultTokensOut": {
@@ -17645,6 +18840,21 @@
         "title": "TriggerConfig",
         "type": "object"
       },
+      "TrimBlockOut": {
+        "description": "The model gets the long tool results up to this message shortened.",
+        "properties": {
+          "type": {
+            "const": "trim",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "TrimBlockOut",
+        "type": "object"
+      },
       "UpdateStatusOut": {
         "properties": {
           "announced_version": {
@@ -17941,6 +19151,178 @@
         "title": "UsageTotalsOut",
         "type": "object"
       },
+      "UserMessageEvent": {
+        "description": "The user's message as stored, first in every reply stream.",
+        "properties": {
+          "content": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "attachment": "#/components/schemas/AttachmentBlockOut",
+                  "command": "#/components/schemas/CommandBlockOut",
+                  "goal": "#/components/schemas/GoalBlockOut",
+                  "note": "#/components/schemas/NoteBlockOut",
+                  "plan": "#/components/schemas/PlanBlockOut",
+                  "reasoning": "#/components/schemas/ReasoningBlockOut",
+                  "repo_map": "#/components/schemas/RepoMapBlockOut",
+                  "skill": "#/components/schemas/SkillBlockOut",
+                  "skill_removed": "#/components/schemas/SkillRemovedBlockOut",
+                  "steering": "#/components/schemas/SteeringBlockOut",
+                  "summary": "#/components/schemas/SummaryBlockOut",
+                  "text": "#/components/schemas/TextBlockOut",
+                  "tool_call": "#/components/schemas/ToolCallBlockOut",
+                  "trim": "#/components/schemas/TrimBlockOut"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/TextBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/ReasoningBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolCallBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/AttachmentBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/CommandBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/SkillBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/SkillRemovedBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/GoalBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/SummaryBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/TrimBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/SteeringBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/NoteBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/RepoMapBlockOut"
+                },
+                {
+                  "$ref": "#/components/schemas/PlanBlockOut"
+                }
+              ]
+            },
+            "title": "Content",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "event": {
+            "const": "user_message",
+            "default": "user_message",
+            "title": "Event",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "role": {
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "route": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReplyRouteOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "complete",
+              "incomplete",
+              "refused",
+              "error"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "stop_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop Reason"
+          },
+          "version_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Version Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "parent_id",
+          "role",
+          "content",
+          "status",
+          "stop_reason",
+          "error",
+          "created_at",
+          "version_ids",
+          "route",
+          "event"
+        ],
+        "title": "UserMessageEvent",
+        "type": "object"
+      },
       "UtilityEventOut": {
         "description": "A utility call made for this conversation, such as setting its title.",
         "properties": {
@@ -18040,6 +19422,55 @@
           "reason"
         ],
         "title": "UtilitySkipOut",
+        "type": "object"
+      },
+      "UtilitySkippedEvent": {
+        "description": "The model policy skipped a utility task of this exchange.",
+        "properties": {
+          "event": {
+            "const": "utility_skipped",
+            "default": "utility_skipped",
+            "title": "Event",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task"
+          },
+          "time": {
+            "format": "date-time",
+            "title": "Time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "time",
+          "task",
+          "label",
+          "reason",
+          "event"
+        ],
+        "title": "UtilitySkippedEvent",
         "type": "object"
       },
       "ValidationError": {
@@ -22717,7 +24148,12 @@
         "responses": {
           "200": {
             "content": {
-              "text/event-stream": {}
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplyEvent",
+                  "type": "string"
+                }
+              }
             },
             "description": "Server-sent events with the reply."
           },
@@ -22869,7 +24305,12 @@
         "responses": {
           "200": {
             "content": {
-              "text/event-stream": {}
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplyEvent",
+                  "type": "string"
+                }
+              }
             },
             "description": "Server-sent events with the new reply."
           },
@@ -22917,7 +24358,12 @@
         "responses": {
           "200": {
             "content": {
-              "text/event-stream": {}
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplyEvent",
+                  "type": "string"
+                }
+              }
             },
             "description": "The reply to the stored message."
           },
@@ -23589,7 +25035,12 @@
         "responses": {
           "200": {
             "content": {
-              "text/event-stream": {}
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplyEvent",
+                  "type": "string"
+                }
+              }
             },
             "description": "The accepted reply stream."
           },
@@ -23983,7 +25434,12 @@
         "responses": {
           "200": {
             "content": {
-              "text/event-stream": {}
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplyEvent",
+                  "type": "string"
+                }
+              }
             },
             "description": "The running reply, from its first event."
           },

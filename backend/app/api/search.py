@@ -41,7 +41,7 @@ def hit_out(item: FoundItem) -> SearchHitOut:
     if item.kind == "blueprint":
         level = "project" if item.project_id else "environment" if item.environment_id else "global"
     return SearchHitOut(
-        kind=item.kind,  # type: ignore[arg-type]
+        kind=item.kind,  # type: ignore[arg-type]  # a plain string in the service; the schema narrows it
         conversation_id=item.conversation_id,
         conversation_title=item.conversation_title,
         project_id=item.project_id,

@@ -1,4 +1,3 @@
-import { callKey } from "../../api/checkpoints";
 import type { ApprovalDecision, ApprovalRequest, ToolCallResult, ToolCallStart } from "../../api/message-stream";
 import { type ReplyBlock, appendLive } from "../../components/message/replyBlock";
 
@@ -12,7 +11,8 @@ export function dropStreamedText(blocks: ReplyBlock[]): ReplyBlock[] {
 }
 
 export function addToolCall(blocks: ReplyBlock[], call: ToolCallStart): ReplyBlock[] {
-  return [...blocks, { type: "tool_call", ...call, output: null, is_error: false }];
+  const { id, name, input, call_key, checkpointable } = call;
+  return [...blocks, { type: "tool_call", id, name, input, call_key, checkpointable, output: null, is_error: false }];
 }
 
 /** A delegated sub-run reports the tool it uses, on the running delegate call: the last one without output. */
@@ -35,7 +35,7 @@ export function addSteering(blocks: ReplyBlock[], text: string): ReplyBlock[] {
 /** Output of a running command, on the first unfinished call with the same call key. */
 export function appendToolOutput(blocks: ReplyBlock[], key: string, text: string): ReplyBlock[] {
   const index = blocks.findIndex(
-    (block) => block.type === "tool_call" && block.output === null && callKey(block.name, block.input) === key,
+    (block) => block.type === "tool_call" && block.output === null && block.call_key === key,
   );
   if (index === -1) return blocks;
   return blocks.map((block, position) =>

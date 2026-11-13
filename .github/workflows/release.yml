@@ -1,0 +1,211 @@
+name: Release
+
+# On a version tag: builds YAAP's four images for amd64 and arm64, publishes them to ghcr.io with the version as their
+# tag and with build attestations, and only then publishes the GitHub Release of the tag, with that version's
+# CHANGELOG section as its notes. The update notice of a running YAAP and the release scripts read that Release, so
+# a version is never announced without its images. The Release also reads the CHANGELOG, so no personal token is
+# involved anywhere.
+on:
+  push:
+    tags: ["v*.*.*"]
+  # For a tag pushed before this workflow existed: Actions › Release › Run workflow, with one or more tags. Only the
+  # Release is made then; those versions have no published images.
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: "Existing tags to publish a Release for, separated by spaces (for example: v0.7.0 v0.8.0)"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event_name == 'push' && github.ref_name || inputs.tags }}
+
+jobs:
+  check:
+    name: Tag and version agree
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      owner: ${{ steps.version.outputs.owner }}
+    steps:
+      - uses: actions/checkout@v5
+      # The images get the version of the tag as their tag, and docker-compose.yml names the version in the code:
+      # a tag that disagrees would publish images that nothing pulls.
+      - name: Compare the tag with the version in the code
+        id: version
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          in_code="$(sed -n 's/^VERSION = "\(.*\)"/\1/p' backend/app/version.py | tr -d '\r')"
+          if [ "$version" != "$in_code" ]; then
+            echo "::error::The tag is $GITHUB_REF_NAME but backend/app/version.py says $in_code."; exit 1
+          fi
+          if [ "$(grep -c "/yaap[a-z-]*:$version\b" docker-compose.yml)" != 4 ]; then
+            echo "::error::docker-compose.yml does not name version $version for its four images."; exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+  images:
+    name: Build ${{ matrix.image.name }} (${{ matrix.platform.arch }})
+    needs: check
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        image:
+          - { name: yaap, context: ".", file: docker/Dockerfile }
+          - { name: yaap-sandbox, context: docker/sandbox, file: docker/sandbox/Dockerfile }
+          - { name: yaap-sandbox-helper, context: ".", file: docker/sandbox-helper/Dockerfile }
+          - { name: yaap-searxng, context: ".", file: docker/searxng/Dockerfile }
+        # Native runners for both: the arm64 build under emulation would take hours (Chromium, Playwright).
+        platform:
+          - { arch: amd64, runner: ubuntu-latest }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+    env:
+      # ghcr.io wants lowercase names; the owner of the repository is the owner of the images.
+      IMAGE: ghcr.io/${{ needs.check.outputs.owner }}/${{ matrix.image.name }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      # Pushed by digest: the manifest job joins the two architectures under the version tag afterwards.
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.file }}
+          platforms: linux/${{ matrix.platform.arch }}
+          # The attestation of the finished image is made by the manifest job.
+          provenance: false
+          sbom: false
+          # dev.yaap marks YAAP's own images for the update script; the runner image carries its own label from its
+          # Dockerfile.
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ needs.check.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            dev.yaap=true
+          build-args: |
+            YAAP_COMMIT=${{ github.sha }}
+            YAAP_CHANNEL=release
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.image.name }}-${{ matrix.platform.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}-${{ matrix.platform.arch }}
+      - name: Keep the digest
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          digest="${{ steps.build.outputs.digest }}"
+          touch "$RUNNER_TEMP/digests/${digest#sha256:}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.image.name }}-${{ matrix.platform.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  manifest:
+    name: Publish ${{ matrix.name }}
+    needs: [check, images]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    strategy:
+      matrix:
+        name: [yaap, yaap-sandbox, yaap-sandbox-helper, yaap-searxng]
+    env:
+      IMAGE: ghcr.io/${{ needs.check.outputs.owner }}/${{ matrix.name }}
+      VERSION: ${{ needs.check.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: digests-${{ matrix.name }}-*
+          path: ${{ runner.temp }}/digests
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      # Only the version is a tag: YAAP's Compose file names it, and nothing moves under a name that is in use.
+      - name: Join the architectures under the version tag
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          set -euo pipefail
+          [ "$(ls | wc -l)" = 2 ] || { echo "::error::Expected one digest per architecture."; exit 1; }
+          docker buildx imagetools create --tag "$IMAGE:$VERSION" \
+            --annotation "index:org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
+            --annotation "index:org.opencontainers.image.version=$VERSION" \
+            --annotation "index:org.opencontainers.image.revision=${{ github.sha }}" \
+            $(printf "$IMAGE@sha256:%s " *)
+      - name: Read the digest of the published image
+        id: published
+        run: |
+          set -euo pipefail
+          docker buildx imagetools inspect "$IMAGE:$VERSION"
+          digest="$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{json .Manifest}}' | jq -r .digest)"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      - uses: actions/attest-build-provenance@v3
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.published.outputs.digest }}
+          push-to-registry: true
+
+  release:
+    name: GitHub Release
+    # After the images, when there are any: a pushed tag waits for them, an old tag made by hand has none.
+    needs: [check, images, manifest]
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAGS: ${{ github.event_name == 'push' && github.ref_name || inputs.tags }}
+      # Only a newly pushed tag becomes the latest Release; an older tag published afterwards does not take its place.
+      LATEST: ${{ github.event_name == 'push' }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      # The notes come from the CHANGELOG of this checkout; set_version needs only the standard library.
+      - name: Publish the Release of each tag
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          for tag in $TAGS; do
+            if ! printf '%s' "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "::error::'$tag' is not a release tag like v1.2.3."; exit 1
+            fi
+            # A Release that exists (perhaps written by hand) is left as it is.
+            if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              echo "The Release of $tag exists already; left unchanged."
+              continue
+            fi
+            version="${tag#v}"
+            notes="$RUNNER_TEMP/notes-$version.md"
+            python -m app.scripts.set_version --section "$version" > "$notes"
+            gh release create "$tag" --repo "$GITHUB_REPOSITORY" --verify-tag --latest="$LATEST" \
+              --title "YAAP $version" --notes-file "$notes"
+            echo "Published the Release of $tag."
+          done

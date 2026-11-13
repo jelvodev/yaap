@@ -147,7 +147,7 @@ def auth_state(request: Request, session: SessionDependency) -> AuthStateOut:
     return AuthStateOut(
         password_set=password_is_set(session),
         signed_in=identity is not None,
-        method=identity.method if identity is not None else None,  # type: ignore[arg-type]
+        method=identity.method if identity is not None else None,  # type: ignore[arg-type]  # the identity's method is one of the schema's Literal values
     )
 
 

@@ -263,12 +263,13 @@ async function sendQueuedNow(context: StreamContext, item: QueuedMessage, all: b
   const selection: QueueSelection = all ? { all: true } : { item_id: item.id };
   const restore = context.queue.withdraw(selection);
   if (refs.following.current === id) {
+    // Set before the request: the server stops the reply before it answers, so the stream can end first.
+    refs.stopIntent.current = "send-now";
     const accepted = await context.queue.sendNow(id, selection);
     if (!accepted) {
+      if (refs.stopIntent.current === "send-now") refs.stopIntent.current = "none";
       restore();
-      return;
     }
-    refs.stopIntent.current = "send-now";
   } else {
     await sendQueued(context, id, selection);
   }

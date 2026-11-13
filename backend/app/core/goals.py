@@ -10,11 +10,12 @@ import logging
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, get_args
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.core.conversation_types import EndedGoalStatus, GoalStatus
 from app.storage.models import Conversation, Goal, Message, UsageRecord
 
 logger = logging.getLogger(__name__)
@@ -22,9 +23,9 @@ logger = logging.getLogger(__name__)
 DEFAULT_MAX_TURNS = 20
 DEFAULT_MAX_COST = 5.0
 GOAL_COMMAND = re.compile(r"^/goal(?:\s+(.*))?$", re.DOTALL)
-ACTIVE = "active"
-PAUSED = "paused"
-OPEN_STATUSES = (ACTIVE, PAUSED)
+ACTIVE: GoalStatus = "active"
+PAUSED: GoalStatus = "paused"
+OPEN_STATUSES: tuple[GoalStatus, ...] = (ACTIVE, PAUSED)
 
 
 class GoalError(Exception):
@@ -113,7 +114,10 @@ def create_goal(session: Session, conversation: Conversation, objective: str) ->
     return goal
 
 
-def end_goal(goal: Goal, status: str, summary: str | None = None) -> None:
+def end_goal(goal: Goal, status: EndedGoalStatus, summary: str | None = None) -> None:
+    # Checked at run time too: a database with old out-of-set values has no CHECK constraint to catch a wrong one.
+    if status not in get_args(EndedGoalStatus):
+        raise ValueError(f"Not an ended goal status: {status!r}")
     goal.status = status
     if summary:
         goal.summary = summary
@@ -172,7 +176,7 @@ class GoalHandle:
                 goal.summary = reason
                 session.commit()
 
-    def finish(self, status: str, summary: str) -> str:
+    def finish(self, status: EndedGoalStatus, summary: str) -> str:
         with self.session_factory() as session:
             goal = session.get(Goal, self.goal_id)
             if goal is None or goal.status not in OPEN_STATUSES:

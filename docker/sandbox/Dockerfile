@@ -2,15 +2,16 @@
 # chose one, started by the yaap-sandbox helper, reached by YAAP over SSH. Debian with common build tools, sshd and the
 # agent's browser; the agent signs in as the user yaap (uid 1000, like YAAP itself, so files in the project folder keep
 # one owner) and may use sudo inside the container.
-# Build context: this folder (see docker-compose.yml).
+# Build context: this folder (see docker-compose.build.yml). The published image is built from this file.
 FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2
 
 # The helper creates sandboxes only from an image with this label.
 LABEL org.yaap.sandbox.image="1"
 
+# zlib1g is named so the fixed Debian security build is installed even when the base image is older than that build.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        openssh-server sudo ca-certificates curl wget git git-lfs \
+        zlib1g openssh-server sudo ca-certificates curl wget git git-lfs \
         build-essential pkg-config make cmake \
         python3 python3-dev python3-venv python3-pip \
         nodejs npm \
@@ -55,7 +56,8 @@ COPY entrypoint.sh /usr/local/bin/yaap-sandbox-entrypoint
 RUN chmod 0755 /usr/local/bin/yaap-sandbox-entrypoint
 
 # Extra packages for the runners and sandboxes: one extra layer, named in docker-compose.override.yml as build args of
-# the service sandbox-image (docs/configuration.md, "Extra packages for the runner"). Empty, it adds nothing.
+# the service sandbox-image of docker-compose.build.yml (docs/configuration.md, "Extra packages for the runner").
+# Empty, it adds nothing.
 ARG EXTRA_APT_PACKAGES=""
 ARG EXTRA_SETUP=""
 RUN if [ -n "$EXTRA_APT_PACKAGES" ]; then \

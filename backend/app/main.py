@@ -9,10 +9,11 @@ from collections.abc import AsyncIterator
 from functools import partial
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 from sqlalchemy.orm import Session, sessionmaker
 from fastapi import APIRouter, FastAPI, HTTPException, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app.agent import mcp_server
@@ -321,7 +322,7 @@ async def learn_host_data(app: FastAPI, helper: HelperClient, data_dir: Path) ->
 class ImmutableAssets(StaticFiles):
     """Vite puts a content hash in every asset name, so an asset never changes and may be cached for good."""
 
-    def file_response(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+    def file_response(self, *args: Any, **kwargs: Any) -> Response:
         response = super().file_response(*args, **kwargs)
         response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         return response

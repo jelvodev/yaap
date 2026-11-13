@@ -1,0 +1,29 @@
+# Secret scan settings for gitleaks (https://github.com/gitleaks/gitleaks): the default rules, with the known test
+# placeholders and public values below allowed, so a scan of the repository and its history starts clean.
+# Run from the repository root: gitleaks git . --log-opts="--all" --redact=100
+
+[extend]
+useDefault = true
+
+# Placeholder keys and tokens in tests (sk-test values, test vault tokens, a dummy password in a masking test and
+# the RFC 6455 sample WebSocket key). Only these files and only these two rules; any other secret in them still counts.
+[[allowlists]]
+description = "Test placeholders"
+targetRules = ["generic-api-key", "curl-auth-user"]
+paths = [
+  '''^backend/tests/conftest\.py$''',
+  '''^backend/tests/test_context_breakdown\.py$''',
+  '''^backend/tests/test_preview\.py$''',
+  '''^backend/tests/test_reviews\.py$''',
+  '''^backend/tests/test_second_opinion\.py$''',
+  '''^backend/tests/test_vault\.py$''',
+]
+
+# The fingerprint of a public signing key, in older versions of the app image (still in the history).
+[[allowlists]]
+description = "Public key fingerprint"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''^docker/Dockerfile$''']
+regexTarget = "line"
+regexes = ['''CLAUDE_CODE_KEY_FINGERPRINT''']

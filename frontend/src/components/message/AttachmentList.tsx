@@ -4,15 +4,15 @@ import type { Message } from "../../api/client";
 import { attachmentContentUrl, formatSize, kindLabel } from "../../api/attachments";
 import { ArchiveIcon, FileIcon, FolderIcon } from "../icons";
 
-type ContentBlock = Message["content"][number];
+export type AttachmentBlock = Extract<Message["content"][number], { type: "attachment" }>;
 
 /** The files, folders and images a user message carries: images as thumbnails that enlarge, the rest as downloads. */
-export default function AttachmentList({ blocks }: { blocks: ContentBlock[] }) {
-  const [enlarged, setEnlarged] = useState<ContentBlock | null>(null);
+export default function AttachmentList({ blocks }: { blocks: AttachmentBlock[] }) {
+  const [enlarged, setEnlarged] = useState<AttachmentBlock | null>(null);
   return (
     <div className="message-attachments">
       {blocks.map((block) => {
-        const url = attachmentContentUrl(block.attachment_id ?? 0);
+        const url = attachmentContentUrl(block.attachment_id);
         if (block.kind === "image") {
           return (
             <button
@@ -22,7 +22,7 @@ export default function AttachmentList({ blocks }: { blocks: ContentBlock[] }) {
               onClick={() => setEnlarged(block)}
               aria-label={`Show ${block.name}`}
             >
-              <img src={url} alt={block.name ?? ""} loading="lazy" />
+              <img src={url} alt={block.name} loading="lazy" />
             </button>
           );
         }
@@ -31,7 +31,7 @@ export default function AttachmentList({ blocks }: { blocks: ContentBlock[] }) {
             key={block.attachment_id}
             className="attachment-chip"
             href={url}
-            download={block.kind === "folder" ? `${block.name}.zip` : (block.name ?? undefined)}
+            download={block.kind === "folder" ? `${block.name}.zip` : block.name}
           >
             {block.kind === "folder" ? <FolderIcon size={16} /> : block.kind === "archive" ? <ArchiveIcon size={16} /> : <FileIcon size={16} />}
             <span className="attachment-chip-text">
@@ -44,8 +44,8 @@ export default function AttachmentList({ blocks }: { blocks: ContentBlock[] }) {
         );
       })}
       {enlarged && (
-        <div className="lightbox" role="dialog" aria-label={enlarged.name ?? "Image"} onClick={() => setEnlarged(null)}>
-          <img src={attachmentContentUrl(enlarged.attachment_id ?? 0)} alt={enlarged.name ?? ""} />
+        <div className="lightbox" role="dialog" aria-label={enlarged.name} onClick={() => setEnlarged(null)}>
+          <img src={attachmentContentUrl(enlarged.attachment_id)} alt={enlarged.name} />
           <span className="lightbox-caption">{enlarged.name}</span>
         </div>
       )}

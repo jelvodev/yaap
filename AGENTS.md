@@ -58,6 +58,6 @@ When a rule cannot be followed, say why in the commit message.
 
 - Tests are named after the behaviour they check. Decision logic gets table-driven tests (`pytest.mark.parametrize`).
 - Every model change has a migration, and the test suite checks that the migrated schema matches the models.
-- Parallel work: keep edits to shared files (`backend/app/main.py`, `backend/app/storage/models.py`,
-  `backend/app/core/settings.py`, `backend/app/agent/tools.py`, `frontend/src/pages/ChatPage.tsx`) small and local,
+- Parallel work: keep edits to shared files (`backend/app/main.py`, `backend/app/storage/models/`,
+  `backend/app/core/settings/`, `backend/app/agent/tools.py`, `frontend/src/pages/ChatPage.tsx`) small and local,
   and put new code in its own module.

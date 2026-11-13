@@ -1,6 +1,10 @@
-# Set up and start YAAP on Windows: creates .env with a new master key (once), builds and starts the containers,
+# Set up and start YAAP on Windows: creates .env with a new master key (once), downloads and starts the containers,
 # waits until YAAP answers and asks for YAAP's password when none is set yet. Run it in PowerShell from the YAAP folder:
-#   powershell -ExecutionPolicy Bypass -File scripts\setup.ps1
+#   powershell -ExecutionPolicy Bypass -File scripts\setup.ps1            pull the published images
+#   powershell -ExecutionPolicy Bypass -File scripts\setup.ps1 -Build     build the images from this folder instead
+param(
+    [switch]$Build
+)
 $ErrorActionPreference = 'Stop'
 
 Set-Location (Join-Path $PSScriptRoot '..')
@@ -20,7 +24,7 @@ docker compose version *> $null
 if ($LASTEXITCODE -ne 0) { Fail "Docker Compose v2 is missing ('docker compose'). Update Docker Desktop." }
 
 if (Test-Path .env) {
-    Write-Host 'Using the existing .env (it is never changed by this script).'
+    Write-Host 'Using the existing .env (this script changes it only for -Build, to add COMPOSE_FILE).'
 } else {
     if (-not (Test-Path .env.example)) { Fail '.env.example is missing; is this the YAAP folder?' }
     # A Fernet key: 32 random bytes as URL-safe base64.
@@ -43,8 +47,38 @@ if (Test-Path .env) {
     Write-Host ''
 }
 
-Write-Host 'Building and starting YAAP. The first build downloads a few GB and takes several minutes.'
-docker compose up -d --build
+if ($Build) {
+    # Compose reads COMPOSE_FILE from .env. Naming the separator as well makes the same lines work on every system
+    # (on Windows a colon would be read as a drive letter), and naming docker-compose.override.yml is needed because
+    # Compose reads it by itself only without COMPOSE_FILE.
+    $envLines = @(Get-Content .env)
+    if ($envLines -match '^COMPOSE_FILE=') {
+        if (-not ($envLines -match '^COMPOSE_FILE=.*docker-compose\.build\.yml')) {
+            Fail '.env sets COMPOSE_FILE without docker-compose.build.yml; add that file to it (see docker-compose.build.yml).'
+        }
+    } else {
+        $files = 'docker-compose.yml,docker-compose.build.yml'
+        if (Test-Path docker-compose.override.yml) { $files += ',docker-compose.override.yml' }
+        $add = @()
+        if (-not ($envLines -match '^COMPOSE_PATH_SEPARATOR=')) { $add += '', 'COMPOSE_PATH_SEPARATOR=,' }
+        $add += "COMPOSE_FILE=$files"
+        # UTF-8 without a byte order mark.
+        [System.IO.File]::WriteAllLines((Join-Path (Get-Location) '.env'), [string[]]($envLines + $add), (New-Object System.Text.UTF8Encoding $false))
+        Write-Host 'Added COMPOSE_FILE to .env, so YAAP is built from this folder from now on (also when you update).'
+    }
+}
+
+# Building is also what an earlier -Build left in .env.
+if (@(Get-Content .env) -match '^COMPOSE_FILE=.*docker-compose\.build\.yml') {
+    Write-Host 'Building and starting YAAP. The first build downloads a few GB and takes several minutes.'
+    docker compose up -d --build
+} else {
+    Write-Host 'Downloading and starting YAAP (a few GB, once). The runner''s image, about 2.8 GB, follows when the first command needs it.'
+    # --ignore-buildable: an image you build yourself (extra packages in docker-compose.override.yml) is in no registry.
+    docker compose pull --ignore-buildable
+    if ($LASTEXITCODE -ne 0) { Fail 'docker compose pull failed; see the messages above.' }
+    docker compose up -d --build
+}
 if ($LASTEXITCODE -ne 0) { Fail 'docker compose up failed; see the messages above.' }
 
 Write-Host "Waiting for YAAP to answer at $Url ..."

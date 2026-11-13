@@ -6,9 +6,35 @@ yourself when you update; it says "None." when there is nothing.
 
 ## Unreleased
 
+- Every push and pull request on GitHub runs the checks: the backend tests (in parallel) with the migration check, the frontend typecheck, unit tests and build, and whether the generated API types are up to date. The README shows their state.
+- Each release tag gets its GitHub Release, with the changelog section as its notes, published by a workflow; the release scripts wait for it and print its address.
+- The update notice reads the repository's GitHub Releases instead of its tags, so it offers a version only once its images are published. Drafts and pre-releases are not offered.
+- Each release now publishes YAAP's four images (`yaap`, `yaap-searxng`, `yaap-sandbox-helper` and the runner's `yaap-sandbox`) to `ghcr.io/jelvodev`, for Intel/AMD and ARM computers (Apple silicon, Linux on ARM), with build attestations. The workflow builds them first and publishes the GitHub Release only when they are there, so a version is never announced without its images.
+- Installing and updating download the images (`docker compose pull`) instead of building them, which takes minutes instead of tens of minutes. `scripts/setup.sh --build` (`scripts\setup.ps1 -Build`) builds from the folder as before, through the new `docker-compose.build.yml` that it names in `.env`; the update script follows that choice. The images of the version you leave stay until the next update, so going back needs no download. A fork sets `YAAP_IMAGE_PREFIX` to use its own images.
+- The `sandbox-image` service is gone. The helper downloads the runner's image (about 2.8 GB, once) when the first command needs it; until it is there the command says *Preparing the runner* and can be tried again. It pulls only the configured image, and only uses one that carries YAAP's sandbox label.
+- Extra packages for the runner build on the published image (`docker/sandbox/Dockerfile.extra`); the example in `docker-compose.override.example.yml` and in the configuration guide shows how.
+- The images pick up the fixed `zlib1g` (Debian security update) and a newer Node base, and the app and helper images no longer carry pip. The remaining findings in a vulnerability scan are Debian packages without a fix yet and the copies bundled inside npm, for which no npm release has a fix.
+- The app image carries npm 12.2.2, pinned, instead of the npm that ships with Node: its bundled `undici` and `brace-expansion` are fixed versions. `tools/package.json` allows the install script of Claude Code, which npm 12 no longer runs by default.
+- Security: a project folder that is swapped for another folder or a link while a run works on it is now caught on the folder YAAP actually opens, not only by a check just before it.
+- Security: restoring a checkpoint removes files added since only inside the project folder: a folder link planted in the project no longer lets the restore delete files elsewhere.
+- Security: learning proposals, eval cases saved from a conversation and the skill install review read and write a project's Blueprint files only through the same link-safe file access as the agent's file tools.
+- Security: the agent's `web_fetch` now runs where its commands run (the environment's runner, the project's sandbox or its computer over SSH) with the same public-address and redirect checks there, so it can no longer reach services that only YAAP's own container can reach. When the runner has no network access, fetching a page is refused. Outside a project, and with `YAAP_RUNNER=off`, it still fetches from YAAP's process.
+- A computer over SSH needs Python 3 for `web_fetch`; without it the fetch is refused with a clear message.
+- The API description now lists every event of the reply stream, so clients can generate types for it.
+- Goal and message statuses are checked when they are stored; the database adds a check on them during the upgrade when its existing rows allow it, and logs any value it could not place.
+- Message blocks are checked by their kind when a reply is stored; older conversations still load, with a tool call that lacks an id given a placeholder.
+- Fixed: a tool call with a whole-number decimal argument (such as `timeout_seconds: 5.0`) now shows its live output, checkpoint and reason in the chat; the server now gives each tool call its key.
+- A conversation title no longer repeats its first words when the model's answer was cut off and started again; the report of a delegated task no longer repeats such text either.
+- A queued /compact sent with *Send now* while a reply runs now makes the summary instead of staying marked as pending until YAAP restarts.
+- *Send now* hands the queued message over reliably when the running reply stops before the server answers the request.
+- Security: YAAP now reads only a bounded amount of output from a git command or web fetch in the runner or on a target computer, so a misbehaving runner cannot fill YAAP's memory.
+- SECURITY.md describes how project files, web fetches, remotes and the GitHub token are protected, and what remains open (code in an online runner, a narrow race on project files).
+- The repository has a gitleaks configuration, so a secret scan of the code and its history starts clean.
+
 ### Action needed
 
-None.
+- If you build YAAP's images yourself (you changed YAAP, or `docker-compose.override.yml` sets `EXTRA_APT_PACKAGES` for the service `sandbox-image`), add these two lines to `.env` before you update, and name `docker-compose.override.yml` in the list when you have one: `COMPOSE_PATH_SEPARATOR=,` and `COMPOSE_FILE=docker-compose.yml,docker-compose.build.yml`. Without them the update downloads the ready-made images, and an override that only has build arguments for `sandbox-image` stops Compose. For extra packages without building everything, see "Extra packages for the runner" in docs/configuration.md.
+- Otherwise nothing: the update downloads the new images. The first start of a runner then downloads its image (about 2.8 GB).
 
 ## 0.8.0 (2026-11-13)
 

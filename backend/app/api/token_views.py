@@ -11,7 +11,8 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from app.agent.outputs import OutputStore
-from app.api.conversations import ConversationDependency, conversation_layers
+from app.api.conversation_checks import conversation_layers
+from app.api.conversations import ConversationDependency
 from app.api.dependencies import (
     BlueprintDirDependency,
     CipherDependency,

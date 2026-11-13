@@ -21,7 +21,7 @@ TOKEN_FILE = "/run/yaap-sandbox/token"
 RELAY_PORT = 2222
 GREETING = "YAAP-SANDBOX"
 NOT_ENABLED = (
-    "The sandbox helper is not running. Start it with docker compose up -d --build in YAAP's folder (see "
+    "The sandbox helper is not running. Start it with docker compose up -d in YAAP's folder (see "
     "docs/install.md)."
 )
 

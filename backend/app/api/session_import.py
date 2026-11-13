@@ -1,17 +1,18 @@
 """Import a Claude Code or Codex session as a conversation: an upload, or a file picked on a target."""
 
-from typing import Annotated, Literal
+from typing import Annotated
 
 from fastapi import APIRouter, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.api.conversations import summary_out
+from app.api.conversation_mapping import summary_out
 from app.api.dependencies import CipherDependency, EnvironmentDependency, ProviderRegistryDependency, SessionDependency
 from app.api.schemas import ConversationSummaryOut
 from app.imports import service
-from app.imports.sessions import ImportedSession, SessionImportError, parse_session
+from app.imports.sessions import parse_session
 from app.providers.registry import ProviderRegistry
+from app.providers.session_format import ImportedSession, SessionImportError, SessionTool
 from app.storage.models import Conversation, Environment, Project, Target
 from app.targets.base import TargetError
 
@@ -27,7 +28,7 @@ class SessionImportOut(ConversationSummaryOut):
 class SessionFileOut(BaseModel):
     # Relative to the home folder on the target.
     path: str
-    tool: Literal["claude_code", "codex"]
+    tool: SessionTool
     size: int
     # Last change as a Unix timestamp, when the target reports it.
     modified: float | None
@@ -119,7 +120,7 @@ async def list_target_sessions(
     except TargetError as error:
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
     return [
-        SessionFileOut(path=item.path, tool=item.tool, size=item.size, modified=item.modified, folder=item.folder)  # type: ignore[arg-type]
+        SessionFileOut(path=item.path, tool=item.tool, size=item.size, modified=item.modified, folder=item.folder)
         for item in found
     ]
 

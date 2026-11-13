@@ -41,7 +41,12 @@ def environment_usage_this_month(environment: EnvironmentDependency, session: Se
         input_tokens=input_tokens,
         output_tokens=output_tokens,
         budgets=[
-            BudgetOut(scope=line.scope, label=line.label, limit=line.limit, spent=round(line.spent, 6))  # type: ignore[arg-type]
+            BudgetOut(
+                scope=line.scope,  # type: ignore[arg-type]  # a plain string in the service; the schema narrows it
+                label=line.label,
+                limit=line.limit,
+                spent=round(line.spent, 6),
+            )
             for line in budget_lines(session, environment.id)
         ],
     )

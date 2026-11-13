@@ -1,8 +1,17 @@
-"""Fetch public web pages without following redirects into private networks."""
+"""Fetch public web pages without following redirects into private networks.
 
+Standard library only: YAAP also runs this module as is in a runner or on a target (`websearch/runner_fetch.py`),
+so the address and redirect checks apply there too. Postponed annotations keep it working on older Pythons there.
+"""
+
+from __future__ import annotations
+
+import base64
 import http.client
 import ipaddress
+import json
 import socket
+import sys
 from urllib.parse import urljoin, urlsplit
 
 MAX_REDIRECTS = 5
@@ -78,3 +87,25 @@ def fetch_public_bytes(
         finally:
             connection.close()
     raise FetchError("Too many redirects.")
+
+
+def main(arguments: list[str]) -> int:
+    """Fetch from the command line, as YAAP does in a runner or on a target: the arguments are the URL in base64 (so
+    no shell reads anything into it) and the byte limit. Writes one JSON line, with `content_type` and `final_url`
+    or with `error` and `status`, then the body."""
+    body = b""
+    try:
+        url = base64.b64decode(arguments[0], validate=True).decode()
+        content_type, body, final_url = fetch_public_bytes(url, int(arguments[1]))
+        head: dict[str, object] = {"content_type": content_type, "final_url": final_url}
+    except FetchError as error:
+        head = {"error": str(error), "status": error.status}
+    except (OSError, http.client.HTTPException, ValueError, IndexError) as error:
+        head = {"error": str(error) or type(error).__name__, "status": None}
+    sys.stdout.buffer.write(json.dumps(head).encode() + b"\n" + body)
+    sys.stdout.buffer.flush()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

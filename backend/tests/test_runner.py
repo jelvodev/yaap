@@ -144,8 +144,10 @@ def test_yaap_shares_no_network_with_a_runner():
     # YAAP reaches the helper over sandbox-control only, which no runner joins; the offline network has no route out.
     assert networks["sandbox-control"]["internal"] and networks["sandbox-offline"]["internal"]
     assert {networks[name]["name"] for name in runner_networks} == {"yaap-sandbox-offline", "yaap-sandbox-online"}
-    # The helper, its proxy and the sandbox image always run: no Compose profile any more.
-    assert all("profiles" not in services[name] for name in ("yaap-sandbox", "docker-proxy", "sandbox-image"))
+    # The helper and its proxy always run: no Compose profile.
+    assert all("profiles" not in services[name] for name in ("yaap-sandbox", "docker-proxy"))
+    # The runner's image is pulled by the helper on first use; only a local build has a service that makes it.
+    assert "sandbox-image" not in services
 
 
 def test_the_runner_network_setting_takes_it_offline(runner, client):
@@ -164,7 +166,7 @@ def test_without_the_helper_a_command_is_refused_with_what_to_do(runner, client)
     registry, run, _ = runner_run(client, project, conversation_id, policy=ToolPolicy(access="full"))
     results, _ = run_steps(registry, run, [("run_command", {"command": "ls"}), ("start_process", {"command": "npm run dev"})])
     for output, is_error in results:
-        assert is_error and "runner" in output and "docker compose up -d --build" in output, output
+        assert is_error and "runner" in output and "docker compose up -d" in output, output
 
 
 def test_a_reply_starts_without_the_runner_and_its_command_is_refused(runner, client, fake):
@@ -176,7 +178,7 @@ def test_a_reply_starts_without_the_runner_and_its_command_is_refused(runner, cl
     fake.responses.append(ScriptedResponse(text="The runner is not there."))
     events = send(client, conversation_id, "List the files.")
     result = next(data for name, data in events if name == "tool_result")
-    assert result["is_error"] and "docker compose up -d --build" in result["output"], result
+    assert result["is_error"] and "docker compose up -d" in result["output"], result
     system = "\n".join(part.text for part in fake.requests[0].system)
     assert "runner" in system and f"/workspace/{project['folder'].split('/')[1]}" in system
     assert "run_command" in [tool.name for tool in fake.requests[0].tool_box.definitions]

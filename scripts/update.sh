@@ -6,6 +6,9 @@
 # Needs a clean checkout: it stops and names the files when you changed a tracked file. Your data, .env and
 # docker-compose.override.yml are never touched. The decisions (busy, backup, rollback, changelog) are Python, in
 # the image: python -m app.scripts.update; this script only runs git and Docker.
+# The images are pulled for the new version, unless COMPOSE_FILE names docker-compose.build.yml (in .env or the
+# environment): then they are built here. Going back starts the images of the old version: they stay as the :previous
+# tags (built) or under their version tag until the update after next (pulled).
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -14,6 +17,8 @@ CHANNEL="stable"
 YES=0
 ROLLBACK=0
 IMAGES="yaap yaap-sandbox yaap-sandbox-helper"
+# Every image of a version, for the clean-up of pulled versions.
+PUBLISHED="yaap yaap-sandbox yaap-sandbox-helper yaap-searxng"
 
 say() { printf '%s\n' "$*"; }
 fail() { printf 'Update stopped: %s\n' "$*" >&2; exit 1; }
@@ -34,6 +39,20 @@ if [ -z "$DATA" ] && [ -f .env ]; then
   DATA="$(sed -n 's/^YAAP_DATA_HOST=//p' .env | tail -1 | tr -d '\r"'"'")"
 fi
 DATA="${DATA:-./data}"
+
+# A value from the environment or .env, the way Compose reads it.
+env_value() {
+  local value="${!1:-}"
+  if [ -z "$value" ] && [ -f .env ]; then
+    value="$(sed -n "s/^$1=//p" .env | tail -1 | tr -d '\r"'"'")"
+  fi
+  printf '%s' "$value"
+}
+case "$(env_value COMPOSE_FILE)" in
+  *docker-compose.build.yml*) BUILD=1 ;;
+  *) BUILD=0; IMAGES="" ;;  # Pulled images keep their version tags, so there are no :previous tags to keep.
+esac
+PREFIX="$(env_value YAAP_IMAGE_PREFIX)"; PREFIX="${PREFIX:-ghcr.io/jelvodev}"
 STATE="$DATA/update-state.json"
 LOG="$DATA/update.log"
 
@@ -60,6 +79,18 @@ log_line() {
 step() {
   if is_running; then docker compose exec -T yaap python -m app.scripts.update "$@"
   else docker compose run --rm --no-deps -T yaap python -m app.scripts.update "$@"; fi
+}
+
+# Pulled images of YAAP under its prefix, except the two versions that matter: the new one and the one to go back to.
+# An image that a container still uses is not removed.
+remove_old_versions() {
+  local keep_old="$1" keep_new="$2" name tag
+  for name in $PUBLISHED; do
+    docker image ls "$PREFIX/$name" --format '{{.Tag}}' 2>/dev/null | while read -r tag; do
+      printf '%s' "$tag" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || continue
+      [ "$tag" = "$keep_old" ] || [ "$tag" = "$keep_new" ] || docker rmi "$PREFIX/$name:$tag" >/dev/null 2>&1 || true
+    done
+  done
 }
 
 wait_for_health() {
@@ -165,6 +196,10 @@ if [ -f "$STATE" ]; then
   fail "Run this script with --rollback when you want to go back, or remove $STATE if the update is fine."
 fi
 
+if [ "$CHANNEL" = main ] && [ "$BUILD" = 0 ]; then
+  fail "Images are published for releases only, so the main channel needs a build setup: run ./scripts/setup.sh --build first, or update with the stable channel."
+fi
+
 say "Looking for a new version ..."
 git fetch --tags --force --quiet origin || fail "git could not reach the remote ('git fetch'). Check your connection."
 CURRENT="$(running_version || true)"
@@ -245,10 +280,19 @@ if [ "$checked_out" = 0 ]; then
   fail "YAAP stays as it is. Go back later with: ./scripts/update.sh --rollback"
 fi
 export YAAP_COMMIT="$(git rev-parse --short HEAD)" YAAP_CHANNEL="$CHANNEL"
-say "Building and starting YAAP $NEW. This takes a few minutes."
+started=0
+if [ "$BUILD" = 1 ]; then
+  say "Building and starting YAAP $NEW. This takes a few minutes."
+  docker compose up -d --build && started=1
+else
+  say "Downloading and starting YAAP $NEW. This takes a few minutes."
+  # --ignore-buildable: an image you build yourself (extra packages in docker-compose.override.yml) is in no registry;
+  # --build then makes that one again.
+  docker compose pull --ignore-buildable && docker compose up -d --build && started=1
+fi
 
 ok=0
-if docker compose up -d --build && wait_for_health; then
+if [ "$started" = 1 ] && wait_for_health; then
   reported="$(running_version || true)"
   if [ "$reported" = "$NEW" ]; then ok=1; else say "YAAP answers, but reports version '$reported' instead of $NEW." >&2; fi
 fi
@@ -258,9 +302,14 @@ if [ "$ok" = 1 ]; then
   rm -f "$STATE"
   for image in $IMAGES; do docker rmi "$image:previous-before" >/dev/null 2>&1 || true; done
   docker image prune -f --filter dangling=true --filter label=dev.yaap=true >/dev/null 2>&1 || true
+  [ "$BUILD" = 1 ] || remove_old_versions "$CURRENT" "$NEW"
   say ""
   say "YAAP is updated: $CURRENT -> $NEW ($URL)"
-  say "The version before it stays as the :previous images; ./scripts/update.sh --rollback goes back."
+  if [ "$BUILD" = 1 ]; then
+    say "The version before it stays as the :previous images; ./scripts/update.sh --rollback goes back."
+  else
+    say "The images of $CURRENT stay until the next update; ./scripts/update.sh --rollback goes back."
+  fi
   git show "$TARGET:CHANGELOG.md" | step changelog "$CURRENT" "$CHANGELOG_TO" 2>/dev/null | sed -n '1,/^What changed:/p' | sed '$d' || true
   exit 0
 fi

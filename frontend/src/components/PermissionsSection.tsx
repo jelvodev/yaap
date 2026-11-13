@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
-import { type Setting, api, errorMessage } from "../api/client";
+import { type Setting, api } from "../api/client";
 import type { components } from "../api/schema";
+import { type SettingsScope, useScopedSettings } from "../pages/settings/useScopedSettings";
 
 type ToolPermission = components["schemas"]["ToolPermissionOut"];
 
@@ -12,81 +13,43 @@ export type PermissionLevel =
 
 const KEYS = ["tool_permissions", "injection_check", "command_allowlist", "web_allowlist"];
 
-export function settingsUrl(level: PermissionLevel): string {
-  if (level.kind === "global") return "/api/v1/settings";
-  if (level.kind === "environment") return `/api/v1/environments/${level.id}/settings`;
-  return `/api/v1/projects/${level.id}/settings`;
+/** The settings scope a permission level edits. */
+export function scopeOf(level: PermissionLevel): SettingsScope {
+  return level.kind === "global" ? { kind: "global" } : { kind: level.kind, id: level.id };
 }
 
 function sourceLabel(source: string): string {
   return source === "default" ? "YAAP's default" : source === "global" ? "Global" : source === "environment" ? "the environment" : "this project";
 }
 
-async function request(method: "PUT" | "DELETE", url: string, value?: unknown): Promise<Setting> {
-  const response = await fetch(url, {
-    method,
-    headers: value === undefined ? undefined : { "Content-Type": "application/json" },
-    body: value === undefined ? undefined : JSON.stringify({ value }),
-  });
-  const body = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(errorMessage(body, `Saving failed (HTTP ${response.status}).`));
-  return body as Setting;
-}
-
 export function ListCard({
   setting,
   level,
   placeholder,
-  onChange,
+  onSave,
+  onReset,
 }: {
   setting: Setting;
   level: PermissionLevel;
   placeholder: string;
-  onChange: (setting: Setting) => void;
+  onSave: (lines: string[]) => Promise<string | null>;
+  onReset: () => Promise<string | null>;
 }) {
   const own = Array.isArray(setting.level_value) ? (setting.level_value as string[]) : null;
   const inherited = Array.isArray(setting.inherited_value) ? (setting.inherited_value as string[]) : [];
   const [text, setText] = useState((own ?? inherited).join("\n"));
   const [message, setMessage] = useState<{ error: boolean; text: string } | null>(null);
-  const url = `${settingsUrl(level)}/${setting.key}`;
 
   useEffect(() => setText((own ?? inherited).join("\n")), [setting]);
 
   async function save() {
-    try {
-      const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
-      onChange(await request("PUT", url, lines));
-      setMessage({ error: false, text: "Saved." });
-    } catch (error) {
-      setMessage({ error: true, text: errorMessage(error) });
-    }
+    const error = await onSave(text.split("\n").map((line) => line.trim()).filter(Boolean));
+    setMessage(error ? { error: true, text: error } : { error: false, text: "Saved." });
   }
 
   async function reset() {
-    try {
-      if (level.kind === "global") {
-        const resetResult = await api.DELETE("/api/v1/settings/{key}", { params: { path: { key: setting.key } } });
-        if (!resetResult.response.ok) throw new Error(errorMessage(resetResult.error, "Reset failed."));
-        const listResult = await api.GET("/api/v1/settings");
-        if (!listResult.response.ok) throw new Error(errorMessage(listResult.error, "Loading settings failed."));
-        const fresh = listResult.data?.find((item) => item.key === setting.key);
-        if (!fresh) throw new Error("The reset setting could not be loaded.");
-        onChange(fresh);
-      } else {
-        const result = level.kind === "environment"
-          ? await api.DELETE("/api/v1/environments/{environment_id}/settings/{key}", {
-              params: { path: { environment_id: level.id, key: setting.key } },
-            })
-          : await api.DELETE("/api/v1/projects/{project_id}/settings/{key}", {
-              params: { path: { project_id: level.id, key: setting.key } },
-            });
-        if (!result.response.ok || !result.data) throw new Error(errorMessage(result.error, "Reset failed."));
-        onChange(result.data);
-      }
-      setMessage({ error: false, text: "Back to inherited." });
-    } catch (error) {
-      setMessage({ error: true, text: errorMessage(error) });
-    }
+    const error = await onReset();
+    setMessage(error ? { error: true, text: error } : { error: false, text: "Back to inherited." });
   }
 
   return (
@@ -128,25 +91,21 @@ export function ListCard({
 function ChoiceCard({
   setting,
   level,
-  onChange,
+  onSet,
+  onReset,
 }: {
   setting: Setting;
   level: PermissionLevel;
-  onChange: (setting: Setting) => void;
+  onSet: (value: string) => Promise<string | null>;
+  onReset: () => Promise<string | null>;
 }) {
   const [message, setMessage] = useState<string | null>(null);
-  const url = `${settingsUrl(level)}/${setting.key}`;
   const own = setting.level_value as string | null | undefined;
   const inheritedLabel =
     setting.options.find((option) => option.value === setting.inherited_value)?.label ?? String(setting.inherited_value);
 
   async function choose(choice: string) {
-    try {
-      onChange(choice === "inherit" ? await request("DELETE", url) : await request("PUT", url, choice));
-      setMessage(null);
-    } catch (error) {
-      setMessage(errorMessage(error));
-    }
+    setMessage(await (choice === "inherit" ? onReset() : onSet(choice)));
   }
 
   return (
@@ -180,22 +139,14 @@ function ChoiceCard({
 }
 
 export default function PermissionsSection({ level }: { level: PermissionLevel }) {
-  const [settings, setSettings] = useState<Setting[]>([]);
+  const { settings: all, set, reset } = useScopedSettings(scopeOf(level));
+  const settings = all.filter((setting) => KEYS.includes(setting.key));
   const [tools, setTools] = useState<ToolPermission[]>([]);
   const [message, setMessage] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    const [list, catalog] = await Promise.all([
-      fetch(settingsUrl(level)).then((response) => response.json() as Promise<Setting[]>),
-      api.GET("/api/v1/tool-permissions").then(({ data }) => data ?? []),
-    ]);
-    setSettings(list.filter((setting) => KEYS.includes(setting.key)));
-    setTools(catalog);
-  }, [level.kind, level.kind === "global" ? 0 : level.id]);
-
   useEffect(() => {
-    void load();
-  }, [load]);
+    void api.GET("/api/v1/tool-permissions").then(({ data }) => setTools(data ?? []));
+  }, []);
 
   const permissions = settings.find((setting) => setting.key === "tool_permissions");
   const own = (permissions?.level_value as Record<string, string> | null) ?? {};
@@ -206,18 +157,13 @@ export default function PermissionsSection({ level }: { level: PermissionLevel }
     const next = { ...own };
     if (choice === "inherit") delete next[tool];
     else next[tool] = choice;
-    const url = `${settingsUrl(level)}/tool_permissions`;
-    try {
-      if (Object.keys(next).length === 0 && level.kind !== "global") await fetch(url, { method: "DELETE" });
-      else await request("PUT", url, next);
-      setMessage(null);
-      await load();
-    } catch (error) {
-      setMessage(errorMessage(error));
-    }
+    const error =
+      Object.keys(next).length === 0 && level.kind !== "global"
+        ? await reset("tool_permissions")
+        : await set("tool_permissions", next);
+    setMessage(error);
   }
 
-  const replace = (updated: Setting) => setSettings((list) => list.map((item) => (item.key === updated.key ? updated : item)));
   const describe = (permission: string) => (permission === "auto" ? "runs automatically" : "asks first");
 
   return (
@@ -265,7 +211,13 @@ export default function PermissionsSection({ level }: { level: PermissionLevel }
       {settings
         .filter((setting) => setting.key === "injection_check")
         .map((setting) => (
-          <ChoiceCard key={setting.key} setting={setting} level={level} onChange={replace} />
+          <ChoiceCard
+            key={setting.key}
+            setting={setting}
+            level={level}
+            onSet={(value) => set(setting.key, value)}
+            onReset={() => reset(setting.key)}
+          />
         ))}
       {settings
         .filter((setting) => setting.key !== "tool_permissions" && setting.key !== "injection_check")
@@ -275,7 +227,8 @@ export default function PermissionsSection({ level }: { level: PermissionLevel }
             setting={setting}
             level={level}
             placeholder={setting.key === "command_allowlist" ? "npm test\npytest" : "docs.python.org\ndeveloper.mozilla.org"}
-            onChange={replace}
+            onSave={(lines) => set(setting.key, lines)}
+            onReset={() => reset(setting.key)}
           />
         ))}
     </>

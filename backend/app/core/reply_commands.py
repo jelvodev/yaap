@@ -26,6 +26,7 @@ from app.core.message_parts import expand_command, skill_blocks
 from app.core.queue_commands import claim_eval, claim_items, consume_items, release_items
 from app.core.reply_errors import CommandRefused
 from app.core.replies import ReplyRegistry, Reservation
+from app.core.reply_event_models import CompactFailedEvent, EvalStartedEvent
 from app.core.reply_services import ChatEvals, ReplyServices
 from app.core.reply_setup import ReplySetup
 from app.core.summaries import TOO_LITTLE, compact_events, cover_point, yaap_compacts
@@ -145,7 +146,7 @@ async def claimed_compact_events(
     token = queued.handoff_job_id or str(uuid.uuid4())
     claim = partial(claim_items, session_factory, conversation_id, queued.item_ids, token, queued.handoff_job_id)
     if not await anyio.to_thread.run_sync(claim):
-        yield server_sent_event("compact_failed", {"detail": "That queued command is no longer waiting."})
+        yield server_sent_event(CompactFailedEvent(detail="That queued command is no longer waiting."))
         return
     ended = False
     try:
@@ -244,6 +245,6 @@ class ReplyCommands:
         project_id = conversation.project_id
 
         async def events() -> AsyncIterator[str]:
-            yield server_sent_event("eval_started", {"run_id": run_id, "project_id": project_id, "detail": text})
+            yield server_sent_event(EvalStartedEvent(run_id=run_id, project_id=project_id, detail=text))
 
         return events()

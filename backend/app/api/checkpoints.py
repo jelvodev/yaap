@@ -1,6 +1,7 @@
 """Checkpoints of a project folder: list, the changes of one action, and roll back."""
 
 from datetime import datetime
+from pathlib import Path
 
 import anyio
 from fastapi import APIRouter, HTTPException, Query, Request, status
@@ -52,7 +53,7 @@ def find(session: SessionDependency, project_id: int, checkpoint_id: int) -> Che
     return checkpoint
 
 
-def folder_of(project: ProjectDependency, workspace_dir: WorkspaceDirDependency):  # type: ignore[no-untyped-def]
+def folder_of(project: ProjectDependency, workspace_dir: WorkspaceDirDependency) -> Path:
     try:
         return project_path(workspace_dir, project)
     except ProjectError as error:

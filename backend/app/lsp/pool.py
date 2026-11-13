@@ -30,7 +30,7 @@ ServerKey = tuple[str, str, str]
 
 def missing_message(spec: ServerSpec) -> str:
     where = (
-        "It comes with the sandbox image: rebuild the image (docker compose up -d --build) after updating YAAP."
+        "It comes with the sandbox image: update YAAP to get a newer image."
         if spec.in_image
         else "Install it through the sandbox image's extra layer (docs/configuration.md, \"Extra packages for the "
         "runner\")."
