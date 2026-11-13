@@ -4,8 +4,8 @@
  */
 import { zip } from "fflate";
 
-/** The same folders the agent's file tools skip (SKIPPED_FOLDERS in backend/app/agent/tools.py). */
-export const SKIPPED_FOLDERS = new Set([".git", "node_modules", ".venv", "__pycache__", "dist", "build", ".next"]);
+/** The same folders the agent's file tools skip (SKIPPED_FOLDERS in backend/app/core/skipped_folders.py). */
+export const SKIPPED_FOLDERS = new Set([".git", ".yaap", "node_modules", ".venv", "__pycache__", "dist", "build", ".next"]);
 // The limits of an attachment (backend/app/attachments/files.py): files, size unpacked, and the upload itself.
 export const MAX_FOLDER_FILES = 5000;
 export const MAX_FOLDER_BYTES = 500 * 1024 * 1024;
