@@ -40,6 +40,12 @@ class ToolCallEvent(EventModel):
     id: str
     name: str
     input: dict[str, Any]
+    # The key its checkpoint and live output carry; identical calls share it and are matched in order.
+    call_key: str
+    # A checkpoint is taken before the call.
+    checkpointable: bool
+    # The call writes project files itself, so a preview reloads after it succeeds.
+    writes_files: bool
 
 
 class ToolResultEvent(EventModel):

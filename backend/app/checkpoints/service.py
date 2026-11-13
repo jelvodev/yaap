@@ -23,10 +23,10 @@ from app.storage.models import Checkpoint
 
 logger = logging.getLogger(__name__)
 
+# Tool calls that write project files themselves: the chat's preview reloads after each one that succeeds.
+FILE_WRITING_TOOLS = frozenset({"write_file", "edit_file", "rename_symbol"})
 # Tool calls that can change files in the project folder.
-CHANGING_TOOLS = frozenset(
-    {"write_file", "edit_file", "rename_symbol", "run_command", "start_process", "import_attachment", "install_skill"}
-)
+CHANGING_TOOLS = FILE_WRITING_TOOLS | {"run_command", "start_process", "import_attachment", "install_skill"}
 KEEP_DAYS = 30
 KEEP_PER_PROJECT = 500
 FNV_OFFSET = 0xCBF29CE484222325
@@ -34,8 +34,9 @@ FNV_PRIME = 0x100000001B3
 
 
 def call_key(tool: str, arguments: dict[str, Any]) -> str:
-    """A short key for a tool call: FNV-1a over the name and the arguments as sorted, compact JSON. The chat computes
-    the same key from a tool call block to find its checkpoint."""
+    """A short key for a tool call: FNV-1a over the name and the arguments as sorted, compact JSON. Only the server
+    computes it; the tool call event and block carry it, so the chat finds a call's checkpoint and live output by it.
+    Identical calls share a key and are matched in order."""
     text = tool + "\n" + json.dumps(arguments, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
     value = FNV_OFFSET
     for byte in text.encode("utf-8"):

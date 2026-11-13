@@ -7,7 +7,9 @@ ignore them and validate_blocks leaves the stored dicts as they are.
 import logging
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field, TypeAdapter, ValidationError
+from pydantic import BaseModel, Field, TypeAdapter, ValidationError, model_validator
+
+from app.checkpoints.service import CHANGING_TOOLS, call_key
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +35,24 @@ class ToolCallBlockOut(BaseModel):
     is_error: bool = False
     # A call of an imported session: shown as it was, never run by YAAP.
     imported: bool = False
+    # The server's key for the call, which its checkpoint and live output carry too, and whether a checkpoint is taken
+    # before it. A block stored without them gets them from its name and input.
+    call_key: str
+    checkpointable: bool
+
+    @model_validator(mode="before")
+    @classmethod
+    def fill_call_key(cls, data: Any) -> Any:
+        if not isinstance(data, dict) or ("call_key" in data and "checkpointable" in data):
+            return data
+        name, tool_input = data.get("name"), data.get("input")
+        if not isinstance(name, str) or not isinstance(tool_input, dict):
+            return data
+        return {
+            "call_key": call_key(name, tool_input),
+            "checkpointable": name in CHANGING_TOOLS and not data.get("imported"),
+            **data,
+        }
 
 
 class AttachmentBlockOut(BaseModel):

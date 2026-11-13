@@ -37,7 +37,7 @@ export interface MessageStreamHandlers {
   onCallRestarted?: () => void;
   // A delegated sub-run reports which tool it is using.
   onDelegateProgress?: (label: string, step: string) => void;
-  // Output of a running command, as it comes; the key is callKey(tool, input).
+  // Output of a running command, as it comes; the key is the call_key of its tool call.
   onToolOutput?: (callKey: string, text: string) => void;
   // A steering message reached the agent with a tool result.
   onSteering?: (text: string) => void;

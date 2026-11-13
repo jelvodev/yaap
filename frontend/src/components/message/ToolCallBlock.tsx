@@ -1,6 +1,5 @@
 import { useContext, useEffect, useRef, useState } from "react";
 
-import { callKey } from "../../api/checkpoints";
 import { usePreferences } from "../../preferences/PreferencesProvider";
 import { JsonText } from "../highlight";
 import { ChevronIcon } from "../icons";
@@ -110,7 +109,7 @@ export function ToolCallBlock({ block }: { block: ToolCallReplyBlock }) {
   const [open, setOpen] = useState(preferences.verbose_tools);
   const state = block.output === null ? "running" : block.is_error ? "error" : "done";
   const summary = inputSummary(block.input);
-  const reason = useContext(CallReasonContext)(callKey(block.name, block.input))?.why;
+  const reason = useContext(CallReasonContext)(block.call_key)?.why;
   const liveRef = useRef<HTMLPreElement>(null);
   useEffect(() => {
     if (liveRef.current) liveRef.current.scrollTop = liveRef.current.scrollHeight;

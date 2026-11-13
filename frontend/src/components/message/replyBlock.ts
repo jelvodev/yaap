@@ -12,6 +12,10 @@ export type ReplyBlock =
       input: Record<string, unknown>;
       output: string | null;
       is_error: boolean;
+      // The server's key for the call: its checkpoint, live output and reason carry it too.
+      call_key: string;
+      // A checkpoint is taken before the call.
+      checkpointable: boolean;
       // While a delegate call runs: who works on it and the tool it is using now.
       progress?: string;
       // While a command runs: the newest part of its output.
@@ -60,6 +64,8 @@ export function blocksFromMessage(message: Message): ReplyBlock[] {
             input: block.input,
             output: block.output ?? null,
             is_error: block.is_error,
+            call_key: block.call_key,
+            checkpointable: block.checkpointable,
             imported: block.imported,
           },
         ];
