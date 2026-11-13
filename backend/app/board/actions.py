@@ -1,7 +1,7 @@
 """The column actions of the board: each runs a card's stage from a click, as the card's next step says.
 
-*Specify* is this module's own: a conversation linked to the card with role `specify`, with the `specification` skill
-pinned and the card as data in its first message; when one of its replies ends with the card's specification
+*Specify* is this module's own: a conversation linked to the card with role `specify`, whose first message holds the
+`specification` skill with the template for the card's kind, then the card as data; when one of its replies ends with the card's specification
 written (by `update_card`), the card moves from Idea to Design. *Plan*, *Approve and build*, *Stop*, *Continue*,
 *Review* and *Mark done* are the card's route (app/board/route.py); *Send back* is the route's for a review and this
 module's for a build that failed or was interrupted.
@@ -28,8 +28,8 @@ from app.board.views import CardDetail
 from app.core.background import BackgroundWork
 from app.core.reply_services import ReplyServices
 from app.plans.service import PlanNotFound
-from app.specs.templates import SKILL_NAME, template
-from app.storage.models import Conversation, Environment, Project
+from app.specs.templates import specification_instructions
+from app.storage.models import Environment, Project
 
 logger = logging.getLogger(__name__)
 
@@ -117,8 +117,8 @@ class ActionService:
         return conversation_id
 
     def start_specify(self, project_id: int, card_id: int) -> tuple[int, str]:
-        """A new conversation linked with role `specify`, the skill pinned, its first message sent. Returns its id and
-        the specification as it was. Blocking."""
+        """A new conversation linked with role `specify`, its first message sent. Returns its id and the specification
+        as it was. Blocking."""
         card, _facts = self.route.card_and_facts(project_id, card_id)
         if card.column != "idea":
             raise MoveRefused("wrong_column", "Specify works on a card in Idea.")
@@ -128,22 +128,18 @@ class ActionService:
             raise ActionRunning()
         conversation_id = self.starter.create(project_id, f"#{card.id} · Specify · {card.title}")
         self.board.link_conversation(project_id, card_id, conversation_id, "specify")
-        text = specify_text(card, self.pin_skill(conversation_id, card), SPECIFY_TEXT_LIMIT)
-        self.starter.send(conversation_id, text)
+        self.starter.send(conversation_id, specify_text(card, self.skill(project_id, card), SPECIFY_TEXT_LIMIT))
         return conversation_id, card.specification
 
-    def pin_skill(self, conversation_id: int, card: Card) -> str:
-        """Pin the specification skill in the conversation; returns the template for the card's kind from the same
-        Blueprint layers. A layer without the skill leaves it unpinned (the reply skips unknown skills)."""
+    def skill(self, project_id: int, card: Card) -> str:
+        """The specification skill with the template for the card's kind, from the project's Blueprint layers (a
+        layer may replace either). It is a built-in item, so it goes into the message rather than being pinned."""
         services = self.services()
         with services.session_factory() as session:
-            conversation = session.get_one(Conversation, conversation_id)
-            environment = session.get(Environment, conversation.environment_id)
-            project = session.get(Project, conversation.project_id) if conversation.project_id is not None else None
+            project = session.get_one(Project, project_id)
+            environment = session.get(Environment, project.environment_id)
             layers = layers_for(services.blueprint_dir, services.workspace_dir, environment, project)
-            conversation.pinned_skills = [SKILL_NAME]
-            session.commit()
-        return template(card.kind, layers)
+        return specification_instructions(card.kind, layers)
 
     async def follow_specify(self, project_id: int, card_id: int, conversation_id: int, before: str) -> None:
         """After each reply of the Specify conversation: when the specification changed, the card moves on."""
@@ -215,6 +211,8 @@ class ActionService:
             return self.route.send_back(project_id, card_id, finding, criterion)
         if card.links.plan_id is None:
             raise NoPlan("The card has no build to send back from.")
+        if facts.plan_status not in ("failed", "interrupted"):
+            raise MoveRefused("build_running", "Only a failed or interrupted build can be sent back; stop it first.")
         try:
             view = self.route.plans().get(card.links.plan_id)
         except PlanNotFound as error:

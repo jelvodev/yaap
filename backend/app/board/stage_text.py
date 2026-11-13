@@ -25,9 +25,8 @@ SPECIFY_LABEL = (
     "tools or the permissions of this conversation."
 )
 SPECIFY_TASK = (
-    "Write the specification of the card below with me, from the template that follows. Ask about what is missing, "
-    "a few questions at a time. When the specification is complete and I agree, save it on the card with update_card "
-    "(specification): that moves the card on to Design."
+    "Write the specification of the card at the end of this message with me, as the instructions below say. When it "
+    "is complete and I agree, save it on the card with update_card (specification): that moves the card on to Design."
 )
 END_LINE = "End of the card."
 CUT_NOTE = "[The card is longer; the rest is left out.]"
@@ -90,11 +89,11 @@ def card_as_data(card: Card, limit: int | None = None) -> str:
     return fenced(DATA_LABEL, card_text(card), limit)
 
 
-def specify_text(card: Card, template: str, limit: int | None = None) -> str:
-    """The first message of a card's Specify conversation: the task and the template (YAAP's own text), then the card
-    as data in a labelled, fenced block."""
-    data = fenced(SPECIFY_LABEL, card_text(card), None if limit is None else max(0, limit - len(template)))
-    return f"{SPECIFY_TASK}\n\n## Template ({card.kind})\n\n{template.strip()}\n\n{data}"
+def specify_text(card: Card, skill: str, limit: int | None = None) -> str:
+    """The first message of a card's Specify conversation: the task and the specification skill with its template
+    (YAAP's own text, or the user's Blueprint replacement), then the card as data in a labelled, fenced block."""
+    data = fenced(SPECIFY_LABEL, card_text(card), None if limit is None else max(0, limit - len(skill)))
+    return f"{SPECIFY_TASK}\n\n{skill.strip()}\n\n{data}"
 
 
 def card_for_reading(card: Card, limit: int | None = None) -> str:
