@@ -6,6 +6,7 @@ import ConversationRow from "../../components/ConversationRow";
 import { ArchiveIcon, FileIcon, PlusIcon } from "../../components/icons";
 import ImportSessionDialog from "../../components/ImportSessionDialog";
 import PreferencesMenu from "../../components/PreferencesMenu";
+import WaitingEntry from "../waiting/WaitingEntry";
 import ProjectPicker from "./ProjectPicker";
 import UsageCard from "./UsageCard";
 import type { ChatCatalog } from "./useChatCatalog";
@@ -72,6 +73,7 @@ export default function ChatSidebar(props: ChatSidebarProps) {
         <PlusIcon />
         New conversation
       </button>
+      <WaitingEntry environmentId={environmentId} />
       <ProjectPicker
         environmentId={environmentId}
         projects={catalog.projects}
