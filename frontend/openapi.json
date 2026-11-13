@@ -1736,9 +1736,24 @@
             "title": "Create Repository",
             "type": "boolean"
           },
+          "repository_url": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repository Url"
+          },
           "storage": {
-            "const": "branch",
             "default": "branch",
+            "enum": [
+              "branch",
+              "repository"
+            ],
             "title": "Storage",
             "type": "string"
           }
@@ -11895,6 +11910,26 @@
         "title": "PullProposalOut",
         "type": "object"
       },
+      "PulledOut": {
+        "properties": {
+          "head": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Head"
+          }
+        },
+        "required": [
+          "head"
+        ],
+        "title": "PulledOut",
+        "type": "object"
+      },
       "PullsOut": {
         "properties": {
           "current_branch": {
@@ -12165,6 +12200,58 @@
           "reason"
         ],
         "title": "RecalledEntryOut",
+        "type": "object"
+      },
+      "RemoteCheckIn": {
+        "properties": {
+          "repository_url": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Repository Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository_url"
+        ],
+        "title": "RemoteCheckIn",
+        "type": "object"
+      },
+      "RemoteCheckOut": {
+        "properties": {
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "private": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Private"
+          }
+        },
+        "required": [
+          "ok",
+          "private",
+          "message"
+        ],
+        "title": "RemoteCheckOut",
         "type": "object"
       },
       "RemoteIn": {
@@ -29940,6 +30027,59 @@
         ]
       }
     },
+    "/api/v1/projects/{project_id}/board/check-remote": {
+      "post": {
+        "description": "Whether YAAP can reach a repository for the board with the project's GitHub token, and whether it is private.",
+        "operationId": "check_remote_api_v1_projects__project_id__board_check_remote_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoteCheckIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemoteCheckOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Check Remote",
+        "tags": [
+          "board"
+        ]
+      }
+    },
     "/api/v1/projects/{project_id}/board/import-issues": {
       "post": {
         "description": "Import GitHub issues of the project's repository into Inbox, one way; issues imported before are skipped.",
@@ -29988,6 +30128,49 @@
           }
         },
         "summary": "Import Issues",
+        "tags": [
+          "board"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/board/pull": {
+      "post": {
+        "description": "Fetch the board's repository and fast-forward the board; nothing changes when both sides moved.",
+        "operationId": "pull_board_api_v1_projects__project_id__board_pull_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PulledOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pull Board",
         "tags": [
           "board"
         ]

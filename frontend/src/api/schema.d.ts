@@ -3686,6 +3686,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/board/check-remote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check Remote
+         * @description Whether YAAP can reach a repository for the board with the project's GitHub token, and whether it is private.
+         */
+        post: operations["check_remote_api_v1_projects__project_id__board_check_remote_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/board/import-issues": {
         parameters: {
             query?: never;
@@ -3700,6 +3720,26 @@ export interface paths {
          * @description Import GitHub issues of the project's repository into Inbox, one way; issues imported before are skipped.
          */
         post: operations["import_issues_api_v1_projects__project_id__board_import_issues_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/board/pull": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pull Board
+         * @description Fetch the board's repository and fast-forward the board; nothing changes when both sides moved.
+         */
+        post: operations["pull_board_api_v1_projects__project_id__board_pull_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5867,12 +5907,14 @@ export interface components {
              * @default false
              */
             create_repository: boolean;
+            /** Repository Url */
+            repository_url?: string | null;
             /**
              * Storage
              * @default branch
-             * @constant
+             * @enum {string}
              */
-            storage: "branch";
+            storage: "branch" | "repository";
         };
         /** BoardVersionOut */
         BoardVersionOut: {
@@ -9142,6 +9184,11 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** PulledOut */
+        PulledOut: {
+            /** Head */
+            head: string | null;
+        };
         /** PullsOut */
         PullsOut: {
             /** Current Branch */
@@ -9249,6 +9296,20 @@ export interface components {
             section: string;
             /** Text */
             text: string;
+        };
+        /** RemoteCheckIn */
+        RemoteCheckIn: {
+            /** Repository Url */
+            repository_url: string;
+        };
+        /** RemoteCheckOut */
+        RemoteCheckOut: {
+            /** Message */
+            message: string | null;
+            /** Ok */
+            ok: boolean;
+            /** Private */
+            private: boolean | null;
         };
         /** RemoteIn */
         RemoteIn: {
@@ -18314,6 +18375,41 @@ export interface operations {
             };
         };
     };
+    check_remote_api_v1_projects__project_id__board_check_remote_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RemoteCheckIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemoteCheckOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     import_issues_api_v1_projects__project_id__board_import_issues_post: {
         parameters: {
             query?: never;
@@ -18336,6 +18432,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IssueImportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pull_board_api_v1_projects__project_id__board_pull_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PulledOut"];
                 };
             };
             /** @description Validation Error */
