@@ -6,7 +6,9 @@ build then runs in the background.
 Per open step: the step is `working`; its brief goes to the worker through the brief attempt loop (worker, the worker
 again with the failure, then the main model; agent/brief_delegation.py), or to the main model when the step has no
 check YAAP can run; YAAP runs the step's other checks itself; a passing step is committed in the copy ("Step N:
-<title>") and is `done` with its commit and the worker's note. A failing step fails the plan with the reason. After
+<title>") and is `done` with its commit and the worker's note; when that commit changed files the plan does not name
+(plans/scope.py), the build records them and the queue treats it as the whole project from then on. A failing step
+fails the plan with the reason. After
 the last step every check runs once more on the final tree (kept as evidence), and the build branch is brought into
 the project. A stopped or failed build brings what it has, so partial work is reachable as a branch.
 
@@ -44,6 +46,7 @@ from app.plans.progress import (
     earlier_notes,
     open_steps,
     with_attempts,
+    with_outside,
     with_step,
 )
 from app.plans.queue import (
@@ -57,6 +60,7 @@ from app.plans.queue import (
     plan_files,
     rate_limited,
 )
+from app.plans.scope import allowed_files, changed_paths, outside_plan
 from app.plans.service import BuildRefused, BuildStart, PlanListeners, PlanNotFound, PlanService, PlanView
 from app.plans.workspace import (
     BuildCopyError,
@@ -94,7 +98,7 @@ def no_waits(_view: PlanView) -> tuple[int, ...]:
 
 
 def slot_of(view: PlanView) -> BuildSlot:
-    return BuildSlot(view.id, view.card_id, plan_files(view.plan))
+    return BuildSlot(view.id, view.card_id, plan_files(view.plan), view.build.whole_project)
 
 
 @dataclass(frozen=True)
@@ -405,6 +409,8 @@ class BuildRunner:
             branch = current.build_branch or ""
             commit = await anyio.to_thread.run_sync(commit_step, copy, branch, step, previous)
             plan = with_step(plan, step.number, status="done", note=result.note, commit=commit, attempts=attempts)
+            if commit is not None:
+                info = await anyio.to_thread.run_sync(record_outside, copy, plan, info, step.number, commit)
             plans.save_progress(view.id, plan, info)
         return None
 
@@ -490,6 +496,20 @@ def last_commit(plan: Plan) -> str | None:
     """The commit of the last step that made one."""
     commits = [step.commit for step in plan.steps if step.status == "done" and step.commit]
     return commits[-1] if commits else None
+
+
+def record_outside(copy: Repository, plan: Plan, info: BuildInfo, number: int, commit: str) -> BuildInfo:
+    """The build info with the files step `number`'s commit changed outside the plan. When git cannot say, the info is
+    left as it was: the step's work is committed, so it is not failed for this. Blocking."""
+    try:
+        diff = run_git(["diff-tree", "-r", "--root", "--no-commit-id", "--name-status", "-z", "-M", commit], copy)
+    except GitError as error:
+        logger.warning("The files of step %s's commit could not be listed: %s", number, error)
+        return info
+    outside = outside_plan(changed_paths(diff.stdout), allowed_files(plan, number))
+    if outside:
+        logger.info("Step %s changed files outside the plan: %s", number, ", ".join(outside))
+    return with_outside(info, number, outside)
 
 
 def commit_step(copy: Repository, branch: str, step: PlanStep, previous: str) -> str | None:

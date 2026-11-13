@@ -9,6 +9,7 @@ import {
   isFolded,
   moved,
   nonEmptyLines,
+  outsidePlanSentence,
   parseCheckLine,
   planProgress,
   progressLine,
@@ -113,4 +114,20 @@ test("shortCommit is the first seven characters", () => {
 test("parseCheckLine reads a check written as a code span without its backticks", () => {
   assert.deepEqual(parseCheckLine("It answers `run: pytest -q`"), { text: "It answers", run: "pytest -q" });
   assert.deepEqual(parseCheckLine("`run: pytest -q`"), { text: "pytest -q", run: "pytest -q" });
+});
+
+test("outsidePlanSentence names the step, the paths and how many more there were", () => {
+  const rows = [
+    [
+      { step: 2, paths: ["src/storage.py", "src/inventory.py"], total: 2 },
+      "Step 2 changed files outside the plan: src/storage.py, src/inventory.py. Other builds wait for this one as if it touched the whole project.",
+    ],
+    [
+      { step: 1, paths: ["a.py"], total: 4 },
+      "Step 1 changed files outside the plan: a.py and 3 more. Other builds wait for this one as if it touched the whole project.",
+    ],
+  ];
+  for (const [item, expected] of rows) {
+    assert.equal(outsidePlanSentence(item), expected);
+  }
 });

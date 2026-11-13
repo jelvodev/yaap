@@ -122,6 +122,20 @@ def test_passing_steps_are_committed_in_the_copy_and_the_branch_comes_into_the_p
     assert models(fake) == [WORKER, WORKER]
 
 
+def test_a_step_that_changes_files_outside_the_plan_is_recorded_on_the_build(setup, fake, executor):
+    report = REPORT.format(what="Made one.txt and more.", file="one.txt")
+    calls = tuple(
+        ("write_file", {"path": name, "content": f"{name}\n"}) for name in ("one.txt", "extra.txt", ".yaap/x.md")
+    )
+    fake.responses.extend([ScriptedResponse(text=report, tool_calls=calls), worker_makes("two.txt")])
+    plan_id = setup.submit([step("One"), step("Two")])
+
+    plan = setup.approve(plan_id)
+
+    assert plan["status"] == "done", plan
+    assert plan["build"]["outside_plan"] == [{"step": 1, "paths": ["extra.txt"], "total": 1}]
+
+
 def test_every_check_runs_once_more_on_the_finished_tree(setup, fake, executor):
     fake.responses.extend([worker_makes("one.txt"), worker_makes("two.txt")])
     plan_id = setup.submit([step("One"), step("Two", {"text": "also", "run": "verify two"})])

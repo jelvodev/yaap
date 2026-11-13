@@ -25,8 +25,11 @@ def limits(parallel: int = 2, held_for: timedelta | None = None) -> QueueLimits:
     return QueueLimits(parallel, NOW + held_for if held_for is not None else None, NOW)
 
 
-def slot(plan_id: int, files: tuple[str, ...] | None, card_id: int | None = None) -> BuildSlot:
-    return BuildSlot(plan_id, card_id, None if files is None else frozenset(normalised(path) for path in files))
+def slot(
+    plan_id: int, files: tuple[str, ...] | None, card_id: int | None = None, outside_plan: bool = False
+) -> BuildSlot:
+    files_named = None if files is None else frozenset(normalised(path) for path in files)
+    return BuildSlot(plan_id, card_id, files_named, outside_plan)
 
 
 @pytest.mark.parametrize(
@@ -89,6 +92,35 @@ def test_a_plan_waiting_for_a_build_without_files_says_the_other_build_needs_the
     assert isinstance(outcome, Wait)
     assert "one of its steps names no files" in outcome.reason
     assert "#5" in outcome.reason
+
+
+@pytest.mark.parametrize(
+    ("mine", "other", "expected", "reason"),
+    [
+        # A running build that changed files outside its plan holds the whole project.
+        (slot(9, ("b.py",)), slot(1, ("a.py",), 5, outside_plan=True), "files", "changed files outside its plan"),
+        (slot(9, ("docs",)), slot(1, ("src",), 5, outside_plan=True), "files", "changed files outside its plan"),
+        (slot(9, None), slot(1, ("a.py",), 5, outside_plan=True), "files", "changed files outside its plan"),
+        (slot(9, ("a.py",)), slot(1, None, 5, outside_plan=True), "files", "changed files outside its plan"),
+        # The same running build without the mark lets a plan with other files start.
+        (slot(9, ("b.py",)), slot(1, ("a.py",), 5), "start", ""),
+        # A build that strayed and is continued waits for every other running build.
+        (slot(9, ("b.py",), outside_plan=True), slot(1, ("a.py",), 5), "files", "this build changed files outside"),
+    ],
+)
+def test_a_build_that_changed_files_outside_its_plan_counts_as_the_whole_project(
+    mine: BuildSlot, other: BuildSlot, expected: str, reason: str
+) -> None:
+    outcome = can_start(mine, [other], {}, limits(4))
+    assert (outcome.kind if isinstance(outcome, Wait) else "start") == expected
+    if isinstance(outcome, Wait):
+        assert outcome.blocking == (1,)
+        assert reason in outcome.reason
+        assert "#5" in outcome.reason
+
+
+def test_a_build_that_changed_files_outside_its_plan_starts_when_nothing_else_builds() -> None:
+    assert isinstance(can_start(slot(9, ("a.py",), outside_plan=True), [], {}, limits(4)), Start)
 
 
 def test_a_plan_without_files_starts_when_nothing_else_builds() -> None:
