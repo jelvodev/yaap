@@ -235,8 +235,5 @@ def waiting_approvals(environment: EnvironmentDependency, request: Request) -> l
         WaitingApprovalOut(
             approval_id=approval.id, conversation_id=run.conversation_id, tool=approval.tool, summary=approval.summary
         )
-        for run in registry.runs.values()
-        if run.environment_id == environment.id
-        for approval in run.state.approvals.values()
-        if not approval.future.done()
+        for run, approval in registry.pending_approvals(environment.id)
     ]

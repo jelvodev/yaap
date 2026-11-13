@@ -74,7 +74,7 @@ class WaitingService:
             boards = [project for project in projects if board_on(session, project)]
             costs = month_costs(session, [project.id for project in boards], now)
             per_board = [board_facts(session, project, costs.get(project.id, 0.0)) for project in boards]
-            approvals = approval_facts(session, self.live_approvals(environment_id), {p.id for p in boards})
+            approvals = approval_facts(session, self.runs.pending_approvals(environment_id), {p.id for p in boards})
             builds = interrupted_builds(session, [project.id for project in projects])
         facts = WaitingFacts(
             cards=tuple(card for board in per_board for card in board.cards),
@@ -83,16 +83,6 @@ class WaitingService:
             seen=seen,
         )
         return WaitingOverview(tuple(waiting_items(facts)), tuple(board.summary for board in per_board), now)
-
-    def live_approvals(self, environment_id: int | None) -> list[tuple[AgentRun, PendingApproval]]:
-        """The approvals runs wait for now; copies of the registry's maps, since runs come and go meanwhile."""
-        return [
-            (run, approval)
-            for run in list(self.runs.runs.values())
-            if environment_id is None or run.environment_id == environment_id
-            for approval in list(run.state.approvals.values())
-            if not approval.future.done()
-        ]
 
 
 def board_on(session: Session, project: Project) -> bool:

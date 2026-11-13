@@ -432,6 +432,17 @@ class RunRegistry:
     def __init__(self) -> None:
         self.runs: dict[str, AgentRun] = {}
 
+    def pending_approvals(self, environment_id: int | None = None) -> list[tuple["AgentRun", PendingApproval]]:
+        """The approvals runs wait for now (in one environment, or all), with their run; copies of the maps, since
+        runs and approvals come and go meanwhile."""
+        return [
+            (run, approval)
+            for run in list(self.runs.values())
+            if environment_id is None or run.environment_id == environment_id
+            for approval in list(run.state.approvals.values())
+            if not approval.future.done()
+        ]
+
     def start(self, config: RunConfig, services: RunServices | None = None) -> AgentRun:
         return self.add(AgentRun(secrets.token_urlsafe(32), config, services or RunServices()))
 
