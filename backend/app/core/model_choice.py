@@ -26,7 +26,7 @@ from app.credentials.crypto import CredentialCipher, CredentialDecryptionError
 from app.credentials.store import find_credential, read_credential_value
 from app.credentials.types import CredentialType
 from app.presets.service import find_preset_by_name, role_model
-from app.providers.catalog import ModelInfo
+from app.providers.catalog import ModelInfo, default_model
 from app.providers.registry import ProviderRegistry, ProviderSpec
 
 Purpose = Literal["reply", "sub_run", "utility"]
@@ -34,8 +34,6 @@ Billing = Literal["metered", "subscription"]
 SubRunRole = Literal["worker", "main"]
 UtilityRole = Literal["utility", "worker"]
 
-# The utility model when neither a preset nor the utility_model setting names one.
-FALLBACK_UTILITY_MODEL = "claude-haiku-5-5"
 # How a key's use is named in the vault's log, after the connection's name.
 KEY_USE: dict[Purpose, str] = {"reply": "reply", "sub_run": "delegated task", "utility": "utility model"}
 
@@ -279,7 +277,7 @@ def pick_for_utility(
     chosen = (role_model(session, environment_id, request.preset, "worker") if request.role == "worker" else None) or (
         role_model(session, environment_id, request.preset, "utility")
     )
-    model = chosen.model if chosen else utility_setting_model(session, environment_id)
+    model = chosen.model if chosen else utility_setting_model(session, providers, environment_id)
     return utility_pick(session, providers, environment_id, request, model, chosen.effort if chosen else None)
 
 
@@ -291,8 +289,10 @@ def utility_task_model(session: Session, environment_id: int, request: ForUtilit
     return task_model(request.task, task_models if isinstance(task_models, dict) else {})
 
 
-def utility_setting_model(session: Session, environment_id: int) -> str:
-    return resolve_text(session, "utility_model", environment_id) or FALLBACK_UTILITY_MODEL
+def utility_setting_model(session: Session, providers: ProviderRegistry, environment_id: int) -> str:
+    # An empty setting means the default vendor's utility model: the registry's first, else the built-in one.
+    setting = resolve_text(session, "utility_model", environment_id)
+    return setting or providers.default_model("utility") or default_model("utility")
 
 
 def utility_pick(
@@ -324,7 +324,7 @@ def utility_fallback(
     model. Other requests have no fallback."""
     if not isinstance(request, ForUtility):
         return None
-    model = utility_setting_model(session, environment_id)
+    model = utility_setting_model(session, providers, environment_id)
     if model == refused.model:
         return None
     return utility_pick(session, providers, environment_id, request, model, None)

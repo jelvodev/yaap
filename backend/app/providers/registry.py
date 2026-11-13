@@ -1,13 +1,16 @@
 """Registry of model providers, the ways YAAP connects to them, and the models they offer."""
 
-from collections.abc import Awaitable, Callable, Iterable
-from dataclasses import dataclass
+from collections.abc import Awaitable, Callable, Iterable, Mapping
+from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from app.providers.base import ModelProvider
-from app.providers.catalog import ModelInfo
+from app.providers.catalog import ANTHROPIC_DEFAULT_MODELS, OPENAI_DEFAULT_MODELS, ModelInfo, ModelRole
+from app.providers.claude_code.sessions import CLAUDE_CODE_SESSIONS
 from app.providers.cli_sign_in import SignInSpec
+from app.providers.codex.sessions import CODEX_SESSIONS
+from app.providers.session_format import SessionFormat
 
 if TYPE_CHECKING:
     from app.providers.endpoints import EndpointState
@@ -40,6 +43,13 @@ class ProviderSpec:
     signed_in: Callable[[], Awaitable[bool]] | None = None
     # How a subscription CLI is signed in from the browser, when it can be.
     sign_in: SignInSpec | None = None
+    # Whether the connection keeps its own session and compacts it itself (the subscription CLIs); YAAP then neither
+    # trims nor summarises its conversations.
+    compacts_itself: bool = False
+    # The vendor's model per role, for presets, workers and the utility model when nothing else names one.
+    default_models: Mapping[ModelRole, str] = field(default_factory=dict)
+    # How this tool's session files are read, for importing them as conversations; None where it keeps none.
+    session_format: SessionFormat | None = None
 
 
 class ProviderRegistry:
@@ -75,6 +85,17 @@ class ProviderRegistry:
         spec = self.find_provider(name)
         return spec.display_name if spec is not None else name
 
+    def default_model(self, role: ModelRole, provider: str | None = None) -> str | None:
+        """The model for a role of a provider's first spec that names one; without a provider, of the first spec."""
+        return next(
+            (
+                spec.default_models[role]
+                for spec in self.specs
+                if provider in (None, spec.name) and role in spec.default_models
+            ),
+            None,
+        )
+
     def find_model(self, model_id: str) -> ModelInfo | None:
         return next((model for model in self.models if model.id == model_id), None)
 
@@ -87,6 +108,15 @@ class ProviderRegistry:
         self.specs.remove(spec)
         if not any(other.name == spec.name for other in self.specs):
             self.fixed_models = [model for model in self.fixed_models if model.provider != spec.name]
+
+
+# The built-in tools' session formats, in the order a file is recognised. Static because chat history needs a tool's
+# label without a registry at hand.
+SESSION_FORMATS: tuple[SessionFormat, ...] = (CLAUDE_CODE_SESSIONS, CODEX_SESSIONS)
+
+
+def session_format(tool: str) -> SessionFormat | None:
+    return next((item for item in SESSION_FORMATS if item.tool == tool), None)
 
 
 def default_provider_registry() -> ProviderRegistry:
@@ -116,6 +146,7 @@ def default_provider_registry() -> ProviderRegistry:
         long_cache=True,
         # The hour applies when the cache policy chose it; return_notice handles that.
         cache_lifetime=timedelta(minutes=5),
+        default_models=ANTHROPIC_DEFAULT_MODELS,
     )
     claude_code = ProviderSpec(
         name="anthropic",
@@ -129,7 +160,11 @@ def default_provider_registry() -> ProviderRegistry:
         cache_lifetime=timedelta(hours=1),
         signed_in=claude_code_signed_in,
         sign_in=claude_code_sign_in_spec(),
+        default_models=ANTHROPIC_DEFAULT_MODELS,
+        compacts_itself=True,
+        session_format=CLAUDE_CODE_SESSIONS,
     )
+
     def create_openai_provider(api_key: str | None) -> ModelProvider:
         assert api_key is not None
         return OpenAIProvider(api_key)
@@ -143,6 +178,7 @@ def default_provider_registry() -> ProviderRegistry:
         runs_agents=True,
         # OpenAI caches by itself for a few minutes.
         cache_lifetime=timedelta(minutes=5),
+        default_models=OPENAI_DEFAULT_MODELS,
     )
     codex = ProviderSpec(
         name="openai",
@@ -156,6 +192,9 @@ def default_provider_registry() -> ProviderRegistry:
         cache_lifetime=timedelta(hours=1),
         signed_in=codex_signed_in,
         sign_in=codex_sign_in_spec(),
+        default_models=OPENAI_DEFAULT_MODELS,
+        compacts_itself=True,
+        session_format=CODEX_SESSIONS,
     )
     from app.providers.endpoints import EndpointState
     from app.providers.ollama_provider import OllamaProvider, OllamaState

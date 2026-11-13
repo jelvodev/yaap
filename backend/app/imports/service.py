@@ -6,7 +6,6 @@ results the file recorded. The assistant messages carry an "imported" marker ins
 every provider gets them as text (imported_model_content), and the conversation can be continued with any model.
 """
 
-import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import PurePosixPath
@@ -16,18 +15,15 @@ from sqlalchemy.orm import Session
 from app.core.chat_history import DEFAULT_TITLE, make_title
 from app.core.hidden_text import describe, find_hidden
 from app.credentials.crypto import CredentialCipher
-from app.imports.sessions import CLAUDE_CODE, CODEX, IMPORTED_BLOCK_TYPE, TOOL_NAMES, ImportedSession, SessionImportError
+from app.imports.sessions import IMPORTED_BLOCK_TYPE
+from app.providers.registry import SESSION_FORMATS, session_format
+from app.providers.session_format import ImportedSession, SessionFormat, SessionImportError, SessionTool
 from app.storage.models import Conversation, Message, Target
 from app.targets.base import FileEntry, TargetError, TargetFiles
 from app.targets.service import settings_for
 from app.targets.ssh import CONNECTIONS, SshTarget
 
 MAX_IMPORT_BYTES = 50 * 1024 * 1024
-# Where the two tools keep their sessions, relative to the home folder on a target.
-CLAUDE_CODE_FOLDER = ".claude/projects"
-CODEX_FOLDER = ".codex/sessions"
-CLAUDE_CODE_FILE = re.compile(r"^\.claude/projects/[^/]+/[^/]+\.jsonl$")
-CODEX_FILE = re.compile(r"^\.codex/sessions/(?:[^/]+/)*rollout-[^/]+\.jsonl$")
 MAX_LISTED = 300
 MAX_FOLDERS = 500
 
@@ -73,13 +69,15 @@ def create_conversation(
     session.add(conversation)
     session.flush()
     parent_id: int | None = None
+    known = session_format(imported.tool)
+    tool_label = known.label if known is not None else imported.tool
     marker = [{"type": IMPORTED_BLOCK_TYPE, "tool": imported.tool}]
     for turn in imported.turns:
         user = Message(
             conversation_id=conversation.id,
             parent_id=parent_id,
             role="user",
-            content=[{"type": "text", "text": turn.user_text or f"(The {TOOL_NAMES[imported.tool]} session went on here.)"}],
+            content=[{"type": "text", "text": turn.user_text or f"(The {tool_label} session went on here.)"}],
             status="complete",
             created_at=turn.at or now,
         )
@@ -132,38 +130,45 @@ def hidden_warnings(imported: ImportedSession) -> list[str]:
 @dataclass(frozen=True)
 class SessionFile:
     path: str
-    tool: str
+    tool: SessionTool
     size: int
     modified: float | None
-    # Claude Code's folder per working folder (its path with / as -), or Codex's date folder.
+    # The tool's folder the file is in: Claude Code's per working folder (its path with / as -), Codex's per date.
     folder: str
 
 
-def tool_of(path: str) -> str | None:
-    if CLAUDE_CODE_FILE.match(path):
-        return CLAUDE_CODE
-    if CODEX_FILE.match(path):
-        return CODEX
-    return None
+def format_of(path: str) -> SessionFormat | None:
+    return next((item for item in SESSION_FORMATS if item.file_pattern.match(path)), None)
+
+
+def tool_of(path: str) -> SessionTool | None:
+    found = format_of(path)
+    return found.tool if found is not None else None
 
 
 async def list_session_files(files: TargetFiles) -> list[SessionFile]:
-    """The Claude Code and Codex session files in the home folder, newest first."""
-    found: list[FileEntry] = []
-    if (folder := await files.stat(CLAUDE_CODE_FOLDER)) is not None and folder.is_dir:
-        projects = [entry for entry in await files.walk(CLAUDE_CODE_FOLDER, False, set(), MAX_FOLDERS) if entry.is_dir]
-        for project in projects[:MAX_FOLDERS]:
-            found += [entry for entry in await files.walk(project.path, False, set(), 2000) if not entry.is_dir]
-    if (folder := await files.stat(CODEX_FOLDER)) is not None and folder.is_dir:
-        found += [entry for entry in await files.walk(CODEX_FOLDER, True, set(), 10_000) if not entry.is_dir]
+    """The session files of every known tool in the home folder, newest first."""
     sessions = []
-    for entry in found:
-        tool = tool_of(entry.path)
-        if tool is None:
-            continue
-        parent = str(PurePosixPath(entry.path).parent)
-        label = parent.removeprefix(CLAUDE_CODE_FOLDER + "/") if tool == CLAUDE_CODE else parent.removeprefix(CODEX_FOLDER + "/")
-        sessions.append(SessionFile(entry.path, tool, entry.size, entry.modified, label))
+    for session_type in SESSION_FORMATS:
+        found: list[FileEntry] = []
+        if (folder := await files.stat(session_type.folder)) is not None and folder.is_dir:
+            if session_type.per_folder:
+                projects = [
+                    entry for entry in await files.walk(session_type.folder, False, set(), MAX_FOLDERS) if entry.is_dir
+                ]
+                for project in projects[:MAX_FOLDERS]:
+                    found += [entry for entry in await files.walk(project.path, False, set(), 2000) if not entry.is_dir]
+            else:
+                found += [
+                    entry for entry in await files.walk(session_type.folder, True, set(), 10_000) if not entry.is_dir
+                ]
+        for entry in found:
+            owner = format_of(entry.path)
+            if owner is None:
+                continue
+            parent = str(PurePosixPath(entry.path).parent)
+            label = parent.removeprefix(session_type.folder + "/")
+            sessions.append(SessionFile(entry.path, owner.tool, entry.size, entry.modified, label))
     sessions.sort(key=lambda item: item.modified or 0, reverse=True)
     return sessions[:MAX_LISTED]
 
@@ -172,7 +177,8 @@ async def read_session_file(files: TargetFiles, path: str) -> bytes:
     """A session file from the target; only files in the two session folders, and not larger than the limit."""
     relative = files.check(path)
     if tool_of(relative) is None:
-        raise SessionImportError("Only Claude Code and Codex session files can be imported from a target.")
+        names = " and ".join(item.label for item in SESSION_FORMATS)
+        raise SessionImportError(f"Only {names} session files can be imported from a target.")
     entry = await files.stat(relative)
     if entry is None or entry.is_dir:
         raise SessionImportError(f"{path} is not there anymore.")

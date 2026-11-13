@@ -11,7 +11,9 @@ from sqlalchemy import func, select
 
 from app.imports import service
 from app.imports.service import read_session_file
-from app.imports.sessions import CLAUDE_CODE, CODEX, parse_session
+from app.imports.sessions import parse_session
+from app.providers.claude_code.sessions import CLAUDE_CODE_SESSIONS
+from app.providers.codex.sessions import CODEX_SESSIONS
 from app.providers.fake_provider import ScriptedResponse
 from app.storage.models import AgentRunRecord, Checkpoint, Target, UsageRecord
 from app.targets.container import CONTAINER
@@ -19,6 +21,8 @@ from app.targets.base import TargetError
 from tests.test_chat import send
 from tests.test_delegation import project_conversation
 
+CLAUDE_CODE = CLAUDE_CODE_SESSIONS.tool
+CODEX = CODEX_SESSIONS.tool
 SESSION_ID = "4f1c2a9e-8b7d-4e21-9a3c-5d6e7f809a1b"
 
 

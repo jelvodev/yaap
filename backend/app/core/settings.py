@@ -39,6 +39,7 @@ from app.core.prompts import ENGLISH, Languages
 from app.core.utility_tasks import OFF_SETTING_KEY, ROUTABLE_TASKS, check_task_models, check_tasks_off
 from app.core.utility_tasks import SETTING_KEY as UTILITY_TASKS_KEY
 from app.mcp_client.config import validate_servers
+from app.providers.catalog import default_model
 from app.providers.endpoints import SETTING_KEY as ENDPOINTS_KEY
 from app.providers.endpoints import check_endpoints
 from app.providers.registry import ProviderRegistry
@@ -347,7 +348,7 @@ SETTING_DEFINITIONS: dict[str, SettingDefinition] = {
                 "import. It runs at low effort; its usage is shown apart from the main work."
             ),
             levels=frozenset({"global", "environment"}),
-            default="claude-haiku-5-5",
+            default=default_model("utility"),
             validate=validate_model,
         ),
         SettingDefinition(

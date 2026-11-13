@@ -111,6 +111,7 @@ def make_test_app(fake: FakeBackend) -> FastAPI:
                 connection="claude_code",
                 runs_agents=True,
                 metered=False,
+                compacts_itself=True,
             ),
         ],
         ANTHROPIC_MODELS,

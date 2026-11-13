@@ -6,8 +6,8 @@ the limit. The limit comes from the conversation's own choice, else from the `co
 environment, global), else it is the model's window; it is never more than the window.
 
 Compaction: with `auto_compact` on, old tool output is shortened at `trim_at` percent of the limit and the
-earlier messages are summarised at `compact_at` percent. YAAP compacts every connection except Claude Code and Codex,
-which compact their own sessions.
+earlier messages are summarised at `compact_at` percent. YAAP compacts every connection except those whose spec says
+they compact their own sessions (the subscription CLIs).
 
 The length of one reply (`max_tokens` in the provider request) comes from the preset, else it is the model's maximum.
 """
@@ -28,8 +28,6 @@ MAX_CONTEXT_LIMIT = 10_000_000
 MIN_OUTPUT_TOKENS = 1_024
 DEFAULT_COMPACT_AT = 70
 DEFAULT_TRIM_AT = 50
-# Connections that keep their own session and compact it themselves; YAAP leaves those alone.
-SELF_COMPACTING = frozenset({"claude_code", "codex"})
 
 
 def is_token_count(value: Any) -> bool:
@@ -73,7 +71,7 @@ class ContextControl:
     auto_compact: bool = True
     compact_at: int = DEFAULT_COMPACT_AT
     trim_at: int = DEFAULT_TRIM_AT
-    # Claude Code and Codex compact their own sessions; YAAP neither trims nor summarises them.
+    # The connection compacts its own session (its spec says so); YAAP neither trims nor summarises it.
     compacts_itself: bool = False
 
     def reached(self, percent: int, used: int | None) -> bool:
@@ -97,7 +95,8 @@ def setting_limit(value: Any, window: int | None) -> int | None:
 
 
 def resolve_context_control(session: Session, providers: ProviderRegistry, conversation: Conversation) -> ContextControl:
-    from app.core.settings import SETTING_DEFINITIONS, resolve_setting
+    # Imported here: the settings import this module's validators.
+    from app.core.settings import SETTING_DEFINITIONS, resolve_connection, resolve_setting
 
     def setting(key: str) -> Any:
         return resolve_setting(session, SETTING_DEFINITIONS[key], conversation.environment_id, conversation.project_id)
@@ -119,17 +118,16 @@ def resolve_context_control(session: Session, providers: ProviderRegistry, conve
         auto_compact=setting("auto_compact").value != "off",
         compact_at=compact_at if is_token_count(compact_at) else DEFAULT_COMPACT_AT,
         trim_at=trim_at if is_token_count(trim_at) else DEFAULT_TRIM_AT,
-        compacts_itself=compacts_itself(session, providers, conversation),
+        compacts_itself=compacts_itself(
+            providers, conversation.provider, resolve_connection(session, conversation.provider, conversation.environment_id)
+        ),
     )
 
 
-def compacts_itself(session: Session, providers: ProviderRegistry, conversation: Conversation) -> bool:
-    """Whether the conversation's connection keeps and compacts its own session (Claude Code, Codex)."""
-    from app.core.settings import resolve_connection
-
-    connection = resolve_connection(session, conversation.provider, conversation.environment_id)
-    spec = providers.find_provider(conversation.provider, connection)
-    return spec is not None and spec.connection in SELF_COMPACTING
+def compacts_itself(providers: ProviderRegistry, provider: str, connection: str | None) -> bool:
+    """Whether the provider's connection (as the environment resolved it) keeps and compacts its own session."""
+    spec = providers.find_provider(provider, connection)
+    return spec is not None and spec.compacts_itself
 
 
 def validate_output_tokens(providers: ProviderRegistry, model_id: str, value: int | None) -> str | None:
