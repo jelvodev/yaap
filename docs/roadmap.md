@@ -39,12 +39,29 @@ Plan, build and review the work of a project, steered from one board.
 
 ## 0.8.1: public and easier to start
 
-Making the repository public once the project board is in, then fewer steps and less waiting before the first
-answer.
+The remaining security and code work first, then making the repository public once the project board is in,
+and fewer steps and less waiting before the first answer.
 
 51. **Checks on every push** in GitHub Actions: the backend tests, the migration check, the frontend build and whether
     the generated API types are up to date.
 48. **Releases on GitHub.** Each release is published as a GitHub Release, so the update notice finds it.
+83. **Project files held tighter.** Reading and writing project files stays inside the project, also when something
+    in the runner swaps folders at the wrong moment. Every place that touches project files, the Blueprint's project
+    layer included, goes through the same safe path.
+84. **Web pages fetched from the runner.** `web_fetch` runs in the project's runner, like commands, so it reaches
+    only what the runner may reach. An offline runner has no web fetch.
+85. **A security check before going public.** The earlier security findings are tested again, the images and the
+    git history are scanned, and YAAP is tested end to end on a setup like a real one. SECURITY.md says what is
+    protected and what is not.
+86. **One contract for the reply stream.** The events the chat receives while a reply runs come from generated
+    types, like the rest of the API, so a change on one side cannot quietly break the other.
+87. **Stricter stored data.** Goal and message statuses and message blocks are checked by their kind when they are
+    stored, not only when they are read. The browser and the server compute the same key for a tool call.
+88. **Provider knowledge in one place.** Everything that belongs to one vendor (default models, how a CLI compacts,
+    session formats) comes from that provider's description.
+89. **Tidier code at the edges.** The settings screens share one hook, the largest modules are split, missing type
+    annotations and unexplained suppressions are fixed, queued messages are reviewed end to end across restarts and
+    cancelling, and the rare conversation title that repeats its first words is tracked down.
 49. **Make the repository public**, and check that the update notice in a running YAAP sees the release.
 50. **A clean install** from the public repository on another computer, from `git clone` to a first command in a
     project: its tests run after an approval in the chat, with their output shown. With the time it took.
