@@ -11,7 +11,7 @@ Make a plan for the request below. Change nothing: this reply is read only. Tool
 3. For each step, give:
    - a short title, and details: what to change and why, with the names of functions, routes or fields where you know them;
    - the files it touches, relative to the project, with `/`;
-   - the checks that prove it is done: what a person sees, and, where possible, one command YAAP can run, such as a test, a type check or a `curl` against a running service. Prefer a check with a command; a step without one is verified by the main model instead.
+   - the checks that prove it is done: what a person sees, and, where possible, one command YAAP can run, such as a test, a type check or a `curl` against a running service. Prefer a check with a command; a step without one is verified by the main model instead. Use the commands the project already uses (its test runner, type checker or scripts, as its README, CI or Makefile shows them) and that exist where it runs: `python3` rather than `python`, for example.
 4. Name the risks: what might break, what you are unsure about, what the user should decide.
 5. When the request comes from a card, or holds a `### Acceptance criteria` list (a pasted specification), meet those criteria and say which step meets which. A criterion with a `run:` command makes a good check for the step that meets it.
 
