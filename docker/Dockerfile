@@ -1,7 +1,7 @@
 # Build context: the repository root (see docker-compose.build.yml).
 # Base images are pinned by digest, with the tag kept for reading; CONTRIBUTING.md says how to update one.
 
-FROM node:24-slim@sha256:01d566e8d94d8c619591d78652babfccd3c6992a3dffa9ed5ab39e11cf6c70e9 AS frontend
+FROM node:24-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54 AS frontend
 WORKDIR /build
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-fund --no-audit
@@ -21,9 +21,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH="/data/tools/node_modules/.bin:${PATH}" \
     DISABLE_AUTOUPDATER=1
 
-# git, curl and the certificates for HTTPS.
+# git, curl and the certificates for HTTPS. zlib1g is named so the fixed Debian security build is installed even when
+# the base image is older than that build.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl git \
+    && apt-get install -y --no-install-recommends ca-certificates curl git zlib1g \
     && rm -rf /var/lib/apt/lists/*
 
 # OCR for scanned PDFs and images added as knowledge or attachments: Tesseract, Dutch and English.
@@ -38,7 +39,9 @@ RUN useradd --create-home --uid 1000 yaap \
 WORKDIR /app
 # Every package, also the indirect ones, at the version and with the hashes of the lock file (CONTRIBUTING.md).
 COPY backend/requirements.lock ./
-RUN pip install --no-cache-dir --require-hashes --no-deps -r requirements.lock
+# pip is not needed at runtime; removing it also drops its vendored copies of urllib3 and others.
+RUN pip install --no-cache-dir --require-hashes --no-deps -r requirements.lock \
+    && pip uninstall --yes pip
 # Node.js and npm for installing the CLIs, taken from the same image as the frontend build. The agent's commands, MCP
 # servers over stdio and its browser run in the runner of their environment (docker/sandbox), not in this image.
 COPY --from=frontend /usr/local/bin/node /usr/local/bin/node

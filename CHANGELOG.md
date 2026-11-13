@@ -13,6 +13,7 @@ yourself when you update; it says "None." when there is nothing.
 - Installing and updating download the images (`docker compose pull`) instead of building them, which takes minutes instead of tens of minutes. `scripts/setup.sh --build` (`scripts\setup.ps1 -Build`) builds from the folder as before, through the new `docker-compose.build.yml` that it names in `.env`; the update script follows that choice. The images of the version you leave stay until the next update, so going back needs no download. A fork sets `YAAP_IMAGE_PREFIX` to use its own images.
 - The `sandbox-image` service is gone. The helper downloads the runner's image (about 2.8 GB, once) when the first command needs it; until it is there the command says *Preparing the runner* and can be tried again. It pulls only the configured image, and only uses one that carries YAAP's sandbox label.
 - Extra packages for the runner build on the published image (`docker/sandbox/Dockerfile.extra`); the example in `docker-compose.override.example.yml` and in the configuration guide shows how.
+- The images pick up the fixed `zlib1g` (Debian security update) and a newer Node base, and the app and helper images no longer carry pip. The remaining findings in a vulnerability scan are Debian packages without a fix yet and the copies bundled inside npm, for which no npm release has a fix.
 
 ### Action needed
 
