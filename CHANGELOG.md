@@ -46,6 +46,11 @@ yourself when you update; it says "None." when there is nothing.
 - Import GitHub issues into a board's Inbox, by number or by label (*Import issues*). One way: nothing is written to
 - *Make a card* on a review finding the change did not fix: a card in Inbox that points back at the review.
 
+- **A review with evidence.** When a card's build is done, YAAP checks the card's acceptance criteria itself on the build's copy: `run:` criteria as commands, `file:` criteria as file checks. The reviewer judges the other criteria and names the file and line it relied on. The card's review shows each criterion as met, failed or not checked, with a link to its source, plus the checks that ran, the size of the diff and a link to the build's conversation. A short summary goes into the card as its *Evidence* section.
+- Approving a card's plan also approves the card's acceptance-criteria commands, which the plan card lists. A criterion command added after the approval is not run.
+- *Send back with the finding* returns a card to Design with a review finding or an unmet criterion in its description, so the next plan fixes it.
+- Screenshots before and after are not taken yet. The evidence says "No preview for this project".
+
 ### Action needed
 
 - `git push --all` and `git push --mirror` also push the `yaap-board` branch, and with it every card, specification and plan. On a public repository, push your branches one by one.
