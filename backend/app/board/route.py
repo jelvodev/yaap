@@ -9,7 +9,9 @@ a card file that is broken is skipped with a warning and never rewritten. The ac
 
 import asyncio
 import logging
-from collections.abc import Callable
+import threading
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Protocol
@@ -117,6 +119,9 @@ class CardRoute:
     # Where plan events are handed over to: submit and approve are told from a worker thread.
     loop: asyncio.AbstractEventLoop | None = None
     work: BackgroundWork[None] = field(default_factory=BackgroundWork)
+    # Cards whose review is starting: its criteria checks run before the review's row says it is running.
+    starting_reviews: set[tuple[int, int]] = field(default_factory=set)
+    review_lock: threading.Lock = field(default_factory=threading.Lock)
 
     def plans(self) -> PlanService:
         return PlanService(self.services().session_factory)
@@ -323,6 +328,25 @@ class CardRoute:
         """Start the review of the plan's build and link it on the card. In a worker thread."""
         if view.status != "done" or not view.base_commit or not view.build_branch:
             raise NoPlan("The card's build has not finished.")
+        with self.review_starting(view.project_id, card_id):
+            return self.begin_review(view, card_id)
+
+    @contextmanager
+    def review_starting(self, project_id: int, card_id: int) -> Iterator[None]:
+        """One review start per card at a time, the automatic one after a build and a click on *Review* alike, also
+        while the criteria checks run before the review's row exists."""
+        key = (project_id, card_id)
+        with self.review_lock:
+            if key in self.starting_reviews:
+                raise ActionRunning("The card's review is starting.")
+            self.starting_reviews.add(key)
+        try:
+            yield
+        finally:
+            with self.review_lock:
+                self.starting_reviews.discard(key)
+
+    def begin_review(self, view: PlanView, card_id: int) -> int:
         with self.services().session_factory() as session:
             running = session.scalar(
                 select(Review.id).where(
