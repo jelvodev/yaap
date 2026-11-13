@@ -71,6 +71,7 @@ from app.api import plans as plans_api
 from app.api import board as board_api
 from app.api import board_intake as board_intake_api
 from app.api import card_actions as card_actions_api
+from app.board.actions import ActionService
 from app.board.index import BoardIndexer
 from app.board.route import CardRoute
 from app.board.stage_conversation import ReplyStarter
@@ -246,6 +247,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.builds.listeners.add(app.state.card_route.on_plan_event)
     # Approving a card's plan also approves its acceptance criteria commands, which the review runs on the copy.
     app.state.builds.approved_extras = app.state.card_route.criteria_commands
+    # The board's column actions: Specify, and the card's route for the later stages.
+    app.state.board_actions = ActionService(
+        app.state.board, app.state.card_route, ReplyStarter(reply_services), reply_services
+    )
     start_check = asyncio.create_task(check_at_start(app.state.updates)) if app.state.update_check_at_start else None
     # CLIs installed by an older release are installed again from this release's lock.
     app.state.cli_sign_ins.refresh_tools()
@@ -298,6 +303,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Before the engine goes: work still running would keep a connection, and the database file, open.
     await app.state.builds.shutdown()
     await app.state.card_route.work.stop()
+    await app.state.board_actions.work.stop()
     await stop_replies_and_their_work(app.state.replies, (app.state.evals.work, app.state.replay_service.work))
     app.state.plugins.unload_all()
     engine.dispose()
