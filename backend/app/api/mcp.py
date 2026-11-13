@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from app.api.dependencies import EnvironmentDependency, SessionDependency
 from app.mcp_client.client import McpError
+from app.mcp_client.config import ServerConfig
 from app.mcp_client.manager import Connection
 from app.mcp_client.runs import configured_servers, ready_servers, server_place
 from app.storage.models import Project
@@ -33,7 +34,7 @@ class McpServerOut(BaseModel):
     log: list[str]
 
 
-def server_out(server, connection: Connection | None, error: str | None = None) -> McpServerOut:  # type: ignore[no-untyped-def]
+def server_out(server: ServerConfig, connection: Connection | None, error: str | None = None) -> McpServerOut:
     from app.mcp_client.manager import tool_name
 
     raw = connection.raw_tools if connection else []

@@ -204,7 +204,7 @@ def entry_out(session: Session, entry: VaultEntry, labels: dict[str, VaultKindOu
         name=entry.name,
         kind=entry.kind,
         kind_label=labels[entry.kind].label if entry.kind in labels else entry.kind,
-        level=level_of(entry),  # type: ignore[arg-type]
+        level=level_of(entry),  # type: ignore[arg-type]  # a plain string in the service; the schema narrows it
         environment_id=entry.environment_id,
         project_id=entry.project_id,
         level_name=level_name(session, entry),
@@ -214,7 +214,7 @@ def entry_out(session: Session, entry: VaultEntry, labels: dict[str, VaultKindOu
         last_four=entry.last_four,
         description=entry.description or "",
         expires_at=entry.expires_at,
-        expiry=expiry_state(entry),  # type: ignore[arg-type]
+        expiry=expiry_state(entry),  # type: ignore[arg-type]  # a plain string in the service; the schema narrows it
         last_used_at=entry.last_used_at,
         last_tested_at=entry.last_tested_at,
         last_test_result=entry.last_test_result,

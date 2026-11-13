@@ -63,7 +63,7 @@ def parse_session(data: bytes) -> ImportedSession:
 
 
 def is_imported(provider_raw: list[dict[str, Any]] | None) -> bool:
-    return bool(provider_raw) and provider_raw[0].get("type") == IMPORTED_BLOCK_TYPE  # type: ignore[index]
+    return provider_raw is not None and len(provider_raw) > 0 and provider_raw[0].get("type") == IMPORTED_BLOCK_TYPE
 
 
 def shorten(text: str, limit: int) -> str:

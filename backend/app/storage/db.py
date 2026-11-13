@@ -1,6 +1,7 @@
 """Database engine, sessions and migrations."""
 
 import logging
+import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -8,12 +9,13 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import ConnectionPoolEntry
 
 MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 logger = logging.getLogger(__name__)
 
 
-def load_vector_functions(dbapi_connection) -> bool:  # type: ignore[no-untyped-def]
+def load_vector_functions(dbapi_connection: sqlite3.Connection) -> bool:
     """sqlite-vec's functions (vec_distance_cosine) for semantic search. Without them search is full-text only."""
     try:
         import sqlite_vec
@@ -34,7 +36,7 @@ def create_database_engine(database_url: str) -> Engine:
     engine = create_engine(database_url, connect_args={"check_same_thread": False, "timeout": 30})
 
     @event.listens_for(engine, "connect")
-    def configure_sqlite(dbapi_connection, _record) -> None:  # type: ignore[no-untyped-def]
+    def configure_sqlite(dbapi_connection: sqlite3.Connection, _record: ConnectionPoolEntry) -> None:
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA journal_mode=WAL")
         cursor.execute("PRAGMA foreign_keys=ON")

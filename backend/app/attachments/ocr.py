@@ -9,8 +9,12 @@ import logging
 import shutil
 import subprocess
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from app.core.subprocess_env import safe_subprocess_env
+
+if TYPE_CHECKING:
+    from pypdf import PageObject
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +63,7 @@ def read_image(data: bytes) -> str:
     return result.stdout.decode("utf-8", errors="replace").strip()
 
 
-def page_image(page) -> bytes | None:  # type: ignore[no-untyped-def]
+def page_image(page: "PageObject") -> bytes | None:
     """The largest image on a PDF page."""
     try:
         images = list(page.images)

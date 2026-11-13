@@ -56,8 +56,8 @@ def build_history(branch: list[Message], resolver: AttachmentResolver | None = N
                 content = resolver.expand(content)
         elif is_imported(message.provider_raw):
             # A turn of an imported Claude Code or Codex session: its tool calls go along as text.
-            content = imported_model_content(content, message.provider_raw[0].get("tool", ""))  # type: ignore[index]
-        history.append(HistoryMessage(role=message.role, content=content, provider_raw=message.provider_raw))  # type: ignore[arg-type]
+            content = imported_model_content(content, message.provider_raw[0].get("tool", ""))  # type: ignore[index]  # is_imported() has checked provider_raw is not empty
+        history.append(HistoryMessage(role=message.role, content=content, provider_raw=message.provider_raw))  # type: ignore[arg-type]  # only user and assistant rows pass is_part_of_history
     return history
 
 

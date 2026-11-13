@@ -64,7 +64,7 @@ def read_schedule(session: Session) -> dict[str, Any]:
 
 
 def read_destinations(session: Session) -> list[DestinationConfig]:
-    from app.core.settings import SETTING_DEFINITIONS, resolve_setting  # noqa: PLC0415
+    from app.core.settings import SETTING_DEFINITIONS, resolve_setting  # noqa: PLC0415 - settings imports this module
 
     value = resolve_setting(session, SETTING_DEFINITIONS["backup_destinations"], None).value
     try:
@@ -83,7 +83,7 @@ def make_destination(config: DestinationConfig, session: Session, cipher: Any) -
 
 
 def timezone_name(session: Session) -> str:
-    from app.core.settings import resolve_text  # noqa: PLC0415
+    from app.core.settings import resolve_text  # noqa: PLC0415 - settings imports this module
 
     return resolve_text(session, "timezone", None) or "UTC"
 
@@ -185,7 +185,7 @@ def backup_tick(app: Any, now: datetime | None = None, wait: bool = False) -> st
             run_backup(app.state, trigger)
         except BackupBusy:
             pass
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001 - a failed backup must not stop the scheduler thread; it is logged
             logger.exception("The scheduled backup failed.")
 
     if wait:

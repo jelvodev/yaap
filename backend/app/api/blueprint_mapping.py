@@ -126,7 +126,7 @@ def package_item_out(
         source = f" from the package '{owner.record['name']}'" if owner else ""
         warnings.append(f"Replaces the {item.kind} '{item.name}'{source} at this level.")
     return PackageItemOut(
-        kind=item.kind,  # type: ignore[arg-type]
+        kind=item.kind,  # type: ignore[arg-type]  # a plain string in the service; the schema narrows it
         path=item.path,
         name=item.name,
         description=item.description,

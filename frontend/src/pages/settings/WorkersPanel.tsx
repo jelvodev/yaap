@@ -103,7 +103,7 @@ function CliWorkerRow({
               disabled={!setting || choices.length === 0}
               onChange={(event) => {
                 const next = choices.find((item) => item.id === event.target.value);
-                if (next) save({ model: next.id, effort: next.efforts.includes(value?.effort ?? "") ? value!.effort : next.default_effort });
+                if (next) save({ model: next.id, effort: value && next.efforts.includes(value.effort) ? value.effort : next.default_effort });
               }}
             >
               {!model && <option value={value?.model ?? ""}>{value?.model ?? "–"}</option>}

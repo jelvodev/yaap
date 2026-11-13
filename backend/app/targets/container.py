@@ -13,7 +13,7 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 from pathlib import PurePosixPath
-from typing import Any
+from typing import Any, Literal
 
 import anyio
 
@@ -260,7 +260,7 @@ class LocalExecutor:
         deadline = loop.time() + timeout
         decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
         collected = Collected()
-        stopped: str | None = None
+        stopped: Literal["total", "silence"] | None = None
         while True:
             remaining = deadline - loop.time()
             if remaining <= 0:
@@ -283,7 +283,7 @@ class LocalExecutor:
         if stopped is not None:
             stop_tree(process)
             await process.wait()
-            return CommandResult(None, collected.text(), timed_out=True, stopped=stopped)  # type: ignore[arg-type]
+            return CommandResult(None, collected.text(), timed_out=True, stopped=stopped)
         await process.wait()
         return CommandResult(process.returncode, collected.text())
 
