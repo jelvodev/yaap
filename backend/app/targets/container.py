@@ -97,9 +97,13 @@ def local_entry(relative: str, path: Path, is_dir: bool | None = None) -> FileEn
 
 
 class LocalFiles:
-    def __init__(self, root: str) -> None:
+    def __init__(self, root: str, expected: tuple[int, int] | None = None) -> None:
+        """`expected` is the project folder's identity a run pinned; the folder opened must be that one."""
         self.root = Path(os.path.abspath(root))
-        self.safe = SafeRoot(self.root)
+        try:
+            self.safe = SafeRoot(self.root, expected)
+        except RootReplacedError as error:
+            raise TargetError("The project folder was replaced.") from error
 
     def absolute(self, path: str) -> Path:
         return self.root.joinpath(*relative_parts(path or "."))

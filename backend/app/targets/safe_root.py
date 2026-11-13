@@ -7,11 +7,11 @@ resolves paths and keeps them below the root. The choice is a conditional import
 
 import sys
 
-from app.targets.safe_root_base import RootReplacedError, SafeRootBase, SafeRootError, relative_parts
+from app.targets.safe_root_base import RootReplacedError, SafeRootBase, SafeRootError, relative_parts, same_root
 
 if sys.platform == "win32":
     from app.targets.safe_root_windows import WindowsSafeRoot as SafeRoot
 else:
     from app.targets.safe_root_posix import PosixSafeRoot as SafeRoot
 
-__all__ = ["RootReplacedError", "SafeRoot", "SafeRootBase", "SafeRootError", "relative_parts"]
+__all__ = ["RootReplacedError", "SafeRoot", "SafeRootBase", "SafeRootError", "relative_parts", "same_root"]

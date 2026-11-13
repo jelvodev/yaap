@@ -7,7 +7,7 @@ import uuid
 from collections.abc import Iterator
 from pathlib import Path
 
-from app.targets.safe_root_base import RootReplacedError, SafeRootBase, SafeRootError, relative_parts
+from app.targets.safe_root_base import RootReplacedError, SafeRootBase, SafeRootError, relative_parts, same_root
 
 MAX_SYMLINKS = 40
 
@@ -54,9 +54,13 @@ def _remove_entry_at(parent_fd: int, name: str) -> None:
 
 
 class PosixSafeRoot(SafeRootBase):
-    def __init__(self, root: Path) -> None:
-        super().__init__(root)
+    def __init__(self, root: Path, expected: tuple[int, int] | None = None) -> None:
+        super().__init__(root, expected)
         self._root_fd = self._open_root(self.path)
+        opened = os.fstat(self._root_fd)
+        if not same_root(self.expected, (opened.st_dev, opened.st_ino)):
+            self.close()
+            raise RootReplacedError("The project folder was replaced.")
 
     @staticmethod
     def _pinned_path(absolute: Path) -> Path:
@@ -84,7 +88,7 @@ class PosixSafeRoot(SafeRootBase):
         try:
             pinned = os.fstat(self._root_fd)
             found = os.fstat(current)
-            if (pinned.st_dev, pinned.st_ino) != (found.st_dev, found.st_ino):
+            if not same_root((pinned.st_dev, pinned.st_ino), (found.st_dev, found.st_ino)):
                 raise RootReplacedError("The project folder was replaced.")
         finally:
             os.close(current)
