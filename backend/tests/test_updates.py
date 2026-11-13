@@ -112,13 +112,15 @@ CHANGELOG = f"# Changelog\n\n## Unreleased\n\nNone.\n\n## {NEWER} (2099-01-01)\n
 
 
 class FakeGitHub:
-    """A fake GitHub: answers /tags and the raw changelog, and records every request."""
+    """A fake GitHub: answers /releases and the raw changelog, and records every request."""
 
     def __init__(self) -> None:
         self.requests: list[httpx.Request] = []
         self.tags: list[str] = [f"v{NEWER}", f"v{VERSION}"]
         self.status = 200
         self.etag = '"tags-1"'
+        # Tags whose Release is a draft or a pre-release.
+        self.unpublished: set[str] = set()
         self.offline = False
         self.notes_status = 200
 
@@ -132,7 +134,11 @@ class FakeGitHub:
             return httpx.Response(self.status)
         if request.headers.get("If-None-Match") == self.etag:
             return httpx.Response(304)
-        return httpx.Response(200, json=[{"name": tag} for tag in self.tags], headers={"ETag": self.etag})
+        releases = [
+            {"tag_name": tag, "draft": tag in self.unpublished, "prerelease": tag in self.unpublished}
+            for tag in self.tags
+        ]
+        return httpx.Response(200, json=releases, headers={"ETag": self.etag})
 
     def tag_calls(self) -> list[httpx.Request]:
         return [request for request in self.requests if request.url.host == "api.github.com"]
@@ -207,8 +213,15 @@ def test_offline_keeps_the_last_result_and_shows_the_error(client, github):
 def test_malformed_tags_are_not_releases(client, github):
     github.tags = ["v1.0.0-rc1", "latest", "v2", "release-3.0.0"]
     outcome = service_of(client).check()
-    assert outcome.state.newest_version is None and "no release tag" in (outcome.state.error or "")
+    assert outcome.state.newest_version is None and "no GitHub Release" in (outcome.state.error or "")
     assert not outcome.announce
+
+
+@pytest.mark.parametrize(("unpublished", "expected"), [(set(), "99.0.0"), ({"v99.0.0"}, NEWER)])
+def test_only_a_published_release_is_offered(client, github, unpublished, expected):
+    github.tags.append("v99.0.0")
+    github.unpublished = unpublished
+    assert service_of(client).check().state.newest_version == expected
 
 
 def test_a_missing_repository_without_a_token_says_a_token_is_needed(client, github):
@@ -237,7 +250,7 @@ def test_a_changed_source_is_asked_without_the_old_etag(client, github):
     assert client.put("/api/v1/settings/update_source", json={"value": "someone/fork"}).status_code == 200
     service_of(client).check()
     last = github.tag_calls()[-1]
-    assert "/repos/someone/fork/tags" in str(last.url) and "If-None-Match" not in last.headers
+    assert "/repos/someone/fork/releases" in str(last.url) and "If-None-Match" not in last.headers
 
 
 @pytest.mark.parametrize("value", [".", "./yaap", "owner/..", "../..", "a/b/c", "owner"])
@@ -278,7 +291,7 @@ def test_a_check_while_one_runs_waits_for_its_result(client):
         release.wait(5)
         if request.url.host == "raw.githubusercontent.com":
             return httpx.Response(200, text=CHANGELOG)
-        return httpx.Response(200, json=[{"name": f"v{NEWER}"}])
+        return httpx.Response(200, json=[{"tag_name": f"v{NEWER}"}])
 
     service = service_of(client)
     service.transport = httpx.MockTransport(slow)

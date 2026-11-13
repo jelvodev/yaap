@@ -259,11 +259,13 @@ Each destination keeps its own number of backups; YAAP removes only files named 
 ## Update check
 
 This is the one call YAAP makes on its own to a place you did not choose. A few seconds after it starts, and then on a
-schedule, YAAP asks GitHub's API for the tags of its repository (`GET api.github.com/repos/jelvodev/yaap/tags`) and
-reads the `CHANGELOG.md` of the newest `vX.Y.Z` tag from `raw.githubusercontent.com`. The request carries
+schedule, YAAP asks GitHub's API for the Releases of its repository (`GET api.github.com/repos/jelvodev/yaap/releases`) and
+reads the `CHANGELOG.md` of the newest `vX.Y.Z` Release from `raw.githubusercontent.com`. A Release is published only
+after the images of its version, so YAAP never offers a version that cannot be downloaded yet. The request carries
 `User-Agent: YAAP/<version>` and nothing about you, your projects or your installation. When an environment has a GitHub
 token (Settings › Git and GitHub), YAAP sends it so a private repository can be read; without one, a private repository
-answers "not found" and the section says that a GitHub token is needed. Pre-releases and malformed tags are ignored.
+answers "not found" and the section says that a GitHub token is needed. Drafts, pre-releases and malformed tags are ignored; a fork
+that sets its own `update_source` needs GitHub Releases too.
 
 | Setting (Settings › System › Updates, Global) | Default | Meaning |
 |---|---|---|
