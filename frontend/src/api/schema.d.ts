@@ -8495,6 +8495,18 @@ export interface components {
             /** Tool */
             tool: string;
         };
+        /**
+         * OutsideStepOut
+         * @description A step whose commit changed files the plan does not name.
+         */
+        OutsideStepOut: {
+            /** Paths */
+            paths: string[];
+            /** Step */
+            step: number;
+            /** Total */
+            total: number;
+        };
         /** OverriddenByOut */
         OverriddenByOut: {
             /**
@@ -8711,6 +8723,11 @@ export interface components {
             delivered: boolean;
             /** Final Checks */
             final_checks: components["schemas"]["FinalCheckOut"][];
+            /**
+             * Outside Plan
+             * @default []
+             */
+            outside_plan: components["schemas"]["OutsideStepOut"][];
             /** Queued */
             queued?: string | null;
             /** Uncommitted */

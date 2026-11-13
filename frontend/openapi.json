@@ -9682,6 +9682,33 @@
         "title": "OutsideApprovalOut",
         "type": "object"
       },
+      "OutsideStepOut": {
+        "description": "A step whose commit changed files the plan does not name.",
+        "properties": {
+          "paths": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Paths",
+            "type": "array"
+          },
+          "step": {
+            "title": "Step",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "step",
+          "paths",
+          "total"
+        ],
+        "title": "OutsideStepOut",
+        "type": "object"
+      },
       "OverriddenByOut": {
         "properties": {
           "kind": {
@@ -10295,6 +10322,14 @@
               "$ref": "#/components/schemas/FinalCheckOut"
             },
             "title": "Final Checks",
+            "type": "array"
+          },
+          "outside_plan": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/OutsideStepOut"
+            },
+            "title": "Outside Plan",
             "type": "array"
           },
           "queued": {
