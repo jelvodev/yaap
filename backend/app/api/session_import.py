@@ -6,7 +6,7 @@ from fastapi import APIRouter, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.api.conversations import summary_out
+from app.api.conversation_mapping import summary_out
 from app.api.dependencies import CipherDependency, EnvironmentDependency, ProviderRegistryDependency, SessionDependency
 from app.api.schemas import ConversationSummaryOut
 from app.imports import service

@@ -8,8 +8,10 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
 
-from app.api.conversations import ConversationDependency, ConversationSummaryOut, summary_out, utility_context
+from app.api.conversation_mapping import summary_out
+from app.api.conversations import ConversationDependency, utility_context
 from app.api.dependencies import ProviderRegistryDependency, SessionDependency
+from app.api.schemas import ConversationSummaryOut
 from app.core.conversation_continuation import LinkedConversation, continuation_links, continue_from_summary
 from app.core.return_notice import Billing, conversation_return_notice
 from app.core.summaries import SummaryError
