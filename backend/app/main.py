@@ -70,13 +70,14 @@ from app.api import reviews as reviews_api
 from app.api import plans as plans_api
 from app.api import board as board_api
 from app.api import board_intake as board_intake_api
+from app.api import board_storage as board_storage_api
 from app.api import card_actions as card_actions_api
 from app.board.index import BoardIndexer
 from app.board.route import CardRoute
 from app.board.stage_conversation import ReplyStarter
 from app.reviews.service import recover_reviews
 from app.board.service import BoardService
-from app.board.storage import BranchStorage
+from app.board.storage import board_storages
 from app.api import second_opinion as second_opinion_api
 from app.api import github as github_api
 from app.api import targets as targets_api
@@ -230,10 +231,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         recover_backup_runs(session)
     scheduler = asyncio.create_task(run_scheduler(app)) if app.state.scheduler else None
     app.state.updates = UpdateService(app.state.session_factory, app.state.cipher)
-    # The project boards: their files on each project's yaap-board branch, indexed in the database.
+    # The project boards: their files on each project's yaap-board branch or in a separate repository, indexed.
     app.state.board = BoardService(
         app.state.session_factory,
-        BranchStorage(settings.workspace_dir),
+        board_storages(app.state.session_factory, app.state.cipher, settings.workspace_dir, settings.data_dir),
         BoardIndexer(app.state.session_factory),
         settings.blueprint_dir,
         settings.workspace_dir,
@@ -458,6 +459,7 @@ def create_app(
     api.include_router(plans_api.router)
     api.include_router(board_api.router)
     api.include_router(board_intake_api.router)
+    api.include_router(board_storage_api.router)
     api.include_router(card_actions_api.router)
     api.include_router(current_state_api.router)
     api.include_router(second_opinion_api.router)

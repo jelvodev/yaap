@@ -30,6 +30,9 @@ BoardErrorCode = Literal[
     "action_running",
     "no_plan",
     "nothing_to_review",
+    "board_diverged",
+    "pull_failed",
+    "invalid_repository_url",
 ]
 # Why the flow (app.board.flow) refuses a move or event.
 RefusalCode = Literal[
@@ -271,3 +274,27 @@ class GitHubFailed(BoardError):
 
     code: ClassVar[BoardErrorCode] = "github_failed"
     default_sentence: ClassVar[str] = "GitHub could not be asked for the issues."
+
+
+class BoardDiverged(BoardError):
+    """The board here and its separate repository both have commits the other lacks; a pull only fast-forwards."""
+
+    code: ClassVar[BoardErrorCode] = "board_diverged"
+    default_sentence: ClassVar[str] = (
+        "The board here and its repository have both changed since they were last in step, so it cannot be pulled "
+        "without merging. Nothing was changed."
+    )
+
+
+class PullFailed(BoardError):
+    """The separate repository could not be cloned or fetched (network, access, a refused URL)."""
+
+    code: ClassVar[BoardErrorCode] = "pull_failed"
+    default_sentence: ClassVar[str] = "The board's repository could not be reached."
+
+
+class InvalidRepositoryUrl(BoardError):
+    code: ClassVar[BoardErrorCode] = "invalid_repository_url"
+    default_sentence: ClassVar[str] = (
+        "Use an https URL without a user name or token in it, for example https://github.com/owner/board.git."
+    )

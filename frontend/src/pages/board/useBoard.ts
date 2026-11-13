@@ -4,6 +4,7 @@ import {
   type Board,
   type BoardCard,
   type BoardProblem,
+  type BoardStartChoice,
   type CardCreate,
   type CardDetail,
   type Column,
@@ -30,8 +31,8 @@ export interface BoardHandle {
   reload: () => Promise<void>;
   /** Move a card by hand; it returns to its column when the backend refuses, with the reason as notice. */
   move: (card: BoardCard, column: Column) => Promise<boolean>;
-  /** Start the board on the project's branch (making a repository first when asked). */
-  start: (createRepository: boolean) => Promise<BoardProblem | null>;
+  /** Start the board on the project's branch or in a separate repository. */
+  start: (choice: BoardStartChoice) => Promise<BoardProblem | null>;
   addCard: (body: CardCreate) => Promise<CardDetail | null>;
 }
 
@@ -106,8 +107,8 @@ export function useBoard(projectId: number): BoardHandle {
   );
 
   const start = useCallback(
-    async (createRepository: boolean) => {
-      const answer = await startBoard(projectId, createRepository);
+    async (choice: BoardStartChoice) => {
+      const answer = await startBoard(projectId, choice);
       if (!answer.ok) return answer.problem;
       head.current = answer.data.head;
       setBoard(answer.data);

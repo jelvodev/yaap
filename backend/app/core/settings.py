@@ -16,7 +16,14 @@ from app.agent.workers import CLI_WORKERS, cli_worker_validator
 from app.agent.workers import default_value as cli_default_value
 from app.backups.destinations import validate_destinations
 from app.backups.runs import SCHEDULE_DEFAULT, validate_schedule
-from app.board.settings import BOARD_PUSH_KEY, PROJECT_BOARD_KEY, validate_switch
+from app.board.settings import (
+    BOARD_PUSH_KEY,
+    BOARD_REPOSITORY_URL_KEY,
+    BOARD_STORAGE_KEY,
+    PROJECT_BOARD_KEY,
+    validate_repository_url,
+    validate_switch,
+)
 from app.core.context_control import (
     DEFAULT_COMPACT_AT,
     DEFAULT_TRIM_AT,
@@ -578,6 +585,29 @@ SETTING_DEFINITIONS: dict[str, SettingDefinition] = {
             levels=frozenset({"project"}),
             default=False,
             validate=validate_switch,
+        ),
+        SettingDefinition(
+            key=BOARD_STORAGE_KEY,
+            label="Where the board is kept",
+            description=(
+                "The yaap-board branch of the project's own repository, or a separate private repository "
+                "(board_repository_url). A pushed branch of a public repository is public too. Chosen when the board "
+                "starts; a started board stays where it is."
+            ),
+            levels=frozenset({"project"}),
+            default="branch",
+            options=(SettingOption("branch", "Branch"), SettingOption("repository", "Separate repository")),
+        ),
+        SettingDefinition(
+            key=BOARD_REPOSITORY_URL_KEY,
+            label="Board repository",
+            description=(
+                "The https URL of the separate private repository that holds the board, without a user name or "
+                "token; not the project's own remote. The GitHub token of the project is used to reach it."
+            ),
+            levels=frozenset({"project"}),
+            default="",
+            validate=validate_repository_url,
         ),
         SettingDefinition(
             key="runner_network",

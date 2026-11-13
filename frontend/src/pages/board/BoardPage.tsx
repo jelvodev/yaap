@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { type ReactNode, useEffect } from "react";
 
 import type { Project } from "../../api/client";
 import { useBoardLinks } from "../chat/useChatLinks";
@@ -10,6 +10,7 @@ import BrokenCards from "./BrokenCards";
 import CardDetail from "./CardDetail";
 import EmptyBoard from "./EmptyBoard";
 import ListView from "./ListView";
+import PullBoard from "./PullBoard";
 import type { Board } from "./boardApi";
 import { useBoard } from "./useBoard";
 import type { BoardHandle } from "./useBoard";
@@ -25,13 +26,22 @@ interface BoardPageProps {
   onProjectChanged: (project: Project) => void;
 }
 
-function Unreadable({ message, retry }: { message: string | null; retry: () => Promise<void> }) {
+function Unreadable({
+  message,
+  retry,
+  pull,
+}: {
+  message: string | null;
+  retry: () => Promise<void>;
+  pull?: ReactNode;
+}) {
   return (
     <div className="board-page board-message">
       <p className="board-notice">{message ?? "The board could not be read."}</p>
       <button type="button" className="button" onClick={() => void retry()}>
         Retry
       </button>
+      {pull}
     </div>
   );
 }
@@ -162,7 +172,10 @@ export default function BoardPage({ projectId, cardId, projects, onScope, onProj
       </div>
     );
   }
-  if (board.state === "unavailable") return <Unreadable message={board.message} retry={handle.reload} />;
+  if (board.state === "unavailable") {
+    const pull = board.storage === "repository" ? <PullBoard projectId={projectId} reload={handle.reload} /> : undefined;
+    return <Unreadable message={board.message} retry={handle.reload} pull={pull} />;
+  }
   if (board.state === "not_started" || handle.cards.length === 0) {
     return (
       <div className="board-page">

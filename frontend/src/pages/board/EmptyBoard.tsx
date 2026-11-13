@@ -47,7 +47,12 @@ export default function EmptyBoard({
       <h3>This project has no cards yet</h3>
       <p className="muted">A small project works as before: start a conversation. Note an idea and the board starts.</p>
       {choosing ? (
-        <NotStarted start={board.start} onStarted={() => void startedBoard()} onCancel={() => setChoosing(false)} />
+        <NotStarted
+          projectId={projectId}
+          start={board.start}
+          onStarted={() => void startedBoard()}
+          onCancel={() => setChoosing(false)}
+        />
       ) : (
         <div className="board-empty-row">
           <input

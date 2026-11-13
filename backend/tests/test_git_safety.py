@@ -428,3 +428,61 @@ def test_claude_code_runs_git_with_the_same_settings_and_without_project_setting
     arguments = ClaudeCodeProvider(["claude"]).build_arguments(request, TurnInput(None, []), folder / "prompt.md")
     assert arguments[arguments.index("--setting-sources") + 1] == "user"
 
+
+
+@pytest.mark.parametrize(
+    ("has_head", "has_objects", "has_refs", "has_dot_git", "bare"),
+    [
+        (True, True, True, False, True),
+        (True, True, True, True, False),  # a work tree with its own .git is checked through that .git
+        (False, True, True, False, False),
+        (True, False, True, False, False),
+        (True, True, False, False, False),
+        (False, False, False, False, False),
+    ],
+)
+def test_a_bare_repository_is_recognised_by_gits_own_layout(has_head, has_objects, has_refs, has_dot_git, bare):
+    assert safety.bare_layout(has_head, has_objects, has_refs, has_dot_git) is bare
+
+
+def bare_repository(tmp_path: Path) -> Path:
+    folder = tmp_path / "boards" / "1.git"
+    folder.parent.mkdir(parents=True)
+    host_git("init", "--quiet", "--bare", str(folder), cwd=folder.parent)
+    return folder
+
+
+@pytest.mark.parametrize(
+    ("key", "value", "accepted"),
+    [
+        (None, None, True),
+        ("remote.origin.url", "https://github.com/owner/board.git", True),
+        ("remote.origin.fetch", "+refs/heads/*:refs/remotes/origin/*", True),
+        ("filter.evil.clean", "touch x", False),
+        ("core.worktree", "/tmp", False),
+        ("core.sshcommand", "touch x", False),
+        ("include.path", "/tmp/other", False),
+        ("remote.origin.uploadpack", "touch x", False),
+        ("credential.helper", "store", False),
+    ],
+)
+def test_a_bare_repository_named_by_yaap_is_checked_like_any_other(tmp_path, key, value, accepted):
+    folder = bare_repository(tmp_path)
+    if key is not None:
+        host_git("config", key, value, cwd=folder)
+    if accepted:
+        check_repository(folder)
+        service.run_git(["rev-parse", "--is-bare-repository"], folder, {"GIT_DIR": str(folder)})
+    else:
+        with pytest.raises(UnsafeRepository, match=key):
+            check_repository(folder)
+        with pytest.raises(GitError):
+            service.run_git(["rev-parse", "--is-bare-repository"], folder, {"GIT_DIR": str(folder)})
+
+
+def test_a_bare_repository_borrowing_objects_from_outside_is_refused(tmp_path):
+    folder = bare_repository(tmp_path)
+    (folder / "objects" / "info").mkdir(parents=True, exist_ok=True)
+    (folder / "objects" / "info" / "alternates").write_text(str(tmp_path / "elsewhere"), encoding="utf-8")
+    with pytest.raises(UnsafeRepository, match="borrows objects"):
+        check_repository(folder)

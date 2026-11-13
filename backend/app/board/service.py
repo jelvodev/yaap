@@ -58,7 +58,8 @@ from app.board.paths import card_path, version_path
 from app.board.publish import BoardPusher
 from app.board.repository import BoardRepository, Change, CommitInfo, Delete, Put
 from app.board.squash import Tally, board_message, should_squash, squash_message
-from app.board.storage import BoardStorage
+from app.board.settings import push_offered
+from app.board.storage import BoardStorages
 from app.board.switch import board_enabled, board_push_allowed
 from app.board.versions import BrokenVersion, Version, parse_version, render_version
 from app.board.views import (
@@ -105,7 +106,7 @@ class Opened:
 @dataclass(frozen=True)
 class BoardService:
     session_factory: sessionmaker[Session]
-    storage: BoardStorage
+    storage: BoardStorages
     indexer: BoardIndexer
     # Where the Blueprint is, for a definition of done from a standard; None uses the defaults in code.
     blueprint_dir: Path | None = None
@@ -212,21 +213,29 @@ class BoardService:
 
     # --- the board -----------------------------------------------------------------------------------------------
 
-    def enable(self, project_id: int, storage: StorageKind = "branch", create_repository: bool = False) -> BoardView:
-        """Start the project's board. The branch itself is made with the first card, so nothing is committed now."""
+    def enable(
+        self,
+        project_id: int,
+        storage: StorageKind = "branch",
+        create_repository: bool = False,
+        repository_url: str | None = None,
+    ) -> BoardView:
+        """Start the project's board. The branch itself is made with the first card, so nothing is committed now; a
+        separate repository is cloned first."""
         project = self.project(project_id)
-        if storage != self.storage.kind:
-            raise BoardUnavailable("That place for the board is not available.")
+        chosen = self.storage.get(storage)
         with self.session_factory() as session:
             if not board_enabled(session, project.environment_id, project.id).enabled:
                 raise BoardOff()
             if session.get(BoardState, project.id) is not None:
                 raise BoardExists()
-        if not self.storage.has_repository(project):
+        if storage == "repository":
+            self.storage.link_repository(project, repository_url)
+        elif not chosen.has_repository(project):
             if not create_repository:
                 raise NoRepository()
-            self.storage.create_repository(project)
-        repository = self.storage.open(project)
+            chosen.create_repository(project)
+        repository = chosen.open(project)
         repository.head()  # fails early, before the state is stored, when git cannot read the repository
         with self.session_factory() as session:
             session.add(BoardState(project_id=project.id, storage=storage, next_card_id=1, created_at=self.clock()))
@@ -243,7 +252,8 @@ class BoardService:
         with self.session_factory() as session:
             switch = board_enabled(session, project.environment_id, project.id)
             state = session.get(BoardState, project.id)
-            push_allowed = board_push_allowed(session, project.environment_id, project.id)
+            board_push = board_push_allowed(session, project.environment_id, project.id)
+            push_allowed = push_offered(state.storage if state is not None else "branch", board_push)
             last_pushed = state.last_pushed_commit if state is not None else None
         if not switch.enabled:
             return BoardView(False, switch.source, "off", message="The board is switched off for this project.")
@@ -572,17 +582,20 @@ class BoardService:
         return found
 
     def push(self, project_id: int, acknowledge_public: bool, github_token: Callable[[Project], str | None]) -> str:
-        """Push the board's branch to the project's remote; returns the pushed commit. The token is read only once
-        the push is allowed."""
+        """Push the board's branch where it is kept; returns the pushed commit. The token is read only once the push
+        is allowed."""
         opened = self.opened(project_id)
         with self.session_factory() as session:
-            if not board_push_allowed(session, opened.project.environment_id, project_id):
-                raise PushNotAllowed()
+            board_push = board_push_allowed(session, opened.project.environment_id, project_id)
+        if not push_offered(self.storage.kind_of(opened.project), board_push):
+            raise PushNotAllowed()
         head = opened.repository.head()
         if head is None:
             raise BoardNotStarted("The board has no cards yet, so there is nothing to push.")
         branch = opened.repository.ref.removeprefix("refs/heads/")
-        self.pusher.push(opened.repository.repository, branch, head, github_token(opened.project), acknowledge_public)
+        token = github_token(opened.project)
+        place = opened.repository.repository
+        self.storage.push(opened.project, place, branch, head, token, acknowledge_public, self.pusher)
         with self.session_factory() as session:
             state = session.get(BoardState, project_id)
             if state is not None:
