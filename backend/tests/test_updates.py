@@ -319,21 +319,25 @@ def test_the_check_at_start_does_not_delay_the_app(tmp_path, monkeypatch, fake, 
     monkeypatch.setenv("YAAP_DATA_DIR", str(tmp_path))
     release = threading.Event()
     called = threading.Event()
+    returned = threading.Event()
 
-    def hang(self: UpdateService):
+    def hang(self: UpdateService) -> None:
         called.set()
         release.wait(10)
+        returned.set()
 
     monkeypatch.setattr(UpdateService, "run_check", hang)
     monkeypatch.setattr(background.check, "START_DELAY_SECONDS", 0)
     app = make_test_app(fake)
     app.state.update_check_at_start = True
-    started = time.monotonic()
     try:
         with TestClient(app) as test_client:
+            # The app answers while the check still hangs: the start does not wait for it. Timing the whole start
+            # would also count the migrations, which take seconds on a slow disk.
             assert test_client.get("/api/v1/health").json() == {"status": "ok"}
             assert called.wait(5)
-            assert time.monotonic() - started < 5
+            assert test_client.get("/api/v1/health").json() == {"status": "ok"}
+            assert not returned.is_set()
             release.set()
     finally:
         release.set()
