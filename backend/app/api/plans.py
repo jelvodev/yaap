@@ -94,6 +94,9 @@ class PlanBuildOut(BaseModel):
     delivered: bool
     # What the build waits for now; answered with POST /approvals/{approval_id}.
     approvals: list[BuildApprovalOut]
+    # Why the approved plan waits to build (a full build slot, shared files, an unfinished card, a rate limit); None
+    # when it builds or has built.
+    queued: str | None = None
 
 
 class BuildRefusalOut(BaseModel):
@@ -160,6 +163,7 @@ def build_out(view: PlanView, plans: PlanService, runner: BuildRunner) -> PlanBu
             BuildApprovalOut(approval_id=approval.id, tool=approval.tool, summary=approval.summary)
             for approval in runner.waiting_approvals(view.id)
         ],
+        queued=info.queued,
     )
 
 

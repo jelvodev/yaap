@@ -68,13 +68,10 @@ class PlanStore:
         rows = self.session.scalars(select(PlanRecord).where(PlanRecord.id.in_(wanted)))
         return {row.id: plan_from_json(row.body) for row in rows}
 
-    def building_in_project(self, project_id: int, other_than: int) -> PlanRecord | None:
-        """Another plan of the project that is being built."""
-        return self.session.scalar(
-            select(PlanRecord).where(
-                PlanRecord.project_id == project_id, PlanRecord.status == "building", PlanRecord.id != other_than
-            )
-        )
+    def in_project(self, project_id: int, statuses: Iterable[PlanStatus]) -> list[PlanRecord]:
+        """The project's plans in these statuses, the earliest approved first."""
+        query = select(PlanRecord).where(PlanRecord.project_id == project_id, PlanRecord.status.in_(list(statuses)))
+        return list(self.session.scalars(query.order_by(PlanRecord.approved_at, PlanRecord.id)))
 
     def with_status(self, statuses: Iterable[PlanStatus]) -> list[PlanRecord]:
         return list(self.session.scalars(select(PlanRecord).where(PlanRecord.status.in_(list(statuses)))))

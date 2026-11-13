@@ -10,6 +10,8 @@ PROJECT_BOARD_KEY = "project_board"
 BOARD_PUSH_KEY = "board_push"
 BOARD_STORAGE_KEY = "board_storage"
 BOARD_REPOSITORY_URL_KEY = "board_repository_url"
+BOARD_PARALLEL_BUILDS_KEY = "board_parallel_builds"
+PARALLEL_BUILD_CHOICES = ("1", "2", "3", "4")
 MAX_REPOSITORY_URL = 500
 URL_RULE = "Use an https URL without a user name or token in it, for example https://github.com/owner/board.git."
 
@@ -17,6 +19,11 @@ URL_RULE = "Use an https URL without a user name or token in it, for example htt
 def validate_switch(value: Any, _providers: ProviderRegistry) -> str | None:
     """A switch is exactly true or false."""
     return None if isinstance(value, bool) else "Use true or false."
+
+
+def validate_parallel_builds(value: Any, _providers: ProviderRegistry) -> str | None:
+    """The number of builds at a time is one of the offered counts, as text."""
+    return None if isinstance(value, str) and value in PARALLEL_BUILD_CHOICES else "Use 1, 2, 3 or 4."
 
 
 def validate_repository_url(value: Any, _providers: ProviderRegistry) -> str | None:
