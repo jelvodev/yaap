@@ -35,7 +35,7 @@ def template(kind: SpecKind, layers: Sequence[Layer]) -> str:
         except (OSError, UnicodeDecodeError):
             continue
         if text.strip() and len(text) <= MAX_FILE_BYTES:
-            return text.strip("\n")
+            return text.strip("\r\n")
     return shipped_template(kind)
 
 
