@@ -106,7 +106,9 @@ def test_a_card_waits_for_the_cards_it_waits_for(
 
 
 def test_a_plan_without_a_card_never_waits_for_cards() -> None:
-    assert isinstance(can_start(slot(9, ("a.py",)), [], {None: (3,)}, limits()), Start)  # type: ignore[dict-item]  # a mapping keyed by None must not be consulted
+    # A mapping that has an entry under None must not be consulted for a plan without a card.
+    waits: dict[int, tuple[int, ...]] = {0: (3,)}
+    assert isinstance(can_start(slot(9, ("a.py",)), [], waits, limits()), Start)
 
 
 @pytest.mark.parametrize(
