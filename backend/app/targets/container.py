@@ -18,7 +18,7 @@ from typing import Any
 import anyio
 
 from app.config import environment_value
-from app.targets.base import CapturedResult, CommandResult, FileEntry, TargetError
+from app.targets.base import CapturedResult, CommandResult, FileEntry, OutputTooLargeError, TargetError, read_outputs
 from app.targets.safe_root import RootReplacedError, SafeRoot, SafeRootError, relative_parts
 from app.targets.sessions import ShellState, bash_session
 
@@ -292,12 +292,17 @@ class LocalExecutor:
         if sys.platform != "win32":
             options["start_new_session"] = True
         process = await self.start(command, options, None)
+        if process.stdout is None or process.stderr is None:
+            raise TargetError("The command's output could not be read.")
         try:
-            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
-        except TimeoutError:
+            async with asyncio.timeout(timeout):
+                stdout, stderr = await read_outputs(process.stdout, process.stderr)
+                await process.wait()
+        except (TimeoutError, OutputTooLargeError) as error:
             stop_tree(process)
             await process.wait()
-            return CapturedResult(None, b"", b"", timed_out=True)
+            too_large = isinstance(error, OutputTooLargeError)
+            return CapturedResult(None, b"", b"", timed_out=not too_large, too_large=too_large)
         return CapturedResult(process.returncode, stdout, stderr)
 
     async def spawn(

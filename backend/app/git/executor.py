@@ -33,9 +33,11 @@ async def capture_git(
         ["env", "-i", *(f"{name}={value}" for name, value in env.items()), *git_command(arguments, config)]
     )
     result = await executor.capture(command, timeout)
+    operation = arguments[0] if arguments else "command"
     if result.timed_out:
-        operation = arguments[0] if arguments else "command"
         raise GitError(f"git {operation} took longer than {timeout:g} seconds and was stopped.")
+    if result.too_large:
+        raise GitError(f"git {operation} printed more than YAAP reads and was stopped.")
     return result
 
 

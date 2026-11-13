@@ -44,6 +44,48 @@ class CapturedResult:
     stdout: bytes
     stderr: bytes
     timed_out: bool = False
+    # A stream passed its capture limit, so the command was stopped and nothing it printed is kept.
+    too_large: bool = False
+
+
+# What YAAP keeps from a command whose output it parses (git output, a tar archive, a fetched page): a runner or
+# computer that misbehaves cannot make YAAP's process hold unbounded output.
+CAPTURE_LIMIT = 256 * 1024 * 1024
+CAPTURE_ERROR_LIMIT = 1024 * 1024
+CAPTURE_CHUNK = 64 * 1024
+
+
+class OutputTooLargeError(Exception):
+    """A captured stream passed its limit."""
+
+
+class ByteStream(Protocol):
+    async def read(self, n: int = -1, /) -> bytes: ...
+
+
+async def read_bounded(stream: ByteStream, limit: int) -> bytes:
+    """Everything the stream gives until it ends, or OutputTooLargeError as soon as it passes `limit` bytes."""
+    data = bytearray()
+    while chunk := await stream.read(CAPTURE_CHUNK):
+        data += chunk
+        if len(data) > limit:
+            raise OutputTooLargeError(f"The command printed more than {limit} bytes.")
+    return bytes(data)
+
+
+async def read_outputs(stdout: ByteStream, stderr: ByteStream) -> tuple[bytes, bytes]:
+    """Standard output and standard error read side by side, each within its limit. OutputTooLargeError when one
+    passes it; the other read is then cancelled."""
+    try:
+        async with asyncio.TaskGroup() as group:
+            out = group.create_task(read_bounded(stdout, CAPTURE_LIMIT))
+            err = group.create_task(read_bounded(stderr, CAPTURE_ERROR_LIMIT))
+    except ExceptionGroup as errors:
+        too_large = errors.subgroup(OutputTooLargeError)
+        if too_large is None:
+            raise
+        raise OutputTooLargeError(str(too_large.exceptions[0])) from None
+    return out.result(), err.result()
 
 
 class TargetFiles(Protocol):
@@ -99,7 +141,8 @@ class CommandExecutor(Protocol):
 
     async def capture(self, command: str, timeout: float) -> CapturedResult:
         """Run a shell command without a shell session or secrets and wait for it. Standard output and standard
-        error are kept apart as bytes; after `timeout` seconds the command is stopped (timed_out, no output)."""
+        error are kept apart as bytes; after `timeout` seconds the command is stopped (timed_out, no output), and
+        likewise when a stream passes CAPTURE_LIMIT or CAPTURE_ERROR_LIMIT (too_large, no output)."""
         ...
 
 
