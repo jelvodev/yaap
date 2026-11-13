@@ -5587,6 +5587,63 @@ export interface components {
             /** Reason */
             reason?: string | null;
         };
+        /**
+         * ApprovalRequestEvent
+         * @description An action of the run that waits for the user's decision.
+         */
+        ApprovalRequestEvent: {
+            /** Approval Id */
+            approval_id: string;
+            /** Detail */
+            detail: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "approval_request";
+            /** Reason */
+            reason: string | null;
+            /** Summary */
+            summary: string;
+            /** Suspicion */
+            suspicion: string | null;
+            /** Tool */
+            tool: string;
+            why: components["schemas"]["WhyOut"] | null;
+        };
+        /** ApprovalResolvedEvent */
+        ApprovalResolvedEvent: {
+            /** Approval Id */
+            approval_id: string;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "approve" | "deny";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "approval_resolved";
+        };
+        /** AttachmentBlockOut */
+        AttachmentBlockOut: {
+            /** Attachment Id */
+            attachment_id: number;
+            /** Kind */
+            kind?: string | null;
+            /** Media Type */
+            media_type?: string | null;
+            /** Name */
+            name: string;
+            /** Size */
+            size?: number | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "attachment";
+        };
         /** AttachmentOut */
         AttachmentOut: {
             /** Conversation Id */
@@ -6152,6 +6209,21 @@ export interface components {
             /** Items */
             items: components["schemas"]["BuiltinItemOut"][];
         };
+        /**
+         * CallRestartedEvent
+         * @description A model call broke off and starts again: the text and reasoning it streamed are void.
+         */
+        CallRestartedEvent: {
+            /** Attempt */
+            attempt: number;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "call_restarted";
+            /** Reason */
+            reason: string;
+        };
         /** CallWhyOut */
         CallWhyOut: {
             /** Approval */
@@ -6426,6 +6498,20 @@ export interface components {
              */
             truncated: boolean;
         };
+        /** CheckpointEvent */
+        CheckpointEvent: {
+            /** Call Key */
+            call_key: string;
+            /** Checkpoint Id */
+            checkpoint_id: number;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "checkpoint";
+            /** Tool */
+            tool: string;
+        };
         /** CheckpointOut */
         CheckpointOut: {
             /** Call Key */
@@ -6487,6 +6573,23 @@ export interface components {
             /** Truncated */
             truncated: boolean;
         };
+        /**
+         * CommandBlockOut
+         * @description What a /command expanded to; a /card command also names the card it made.
+         */
+        CommandBlockOut: {
+            /** Card Id */
+            card_id?: number | null;
+            /** Name */
+            name: string;
+            /** Text */
+            text: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "command";
+        };
         /** CommandCheckIO */
         CommandCheckIO: {
             /**
@@ -6530,10 +6633,37 @@ export interface components {
             /** Subject */
             subject: string;
         };
+        /** CompactFailedEvent */
+        CompactFailedEvent: {
+            /** Detail */
+            detail: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "compact_failed";
+        };
         /** CompactIn */
         CompactIn: {
             /** Focus */
             focus?: string | null;
+        };
+        /**
+         * CompactedEvent
+         * @description /compact summarised the conversation up to message_id.
+         */
+        CompactedEvent: {
+            /** Covered */
+            covered: number;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "compacted";
+            /** Focus */
+            focus: string | null;
+            /** Message Id */
+            message_id: number;
         };
         /** ComparisonIn */
         ComparisonIn: {
@@ -6556,56 +6686,6 @@ export interface components {
             pass_rate_a: number | null;
             /** Pass Rate B */
             pass_rate_b: number | null;
-        };
-        /** ContentBlockOut */
-        ContentBlockOut: {
-            /** Attachment Id */
-            attachment_id?: number | null;
-            /** Card Id */
-            card_id?: number | null;
-            /** Covered */
-            covered?: number | null;
-            /** Focus */
-            focus?: string | null;
-            /** Id */
-            id?: string | null;
-            /** Imported */
-            imported?: boolean | null;
-            /** Input */
-            input?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Is Error
-             * @default false
-             */
-            is_error: boolean;
-            /** Kind */
-            kind?: string | null;
-            /** Max Turns */
-            max_turns?: number | null;
-            /** Media Type */
-            media_type?: string | null;
-            /** Name */
-            name?: string | null;
-            /** Output */
-            output?: string | null;
-            /** Plan Id */
-            plan_id?: number | null;
-            /** Size */
-            size?: number | null;
-            /**
-             * Text
-             * @default
-             */
-            text: string;
-            /** Turn */
-            turn?: number | null;
-            /**
-             * Type
-             * @enum {string}
-             */
-            type: "text" | "reasoning" | "tool_call" | "attachment" | "command" | "skill" | "skill_removed" | "goal" | "summary" | "trim" | "steering" | "note" | "repo_map" | "plan";
         };
         /** ContextBreakdownOut */
         ContextBreakdownOut: {
@@ -7037,6 +7117,23 @@ export interface components {
             /** Skills */
             skills: string[];
         };
+        /**
+         * DelegateProgressEvent
+         * @description A delegated sub-run reports which tool it is using.
+         */
+        DelegateProgressEvent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "delegate_progress";
+            /** Label */
+            label: string;
+            /** Run Id */
+            run_id: number;
+            /** Step */
+            step: string;
+        };
         /** DestinationStateOut */
         DestinationStateOut: {
             /** Backups */
@@ -7083,10 +7180,38 @@ export interface components {
             checkpoint_id: number | null;
             repository: components["schemas"]["RepositoryOut"];
         };
+        /**
+         * DocumentChangeEvent
+         * @description The agent's change of the shared document ended; hash is the document's version after it (None: gone).
+         */
+        DocumentChangeEvent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "document_change";
+            /** Hash */
+            hash: string | null;
+            /** Path */
+            path: string;
+        };
         /** DocumentDecisionIn */
         DocumentDecisionIn: {
             /** Hash */
             hash: string | null;
+        };
+        /**
+         * DocumentOpenEvent
+         * @description The agent opened the shared document.
+         */
+        DocumentOpenEvent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "document_open";
+            /** Path */
+            path: string;
         };
         /** DocumentOpenIn */
         DocumentOpenIn: {
@@ -7123,6 +7248,47 @@ export interface components {
              * @default false
              */
             truncated: boolean;
+        };
+        /**
+         * DocumentSeenEvent
+         * @description The agent got the user's saved changes of the shared document with a tool result.
+         */
+        DocumentSeenEvent: {
+            /** Call Key */
+            call_key: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "document_seen";
+            /** Path */
+            path: string;
+        };
+        /**
+         * DocumentWritingEvent
+         * @description The agent starts a change of the shared document.
+         */
+        DocumentWritingEvent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "document_writing";
+            /** Path */
+            path: string;
+        };
+        /**
+         * DoneEvent
+         * @description The reply is stored.
+         */
+        DoneEvent: {
+            conversation: components["schemas"]["ConversationSummaryOut"];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "done";
+            message: components["schemas"]["MessageOut"];
         };
         /** EndpointModelOut */
         EndpointModelOut: {
@@ -7427,6 +7593,23 @@ export interface components {
              */
             trigger: "panel" | "command" | "schedule";
             variant: components["schemas"]["VariantOut"] | null;
+        };
+        /**
+         * EvalStartedEvent
+         * @description /eval started an eval run instead of a reply.
+         */
+        EvalStartedEvent: {
+            /** Detail */
+            detail: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "eval_started";
+            /** Project Id */
+            project_id: number;
+            /** Run Id */
+            run_id: number;
         };
         /** EvidenceOut */
         EvidenceOut: {
@@ -7743,6 +7926,23 @@ export interface components {
             repository: string;
             /** Url */
             url: string;
+        };
+        /**
+         * GoalBlockOut
+         * @description The marker of the goal turn a user message starts.
+         */
+        GoalBlockOut: {
+            /** Max Turns */
+            max_turns: number;
+            /** Text */
+            text: string;
+            /** Turn */
+            turn: number;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "goal";
         };
         /** GoalOut */
         GoalOut: {
@@ -8358,7 +8558,7 @@ export interface components {
         /** MessageOut */
         MessageOut: {
             /** Content */
-            content: components["schemas"]["ContentBlockOut"][];
+            content: (components["schemas"]["TextBlockOut"] | components["schemas"]["ReasoningBlockOut"] | components["schemas"]["ToolCallBlockOut"] | components["schemas"]["AttachmentBlockOut"] | components["schemas"]["CommandBlockOut"] | components["schemas"]["SkillBlockOut"] | components["schemas"]["SkillRemovedBlockOut"] | components["schemas"]["GoalBlockOut"] | components["schemas"]["SummaryBlockOut"] | components["schemas"]["TrimBlockOut"] | components["schemas"]["SteeringBlockOut"] | components["schemas"]["NoteBlockOut"] | components["schemas"]["RepoMapBlockOut"] | components["schemas"]["PlanBlockOut"])[];
             /**
              * Created At
              * Format: date-time
@@ -8472,6 +8672,19 @@ export interface components {
             path: string;
             /** Reason */
             reason: string;
+        };
+        /**
+         * NoteBlockOut
+         * @description A line YAAP added to the conversation, such as a move to another project.
+         */
+        NoteBlockOut: {
+            /** Text */
+            text: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "note";
         };
         /** OriginOut */
         OriginOut: {
@@ -8707,6 +8920,19 @@ export interface components {
             skills: string[];
         };
         /**
+         * PlanBlockOut
+         * @description A plan the agent handed over with submit_plan; the card reads the plan itself.
+         */
+        PlanBlockOut: {
+            /** Plan Id */
+            plan_id: number;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "plan";
+        };
+        /**
          * PlanBuildOut
          * @description The build of an approved plan, beside its steps' state.
          */
@@ -8835,6 +9061,16 @@ export interface components {
             status: "open" | "working" | "done" | "failed" | "skipped";
             /** Title */
             title: string;
+        };
+        /** PlanSubmittedEvent */
+        PlanSubmittedEvent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "plan_submitted";
+            /** Plan Id */
+            plan_id: number;
         };
         /** PluginOut */
         PluginOut: {
@@ -9372,6 +9608,29 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** ReasoningBlockOut */
+        ReasoningBlockOut: {
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "reasoning";
+        };
+        /** ReasoningDeltaEvent */
+        ReasoningDeltaEvent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "reasoning_delta";
+            /** Text */
+            text: string;
+        };
         /** RecalledEntryOut */
         RecalledEntryOut: {
             /**
@@ -9535,6 +9794,11 @@ export interface components {
             ref?: string | null;
         };
         /**
+         * ReplyEvent
+         * @description One event of a reply stream: the `event:` line names it, the `data:` line holds it as JSON.
+         */
+        ReplyEvent: components["schemas"]["TextDeltaEvent"] | components["schemas"]["ReasoningDeltaEvent"] | components["schemas"]["ToolCallEvent"] | components["schemas"]["ToolResultEvent"] | components["schemas"]["CallRestartedEvent"] | components["schemas"]["ToolOutputEvent"] | components["schemas"]["SteeringEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["DelegateProgressEvent"] | components["schemas"]["PlanSubmittedEvent"] | components["schemas"]["ApprovalRequestEvent"] | components["schemas"]["ApprovalResolvedEvent"] | components["schemas"]["DocumentOpenEvent"] | components["schemas"]["DocumentWritingEvent"] | components["schemas"]["DocumentChangeEvent"] | components["schemas"]["DocumentSeenEvent"] | components["schemas"]["UserMessageEvent"] | components["schemas"]["DoneEvent"] | components["schemas"]["TitleEvent"] | components["schemas"]["UtilitySkippedEvent"] | components["schemas"]["StageEvent"] | components["schemas"]["StageRemovedEvent"] | components["schemas"]["CompactedEvent"] | components["schemas"]["CompactFailedEvent"] | components["schemas"]["EvalStartedEvent"];
+        /**
          * ReplyRouteOut
          * @description Which of the preset's models answered a reply, the kind of message the utility model named, and why.
          */
@@ -9562,6 +9826,17 @@ export interface components {
             utility: components["schemas"]["TokenRowOut"][];
             /** Workers */
             workers: components["schemas"]["TokenRowOut"][];
+        };
+        /**
+         * RepoMapBlockOut
+         * @description The repository map kept for the conversation; its store key is internal and not shown.
+         */
+        RepoMapBlockOut: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "repo_map";
         };
         /** RepositoryCreateIn */
         RepositoryCreateIn: {
@@ -10354,6 +10629,24 @@ export interface components {
             /** User Code */
             user_code: string | null;
         };
+        /**
+         * SkillBlockOut
+         * @description A pinned skill's full text.
+         */
+        SkillBlockOut: {
+            /** Name */
+            name: string;
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "skill";
+        };
         /** SkillCandidateOut */
         SkillCandidateOut: {
             /** Description */
@@ -10413,6 +10706,16 @@ export interface components {
             /** Url */
             url: string;
         };
+        /** SkillRemovedBlockOut */
+        SkillRemovedBlockOut: {
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "skill_removed";
+        };
         /** SkillUpdateOut */
         SkillUpdateOut: {
             candidate: components["schemas"]["SkillCandidateOut"] | null;
@@ -10470,6 +10773,85 @@ export interface components {
             language: string | null;
             /** Text */
             text: string;
+        };
+        /**
+         * StageEvent
+         * @description A stop of the reply's route was reached or changed; the same id replaces the earlier stop.
+         */
+        StageEvent: {
+            /**
+             * Checks
+             * @default []
+             */
+            checks: components["schemas"]["RouteCheckOut"][];
+            /** Cost */
+            cost: number | null;
+            /**
+             * Count
+             * @default 1
+             */
+            count: number;
+            /** Detail */
+            detail: string | null;
+            /** Duration Ms */
+            duration_ms: number | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "stage";
+            /** Id */
+            id: string;
+            /**
+             * Items
+             * @default []
+             */
+            items: string[];
+            /** Label */
+            label: string;
+            /**
+             * Lane
+             * @enum {string}
+             */
+            lane: "main" | "tools" | "worker" | "afterwards";
+            /** Line */
+            line: string | null;
+            /** Parent */
+            parent: string | null;
+            /** Reason */
+            reason: string | null;
+            /** Run Id */
+            run_id: number | null;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "message" | "route" | "context" | "model" | "tool" | "worker" | "answer" | "afterwards" | "note";
+            /** Started At */
+            started_at: string | null;
+            /**
+             * State
+             * @default ran
+             * @enum {string}
+             */
+            state: "ran" | "skipped" | "failed" | "waiting";
+            /** Step Id */
+            step_id: number | null;
+            tokens: components["schemas"]["RouteTokensOut"] | null;
+            why: components["schemas"]["WhyOut"] | null;
+        };
+        /**
+         * StageRemovedEvent
+         * @description A live stop is gone again.
+         */
+        StageRemovedEvent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "stage_removed";
+            /** Id */
+            id: string;
         };
         /**
          * StartIO
@@ -10535,6 +10917,31 @@ export interface components {
              */
             status: "waiting";
         };
+        /** SteeringBlockOut */
+        SteeringBlockOut: {
+            /** Text */
+            text: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "steering";
+        };
+        /**
+         * SteeringEvent
+         * @description A steering message reached the agent with a tool result.
+         */
+        SteeringEvent: {
+            /** Call Key */
+            call_key: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "steering";
+            /** Text */
+            text: string;
+        };
         /** StepCheckIn */
         StepCheckIn: {
             /** Run */
@@ -10566,6 +10973,23 @@ export interface components {
         SuggestIn: {
             /** Conversation Id */
             conversation_id?: number | null;
+        };
+        /**
+         * SummaryBlockOut
+         * @description On the last message a summary covers; the model gets it instead of what it covers.
+         */
+        SummaryBlockOut: {
+            /** Covered */
+            covered: number;
+            /** Focus */
+            focus?: string | null;
+            /** Text */
+            text: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "summary";
         };
         /** SummaryOut */
         SummaryOut: {
@@ -10870,6 +11294,41 @@ export interface components {
             /** Is Template */
             is_template: boolean;
         };
+        /** TextBlockOut */
+        TextBlockOut: {
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "text";
+        };
+        /** TextDeltaEvent */
+        TextDeltaEvent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "text_delta";
+            /** Text */
+            text: string;
+        };
+        /**
+         * TitleEvent
+         * @description A better title from the utility model, after the first reply.
+         */
+        TitleEvent: {
+            conversation: components["schemas"]["ConversationSummaryOut"];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "title";
+        };
         /** TokenCheckOut */
         TokenCheckOut: {
             /**
@@ -10936,6 +11395,68 @@ export interface components {
             top_tool_results: components["schemas"]["ToolResultTokensOut"][];
             totals: components["schemas"]["TokenRowOut"];
         };
+        /**
+         * ToolCallBlockOut
+         * @description What the agent did and what came back.
+         */
+        ToolCallBlockOut: {
+            /** Id */
+            id: string;
+            /**
+             * Imported
+             * @default false
+             */
+            imported: boolean;
+            /** Input */
+            input: {
+                [key: string]: unknown;
+            };
+            /**
+             * Is Error
+             * @default false
+             */
+            is_error: boolean;
+            /** Name */
+            name: string;
+            /** Output */
+            output?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "tool_call";
+        };
+        /** ToolCallEvent */
+        ToolCallEvent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "tool_call";
+            /** Id */
+            id: string;
+            /** Input */
+            input: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+        };
+        /**
+         * ToolOutputEvent
+         * @description Output of a running command, as it comes.
+         */
+        ToolOutputEvent: {
+            /** Call Key */
+            call_key: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "tool_output";
+            /** Text */
+            text: string;
+        };
         /** ToolPermissionOut */
         ToolPermissionOut: {
             /** Default */
@@ -10944,6 +11465,20 @@ export interface components {
             label: string;
             /** Name */
             name: string;
+        };
+        /** ToolResultEvent */
+        ToolResultEvent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "tool_result";
+            /** Id */
+            id: string;
+            /** Is Error */
+            is_error: boolean;
+            /** Output */
+            output: string;
         };
         /** ToolResultTokensOut */
         ToolResultTokensOut: {
@@ -11087,6 +11622,17 @@ export interface components {
             /** Label */
             label?: string | null;
         };
+        /**
+         * TrimBlockOut
+         * @description The model gets the long tool results up to this message shortened.
+         */
+        TrimBlockOut: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "trim";
+        };
         /** UpdateStatusOut */
         UpdateStatusOut: {
             /** Announced Version */
@@ -11182,6 +11728,45 @@ export interface components {
             unpriced_calls: number;
         };
         /**
+         * UserMessageEvent
+         * @description The user's message as stored, first in every reply stream.
+         */
+        UserMessageEvent: {
+            /** Content */
+            content: (components["schemas"]["TextBlockOut"] | components["schemas"]["ReasoningBlockOut"] | components["schemas"]["ToolCallBlockOut"] | components["schemas"]["AttachmentBlockOut"] | components["schemas"]["CommandBlockOut"] | components["schemas"]["SkillBlockOut"] | components["schemas"]["SkillRemovedBlockOut"] | components["schemas"]["GoalBlockOut"] | components["schemas"]["SummaryBlockOut"] | components["schemas"]["TrimBlockOut"] | components["schemas"]["SteeringBlockOut"] | components["schemas"]["NoteBlockOut"] | components["schemas"]["RepoMapBlockOut"] | components["schemas"]["PlanBlockOut"])[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error */
+            error: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "user_message";
+            /** Id */
+            id: number;
+            /** Parent Id */
+            parent_id: number | null;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "assistant";
+            route: components["schemas"]["ReplyRouteOut"] | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "complete" | "incomplete" | "refused" | "error";
+            /** Stop Reason */
+            stop_reason: string | null;
+            /** Version Ids */
+            version_ids: number[];
+        };
+        /**
          * UtilityEventOut
          * @description A utility call made for this conversation, such as setting its title.
          */
@@ -11209,6 +11794,30 @@ export interface components {
          * @description A utility task that was not sent, and why; the same shape in the API and in the reply stream.
          */
         UtilitySkipOut: {
+            /** Id */
+            id: number;
+            /** Label */
+            label: string;
+            /** Reason */
+            reason: string;
+            /** Task */
+            task: string | null;
+            /**
+             * Time
+             * Format: date-time
+             */
+            time: string;
+        };
+        /**
+         * UtilitySkippedEvent
+         * @description The model policy skipped a utility task of this exchange.
+         */
+        UtilitySkippedEvent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "utility_skipped";
             /** Id */
             id: number;
             /** Label */
@@ -13802,7 +14411,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/event-stream": unknown;
+                    "text/event-stream": components["schemas"]["ReplyEvent"];
                 };
             };
             /** @description Validation Error */
@@ -13898,7 +14507,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/event-stream": unknown;
+                    "text/event-stream": components["schemas"]["ReplyEvent"];
                 };
             };
             /** @description Validation Error */
@@ -13930,7 +14539,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/event-stream": unknown;
+                    "text/event-stream": components["schemas"]["ReplyEvent"];
                 };
             };
             /** @description Validation Error */
@@ -14363,7 +14972,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/event-stream": unknown;
+                    "text/event-stream": components["schemas"]["ReplyEvent"];
                 };
             };
             /** @description Validation Error */
@@ -14623,7 +15232,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/event-stream": unknown;
+                    "text/event-stream": components["schemas"]["ReplyEvent"];
                 };
             };
             /** @description No reply is running. */
