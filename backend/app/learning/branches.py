@@ -12,6 +12,7 @@ from pathlib import Path
 
 from app.blueprint.layers import BlueprintError, Layer
 from app.git.service import GitError, Repository, folder_of, run_git
+from app.targets.safe_root import SafeRoot
 
 BRANCH_PREFIX = "yaap-learning/"
 UNSAFE_NAME_CHARACTERS = re.compile(r"[^A-Za-z0-9]+")
@@ -31,18 +32,22 @@ def head_commit(repository: Repository) -> str | None:
     return found.stdout.strip() or None
 
 
-def scratch_files(repository: Repository, branch: str) -> tuple[Path, str, Path, str]:
-    """The temporary index and blob files of one branch: YAAP's path and the path relative to the repository folder.
-
-    They live in the repository's `.git` folder, which git (possibly in the runner) sees as a relative path and YAAP
-    writes to as a file, so the runner needs no access to anything outside the repository. A `.git` that is a link
-    could lead YAAP's writes elsewhere, so it is refused."""
-    folder = folder_of(repository)
-    git_folder = folder / ".git"
-    if git_folder.is_symlink() or not git_folder.is_dir():
+def git_folder(repository: Repository) -> Path:
+    """The repository's `.git` folder as YAAP sees it; a `.git` that is a link or a file is refused."""
+    folder = folder_of(repository) / ".git"
+    if folder.is_symlink() or not folder.is_dir():
         raise BlueprintError("The layer's .git is not a plain folder, so no branch is written in it.")
+    return folder
+
+
+def scratch_names(branch: str) -> tuple[str, str]:
+    """The temporary index and blob files of one branch, by their name in the repository's `.git` folder.
+
+    Git (possibly in the runner) sees them as `.git/<name>`, so the runner needs no access to anything outside the
+    repository. YAAP writes and removes them only through a SafeRoot pinned on `.git`, so a `.git` swapped for a link
+    after the check cannot lead those writes elsewhere."""
     stem = f"yaap-learning-{UNSAFE_NAME_CHARACTERS.sub('-', branch.removeprefix(BRANCH_PREFIX))}"
-    return git_folder / f"{stem}.index", f".git/{stem}.index", git_folder / f"{stem}.blob", f".git/{stem}.blob"
+    return f"{stem}.index", f"{stem}.blob"
 
 
 def write_branch(layer: Layer, repository: Repository, path: str, content: str, branch: str, message: str) -> str:
@@ -50,18 +55,20 @@ def write_branch(layer: Layer, repository: Repository, path: str, content: str, 
     branch, so a proposal never overwrites another's. `repository` is the layer's repository where git runs."""
     if not branch.startswith(BRANCH_PREFIX):
         raise BlueprintError("A learning branch starts with yaap-learning/.")
-    index_file, index_name, blob_file, blob_name = scratch_files(repository, branch)
+    index_name, blob_name = scratch_names(branch)
     try:
-        for stale in (index_file, blob_file):
-            stale.unlink(missing_ok=True)
+        scratch = SafeRoot(git_folder(repository))
+    except OSError as error:
+        raise BlueprintError(f"The proposal's branch could not be written: {error}") from error
+    try:
+        for stale in (index_name, blob_name):
+            scratch.remove(stale)
         base = head_commit(repository)
-        index = {"GIT_INDEX_FILE": index_name}
-        # Exclusive creation does not follow a link left at the path.
-        with blob_file.open("xb") as handle:
-            handle.write(content.replace("\r\n", "\n").encode("utf-8"))
+        index = {"GIT_INDEX_FILE": f".git/{index_name}"}
+        scratch.write_bytes(blob_name, content.replace("\r\n", "\n").encode("utf-8"))
         if base is not None:
             run_git(["read-tree", base], repository, index)
-        blob = run_git(["hash-object", "-w", "--no-filters", "--", blob_name], repository).stdout.strip()
+        blob = run_git(["hash-object", "-w", "--no-filters", "--", f".git/{blob_name}"], repository).stdout.strip()
         entry = f"100644,{blob},{layer.prefix}{path}"
         run_git(["update-index", "--add", "--cacheinfo", entry], repository, index)
         tree = run_git(["write-tree"], repository, index).stdout.strip()
@@ -74,8 +81,13 @@ def write_branch(layer: Layer, repository: Repository, path: str, content: str, 
     except OSError as error:
         raise BlueprintError(f"The proposal's branch could not be written: {error}") from error
     finally:
-        for scratch in (index_file, blob_file):
-            scratch.unlink(missing_ok=True)
+        try:
+            for name in (index_name, blob_name):
+                scratch.remove(name)
+        except OSError:
+            pass  # A scratch file left in .git is harmless and replaced on the next write; the result stands.
+        finally:
+            scratch.close()
     return commit
 
 
