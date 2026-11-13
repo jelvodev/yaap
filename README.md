@@ -55,7 +55,7 @@ Most AI coding tools tie you to one vendor, one editor or one way of working. YA
 - **Your way of working, written down once.** Your instructions, standards, skills and agents live in the **Blueprint**: Markdown files in git, followed by every conversation.
 - **Separate worlds.** Environments such as *Work* and *Private* each have their own keys, projects, standards and budget, and never see each other's.
 
-**Where it is going: your personal software factory.** From an idea to a reviewed pull request: you describe the work, a strong model plans it, cheaper models build it, and every step is checked before it reaches you. The project board that runs this line is planned for 0.8.0; see the [roadmap](docs/roadmap.md).
+**Your personal software factory.** From an idea to a reviewed branch: you describe the work, a strong model plans it, cheaper models build it in a copy of your project, and YAAP checks every step before it reaches you. Each project has a board that runs this line, from Inbox to Done, with a review that shows per acceptance criterion what was checked. What comes next is on the [roadmap](docs/roadmap.md).
 
 How YAAP compares with Claude Code, Codex CLI, Cursor, OpenHands and Open WebUI, fact by fact: [docs/comparison.md](docs/comparison.md).
 
