@@ -6,6 +6,7 @@ refused action answers 409 with a `code`: the board error's, the flow's rule for
 `card_broken`, `build_running`, `waits_for_open` with the card numbers in `waits_for`), or the build's.
 """
 
+from datetime import datetime
 from typing import Annotated
 
 import anyio
@@ -17,6 +18,7 @@ from app.api.board_schemas import CardDetailOut, card_detail_out
 from app.board.actions import ActionResult, ActionService, CardAction, WaitsForOpen
 from app.board.card_command import card_from_message
 from app.board.errors import BoardError, MoveRefused
+from app.board.version_merge import MergeResult, MergeState, MergeStatus
 from app.plans.service import BuildRefusal, BuildRefused, PlanNotFound
 
 router = APIRouter(tags=["board"])
@@ -35,6 +37,50 @@ class SendBackIn(BaseModel):
     # neither for a card whose build failed or was interrupted.
     finding: int | None = Field(default=None, ge=0)
     criterion: int | None = Field(default=None, ge=1)
+
+
+class MergeIn(BaseModel):
+    # The version's check commands as the user saw them next to the button; a command that is not among them is not run.
+    commands: list[Annotated[str, Field(max_length=500)]] = Field(default_factory=list, max_length=50)
+
+
+class MergeResultOut(BaseModel):
+    status: MergeStatus
+    output: str
+    commit: str | None
+    finished_at: datetime | None
+
+
+class MergeStateOut(BaseModel):
+    version: str | None
+    branch: str | None
+    merged: bool
+    running: bool
+    offered: bool
+    refusal: str | None
+    version_commands: list[str]
+    card_commands: list[str]
+    last: MergeResultOut | None
+
+
+def merge_result_out(result: MergeResult) -> MergeResultOut:
+    return MergeResultOut(
+        status=result.status, output=result.output, commit=result.commit, finished_at=result.finished_at
+    )
+
+
+def merge_state_out(state: MergeState) -> MergeStateOut:
+    return MergeStateOut(
+        version=state.version,
+        branch=state.branch,
+        merged=state.merged,
+        running=state.running,
+        offered=state.offered,
+        refusal=state.refusal,
+        version_commands=list(state.version_commands),
+        card_commands=list(state.card_commands),
+        last=merge_result_out(state.last) if state.last is not None else None,
+    )
 
 
 class BuildRefusalOut(BaseModel):
@@ -102,6 +148,35 @@ async def send_back_card(
     except BoardError as error:
         raise action_http_error(error) from error
     return card_detail_out(detail)
+
+
+@router.get("/projects/{project_id}/board/cards/{card_id}/merge", response_model=MergeStateOut)
+async def merge_state(project_id: int, card_id: int, actions: ActionsDependency) -> MergeStateOut:
+    """What *Merge into the version* offers for the card: its version branch, the checks and the last result."""
+    try:
+        return merge_state_out(await anyio.to_thread.run_sync(actions.merges.state, project_id, card_id))
+    except BoardError as error:
+        raise action_http_error(error) from error
+    except PlanNotFound as error:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(error)) from error
+
+
+@router.post(
+    "/projects/{project_id}/board/cards/{card_id}/merge",
+    response_model=MergeStateOut,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def merge_card_into_version(
+    project_id: int, card_id: int, payload: MergeIn, actions: ActionsDependency
+) -> MergeStateOut:
+    """Merge the card's branch into its version's branch in the background. `commands` are the version's checks the
+    user saw next to the button."""
+    try:
+        return merge_state_out(await actions.merges.merge(project_id, card_id, tuple(payload.commands)))
+    except BoardError as error:
+        raise action_http_error(error) from error
+    except PlanNotFound as error:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(error)) from error
 
 
 @router.post(

@@ -68,12 +68,12 @@ def builds_folder(project_folder: Path) -> Path:
     return project_folder / BUILDS_FOLDER
 
 
-def copy_relative(plan_id: int) -> str:
+def copy_relative(plan_id: int | str) -> str:
     """The copy's folder relative to the project folder, as the plan row stores it."""
     return f"{BUILDS_FOLDER}/{plan_id}"
 
 
-def copy_folder(project_folder: Path, plan_id: int) -> Path:
+def copy_folder(project_folder: Path, plan_id: int | str) -> Path:
     return builds_folder(project_folder) / str(plan_id)
 
 
@@ -197,8 +197,9 @@ def deliver_build(
     return True
 
 
-def remove_build_copy(project_folder: Path, plan_id: int) -> None:
-    """Remove a build's copy. Only a folder directly below `.yaap/builds` is removed, never through a link."""
+def remove_build_copy(project_folder: Path, plan_id: int | str) -> None:
+    """Remove a build's copy (a plan id, or the folder name of another copy). Only a folder directly below
+    `.yaap/builds` is removed, never through a link."""
     relative = copy_relative(plan_id)
     if sys.platform == "win32":
         # Windows: git keeps objects read-only, which SafeRoot's removal does not handle; YAAP runs on Linux, so
