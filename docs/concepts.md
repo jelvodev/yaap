@@ -18,6 +18,8 @@ belong to it. YAAP keeps the folder in its data folder (`data/workspace`), so yo
 
 Conversations outside a project are fine for questions; inside a project the agent can read, change and run its code.
 
+Each project also has a board of cards, from an idea to finished work, kept in the project's own git repository or a separate private one. A plan on a card can be built in a copy of the project and reviewed, and every project keeps a short *Current state* in its memory, so a new conversation starts where the last stopped (see [Using](usage.md#the-board-and-builds)).
+
 ## 3. The Blueprint
 
 The Blueprint is how you want the agent to work, written down once: instructions, standards, skills, commands and

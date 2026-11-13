@@ -20,7 +20,8 @@ as to any model.
 | Memory suggestions | In a project conversation, after a goal ends or every ten of your messages; together with the title when both are due | Switch it off in Background tasks; or route it per task (*Memory suggestions*); nothing changes until you accept a suggestion |
 | Memory tidying | After every 20 new memory entries, and with *Tidy up* in the Memory tab | Switch it off in Background tasks; or route it per task (*Memory tidying*) |
 | Learning proposals | After a goal in a project ends with signals (declined actions, failing tests); also with *Learn from this* and *Find contradictions* | Switch it off in Background tasks (this also stops *Learn from this* and *Find contradictions*); or route it per task (*Learning proposals*) |
-| Code review by another vendor | After a goal or a scheduled task that changed code | Switch it off in Background tasks; or route it per task (*Code reviews*); without a model of another vendor the review is skipped |
+| Code review by another vendor | After a goal or a scheduled task that changed code, and after a card's build (the card's review) | Switch it off in Background tasks; or route it per task (*Code reviews*); without a model of another vendor the review is skipped |
+| Current state of projects | After a goal in a project ends, or when a long conversation goes quiet, when the agent has not updated the block itself | Switch it off in Background tasks; or route it per task (*Current state of projects*); your own edits to the block always win |
 | Reply routing | Before each reply, only when the conversation's preset has routing on | Switch routing off in the preset (Settings › Models › Presets; off by default), or in Background tasks |
 | Check of approvals after outside content | Each approval asked after the agent read a web page, an attachment or a skill from GitHub | *Check approvals after outside content* (`injection_check`), off by default; it cannot be switched off in Background tasks, and is always on the utility model itself, never a per-task one |
 | Summary of a long conversation | When a reply ends with the context at 70 % of the limit, with `/compact`, or with *Summarise now* | *Compact automatically* (`auto_compact`, on) and *Summarise at* (`compact_at`, 70) in Settings › Models › Context; runs on the preset's worker model, not the utility model |
@@ -79,6 +80,15 @@ These run on every reply or now and then, without a model call.
   System › Models downloads or removes it by hand.
 - **Fetching repositories.** Every 15 minutes YAAP fetches each repository with a remote, so the Git panel shows
   what changed elsewhere. It only updates the remote-tracking branches, never your files. No setting.
+- **Board triggers.** A trigger in a project's board settings is a scheduled task that checks CI, labelled issues,
+  dependency pull requests or a command and puts a card in Inbox, without a model call. Each makes at most its number
+  of cards a day (3 by default); pause or remove the trigger to stop it.
+- **Pulling a board repository.** A board kept in a separate repository is pulled in the background at most once a
+  minute, fast-forward only. No setting.
+- **Review after a build.** When a card's build is done, YAAP runs the acceptance-criteria checks and starts the
+  card's review by itself.
+- **Cleaning up builds.** Copies of builds under `.yaap/builds` are removed: failed and discarded ones after a week,
+  done ones once merged or after two weeks. No setting.
 - **Backups.** On the *Backup schedule* (`backup_schedule`, daily at 03:00 by default), in Settings › System ›
   Backup.
 - **Update check.** A request to GitHub for the newest release, at start and on the *Update check* schedule

@@ -205,6 +205,8 @@ flowchart LR
 | `tracing/` | What a run did step by step, context snapshots, and the OpenTelemetry export |
 | `evals/`, `replays/` | Eval cases, their checks and runs; replays of a run from one of its model calls |
 | `learning/` | Signals from run steps, and the proposals made from them |
+| `board/` | The project board: cards as Markdown files on the `yaap-board` branch or in a separate repository, the rules for moving them, versions, triggers, imported issues, the Waiting for me overview and the merge into a version |
+| `plans/` | Plans and their builds: a build copy per plan, the step runner with worker and main model, the queue, recovery after a restart and the cleanup of copies |
 | `reviews/` | Reviews of changed code by a model of another vendor, and the second opinion on one reply (its changes, or its answer checked against the files it names) |
 | `scripts/` | Command-line scripts: OpenAPI export, password reset, measurements |
 | `storage/` | Database models and migrations |
@@ -319,6 +321,7 @@ flowchart LR
         index["Search index<br/>on start, every minute, after each reply"]
         fetch["Git fetch, every 15 minutes<br/>repositories with a remote"]
         idle["Idle stops<br/>MCP servers 10 min · browsers and speech model 15 min<br/>processes 1 h · shell sessions 2 h<br/>runners and sandboxes 1 h, checked every 5 min"]
+        board["Board and builds<br/>triggers on the scheduler · board repository pull, at most once a minute<br/>builds and reviews in the background · build copies cleaned up"]
         prune["Pruning<br/>checkpoints over 30 days, when a new one is taken<br/>context snapshots over 30 days or 2 GB, daily"]
     end
 ```
