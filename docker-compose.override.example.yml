@@ -25,7 +25,7 @@ services:
   #     context: docker/sandbox
   #     dockerfile: Dockerfile.extra
   #     args:
-  #       BASE: ghcr.io/jelvodev/yaap-sandbox:0.8.0
+  #       BASE: ghcr.io/jelvodev/yaap-sandbox:0.8.1
   #       EXTRA_APT_PACKAGES: "postgresql-client default-jdk-headless"
   #       EXTRA_SETUP: "npm install --global pnpm@10"
   #     labels:

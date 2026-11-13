@@ -3,7 +3,7 @@
 services:
   yaap:
     # YAAP_IMAGE_PREFIX is for a fork that publishes its own images (docs/configuration.md).
-    image: ${YAAP_IMAGE_PREFIX:-ghcr.io/jelvodev}/yaap:0.8.0
+    image: ${YAAP_IMAGE_PREFIX:-ghcr.io/jelvodev}/yaap:0.8.1
     environment:
       # The master key: in .env, or in a file named by YAAP_MASTER_KEY_FILE (a Docker secret, set in the
       # override file). YAAP says how to make one when neither is set.
@@ -42,7 +42,7 @@ services:
 
   # Web search without an API key: only YAAP reaches it, so it publishes no port.
   searxng:
-    image: ${YAAP_IMAGE_PREFIX:-ghcr.io/jelvodev}/yaap-searxng:0.8.0
+    image: ${YAAP_IMAGE_PREFIX:-ghcr.io/jelvodev}/yaap-searxng:0.8.1
     # The image keeps its settings in volumes; tmpfs makes every start take docker/searxng/settings.yml afresh.
     tmpfs:
       - /etc/searxng
@@ -55,13 +55,13 @@ services:
   # relays YAAP's SSH connection to them. It alone talks to Docker, through the proxy below, and only to containers
   # with YAAP's sandbox label.
   yaap-sandbox:
-    image: ${YAAP_IMAGE_PREFIX:-ghcr.io/jelvodev}/yaap-sandbox-helper:0.8.0
+    image: ${YAAP_IMAGE_PREFIX:-ghcr.io/jelvodev}/yaap-sandbox-helper:0.8.1
     environment:
       DOCKER_HOST: tcp://docker-proxy:2375
       # The image of the runners and sandboxes, which the helper pulls on the first command when it is not there. An
       # image with extra packages is named in docker-compose.override.yml (docs/configuration.md, "Extra packages
       # for the runner").
-      YAAP_SANDBOX_IMAGE: ${YAAP_SANDBOX_IMAGE:-${YAAP_IMAGE_PREFIX:-ghcr.io/jelvodev}/yaap-sandbox:0.8.0}
+      YAAP_SANDBOX_IMAGE: ${YAAP_SANDBOX_IMAGE:-${YAAP_IMAGE_PREFIX:-ghcr.io/jelvodev}/yaap-sandbox:0.8.1}
       # Per runner and per sandbox; see docs/configuration.md.
       YAAP_SANDBOX_CPUS: ${YAAP_SANDBOX_CPUS:-2}
       YAAP_SANDBOX_MEMORY: ${YAAP_SANDBOX_MEMORY:-4g}

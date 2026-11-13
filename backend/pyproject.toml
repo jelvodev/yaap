@@ -1,6 +1,6 @@
 [project]
 name = "yaap-backend"
-version = "0.8.0"
+version = "0.8.1"
 description = "Backend of YAAP, a personal, self-hosted, model-agnostic AI development environment."
 requires-python = ">=3.12"
 

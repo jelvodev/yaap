@@ -108,7 +108,7 @@ services:
       dockerfile: Dockerfile.extra
       args:
         # The published runner image of the version in docker-compose.yml; change it when you update YAAP.
-        BASE: ghcr.io/jelvodev/yaap-sandbox:0.8.0
+        BASE: ghcr.io/jelvodev/yaap-sandbox:0.8.1
         # Debian packages, separated by spaces.
         EXTRA_APT_PACKAGES: "postgresql-client default-jdk-headless"
         # Any further setup, run once as root while the image is built.
