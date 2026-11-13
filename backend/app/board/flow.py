@@ -23,6 +23,8 @@ CardEvent = Literal[
     "review_done",
     "send_back",
     "mark_done",
+    "merged",
+    "merge_failed",
     "move",
 ]
 ReviewState = Literal["none", "running", "done"]
@@ -32,8 +34,8 @@ NextAction = Literal[
 Who = Literal["you", "yaap"]
 CardState = Literal["broken", "working", "failed", "interrupted", "waiting", "idle"]
 
-# Plan states in which a build holds the card.
-RUNNING_PLANS: frozenset[PlanStatus] = frozenset({"building"})
+# Plan states in which a build holds the card (a queued one starts by itself).
+RUNNING_PLANS: frozenset[PlanStatus] = frozenset({"building", "queued"})
 # The note a send back writes above the reason in the card's description.
 SENT_BACK_HEADING = "Sent back"
 
@@ -147,6 +149,14 @@ def stage_event(facts: CardFacts, event: CardEvent, actor: Actor, target: Column
         return Transition("review", "reviewed") if column == "review" else wrong_column(event, column)
     if event == "send_back":
         return send_back(facts)
+    if event == "merged":
+        if column == "done" or (column == "review" and facts.review == "done"):
+            return Transition("done", "merged into the version")
+        return wrong_column(event, column)
+    if event == "merge_failed":
+        if column in ("review", "done"):
+            return Transition("build", "merge into the version failed")
+        return wrong_column(event, column)
     if event == "mark_done":
         if column != "review":
             return wrong_column(event, column)
@@ -157,8 +167,11 @@ def stage_event(facts: CardFacts, event: CardEvent, actor: Actor, target: Column
 
 
 def send_back(facts: CardFacts) -> Transition | Refusal:
-    """From a failed or interrupted build, or from Review, back to Design: the plan must be made again."""
-    if facts.column == "review" or (facts.column == "build" and facts.plan_status in ("failed", "interrupted")):
+    """From a failed, interrupted or stopped build, a build whose merge failed, or from Review, back to Design: the
+    plan must be made again."""
+    if facts.column == "review" or (
+        facts.column == "build" and facts.plan_status in ("failed", "interrupted", "done", "cancelled")
+    ):
         return Transition("design", "sent back")
     if facts.column == "build":
         return Refusal("build_running", "Only a failed or interrupted build can be sent back; stop it first.")
@@ -229,7 +242,9 @@ def plan_step(facts: CardFacts) -> NextStep:
         if facts.open_waits:
             return NextStep("none", "you", waits_sentence(facts.open_waits))
         return NextStep("approve", "you", "Approve and build")
-    if status in ("approved", "queued"):
+    if status == "queued":
+        return NextStep("build", "yaap", "Queued to build")
+    if status == "approved":
         return NextStep("build", "yaap", "Waiting to build")
     if status == "building":
         return NextStep("none", "yaap", "Building")
@@ -240,14 +255,18 @@ def build_step(facts: CardFacts) -> NextStep:
     status = facts.plan_status
     if status == "building":
         return NextStep("none", "yaap", "Building")
-    if status in ("approved", "queued"):
+    if status == "queued":
+        return NextStep("build", "yaap", "Queued to build")
+    if status == "approved":
         return NextStep("build", "yaap", "Waiting to build")
     if status == "interrupted":
         return NextStep("continue", "you", "Continue the build")
     if status == "failed":
         return NextStep("continue", "you", "Continue the build or send it back")
     if status == "done":
-        return NextStep("review", "yaap", "Moving to Review")
+        return NextStep("none", "you", "Send it back to plan the fix, or move it to Review")
+    if status == "cancelled":
+        return NextStep("none", "you", "Send it back to plan again")
     return NextStep("plan", "you", "Plan again")
 
 

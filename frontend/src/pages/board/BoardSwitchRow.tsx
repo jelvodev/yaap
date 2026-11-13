@@ -1,4 +1,5 @@
 import type { Project } from "../../api/client";
+import BoardParallelRow from "./BoardParallelRow";
 import { useBoardSwitch } from "./useBoardSwitch";
 
 function sourceLabel(source: string): string {
@@ -38,6 +39,7 @@ export default function BoardSwitchRow({
         <option value="off">Off for this project</option>
       </select>
       {board.error && <p className="form-error small">{board.error}</p>}
+      {board.enabled && <BoardParallelRow projectId={project.id} />}
     </div>
   );
 }

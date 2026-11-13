@@ -6,6 +6,8 @@ import { useNavigate } from "react-router-dom";
 import CardReviewPart from "../../components/card/CardReviewPart";
 import type { CardActionName } from "../../components/card/cardLogic";
 import { type CardState, useCard } from "../../components/card/useCard";
+import BuildNotice, { showsChecklist } from "../../components/card/BuildNotice";
+import MergePart from "../../components/card/MergePart";
 import PlanChecklist from "../../components/plan/PlanChecklist";
 import type { PlanOut } from "../../components/plan/usePlan";
 import type { CardDetail, Column } from "./boardApi";
@@ -67,7 +69,17 @@ function PlanCommands({ plan }: { plan: PlanOut }) {
 }
 
 /** What the card's column shows above its buttons: the plan's commands, the build, the review or the result. */
-function ColumnView({ projectId, card, state }: { projectId: number; card: CardDetail; state: CardState }) {
+function ColumnView({
+  projectId,
+  card,
+  state,
+  onChanged,
+}: {
+  projectId: number;
+  card: CardDetail;
+  state: CardState;
+  onChanged: () => Promise<void>;
+}) {
   const { plan, review, busy } = state;
   const status = plan?.status ?? card.plan?.status ?? null;
   if (card.column === "plan" && plan && status === "draft") return <PlanCommands plan={plan} />;
@@ -77,34 +89,41 @@ function ColumnView({ projectId, card, state }: { projectId: number; card: CardD
     return (
       <>
         {reason && <p className="plan-failure">{reason}</p>}
-        <PlanChecklist plan={plan} busy={busy} onAnswer={state.answer} />
+        <BuildNotice plan={plan} />
+        {showsChecklist(plan) && <PlanChecklist plan={plan} busy={busy} onAnswer={state.answer} />}
       </>
     );
   }
   if (card.column === "review") {
     return (
-      <CardReviewPart
-        projectId={projectId}
-        card={card}
-        review={review}
-        plan={plan}
-        busy={busy}
-        onSendBack={(choice) => void state.sendBack(choice)}
-      />
+      <>
+        <CardReviewPart
+          projectId={projectId}
+          card={card}
+          review={review}
+          plan={plan}
+          busy={busy}
+          onSendBack={(choice) => void state.sendBack(choice)}
+        />
+        {card.version && <MergePart projectId={projectId} cardId={card.id} onChanged={onChanged} />}
+      </>
     );
   }
   if (card.column === "done") {
     return (
-      <div className="card-detail-box">
-        {review?.summary && <p>{review.summary}</p>}
-        {card.links.branch ? (
-          <div>
-            Built on the branch <code>{card.links.branch}</code>.
-          </div>
-        ) : (
-          <div className="faint">No build branch.</div>
-        )}
-      </div>
+      <>
+        <div className="card-detail-box">
+          {review?.summary && <p>{review.summary}</p>}
+          {card.links.branch ? (
+            <div>
+              Built on the branch <code>{card.links.branch}</code>.
+            </div>
+          ) : (
+            <div className="faint">No build branch.</div>
+          )}
+        </div>
+        {card.version && <MergePart projectId={projectId} cardId={card.id} onChanged={onChanged} />}
+      </>
     );
   }
   return null;
@@ -155,7 +174,7 @@ export default function CardActions({ projectId, card, onMove, onChanged }: Prop
 
   return (
     <section className="card-detail-section">
-      <ColumnView projectId={projectId} card={card} state={state} />
+      <ColumnView projectId={projectId} card={card} state={state} onChanged={onChanged} />
       {error && <div className="form-error">{error}</div>}
       {buttons.length > 0 && (
         <div className="card-detail-actions">

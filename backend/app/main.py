@@ -253,6 +253,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.board_actions = ActionService(
         app.state.board, app.state.card_route, ReplyStarter(reply_services), reply_services
     )
+    # Approved plans wait in the build queue for their card's open waits; queued ones start now and after each build.
+    app.state.builds.open_waits = app.state.board_actions.open_waits
+    app.state.builds.start_queue()
     start_check = asyncio.create_task(check_at_start(app.state.updates)) if app.state.update_check_at_start else None
     # CLIs installed by an older release are installed again from this release's lock.
     app.state.cli_sign_ins.refresh_tools()

@@ -17,10 +17,13 @@ from app.agent.workers import default_value as cli_default_value
 from app.backups.destinations import validate_destinations
 from app.backups.runs import SCHEDULE_DEFAULT, validate_schedule
 from app.board.settings import (
+    BOARD_PARALLEL_BUILDS_KEY,
     BOARD_PUSH_KEY,
     BOARD_REPOSITORY_URL_KEY,
     BOARD_STORAGE_KEY,
+    PARALLEL_BUILD_CHOICES,
     PROJECT_BOARD_KEY,
+    validate_parallel_builds,
     validate_repository_url,
     validate_switch,
 )
@@ -608,6 +611,18 @@ SETTING_DEFINITIONS: dict[str, SettingDefinition] = {
             levels=frozenset({"project"}),
             default="",
             validate=validate_repository_url,
+        ),
+        SettingDefinition(
+            key=BOARD_PARALLEL_BUILDS_KEY,
+            label="Builds at a time",
+            description=(
+                "How many approved plans of the project build at the same time. Plans that name the same files never "
+                "build together; the others wait in a queue and start when a build ends."
+            ),
+            levels=frozenset({"project"}),
+            default="2",
+            options=tuple(SettingOption(count, count) for count in PARALLEL_BUILD_CHOICES),
+            validate=validate_parallel_builds,
         ),
         SettingDefinition(
             key="runner_network",

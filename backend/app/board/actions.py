@@ -24,10 +24,11 @@ from app.board.links import conversations_of
 from app.board.route import CardRoute, ConversationStarter
 from app.board.service import BoardService
 from app.board.stage_text import specify_text
+from app.board.version_merge import VersionMerges
 from app.board.views import CardDetail
 from app.core.background import BackgroundWork
 from app.core.reply_services import ReplyServices
-from app.plans.service import PlanNotFound
+from app.plans.service import PlanNotFound, PlanView
 from app.specs.templates import specification_instructions
 from app.storage.models import Environment, Project
 
@@ -62,6 +63,10 @@ class ActionResult:
 
 def failed_build_reason(status: str | None, failure: str | None) -> str:
     """What a card sent back from Build says in its description: why its build stopped."""
+    if status == "done":
+        return "The merge into the version failed; see the note above."
+    if status == "cancelled":
+        return "The build was stopped before it started; plan it again."
     if status == "interrupted":
         return "The build was interrupted (YAAP restarted or the build was stopped); plan it again."
     return f"The build failed: {failure.strip()}" if failure and failure.strip() else "The build failed."
@@ -78,6 +83,11 @@ class ActionService:
     # Cards whose review is starting: its criteria checks run before the review's row says it is running.
     starting_reviews: set[tuple[int, int]] = field(default_factory=set)
     lock: threading.Lock = field(default_factory=threading.Lock)
+    # *Merge into the version*; it runs its merges in the same background work, which is stopped with this one.
+    merges: VersionMerges = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.merges = VersionMerges(self.board, self.route, self.services, self.work)
 
     async def run(self, project_id: int, card_id: int, action: CardAction) -> ActionResult:
         """Run one stage action on the card. Raises a BoardError, or BuildRefused when a build cannot start."""
@@ -93,12 +103,34 @@ class ActionService:
         if action == "continue":
             return ActionResult(await self.route.continue_build(project_id, card_id))
         if action == "stop":
-            return ActionResult(await self.route.stop(project_id, card_id))
+            return ActionResult(await self.stop(project_id, card_id))
         if action == "review":
             review_id = await anyio.to_thread.run_sync(self.review, project_id, card_id)
             return await self.result(project_id, card_id, review_id=review_id)
         detail = await anyio.to_thread.run_sync(self.route.mark_done, project_id, card_id)
         return ActionResult(detail) if detail is not None else await self.result(project_id, card_id)
+
+    async def stop(self, project_id: int, card_id: int) -> CardDetail:
+        """*Stop*: a running build is stopped by the route; a queued one has not started, so the runner discards it."""
+        plan_id = await anyio.to_thread.run_sync(self.queued_plan, project_id, card_id)
+        if plan_id is None:
+            return await self.route.stop(project_id, card_id)
+        await self.route.builds.stop(plan_id)
+        return await anyio.to_thread.run_sync(self.board.get_card, project_id, card_id)
+
+    def queued_plan(self, project_id: int, card_id: int) -> int | None:
+        card, facts = self.route.card_and_facts(project_id, card_id)
+        return card.links.plan_id if facts.plan_status == "queued" else None
+
+    def open_waits(self, view: PlanView) -> tuple[int, ...]:
+        """The cards the plan's card waits for that are not done; none for a plan without a card or while the board
+        is off or unreadable. Blocking."""
+        if view.card_id is None:
+            return ()
+        try:
+            return self.route.card_and_facts(view.project_id, view.card_id)[1].open_waits
+        except BoardError:
+            return ()
 
     async def result(
         self, project_id: int, card_id: int, conversation_id: int | None = None, review_id: int | None = None
@@ -211,7 +243,7 @@ class ActionService:
             return self.route.send_back(project_id, card_id, finding, criterion)
         if card.links.plan_id is None:
             raise NoPlan("The card has no build to send back from.")
-        if facts.plan_status not in ("failed", "interrupted"):
+        if facts.plan_status not in ("failed", "interrupted", "done", "cancelled"):
             raise MoveRefused("build_running", "Only a failed or interrupted build can be sent back; stop it first.")
         try:
             view = self.route.plans().get(card.links.plan_id)

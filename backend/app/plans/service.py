@@ -6,7 +6,7 @@ Plan text comes from a model or a hand edit: it is stored as data and shown as s
 
 import logging
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import Any, Literal
 
@@ -203,14 +203,13 @@ class PlanService:
     # --- Building: each change in one transaction, with the compare of the old status --------------------------
 
     def approve_for_build(self, plan_id: int, start: BuildStart) -> PlanView:
-        """A draft becomes the project's one building plan, with where it builds. Call it under the build lock."""
+        """A draft is approved and builds, with where it builds. Call it under the build lock."""
         with self.session_factory() as session:
             store = PlanStore(session)
             record = self.found(store, plan_id)
             if record.status != "draft":
                 message = f"Plan {plan_id} is {record.status}; only a draft can be approved."
                 raise BuildRefused("plan_not_draft", message)
-            refuse_second_build(store, record)
             checked_plan(record.body)
             move(store, record, "approve")
             move(store, record, "build_started")
@@ -231,7 +230,6 @@ class PlanService:
             if record.status not in ("interrupted", "failed") or not record.build_folder or not record.build_branch:
                 message = f"Plan {plan_id} is {record.status}; there is no build to go on with."
                 raise BuildRefused("not_resumable", message)
-            refuse_second_build(store, record)
             move(store, record, "continue")
             store.save_progress(record, reopened(plan_from_json(record.body)), build_info_from_json(record.body))
             record.failure, record.finished_at = None, None
@@ -254,12 +252,64 @@ class PlanService:
         with self.session_factory() as session:
             return float(session.scalar(query) or 0.0)
 
-    def refuse_second_build(self, project_id: int, plan_id: int) -> None:
-        """Raise BuildRefused when another plan of the project is being built."""
+    def queue_for_build(self, plan_id: int, branch: str, info: BuildInfo) -> PlanView:
+        """A draft is approved and waits for a build slot (`info.queued` says why). Call it under the build lock."""
         with self.session_factory() as session:
-            other = PlanStore(session).building_in_project(project_id, plan_id)
-        if other is not None:
-            raise BuildRefused("build_running", f"Plan {other.id} is already being built in this project.")
+            store = PlanStore(session)
+            record = self.found(store, plan_id)
+            if record.status != "draft":
+                message = f"Plan {plan_id} is {record.status}; only a draft can be approved."
+                raise BuildRefused("plan_not_draft", message)
+            checked_plan(record.body)
+            move(store, record, "approve")
+            move(store, record, "queue")
+            record.build_branch = branch
+            record.failure = None
+            store.save_progress(record, plan_from_json(record.body), info)
+            session.commit()
+            session.refresh(record)
+            return plan_view(record)
+
+    def start_queued(self, plan_id: int, start: BuildStart) -> PlanView | None:
+        """A queued plan starts building, with where it builds; None when it is no longer queued (another claim won
+        or it was stopped). Call it under the build lock."""
+        with self.session_factory() as session:
+            store = PlanStore(session)
+            record = self.found(store, plan_id)
+            if not store.set_status(plan_id, "queued", "building"):
+                return None
+            record.base_branch, record.base_commit = start.base_branch, start.base_commit
+            record.build_branch, record.build_folder = start.build_branch, start.build_folder
+            record.failure = None
+            earlier = build_info_from_json(record.body)
+            info = BuildInfo(uncommitted=start.uncommitted, criteria_commands=earlier.criteria_commands)
+            store.save_progress(record, plan_from_json(record.body), info)
+            session.commit()
+            session.refresh(record)
+            return plan_view(record)
+
+    def set_queue_reason(self, plan_id: int, reason: str) -> None:
+        """Change why a queued plan waits; nothing happens when it is not queued or the reason is the same."""
+        with self.session_factory() as session:
+            store = PlanStore(session)
+            record = self.found(store, plan_id)
+            info = build_info_from_json(record.body)
+            if record.status != "queued" or info.queued == reason:
+                return
+            store.save_progress(record, plan_from_json(record.body), replace(info, queued=reason))
+            session.commit()
+
+    def building(self, project_id: int) -> list[PlanView]:
+        """The plans of the project that are being built."""
+        with self.session_factory() as session:
+            return [plan_view(record) for record in PlanStore(session).in_project(project_id, ("building",))]
+
+    def queued(self) -> list[PlanView]:
+        """Every queued plan of every project, the earliest approved first."""
+        with self.session_factory() as session:
+            records = PlanStore(session).with_status(("queued",))
+            records.sort(key=lambda record: (record.approved_at is None, record.approved_at, record.id))
+            return [plan_view(record) for record in records]
 
     def save_progress(self, plan_id: int, plan: Plan, info: BuildInfo) -> None:
         with self.session_factory() as session:
@@ -290,9 +340,3 @@ class PlanService:
             if record is not None:
                 record.build_folder = None
                 session.commit()
-
-
-def refuse_second_build(store: PlanStore, record: PlanRecord) -> None:
-    other = store.building_in_project(record.project_id, record.id)
-    if other is not None:
-        raise BuildRefused("build_running", f"Plan {other.id} is already being built in this project.")

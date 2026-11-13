@@ -1,6 +1,8 @@
 """The build of an approved plan, run by code step by step.
 
-Approving makes the copy (plans/workspace.py) and marks the plan building; the build then runs in the background.
+Approving makes the copy (plans/workspace.py) and marks the plan building when the project's build queue
+(plans/queue.py) lets it start; otherwise the plan is queued and starts when a build ends or on the next tick. The
+build then runs in the background.
 Per open step: the step is `working`; its brief goes to the worker through the brief attempt loop (worker, the worker
 again with the failure, then the main model; agent/brief_delegation.py), or to the main model when the step has no
 check YAAP can run; YAAP runs the step's other checks itself; a passing step is committed in the copy ("Step N:
@@ -16,14 +18,18 @@ import logging
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
+from datetime import UTC, datetime
+from pathlib import Path
 
 import anyio
 
 from app.agent.brief_delegation import BriefOutcome, delegate_brief_once, run_check
 from app.agent.runs import PendingApproval
 from app.agent.sub_run_report import parse_report
+from app.board.settings import BOARD_PARALLEL_BUILDS_KEY
 from app.core.background import BackgroundWork
 from app.core.reply_services import ReplyServices
+from app.core.settings import SETTING_DEFINITIONS, resolve_setting
 from app.git.common import GitError
 from app.git.place import git_place
 from app.git.service import Repository, commit_all, run_git
@@ -31,6 +37,7 @@ from app.plans.build import build_branch_name, numbered_branch, remaining_checks
 from app.plans.build_run import BuildRun, close_build_run, open_build_run, plan_commands
 from app.plans.model import Plan, PlanEvent, PlanStep
 from app.plans.progress import (
+    BuildInfo,
     FinalCheck,
     capped_note,
     capped_output,
@@ -38,6 +45,17 @@ from app.plans.progress import (
     open_steps,
     with_attempts,
     with_step,
+)
+from app.plans.queue import (
+    RATE_LIMIT_HOLD,
+    BuildSlot,
+    QueueLimits,
+    Start,
+    Wait,
+    can_start,
+    parallel_limit,
+    plan_files,
+    rate_limited,
 )
 from app.plans.service import BuildRefused, BuildStart, PlanListeners, PlanNotFound, PlanService, PlanView
 from app.plans.workspace import (
@@ -53,6 +71,8 @@ from app.storage.models import Project
 
 logger = logging.getLogger(__name__)
 
+# How often queued plans are looked at when no build ends (a rate limit hold runs out, a card finishes).
+QUEUE_SECONDS = 60
 STOPPED = "Stopped. The steps done so far are on the build branch."
 RESTARTED = "YAAP restarted while this plan was being built. Continue to go on from the last step done."
 
@@ -69,9 +89,27 @@ def no_extras(_view: PlanView) -> tuple[str, ...]:
     return ()
 
 
+def no_waits(_view: PlanView) -> tuple[int, ...]:
+    return ()
+
+
+def slot_of(view: PlanView) -> BuildSlot:
+    return BuildSlot(view.id, view.card_id, plan_files(view.plan))
+
+
+@dataclass(frozen=True)
+class ProjectPlace:
+    """Where a plan's project lives."""
+
+    folder: Path
+    environment_id: int
+    project_id: int
+
+
 @dataclass
 class BuildRunner:
-    """Starts, runs and stops builds; one per project (checked under `lock` when a build starts)."""
+    """Starts, runs and stops builds. How many run at once per project, and which wait, is decided under `lock` by
+    the build queue rules (plans/queue.py); plans that must wait are queued and start when a build ends."""
 
     services: Callable[[], ReplyServices]
     listeners: PlanListeners = field(default_factory=PlanListeners)
@@ -86,64 +124,190 @@ class BuildRunner:
     # The commands beside the plan's own that approving it approves: its card's acceptance criteria commands, given
     # by the card's route, so plans/ knows nothing of cards. Blocking.
     approved_extras: Callable[[PlanView], tuple[str, ...]] = no_extras
+    # The cards the plan's card still waits for (its open waits_for), given by the board, so plans/ knows nothing of
+    # cards. Blocking.
+    open_waits: Callable[[PlanView], tuple[int, ...]] = no_waits
+    # While a provider's rate limit holds new builds back, until when.
+    held_until: datetime | None = None
+    # Plans just made building that `launch` may start.
+    ready: set[int] = field(default_factory=set)
+    clock: Callable[[], datetime] = lambda: datetime.now(UTC)
 
     def plans(self) -> PlanService:
         return PlanService(self.services().session_factory)
 
     # --- Starting (worker thread), then launching (event loop) ----------------------------------------------------
 
+    def project_place(self, services: ReplyServices, project_id: int) -> ProjectPlace:
+        with services.session_factory() as session:
+            project = session.get_one(Project, project_id)
+            return ProjectPlace(project_path(services.workspace_dir, project), project.environment_id, project_id)
+
+    def decide(self, view: PlanView, place: ProjectPlace) -> Start | Wait:
+        """Whether the plan may build now, by the queue rules. Call it under `lock`. Blocking."""
+        services = self.services()
+        with services.session_factory() as session:
+            definition = SETTING_DEFINITIONS[BOARD_PARALLEL_BUILDS_KEY]
+            setting = resolve_setting(session, definition, place.environment_id, place.project_id)
+        running = [slot_of(other) for other in PlanService(services.session_factory).building(place.project_id)]
+        running = [slot for slot in running if slot.plan_id != view.id]
+        cards = {view.card_id: self.open_waits(view)} if view.card_id is not None else {}
+        limits = QueueLimits(parallel_limit(setting.value), self.held_until, self.clock())
+        return can_start(slot_of(view), running, cards, limits)
+
     def approve(self, plan_id: int) -> PlanView:
-        """Make the copy and mark the draft building. Blocking: call it from a worker thread, then `launch`."""
+        """Approve the draft: it starts building (the copy is made), or is queued when the queue says it must wait.
+        Blocking: call it from a worker thread, then `launch`."""
         services = self.services()
         plans = PlanService(services.session_factory)
         view = plans.get(plan_id)
         if view.status != "draft":
             raise BuildRefused("plan_not_draft", f"Plan {plan_id} is {view.status}; only a draft can be approved.")
-        with services.session_factory() as session:
-            project = session.get_one(Project, view.project_id)
-            folder = project_path(services.workspace_dir, project)
-            environment_id = project.environment_id
+        place = self.project_place(services, view.project_id)
         extras = self.approved_extras(view)
-        if not (folder / ".git").exists():
+        if not (place.folder / ".git").exists():
             raise BuildRefused(
                 "no_repository", "Building needs a git repository. Create one in the project's Branches panel."
             )
         with self.lock:
-            plans.refuse_second_build(view.project_id, plan_id)
-            try:
-                place = git_place(environment_id, folder)
-                base = read_base(place)
-                taken = run_git(["for-each-ref", "--format=%(refname:short)", "refs/heads"], place).stdout.split()
-                branch = numbered_branch(build_branch_name(plan_id, view.card_id, view.plan.title), taken)
-                make_build_copy(place, lambda path: git_place(environment_id, path), plan_id, base.commit, branch)
-            except (GitError, BuildCopyError) as error:
-                raise BuildRefused("copy_failed", str(error)) from error
-            start = BuildStart(base.branch, base.commit, branch, copy_relative(plan_id), base.uncommitted, extras)
-            try:
-                view = plans.approve_for_build(plan_id, start)
-            except BaseException:
-                remove_build_copy(folder, plan_id)
-                raise
+            decision = self.decide(view, place)
+            if isinstance(decision, Wait):
+                info = BuildInfo(criteria_commands=extras, queued=decision.reason)
+                view = plans.queue_for_build(plan_id, self.branch_for(view, place), info)
+            else:
+                started = self.build_copy(
+                    plans, view, place, extras, lambda start: plans.approve_for_build(plan_id, start)
+                )
+                if started is None:
+                    raise BuildRefused("plan_not_draft", f"Plan {plan_id} could not be started.")
+                view = started
+                self.ready.add(plan_id)
         self.listeners.tell(plan_id, "approve")
         return view
 
+    def branch_for(self, view: PlanView, place: ProjectPlace) -> str:
+        """The build branch's name: the plan's own when it has one, numbered when a branch of that name exists."""
+        try:
+            git = git_place(place.environment_id, place.folder)
+            taken = run_git(["for-each-ref", "--format=%(refname:short)", "refs/heads"], git).stdout.split()
+        except GitError as error:
+            raise BuildRefused("copy_failed", str(error)) from error
+        return numbered_branch(view.build_branch or build_branch_name(view.id, view.card_id, view.plan.title), taken)
+
+    def build_copy(
+        self,
+        plans: PlanService,
+        view: PlanView,
+        place: ProjectPlace,
+        extras: tuple[str, ...],
+        begin: Callable[[BuildStart], PlanView | None],
+    ) -> PlanView | None:
+        """Make the plan's copy and `begin` the build with it; None (and no copy left) when `begin` finds the plan
+        no longer startable. Call it under `lock`. Blocking."""
+        try:
+            git = git_place(place.environment_id, place.folder)
+            base = read_base(git)
+            branch = self.branch_for(view, place)
+            make_build_copy(git, lambda path: git_place(place.environment_id, path), view.id, base.commit, branch)
+        except (GitError, BuildCopyError) as error:
+            raise BuildRefused("copy_failed", str(error)) from error
+        start = BuildStart(base.branch, base.commit, branch, copy_relative(view.id), base.uncommitted, extras)
+        try:
+            started = begin(start)
+        except BaseException:
+            remove_build_copy(place.folder, view.id)
+            raise
+        if started is None:
+            remove_build_copy(place.folder, view.id)
+        return started
+
     def resume(self, plan_id: int) -> PlanView:
-        """Mark an interrupted or failed build building again; its copy must still be there. Then `launch`."""
+        """Mark an interrupted or failed build building again; its copy must still be there. Then `launch`. Refused
+        while the queue rules make it wait."""
         services = self.services()
         plans = PlanService(services.session_factory)
         view = plans.get(plan_id)
-        with services.session_factory() as session:
-            folder = project_path(services.workspace_dir, session.get_one(Project, view.project_id))
-        if view.build_folder and not (folder / view.build_folder / ".git").is_dir():
+        place = self.project_place(services, view.project_id)
+        if view.build_folder and not (place.folder / view.build_folder / ".git").is_dir():
             raise BuildRefused("not_resumable", "The build's copy is gone, so it cannot go on. Make a new plan.")
         with self.lock:
-            return plans.continue_build(plan_id)
+            decision = self.decide(view, place)
+            if isinstance(decision, Wait):
+                raise BuildRefused("build_running", decision.reason)
+            continued = plans.continue_build(plan_id)
+            self.ready.add(plan_id)
+            return continued
 
     def launch(self, plan_id: int) -> None:
-        """Run the build in the background. On the event loop."""
+        """Run the build in the background when it was made building (a queued plan starts later from the queue).
+        On the event loop."""
+        if plan_id not in self.ready:
+            return
+        self.ready.discard(plan_id)
         task = self.work.start(self.run(plan_id), name=f"build-{plan_id}")
         self.tasks[plan_id] = task
         task.add_done_callback(lambda _task: self.tasks.pop(plan_id, None))
+
+    # --- The queue -----------------------------------------------------------------------------------------------
+
+    def claim_queued(self) -> list[int]:
+        """Start every queued plan the queue rules let start now; the ids claimed. Blocking: a worker thread."""
+        services = self.services()
+        plans = PlanService(services.session_factory)
+        claimed: list[int] = []
+        for queued in plans.queued():
+            try:
+                if self.claim(services, plans, queued.id):
+                    claimed.append(queued.id)
+            except Exception:  # noqa: BLE001 - one plan's failure must not keep the others in the queue waiting
+                logger.exception("Queued plan %s could not be started.", queued.id)
+        return claimed
+
+    def claim(self, services: ReplyServices, plans: PlanService, plan_id: int) -> bool:
+        """Move one queued plan to building when it may start; otherwise record why it waits."""
+        with self.lock:
+            view = plans.get(plan_id)
+            if view.status != "queued":
+                return False
+            place = self.project_place(services, view.project_id)
+            decision = self.decide(view, place)
+            if isinstance(decision, Wait):
+                plans.set_queue_reason(plan_id, decision.reason)
+                return False
+            try:
+                started = self.build_copy(
+                    plans, view, place, view.build.criteria_commands, lambda start: plans.start_queued(plan_id, start)
+                )
+            except BuildRefused as error:
+                plans.set_queue_reason(plan_id, f"The build's copy could not be made: {error} It is tried again.")
+                return False
+            if started is None:
+                return False
+            self.ready.add(plan_id)
+            return True
+
+    async def start_queued(self) -> None:
+        """Start the queued plans that may start now. On the event loop."""
+        for plan_id in await anyio.to_thread.run_sync(self.claim_queued):
+            self.launch(plan_id)
+
+    async def run_queue(self) -> None:
+        """Look at the queue now and then: a hold or a card's wait can end without any build ending."""
+        while True:
+            await self.kick_queue()
+            await asyncio.sleep(QUEUE_SECONDS)
+
+    async def kick_queue(self) -> None:
+        if self.shutting_down:
+            return
+        try:
+            await self.start_queued()
+        except Exception:  # noqa: BLE001 - the queue is background work: a failed pass is logged and tried again
+            logger.exception("The build queue could not be looked at.")
+
+    def start_queue(self) -> None:
+        """Begin the periodic look at the queue. On the event loop."""
+        self.work.start(self.run_queue(), name="build-queue")
 
     async def stop(self, plan_id: int) -> PlanView:
         """Stop the build: it ends failed, with the steps done so far delivered. On the event loop."""
@@ -153,6 +317,8 @@ class BuildRunner:
             await self.work.wait(task)
         plans = self.plans()
         view = plans.get(plan_id)
+        if view.status == "queued":  # It waited for a slot and has no task.
+            return plans.end_build(plan_id, "discard", "Stopped before the build started.")
         if view.status == "building":  # Nothing ran it (a start that never got going).
             view = plans.end_build(plan_id, "stop", STOPPED)
         return view
@@ -225,6 +391,9 @@ class BuildRunner:
             brief = step_brief(plan, step, earlier_notes(plan, step.number))
             first = build.first if brief.check else "main"
             outcome = await delegate_brief_once(build.delegator, build.run, brief, first)
+            if outcome.last.status == "error" and rate_limited(outcome.last.report):
+                self.held_until = self.clock() + RATE_LIMIT_HOLD
+                logger.info("A provider's rate limit was reached; new builds are held until %s.", self.held_until)
             result = await self.judge(build, step, outcome)
             info = with_attempts(info, step.number, tuple(role for role, _, _ in outcome.history))
             attempts = len(info.attempts[step.number])
@@ -286,8 +455,11 @@ class BuildRunner:
         try:
             plans.end_build(plan_id, event, failure)
         except PlanNotFound:
-            return  # The conversation, and the plan with it, was deleted: the branch stays, the copy is pruned.
+            # The conversation, and the plan with it, was deleted: the branch stays, the copy is pruned.
+            await self.kick_queue()
+            return
         self.listeners.tell(plan_id, event)
+        await self.kick_queue()
 
     def deliver(self, plans: PlanService, build: BuildRun, plan_id: int) -> str | None:
         """Bring the build branch into the project; the reason when it could not. Blocking."""

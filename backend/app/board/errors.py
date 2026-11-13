@@ -38,6 +38,7 @@ BoardErrorCode = Literal[
     "finding_not_found",
     "no_github_repository",
     "github_failed",
+    "merge_refused",
 ]
 # Why the flow (app.board.flow) refuses a move or event.
 RefusalCode = Literal[
@@ -235,6 +236,11 @@ class ActionRunning(BoardError):
 
     code: ClassVar[BoardErrorCode] = "action_running"
     default_sentence: ClassVar[str] = "This stage of the card is already running. Wait for it to finish."
+
+
+class MergeRefused(BoardError):
+    code: ClassVar[BoardErrorCode] = "merge_refused"
+    default_sentence: ClassVar[str] = "This card cannot be merged into its version now."
 
 
 class NoPlan(BoardError):

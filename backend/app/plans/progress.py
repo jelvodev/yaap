@@ -34,6 +34,8 @@ class BuildInfo:
     delivered: str | None = None
     # The card's acceptance criteria commands that approving the plan approved, run on the copy after the build.
     criteria_commands: tuple[str, ...] = ()
+    # Why the approved plan waits to build (the queue's reason); None once it builds.
+    queued: str | None = None
 
 
 def build_info_to_json(info: BuildInfo) -> dict[str, Any]:
@@ -45,6 +47,7 @@ def build_info_to_json(info: BuildInfo) -> dict[str, Any]:
         ],
         "delivered": info.delivered,
         "criteria_commands": list(info.criteria_commands),
+        "queued": info.queued,
     }
 
 
@@ -68,12 +71,14 @@ def build_info_from_json(body: Mapping[str, Any]) -> BuildInfo:
     )
     delivered = value.get("delivered")
     criteria = tuple(str(item) for item in value.get("criteria_commands") or [] if isinstance(item, str))
+    queued = value.get("queued")
     return BuildInfo(
         int(value.get("uncommitted") or 0),
         attempts,
         checks,
         delivered if isinstance(delivered, str) else None,
         criteria,
+        queued if isinstance(queued, str) else None,
     )
 
 

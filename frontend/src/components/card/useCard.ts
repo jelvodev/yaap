@@ -101,7 +101,8 @@ export function useCard(projectId: number, cardId: number): CardState {
     void refresh();
   }, [refresh]);
 
-  const following = card?.state === "working" || card?.review === "running" || parts.plan?.status === "building";
+  const following = card?.state === "working" || card?.review === "running" || parts.plan?.status === "building" ||
+    parts.plan?.status === "queued";
   useEffect(() => {
     if (!following) return;
     const timer = setInterval(() => void refresh(), POLL_MS);
