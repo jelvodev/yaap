@@ -6,6 +6,12 @@ yourself when you update; it says "None." when there is nothing.
 
 ## Unreleased
 
+### Action needed
+
+None.
+
+## 0.8.0 (2026-11-13)
+
 - `/plan <what>` in a project conversation makes a plan without changing anything: the reply is read only, and the agent hands over its plan as a card with numbered steps, the files each touches, the checks that prove it and the risks. The card can be edited in place or discarded; a new `/plan` replaces the earlier draft. Exports show the plan as a checklist.
 - Work that a read-only reply delegates is read only too: a sub-run never gets more access than the reply that started it.
 - Each project's memory now has a short **Current state** block: where the work stands, what is open and the next step. Every conversation of the project reads it on every turn, so new work picks up where the last stopped.
