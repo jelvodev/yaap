@@ -72,6 +72,7 @@ from app.api import board as board_api
 from app.api import board_intake as board_intake_api
 from app.api import board_storage as board_storage_api
 from app.api import card_actions as card_actions_api
+from app.api import waiting as waiting_api
 from app.board.actions import ActionService
 from app.board.index import BoardIndexer
 from app.board.route import CardRoute
@@ -467,6 +468,7 @@ def create_app(
     api.include_router(board_intake_api.router)
     api.include_router(board_storage_api.router)
     api.include_router(card_actions_api.router)
+    api.include_router(waiting_api.router)
     api.include_router(current_state_api.router)
     api.include_router(second_opinion_api.router)
     api.include_router(files_api.router)
