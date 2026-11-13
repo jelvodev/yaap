@@ -62,6 +62,8 @@ yourself when you update; it says "None." when there is nothing.
 - A card whose build failed or was interrupted can be sent back to Design with the reason in its description, to be planned again.
 - A second click on *Review* while the card's review is starting is refused instead of starting a second review.
 
+- **Waiting for me.** A new entry at the top of the chat's sidebar shows how many things wait for you, and opens one
+
 ### Action needed
 
 - `git push --all` and `git push --mirror` also push the `yaap-board` branch, and with it every card, specification and plan. On a public repository, push your branches one by one.
