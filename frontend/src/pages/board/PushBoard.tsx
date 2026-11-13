@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import type { Board } from "./boardApi";
 import { pushBoard } from "./boardApi";
 
 /** The remote as text, without any user:password part; null when there is none to show. */
@@ -21,11 +22,15 @@ export default function PushBoard({
   projectId,
   repositoryUrl,
   pushed,
+  storage,
+  location,
   reload,
 }: {
   projectId: number;
   repositoryUrl: string | null;
   pushed: boolean;
+  storage: Board["storage"];
+  location: Board["location"];
   reload: () => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
@@ -56,7 +61,9 @@ export default function PushBoard({
     setNeedsAck(answer.problem.code === "public_remote");
   }
 
-  const remote = displayRemote(repositoryUrl) ?? "the project's remote";
+  const separate = storage === "repository";
+  const shown = separate ? (location?.replace(/^Repository /, "") ?? null) : repositoryUrl;
+  const remote = displayRemote(shown) ?? "the project's remote";
   return (
     <div className="board-push">
       {done ? <span className="faint small">{done}</span> : pushed && <span className="faint small">Pushed</span>}
@@ -65,10 +72,18 @@ export default function PushBoard({
       </button>
       {open && (
         <div className="board-push-panel" role="dialog" aria-label="Push board">
-          <p>
-            Push the board's branch yaap-board to <span className="mono">{remote}</span>?
-          </p>
-          <p className="faint small">Only the board branch is pushed.</p>
+          {separate ? (
+            <p>
+              Push the board to its separate repository <span className="mono">{remote}</span>?
+            </p>
+          ) : (
+            <>
+              <p>
+                Push the board's branch yaap-board to <span className="mono">{remote}</span>?
+              </p>
+              <p className="faint small">Only the board branch is pushed.</p>
+            </>
+          )}
           {message && <p className="form-error small">{message}</p>}
           {needsAck && (
             <label className="board-check">

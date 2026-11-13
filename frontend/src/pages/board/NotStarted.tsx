@@ -1,24 +1,33 @@
 import { useState } from "react";
 
-import type { BoardProblem } from "./boardApi";
+import type { BoardProblem, BoardStartChoice } from "./boardApi";
+import RepositoryChoice from "./RepositoryChoice";
 
-/** The storage choice before a board starts; the branch is the only storage for now. */
+/** The storage choice before a board starts: the project's branch or a separate private repository. */
 export default function NotStarted({
+  projectId,
   start,
   onStarted,
   onCancel,
 }: {
-  start: (createRepository: boolean) => Promise<BoardProblem | null>;
+  projectId: number;
+  start: (choice: BoardStartChoice) => Promise<BoardProblem | null>;
   onStarted: () => void;
   onCancel?: () => void;
 }) {
   const [problem, setProblem] = useState<BoardProblem | null>(null);
   const [createRepository, setCreateRepository] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [storage, setStorage] = useState<"branch" | "repository">("branch");
+  const [url, setUrl] = useState("");
 
   async function begin() {
     setBusy(true);
-    const answer = await start(createRepository);
+    const answer = await start(
+      storage === "repository"
+        ? { storage, create_repository: false, repository_url: url.trim() }
+        : { storage, create_repository: createRepository },
+    );
     setBusy(false);
     setProblem(answer);
     if (answer === null) onStarted();
@@ -28,7 +37,7 @@ export default function NotStarted({
     <div className="board-start">
       <h3>Where the cards are kept</h3>
       <label className="board-start-choice">
-        <input type="radio" name="board-storage" checked readOnly />
+        <input type="radio" name="board-storage" checked={storage === "branch"} onChange={() => setStorage("branch")} />
         <span>
           On the branch yaap-board of this project's repository
           <span className="faint small board-start-note">
@@ -36,15 +45,33 @@ export default function NotStarted({
           </span>
         </span>
       </label>
+      <label className="board-start-choice">
+        <input
+          type="radio"
+          name="board-storage"
+          checked={storage === "repository"}
+          onChange={() => setStorage("repository")}
+        />
+        <span>In a separate private repository</span>
+      </label>
+      <p className="faint small board-start-note">
+        A pushed branch of a public repository is public too; a separate private repository keeps ideas and plans apart.
+      </p>
+      {storage === "repository" && <RepositoryChoice projectId={projectId} url={url} setUrl={setUrl} />}
       {problem && <p className="form-error small">{problem.message}</p>}
-      {problem?.code === "no_repository" && (
+      {storage === "branch" && problem?.code === "no_repository" && (
         <label className="board-check">
           <input type="checkbox" checked={createRepository} onChange={(e) => setCreateRepository(e.target.checked)} />
           Make an empty git repository in the project folder
         </label>
       )}
       <div className="board-actions">
-        <button type="button" className="button button-primary" disabled={busy} onClick={() => void begin()}>
+        <button
+          type="button"
+          className="button button-primary"
+          disabled={busy || (storage === "repository" && url.trim() === "")}
+          onClick={() => void begin()}
+        >
           Start the board
         </button>
         {onCancel && (

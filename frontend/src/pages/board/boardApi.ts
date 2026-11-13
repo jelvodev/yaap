@@ -10,6 +10,8 @@ export type CardPatch = components["schemas"]["CardPatch"];
 export type VersionPut = components["schemas"]["VersionPut"];
 export type Column = NonNullable<BoardCard["column"]>;
 export type CardKind = NonNullable<BoardCard["kind"]>;
+export type BoardStartChoice = components["schemas"]["BoardStart"];
+export type RemoteCheck = components["schemas"]["RemoteCheckOut"];
 
 /** A refused board request: the backend's code and safe sentence, the flow's reason for a refused move, and the
  * current card when it changed meanwhile. */
@@ -72,10 +74,10 @@ export async function readBoard(projectId: number, since: string | null): Promis
   return result(data, error, "The board could not be read.");
 }
 
-export async function startBoard(projectId: number, createRepository: boolean): Promise<BoardResult<Board>> {
+export async function startBoard(projectId: number, choice: BoardStartChoice): Promise<BoardResult<Board>> {
   const { data, error } = await api.POST("/api/v1/projects/{project_id}/board", {
     params: { path: project(projectId) },
-    body: { storage: "branch", create_repository: createRepository },
+    body: choice,
   });
   return result(data, error, "The board could not be started.");
 }
@@ -161,6 +163,25 @@ export async function pushBoard(projectId: number, acknowledgePublic: boolean): 
     body: { acknowledge_public: acknowledgePublic },
   });
   return result(data?.pushed_commit, error, "The board could not be pushed.");
+}
+
+/** Fetch a repository board's remote; the head is null when there was nothing new. */
+export async function pullBoard(projectId: number): Promise<BoardResult<string | null>> {
+  const { data, error } = await api.POST("/api/v1/projects/{project_id}/board/pull", {
+    params: { path: project(projectId) },
+  });
+  if (error !== undefined || data === undefined) {
+    return { ok: false, problem: boardProblem(error, "The board could not be pulled.") };
+  }
+  return { ok: true, data: data.head };
+}
+
+export async function checkRemote(projectId: number, url: string): Promise<BoardResult<RemoteCheck>> {
+  const { data, error } = await api.POST("/api/v1/projects/{project_id}/board/check-remote", {
+    params: { path: project(projectId) },
+    body: { repository_url: url },
+  });
+  return result(data, error, "The repository could not be checked.");
 }
 
 /** The cards of a board answer in column order, broken cards last. */

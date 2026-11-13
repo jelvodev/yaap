@@ -77,6 +77,23 @@
   background: var(--surface);
 }
 
+.board-start-repository {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+
+.board-start-repository input {
+  flex: 1 1 260px;
+}
+
+.board-start-repository p {
+  flex-basis: 100%;
+  margin: 0;
+}
+
 .board-start-note {
   display: block;
 }

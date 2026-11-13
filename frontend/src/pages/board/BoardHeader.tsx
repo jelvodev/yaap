@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { Board, BoardVersion } from "./boardApi";
 import { type VersionFilter, budgetColour, versionProgress } from "./boardLogic";
 import type { BoardView } from "./useBoardPrefs";
+import PullBoard from "./PullBoard";
 import PushBoard from "./PushBoard";
 import VersionDialog from "./VersionDialog";
 
@@ -104,11 +105,14 @@ export default function BoardHeader(props: HeaderProps) {
             <Segment label="Board" active={view === "board"} onClick={() => setView("board")} />
             <Segment label="List" active={view === "list"} onClick={() => setView("list")} />
           </div>
+          {board.storage === "repository" && <PullBoard projectId={props.projectId} reload={props.reload} />}
           {board.push?.allowed && (
             <PushBoard
               projectId={props.projectId}
               repositoryUrl={props.repositoryUrl}
               pushed={board.push.pushed}
+              storage={board.storage}
+              location={board.location}
               reload={props.reload}
             />
           )}
