@@ -67,6 +67,9 @@ yourself when you update; it says "None." when there is nothing.
 - Several cards of a project can build at the same time: *Builds at a time* in the project's board settings (1 to 4, default 2). Plans that name the same files never build together, a card that waits for other cards waits, and a provider's rate limit holds new builds for ten minutes. A plan that must wait is queued, shows why ("Queued: waits for #12's files") and starts by itself when a build ends; a queued build can be stopped.
 - *Merge into the version* on a reviewed card with a version: the card's branch is merged into the version's branch `yaap/v<version>` (made from the default branch when the first card of the version is merged) in a copy of the project, and the version's checks and those of every card merged into it run there. Only when everything passes does the version branch move; a conflict or a failing check leaves it as it was and sends the card back to Build with the output. One merge at a time per version. The default branch is never touched and nothing is pushed: merging the version into the default branch stays yours.
 
+- A card's review no longer gets stuck when only one vendor is set up: without an allowed model of another vendor it is done by the same vendor's strongest other model (the same rule as *Second opinion*), and the card says "Review by the same vendor (no other vendor available)". Reviews after a goal and of the uncommitted changes still need another vendor and are skipped with the reason.
+- After each step of a build, YAAP checks which files the step's commit changed. When a step changed files that the
+
 ### Action needed
 
 - `git push --all` and `git push --mirror` also push the `yaap-board` branch, and with it every card, specification and plan. On a public repository, push your branches one by one.
