@@ -1,14 +1,20 @@
 """Web fetches run where the run's commands run, refuse when that place is offline, and carry no shell input."""
 
+import asyncio
 import base64
 import json
 import shlex
 import subprocess
 import sys
+from types import SimpleNamespace
 
 import pytest
 
-from app.websearch.runner_fetch import BOOTSTRAP, fetch_command, fetch_place
+from app.agent.toolkit import ToolError
+from app.agent.web_tools import fetch_for
+from app.targets.base import CapturedResult
+from app.websearch.runner_fetch import BOOTSTRAP, fetch_command, fetch_place, fetch_with
+from app.websearch.safe_fetch import FetchError
 
 
 @pytest.mark.parametrize(
@@ -76,3 +82,71 @@ def test_the_fetch_command_itself_refuses_private_destinations(url: str) -> None
     completed = subprocess.run([sys.executable, *words[1:]], capture_output=True, timeout=30, check=False)
     head = json.loads(completed.stdout.partition(b"\n")[0])
     assert head == {"error": "The destination is not a public address.", "status": None}
+
+
+class FakeExecutor:
+    """Answers every capture with a prepared result and remembers the command."""
+
+    def __init__(self, result: CapturedResult) -> None:
+        self.result = result
+        self.commands: list[str] = []
+
+    async def capture(self, command: str, timeout: float) -> CapturedResult:
+        self.commands.append(command)
+        return self.result
+
+
+def head_line(**fields: object) -> bytes:
+    return json.dumps(fields).encode() + b"\n"
+
+
+def test_a_page_fetched_in_the_runner_gives_its_type_text_and_final_url() -> None:
+    body = b"<p>hello</p>"
+    executor = FakeExecutor(
+        CapturedResult(0, head_line(content_type="text/html", final_url="https://example.com/b") + body, b"")
+    )
+    answer = asyncio.run(fetch_with(executor, "https://example.com/a", 1000, "linux", "the runner"))
+    assert answer == ("text/html", "<p>hello</p>", "https://example.com/b")
+    assert len(executor.commands) == 1 and BOOTSTRAP in executor.commands[0]
+
+
+def test_a_page_longer_than_the_limit_is_cut_at_the_limit() -> None:
+    executor = FakeExecutor(CapturedResult(0, head_line(content_type="text/plain", final_url="") + b"x" * 50, b""))
+    _, text, final = asyncio.run(fetch_with(executor, "https://example.com/", 10, "linux", "the runner"))
+    assert (text, final) == ("x" * 10, "https://example.com/")
+
+
+@pytest.mark.parametrize(
+    ("result", "message"),
+    [
+        (
+            CapturedResult(0, head_line(error="The destination is not a public address.", status=None), b""),
+            "The destination is not a public address.",
+        ),
+        (CapturedResult(0, head_line(error="HTTP 404", status=404), b""), "HTTP 404"),
+        (CapturedResult(None, b"", b"", too_large=True), "returned more than YAAP reads"),
+        (CapturedResult(None, b"", b"", timed_out=True), "took longer than 60 seconds"),
+        (CapturedResult(127, b"", b"python3: not found"), "needs Python 3"),
+        (CapturedResult(1, b"not json", b"Traceback: boom"), "failed: Traceback: boom"),
+    ],
+    ids=["private-redirect", "http-error", "too-large", "timeout", "no-python", "garbage"],
+)
+def test_a_fetch_that_fails_in_the_runner_raises_with_the_reason(result: CapturedResult, message: str) -> None:
+    with pytest.raises(FetchError, match=message):
+        asyncio.run(fetch_with(FakeExecutor(result), "https://example.com/", 1000, "linux", "the runner"))
+
+
+def test_a_http_error_keeps_its_status() -> None:
+    executor = FakeExecutor(CapturedResult(0, head_line(error="HTTP 404", status=404), b""))
+    with pytest.raises(FetchError) as caught:
+        asyncio.run(fetch_with(executor, "https://example.com/", 1000, "linux", "the runner"))
+    assert caught.value.status == 404
+
+
+@pytest.mark.parametrize(
+    ("kind", "message"), [("runner", "runner has no network"), ("sandbox", "sandbox has no network")]
+)
+def test_an_offline_place_refuses_a_web_fetch_with_the_clear_message(kind: str, message: str) -> None:
+    run = SimpleNamespace(target=SimpleNamespace(kind=kind, spec=SimpleNamespace(network=False)))
+    with pytest.raises(ToolError, match=message):
+        asyncio.run(fetch_for(run, "https://example.com/"))  # type: ignore[arg-type] # a stand-in for the run

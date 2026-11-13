@@ -31,6 +31,7 @@ from app.git.branches import create_branch, list_branches, switch_branch
 from app.git.remote import fetch, pull, push
 from app.providers.base import AgentRequest
 from app.providers.claude_code_provider import ClaudeCodeProvider, TurnInput, claude_code_environment
+from app.runner.service import RUNNERS
 
 
 def host_git(*arguments: str, cwd: Path) -> subprocess.CompletedProcess[str]:
@@ -52,6 +53,8 @@ def payload(marker: Path) -> str:
 @pytest.fixture
 def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path, Path]:
     """A project with one commit, pushed to a local bare remote; and the marker file a payload would write."""
+    # The transport lives next to the workspace; without this the rows pass only after another test bound the runners.
+    monkeypatch.setattr(RUNNERS, "workspace_dir", tmp_path / "workspace")
     remote = tmp_path / "remote.git"
     host_git("init", "--bare", "-b", "main", str(remote), cwd=tmp_path)
     folder = tmp_path / "site"
