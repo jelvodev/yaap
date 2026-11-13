@@ -16308,7 +16308,8 @@
             "default": "prompt",
             "enum": [
               "prompt",
-              "eval"
+              "eval",
+              "board_trigger"
             ],
             "title": "Action",
             "type": "string"
@@ -16337,6 +16338,16 @@
             },
             "title": "Allowed Domains",
             "type": "array"
+          },
+          "config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TriggerConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "conversation_mode": {
             "default": "new",
@@ -16451,7 +16462,8 @@
             "default": "prompt",
             "enum": [
               "prompt",
-              "eval"
+              "eval",
+              "board_trigger"
             ],
             "title": "Action",
             "type": "string"
@@ -16480,6 +16492,21 @@
             },
             "title": "Allowed Domains",
             "type": "array"
+          },
+          "cards_this_week": {
+            "default": 0,
+            "title": "Cards This Week",
+            "type": "integer"
+          },
+          "config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TriggerConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "conversation_id": {
             "anyOf": [
@@ -17404,6 +17431,58 @@
           "model"
         ],
         "title": "TranscriptionOut",
+        "type": "object"
+      },
+      "TriggerConfig": {
+        "additionalProperties": false,
+        "description": "A trigger's settings, kept in the scheduled task's `config`: what it polls and how many cards it may make a\nday. `label` is for `new_issue`, `command` for `command_failed` (which must also be in the task's allowed\ncommands, because it runs without the user).",
+        "properties": {
+          "cards_per_day": {
+            "default": 3,
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Cards Per Day",
+            "type": "integer"
+          },
+          "command": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Command"
+          },
+          "kind": {
+            "enum": [
+              "ci_failed",
+              "new_issue",
+              "dependency_update",
+              "command_failed"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "TriggerConfig",
         "type": "object"
       },
       "UpdateStatusOut": {

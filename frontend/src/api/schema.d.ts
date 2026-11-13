@@ -10600,13 +10600,14 @@ export interface components {
              * @default prompt
              * @enum {string}
              */
-            action: "prompt" | "eval";
+            action: "prompt" | "eval" | "board_trigger";
             /** Agent */
             agent?: string | null;
             /** Allowed Commands */
             allowed_commands?: string[];
             /** Allowed Domains */
             allowed_domains?: string[];
+            config?: components["schemas"]["TriggerConfig"] | null;
             /**
              * Conversation Mode
              * @default new
@@ -10668,13 +10669,19 @@ export interface components {
              * @default prompt
              * @enum {string}
              */
-            action: "prompt" | "eval";
+            action: "prompt" | "eval" | "board_trigger";
             /** Agent */
             agent?: string | null;
             /** Allowed Commands */
             allowed_commands?: string[];
             /** Allowed Domains */
             allowed_domains?: string[];
+            /**
+             * Cards This Week
+             * @default 0
+             */
+            cards_this_week: number;
+            config?: components["schemas"]["TriggerConfig"] | null;
             /** Conversation Id */
             conversation_id: number | null;
             /**
@@ -10970,6 +10977,28 @@ export interface components {
             seconds: number;
             /** Text */
             text: string;
+        };
+        /**
+         * TriggerConfig
+         * @description A trigger's settings, kept in the scheduled task's `config`: what it polls and how many cards it may make a
+         *     day. `label` is for `new_issue`, `command` for `command_failed` (which must also be in the task's allowed
+         *     commands, because it runs without the user).
+         */
+        TriggerConfig: {
+            /**
+             * Cards Per Day
+             * @default 3
+             */
+            cards_per_day: number;
+            /** Command */
+            command?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "ci_failed" | "new_issue" | "dependency_update" | "command_failed";
+            /** Label */
+            label?: string | null;
         };
         /** UpdateStatusOut */
         UpdateStatusOut: {
