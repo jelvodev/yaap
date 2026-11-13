@@ -3287,6 +3287,46 @@
         "title": "CheckOut",
         "type": "object"
       },
+      "CheckRunOut": {
+        "properties": {
+          "command": {
+            "title": "Command",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "passed",
+              "failed",
+              "not_run",
+              "stopped",
+              "error"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "output": {
+            "title": "Output",
+            "type": "string"
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          },
+          "step": {
+            "title": "Step",
+            "type": "string"
+          }
+        },
+        "required": [
+          "command",
+          "outcome",
+          "step",
+          "ref",
+          "output"
+        ],
+        "title": "CheckRunOut",
+        "type": "object"
+      },
       "ChecklistItemOut": {
         "properties": {
           "done": {
@@ -5179,6 +5219,63 @@
         "title": "CredentialTestOut",
         "type": "object"
       },
+      "CriterionEvidenceOut": {
+        "properties": {
+          "how": {
+            "enum": [
+              "command",
+              "file",
+              "reviewer",
+              "none"
+            ],
+            "title": "How",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvidenceSourceOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "failed",
+              "judged_met",
+              "judged_not_met",
+              "not_checked"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "text",
+          "status",
+          "how",
+          "source",
+          "note"
+        ],
+        "title": "CriterionEvidenceOut",
+        "type": "object"
+      },
       "CurrentStateIn": {
         "properties": {
           "text": {
@@ -5327,6 +5424,29 @@
           "diff"
         ],
         "title": "DiffOut",
+        "type": "object"
+      },
+      "DiffStatOut": {
+        "properties": {
+          "deletions": {
+            "title": "Deletions",
+            "type": "integer"
+          },
+          "files": {
+            "title": "Files",
+            "type": "integer"
+          },
+          "insertions": {
+            "title": "Insertions",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "files",
+          "insertions",
+          "deletions"
+        ],
+        "title": "DiffStatOut",
         "type": "object"
       },
       "DiscardIn": {
@@ -6528,6 +6648,85 @@
           "cost"
         ],
         "title": "EvalRunOut",
+        "type": "object"
+      },
+      "EvidenceOut": {
+        "properties": {
+          "checks_run": {
+            "items": {
+              "$ref": "#/components/schemas/CheckRunOut"
+            },
+            "title": "Checks Run",
+            "type": "array"
+          },
+          "criteria": {
+            "items": {
+              "$ref": "#/components/schemas/CriterionEvidenceOut"
+            },
+            "title": "Criteria",
+            "type": "array"
+          },
+          "diff_stat": {
+            "$ref": "#/components/schemas/DiffStatOut"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "screenshots": {
+            "items": {
+              "$ref": "#/components/schemas/ScreenshotOut"
+            },
+            "title": "Screenshots",
+            "type": "array"
+          },
+          "trace_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TraceRefOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "criteria",
+          "checks_run",
+          "diff_stat",
+          "trace_ref",
+          "screenshots",
+          "notes"
+        ],
+        "title": "EvidenceOut",
+        "type": "object"
+      },
+      "EvidenceSourceOut": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "check_output",
+              "run_step",
+              "finding",
+              "screenshot"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "ref"
+        ],
+        "title": "EvidenceSourceOut",
         "type": "object"
       },
       "FileChangeOut": {
@@ -10106,6 +10305,14 @@
             "title": "Created At",
             "type": "string"
           },
+          "criteria_commands": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Criteria Commands",
+            "type": "array"
+          },
           "failure": {
             "anyOf": [
               {
@@ -12939,6 +13146,16 @@
             "title": "Diff",
             "type": "string"
           },
+          "evidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvidenceOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "findings": {
             "items": {
               "$ref": "#/components/schemas/FindingOut"
@@ -14188,6 +14405,28 @@
         "title": "ScheduledWorkOut",
         "type": "object"
       },
+      "ScreenshotOut": {
+        "properties": {
+          "label": {
+            "enum": [
+              "before",
+              "after"
+            ],
+            "title": "Label",
+            "type": "string"
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "ref"
+        ],
+        "title": "ScreenshotOut",
+        "type": "object"
+      },
       "SearchHitOut": {
         "description": "A message, a project's memory or a Blueprint file. Message fields are set for messages only; path and level\nfor Blueprint files.",
         "properties": {
@@ -14481,6 +14720,36 @@
           "updated_at"
         ],
         "title": "SecretOut",
+        "type": "object"
+      },
+      "SendBackIn": {
+        "properties": {
+          "criterion": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Criterion"
+          },
+          "finding": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finding"
+          }
+        },
+        "title": "SendBackIn",
         "type": "object"
       },
       "SessionFileOut": {
@@ -16675,6 +16944,31 @@
           "run"
         ],
         "title": "TraceOut",
+        "type": "object"
+      },
+      "TraceRefOut": {
+        "properties": {
+          "conversation_id": {
+            "title": "Conversation Id",
+            "type": "integer"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          }
+        },
+        "required": [
+          "conversation_id",
+          "run_id"
+        ],
+        "title": "TraceRefOut",
         "type": "object"
       },
       "TraceRunOut": {
@@ -29579,6 +29873,68 @@
           }
         },
         "summary": "Move Card",
+        "tags": [
+          "board"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/board/cards/{card_id}/send-back": {
+      "post": {
+        "description": "Send the card back to Design with one finding or unmet criterion of its review in its description.",
+        "operationId": "send_back_card_api_v1_projects__project_id__board_cards__card_id__send_back_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "card_id",
+            "required": true,
+            "schema": {
+              "title": "Card Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendBackIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Send Back Card",
         "tags": [
           "board"
         ]

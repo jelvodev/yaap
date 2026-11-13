@@ -44,6 +44,7 @@ export default function CardPart({ projectId, cardId }: { projectId: number; car
       )}
       {card.column === "review" && (
         <CardReviewPart
+          projectId={projectId}
           card={card}
           review={review}
           plan={plan}

@@ -3666,6 +3666,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/board/cards/{card_id}/send-back": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send Back Card
+         * @description Send the card back to Design with one finding or unmet criterion of its review in its description.
+         */
+        post: operations["send_back_card_api_v1_projects__project_id__board_cards__card_id__send_back_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/board/import-issues": {
         parameters: {
             query?: never;
@@ -6278,6 +6298,22 @@ export interface components {
             /** Status */
             status: string;
         };
+        /** CheckRunOut */
+        CheckRunOut: {
+            /** Command */
+            command: string;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "passed" | "failed" | "not_run" | "stopped" | "error";
+            /** Output */
+            output: string;
+            /** Ref */
+            ref: string;
+            /** Step */
+            step: string;
+        };
         /** ChecklistItemOut */
         ChecklistItemOut: {
             /** Done */
@@ -6868,6 +6904,26 @@ export interface components {
             /** Ok */
             ok: boolean;
         };
+        /** CriterionEvidenceOut */
+        CriterionEvidenceOut: {
+            /**
+             * How
+             * @enum {string}
+             */
+            how: "command" | "file" | "reviewer" | "none";
+            /** Note */
+            note: string;
+            /** Number */
+            number: number;
+            source: components["schemas"]["EvidenceSourceOut"] | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "passed" | "failed" | "judged_met" | "judged_not_met" | "not_checked";
+            /** Text */
+            text: string;
+        };
         /** CurrentStateIn */
         CurrentStateIn: {
             /** Text */
@@ -6916,6 +6972,15 @@ export interface components {
         DiffOut: {
             /** Diff */
             diff: string;
+        };
+        /** DiffStatOut */
+        DiffStatOut: {
+            /** Deletions */
+            deletions: number;
+            /** Files */
+            files: number;
+            /** Insertions */
+            insertions: number;
         };
         /** DiscardIn */
         DiscardIn: {
@@ -7272,6 +7337,29 @@ export interface components {
              */
             trigger: "panel" | "command" | "schedule";
             variant: components["schemas"]["VariantOut"] | null;
+        };
+        /** EvidenceOut */
+        EvidenceOut: {
+            /** Checks Run */
+            checks_run: components["schemas"]["CheckRunOut"][];
+            /** Criteria */
+            criteria: components["schemas"]["CriterionEvidenceOut"][];
+            diff_stat: components["schemas"]["DiffStatOut"];
+            /** Notes */
+            notes: string[];
+            /** Screenshots */
+            screenshots: components["schemas"]["ScreenshotOut"][];
+            trace_ref: components["schemas"]["TraceRefOut"] | null;
+        };
+        /** EvidenceSourceOut */
+        EvidenceSourceOut: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "check_output" | "run_step" | "finding" | "screenshot";
+            /** Ref */
+            ref: string;
         };
         /** FileChangeOut */
         FileChangeOut: {
@@ -8552,6 +8640,11 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Criteria Commands
+             * @default []
+             */
+            criteria_commands: string[];
             /** Failure */
             failure: string | null;
             /** Finished At */
@@ -9462,6 +9555,7 @@ export interface components {
             created_at: string;
             /** Diff */
             diff: string;
+            evidence?: components["schemas"]["EvidenceOut"] | null;
             /** Findings */
             findings: components["schemas"]["FindingOut"][];
             /** Findings Count */
@@ -9827,6 +9921,16 @@ export interface components {
             /** Setting Key */
             setting_key: string | null;
         };
+        /** ScreenshotOut */
+        ScreenshotOut: {
+            /**
+             * Label
+             * @enum {string}
+             */
+            label: "before" | "after";
+            /** Ref */
+            ref: string;
+        };
         /**
          * SearchHitOut
          * @description A message, a project's memory or a Blueprint file. Message fields are set for messages only; path and level
@@ -9917,6 +10021,13 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** SendBackIn */
+        SendBackIn: {
+            /** Criterion */
+            criterion?: number | null;
+            /** Finding */
+            finding?: number | null;
         };
         /** SessionFileOut */
         SessionFileOut: {
@@ -10699,6 +10810,13 @@ export interface components {
             /** Conversation Id */
             conversation_id: number;
             run: components["schemas"]["TraceRunOut"];
+        };
+        /** TraceRefOut */
+        TraceRefOut: {
+            /** Conversation Id */
+            conversation_id: number;
+            /** Run Id */
+            run_id: number | null;
         };
         /** TraceRunOut */
         TraceRunOut: {
@@ -18137,6 +18255,42 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CardMove"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_back_card_api_v1_projects__project_id__board_cards__card_id__send_back_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+                card_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendBackIn"];
             };
         };
         responses: {

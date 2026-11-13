@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 
 import type { PlanOut } from "../plan/usePlan";
 import EvidencePart from "./EvidencePart";
+import MakeCardFromFinding from "./MakeCardFromFinding";
 import type { CardDetail, ReviewDetail, SendBackChoice } from "./useCard";
 
 const REVIEW_STATUS = {
@@ -44,12 +45,14 @@ function Checks({ plan }: { plan: PlanOut }) {
 
 /** The review of a card: the reviewer's summary and findings as plain text, the evidence behind it, and the branch. */
 export default function CardReviewPart({
+  projectId,
   card,
   review,
   plan,
   busy,
   onSendBack,
 }: {
+  projectId: number;
   card: CardDetail;
   review: ReviewDetail | null;
   plan: PlanOut | null;
@@ -88,6 +91,7 @@ export default function CardReviewPart({
               >
                 Send back with the finding
               </button>
+              <MakeCardFromFinding projectId={projectId} reviewId={review.id} finding={index} />
             </li>
           ))}
         </ul>
