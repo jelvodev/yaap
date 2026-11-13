@@ -95,11 +95,11 @@ def test_the_turn_limit_ends_the_goal_and_the_user_can_stop_it(client, fake):
     assert client.patch(f"/api/v1/conversations/{conversation_id}/goal", json={"status": "stopped"}).status_code == 404
 
     _, other = project_conversation(client)
-    fake.responses.extend([ScriptedResponse(text="Starting.", delay=0.05), ScriptedResponse(text="Never sent.")])
+    fake.responses.extend([ScriptedResponse(text="Starting.", delay=0.5), ScriptedResponse(text="Never sent.")])
     client.post(f"/api/v1/conversations/{other}/messages", json={"text": "/goal another"})
     stopped = client.patch(f"/api/v1/conversations/{other}/goal", json={"status": "stopped"}).json()
     assert stopped["status"] == "stopped"
-    time.sleep(0.3)
+    time.sleep(1.0)
     assert len(fake.responses) == 1  # no second turn
 
 
