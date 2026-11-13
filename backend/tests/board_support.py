@@ -48,7 +48,9 @@ def board_project(client: TestClient, name: str = "Site", environment_id: int = 
     return project
 
 
-def add_card(client: TestClient, project_id: int, title: str = "A card", column: str = "idea", **fields: object) -> dict:
+def add_card(
+    client: TestClient, project_id: int, title: str = "A card", column: str = "idea", **fields: object
+) -> dict:
     body = {"title": title, "column": column, **fields}
     created = client.post(f"/api/v1/projects/{project_id}/board/cards", json=body)
     assert created.status_code == 201, created.text
