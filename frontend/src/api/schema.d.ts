@@ -5367,6 +5367,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/waiting": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Waiting
+         * @description Plans to approve, reviews to judge, questions, approvals, interrupted builds and the Inbox cards new since
+         *     `since` (when the user last looked; kept by the browser), in `environment_id`'s projects or in all.
+         */
+        get: operations["read_waiting_api_v1_waiting_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -11345,6 +11366,70 @@ export interface components {
             summary: string;
             /** Tool */
             tool: string;
+        };
+        /** WaitingItemOut */
+        WaitingItemOut: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "approve" | "open" | "answer" | "continue" | "triage";
+            /** Approval Id */
+            approval_id: string | null;
+            /** Card Id */
+            card_id: number | null;
+            /** Conversation Id */
+            conversation_id: number | null;
+            /** Detail */
+            detail: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "approve_plan" | "judge_review" | "answer_question" | "approve_action" | "continue_build" | "new_inbox";
+            /** Model */
+            model: string | null;
+            /** Plan Id */
+            plan_id: number | null;
+            /** Project Id */
+            project_id: number | null;
+            /** Since */
+            since: string | null;
+            /** Title */
+            title: string;
+        };
+        /** WaitingOut */
+        WaitingOut: {
+            /** Items */
+            items: components["schemas"]["WaitingItemOut"][];
+            /**
+             * Now
+             * Format: date-time
+             */
+            now: string;
+            /** Projects */
+            projects: components["schemas"]["WaitingProjectOut"][];
+        };
+        /** WaitingProjectOut */
+        WaitingProjectOut: {
+            /** Blocked */
+            blocked: number;
+            /** Building */
+            building: number;
+            /** Cost Month */
+            cost_month: number;
+            /** Done */
+            done: number;
+            /** Escalated */
+            escalated: number;
+            /** Name */
+            name: string;
+            /** Project Id */
+            project_id: number;
+            /** Total */
+            total: number;
+            /** Version */
+            version: string | null;
         };
         /** WhyOut */
         WhyOut: {
@@ -21646,6 +21731,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VersionOut"];
+                };
+            };
+        };
+    };
+    read_waiting_api_v1_waiting_get: {
+        parameters: {
+            query?: {
+                environment_id?: number | null;
+                since?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaitingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

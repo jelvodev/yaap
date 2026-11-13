@@ -18586,6 +18586,224 @@
         "title": "WaitingApprovalOut",
         "type": "object"
       },
+      "WaitingItemOut": {
+        "properties": {
+          "action": {
+            "enum": [
+              "approve",
+              "open",
+              "answer",
+              "continue",
+              "triage"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "approval_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval Id"
+          },
+          "card_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Id"
+          },
+          "conversation_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "approve_plan",
+              "judge_review",
+              "answer_question",
+              "approve_action",
+              "continue_build",
+              "new_inbox"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "plan_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan Id"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "project_id",
+          "card_id",
+          "conversation_id",
+          "model",
+          "since",
+          "action",
+          "title",
+          "detail",
+          "approval_id",
+          "plan_id"
+        ],
+        "title": "WaitingItemOut",
+        "type": "object"
+      },
+      "WaitingOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WaitingItemOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "now": {
+            "format": "date-time",
+            "title": "Now",
+            "type": "string"
+          },
+          "projects": {
+            "items": {
+              "$ref": "#/components/schemas/WaitingProjectOut"
+            },
+            "title": "Projects",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "projects",
+          "now"
+        ],
+        "title": "WaitingOut",
+        "type": "object"
+      },
+      "WaitingProjectOut": {
+        "properties": {
+          "blocked": {
+            "title": "Blocked",
+            "type": "integer"
+          },
+          "building": {
+            "title": "Building",
+            "type": "integer"
+          },
+          "cost_month": {
+            "title": "Cost Month",
+            "type": "number"
+          },
+          "done": {
+            "title": "Done",
+            "type": "integer"
+          },
+          "escalated": {
+            "title": "Escalated",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "project_id",
+          "name",
+          "version",
+          "done",
+          "total",
+          "building",
+          "blocked",
+          "escalated",
+          "cost_month"
+        ],
+        "title": "WaitingProjectOut",
+        "type": "object"
+      },
       "WhyOut": {
         "properties": {
           "layer": {
@@ -35043,6 +35261,74 @@
         "summary": "Version",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/v1/waiting": {
+      "get": {
+        "description": "Plans to approve, reviews to judge, questions, approvals, interrupted builds and the Inbox cards new since\n`since` (when the user last looked; kept by the browser), in `environment_id`'s projects or in all.",
+        "operationId": "read_waiting_api_v1_waiting_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "environment_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Environment Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaitingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Waiting",
+        "tags": [
+          "board"
         ]
       }
     }
