@@ -7,11 +7,12 @@ from pydantic import BaseModel, Field
 
 from app.agent.policy import AccessLevel
 from app.core.routing import RouteKind, RouteRole
+from app.providers.session_format import SessionTool
 from app.storage.models import Message
 
 
 class ImportedFromOut(BaseModel):
-    tool: Literal["claude_code", "codex"]
+    tool: SessionTool
     # The file's name, and upload or the target it was read from.
     file: str
     source: str

@@ -7,7 +7,10 @@ from typing import TYPE_CHECKING, Any
 
 from app.providers.base import ModelProvider
 from app.providers.catalog import ANTHROPIC_DEFAULT_MODELS, OPENAI_DEFAULT_MODELS, ModelInfo, ModelRole
+from app.providers.claude_code.sessions import CLAUDE_CODE_SESSIONS
 from app.providers.cli_sign_in import SignInSpec
+from app.providers.codex.sessions import CODEX_SESSIONS
+from app.providers.session_format import SessionFormat
 
 if TYPE_CHECKING:
     from app.providers.endpoints import EndpointState
@@ -45,6 +48,8 @@ class ProviderSpec:
     compacts_itself: bool = False
     # The vendor's model per role, for presets, workers and the utility model when nothing else names one.
     default_models: Mapping[ModelRole, str] = field(default_factory=dict)
+    # How this tool's session files are read, for importing them as conversations; None where it keeps none.
+    session_format: SessionFormat | None = None
 
 
 class ProviderRegistry:
@@ -105,6 +110,15 @@ class ProviderRegistry:
             self.fixed_models = [model for model in self.fixed_models if model.provider != spec.name]
 
 
+# The built-in tools' session formats, in the order a file is recognised. Static because chat history needs a tool's
+# label without a registry at hand.
+SESSION_FORMATS: tuple[SessionFormat, ...] = (CLAUDE_CODE_SESSIONS, CODEX_SESSIONS)
+
+
+def session_format(tool: str) -> SessionFormat | None:
+    return next((item for item in SESSION_FORMATS if item.tool == tool), None)
+
+
 def default_provider_registry() -> ProviderRegistry:
     from app.providers.anthropic_provider import AnthropicProvider
     from app.providers.catalog import ANTHROPIC_MODELS, OPENAI_MODELS
@@ -148,6 +162,7 @@ def default_provider_registry() -> ProviderRegistry:
         sign_in=claude_code_sign_in_spec(),
         default_models=ANTHROPIC_DEFAULT_MODELS,
         compacts_itself=True,
+        session_format=CLAUDE_CODE_SESSIONS,
     )
 
     def create_openai_provider(api_key: str | None) -> ModelProvider:
@@ -179,6 +194,7 @@ def default_provider_registry() -> ProviderRegistry:
         sign_in=codex_sign_in_spec(),
         default_models=OPENAI_DEFAULT_MODELS,
         compacts_itself=True,
+        session_format=CODEX_SESSIONS,
     )
     from app.providers.endpoints import EndpointState
     from app.providers.ollama_provider import OllamaProvider, OllamaState
