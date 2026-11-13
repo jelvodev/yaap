@@ -45,7 +45,9 @@ def escape_headings(text: str) -> str:
     """Text for a card section. A line that is exactly one of the card file's section headings would start a section
     of its own, so it is moved in by one space; the text otherwise stays as written."""
     lines = plain_lines(text).split("\n")
-    return "\n".join(f" {line}" if line.rstrip() in SECTION_HEADINGS else line for line in lines).strip()
+    escaped = "\n".join(f" {line}" if line.rstrip() in SECTION_HEADINGS else line for line in lines)
+    # Not strip(): the indent that moved a first-line heading in must stay.
+    return escaped.strip("\n").rstrip()
 
 
 def fence_for(text: str) -> str:
