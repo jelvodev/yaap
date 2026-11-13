@@ -25,7 +25,7 @@ from typing import Any, Literal
 
 import asyncssh
 
-from app.targets.base import CapturedResult, CommandResult, FileEntry, TargetError
+from app.targets.base import CapturedResult, CommandResult, FileEntry, OutputTooLargeError, TargetError, read_outputs
 from app.targets.container import ANSI, MAX_SEARCH_FILE_BYTES, Collected
 from app.targets.sessions import PRUNE_MINUTES, STATE_PREFIX, ShellState, bash_session
 
@@ -454,12 +454,13 @@ class SshExecutor:
         process = await self.start(command, {}, separate_stderr=True)
         try:
             async with asyncio.timeout(timeout):
-                stdout, stderr = await asyncio.gather(process.stdout.read(), process.stderr.read())
+                stdout, stderr = await read_outputs(process.stdout, process.stderr)
                 completed = await process.wait(check=False)
-        except TimeoutError:
+        except (TimeoutError, OutputTooLargeError) as error:
             process.close()
-            return CapturedResult(None, b"", b"", timed_out=True)
-        return CapturedResult(completed.exit_status, bytes(stdout), bytes(stderr))
+            too_large = isinstance(error, OutputTooLargeError)
+            return CapturedResult(None, b"", b"", timed_out=not too_large, too_large=too_large)
+        return CapturedResult(completed.exit_status, stdout, stderr)
 
     async def spawn(self, command: str, env: dict[str, str], session: ShellState | None = None) -> Any:
         process = await self.start(command, remote_env(env), session)

@@ -65,6 +65,8 @@ def read_answer(result: CapturedResult, limit: int, where: str) -> tuple[str, by
     """Content type, body (at most `limit` bytes) and final URL from the command's output, or FetchError."""
     if result.timed_out:
         raise FetchError(f"The fetch in {where} took longer than {int(FETCH_TIMEOUT)} seconds.")
+    if result.too_large:
+        raise FetchError(f"The fetch in {where} returned more than YAAP reads.")
     line, _, body = result.stdout.partition(b"\n")
     try:
         head = json.loads(line.decode(errors="replace").strip()) if len(line) <= HEAD_LIMIT else None

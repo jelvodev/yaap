@@ -254,9 +254,11 @@ class FakeStream:
         self.data = data
         self.delay = delay
 
-    async def read(self) -> bytes:
+    async def read(self, n: int = -1, /) -> bytes:
+        """The whole data on the first read (after the delay), then end of stream."""
         await asyncio.sleep(self.delay)
-        return self.data
+        data, self.data = self.data, b""
+        return data
 
 
 class FakeStdin:
