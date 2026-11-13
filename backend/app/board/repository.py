@@ -369,7 +369,8 @@ def file_content(entry: TreeFile, data: bytes | None) -> FileContent:
     if data is None:
         return FileContent(entry.path, entry.blob, None, "unreadable")
     try:
-        return FileContent(entry.path, entry.blob, data.decode("utf-8"))
+        # `git archive` applies the repository's end-of-line settings; board files are stored with `\n` only.
+        return FileContent(entry.path, entry.blob, data.decode("utf-8").replace("\r\n", "\n"))
     except UnicodeDecodeError:
         return FileContent(entry.path, entry.blob, None, "not_text")
 
