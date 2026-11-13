@@ -5,6 +5,9 @@
 # Needs a clean checkout: it stops and names the files when you changed a tracked file. Your data, .env and
 # docker-compose.override.yml are never touched. The decisions (busy, backup, rollback, changelog) are Python, in
 # the image: python -m app.scripts.update; this script only runs git and Docker.
+# The images are pulled for the new version, unless COMPOSE_FILE names docker-compose.build.yml (in .env or the
+# environment): then they are built here. Going back starts the images of the old version: they stay as the :previous
+# tags (built) or under their version tag until the update after next (pulled).
 param(
     [ValidateSet('stable', 'main')][string]$Channel = 'stable',
     [switch]$Yes,
@@ -18,6 +21,8 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 Set-Location (Join-Path $PSScriptRoot '..')
 $Url = 'http://127.0.0.1:8080'
 $Images = 'yaap', 'yaap-sandbox', 'yaap-sandbox-helper'
+# Every image of a version, for the clean-up of pulled versions.
+$Published = 'yaap', 'yaap-sandbox', 'yaap-sandbox-helper', 'yaap-searxng'
 
 function Fail([string]$Message) {
     Write-Host "Update stopped: $Message" -ForegroundColor Red
@@ -33,6 +38,34 @@ if (-not $Data -and (Test-Path .env)) {
 if (-not $Data) { $Data = './data' }
 $State = Join-Path $Data 'update-state.json'
 $Log = Join-Path $Data 'update.log'
+
+# A value from the environment or .env, the way Compose reads it.
+function Get-EnvValue([string]$Name) {
+    $value = [Environment]::GetEnvironmentVariable($Name)
+    if (-not $value -and (Test-Path .env)) {
+        $line = Get-Content .env | Where-Object { $_ -match "^$Name=" } | Select-Object -Last 1
+        if ($line) { $value = ($line -replace "^$Name=", '').Trim().Trim('"', "'") }
+    }
+    return $value
+}
+$Build = (Get-EnvValue 'COMPOSE_FILE') -like '*docker-compose.build.yml*'
+# Pulled images keep their version tags, so there are no :previous tags to keep.
+if (-not $Build) { $Images = @() }
+$Prefix = Get-EnvValue 'YAAP_IMAGE_PREFIX'
+if (-not $Prefix) { $Prefix = 'ghcr.io/jelvodev' }
+
+# Pulled images of YAAP under its prefix, except the two versions that matter: the new one and the one to go back to.
+# An image that a container still uses is not removed.
+function Remove-OldVersions([string]$KeepOld, [string]$KeepNew) {
+    foreach ($name in $Published) {
+        $tags = @(docker image ls "$Prefix/$name" --format '{{.Tag}}' 2>$null)
+        foreach ($tag in $tags) {
+            if ($tag -match '^\d+\.\d+\.\d+$' -and $tag -ne $KeepOld -and $tag -ne $KeepNew) {
+                Test-Native { docker rmi "$Prefix/${name}:$tag" } | Out-Null
+            }
+        }
+    }
+}
 
 function Ask([string]$Question, [bool]$Default = $true) {
     if ($Yes) { return $true }
@@ -207,6 +240,10 @@ if (Test-Path $State) {
     Fail "Run this script with -Rollback when you want to go back, or remove $State if the update is fine."
 }
 
+if ($Channel -eq 'main' -and -not $Build) {
+    Fail 'Images are published for releases only, so the main channel needs a build setup: run scripts\setup.ps1 -Build first, or update with the stable channel.'
+}
+
 Write-Host 'Looking for a new version ...'
 git fetch --tags --force --quiet origin
 if ($LASTEXITCODE -ne 0) { Fail "git could not reach the remote ('git fetch'). Check your connection." }
@@ -295,10 +332,18 @@ if ($LASTEXITCODE -ne 0) {
 }
 $env:YAAP_COMMIT = (git rev-parse --short HEAD).Trim()
 $env:YAAP_CHANNEL = $Channel
-Write-Host "Building and starting YAAP $New. This takes a few minutes."
+if ($Build) {
+    Write-Host "Building and starting YAAP $New. This takes a few minutes."
+    docker compose up -d --build
+} else {
+    Write-Host "Downloading and starting YAAP $New. This takes a few minutes."
+    # --ignore-buildable: an image you build yourself (extra packages in docker-compose.override.yml) is in no
+    # registry; --build then makes that one again.
+    docker compose pull --ignore-buildable
+    if ($LASTEXITCODE -eq 0) { docker compose up -d --build }
+}
 
 $ok = $false
-docker compose up -d --build
 if ($LASTEXITCODE -eq 0 -and (Wait-ForHealth)) {
     $reported = Get-RunningVersion
     if ($reported -eq $New) { $ok = $true } else { Write-Host "YAAP answers, but reports version '$reported' instead of $New." -ForegroundColor Red }
@@ -310,9 +355,14 @@ if ($ok) {
     Remove-Item $State -ErrorAction SilentlyContinue
     foreach ($image in $Images) { Test-Native { docker rmi "${image}:previous-before" } | Out-Null }
     Test-Native { docker image prune -f --filter dangling=true --filter label=dev.yaap=true } | Out-Null
+    if (-not $Build) { Remove-OldVersions $Current $New }
     Write-Host ''
     Write-Host "YAAP is updated: $Current -> $New ($Url)" -ForegroundColor Green
-    Write-Host 'The version before it stays as the :previous images; scripts\update.ps1 -Rollback goes back.'
+    if ($Build) {
+        Write-Host 'The version before it stays as the :previous images; scripts\update.ps1 -Rollback goes back.'
+    } else {
+        Write-Host "The images of $Current stay until the next update; scripts\update.ps1 -Rollback goes back."
+    }
     $summary = $changelog | Invoke-Step changelog $Current $ChangelogTo
     $cut = [Array]::IndexOf(@($summary), 'What changed:')
     if ($LASTEXITCODE -eq 0 -and $cut -gt 0) { $summary | Select-Object -First $cut | ForEach-Object { Write-Host $_ } }

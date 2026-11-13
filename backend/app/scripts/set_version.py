@@ -35,6 +35,7 @@ class Spot:
     count: int = 1
 
 
+BASE_IMAGE = re.compile(rf"(BASE: [^\s]*/yaap-sandbox:)({VERSION_PATTERN})(\b)")
 SPOTS = (
     Spot("backend/app/version.py", re.compile(rf'(^VERSION = ")({VERSION_PATTERN})(")', re.MULTILINE)),
     Spot("backend/pyproject.toml", re.compile(rf'(^version = ")({VERSION_PATTERN})(")', re.MULTILINE)),
@@ -49,6 +50,15 @@ SPOTS = (
         "frontend/openapi.json",
         re.compile(rf'("title": "YAAP",\r?\n\s*"version": ")({VERSION_PATTERN})(")'),
     ),
+    # The four published images and the runner image the helper pulls by default.
+    Spot(
+        "docker-compose.yml",
+        re.compile(rf"(\$\{{YAAP_IMAGE_PREFIX:-[^}}]*\}}/yaap[a-z-]*:)({VERSION_PATTERN})(\b)"),
+        count=4,
+    ),
+    # The examples of extra runner packages name the runner image they build on.
+    Spot("docker-compose.override.example.yml", BASE_IMAGE),
+    Spot("docs/configuration.md", BASE_IMAGE),
     Spot("docs/roadmap.md", re.compile(rf"(The current version is \*\*)({VERSION_PATTERN})(\*\*\.)")),
 )
 VERSION_FILE = "backend/app/version.py"

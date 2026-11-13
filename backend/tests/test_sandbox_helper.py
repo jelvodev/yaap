@@ -18,6 +18,7 @@ from yaap_sandbox.sandboxes import (
     Config,
     Sandboxes,
     SandboxError,
+    StartSpec,
     cpu_percent,
     docker_path,
     memory_used,
@@ -246,3 +247,78 @@ def test_the_relay_checks_the_token_and_the_sandbox_then_copies_bytes():
     assert answers[0] == b"ERR not allowed\n"
     assert answers[1].startswith(b"ERR not a sandbox")
     assert answers[2:] == [b"OK\n", b"SSH-2.0-sandbox\r\n", b"HELLO"]
+
+
+PUBLISHED = "ghcr.io/jelvodev/yaap-sandbox:0.8.0"
+
+
+def sandboxes_with(docker: FakeDocker, workspace: Path, image: str, pull_wait: float = 5.0) -> Sandboxes:
+    config = Config(image=image, workspace_dir=workspace, workspace_host="/srv/yaap/data/workspace", instance="yaap")
+    config.pull_wait = pull_wait
+    return Sandboxes(DockerApi("http://docker", transport=docker.transport()), config)
+
+
+@pytest.mark.parametrize(
+    ("image", "registry", "pull_error", "status", "pulled", "detail"),
+    [
+        (PUBLISHED, {PUBLISHED: True}, "", 200, [PUBLISHED], ""),
+        # A bare name is pulled with a tag, never as the whole repository.
+        ("yaap-sandbox", {"yaap-sandbox:latest": True}, "", 200, ["yaap-sandbox:latest"], ""),
+        (PUBLISHED, {PUBLISHED: False}, "", 403, [PUBLISHED], "not YAAP's sandbox image"),
+        (PUBLISHED, {}, "", 503, [PUBLISHED], "could not be downloaded"),
+        (PUBLISHED, {PUBLISHED: True}, "unauthorized: denied", 503, [PUBLISHED], "unauthorized: denied"),
+        # An image only a local build makes is not looked for in a registry.
+        ("yaap-sandbox:local", {"yaap-sandbox:local": True}, "", 503, [], "docker compose up -d --build"),
+    ],
+)
+def test_a_missing_runner_image_is_pulled_and_checked_for_the_label(
+    workspace, image, registry, pull_error, status, pulled, detail
+):
+    docker = FakeDocker(registry=registry, pull_error=pull_error)
+    started = call(sandboxes_with(docker, workspace, image), "POST", "/sandboxes/p1/start", json=start_body())
+    assert started.status_code == status, started.text
+    assert detail in started.text
+    assert docker.pulls == pulled
+    assert bool(docker.created) == (status == 200)
+
+
+def test_an_image_that_is_there_is_not_pulled(docker, workspace):
+    docker.add_image(PUBLISHED)
+    docker.registry[PUBLISHED] = True
+    started = call(sandboxes_with(docker, workspace, PUBLISHED), "POST", "/sandboxes/p1/start", json=start_body())
+    assert started.status_code == 200 and docker.pulls == []
+
+
+def test_starts_at_the_same_time_wait_for_one_download(workspace):
+    docker = FakeDocker(registry={PUBLISHED: True})
+    sandboxes = sandboxes_with(docker, workspace, PUBLISHED)
+    (workspace / "default" / "other").mkdir()
+
+    async def go() -> list[dict]:
+        docker.pull_gate = asyncio.Event()
+        first = asyncio.create_task(sandboxes.start("p1", StartSpec(**start_body(folder="default/site"))))
+        second = asyncio.create_task(sandboxes.start("p2", StartSpec(**start_body(folder="default/other"))))
+        await asyncio.sleep(0.05)
+        docker.pull_gate.set()
+        return await asyncio.gather(first, second)
+
+    answers = asyncio.run(go())
+    assert [answer["created"] for answer in answers] == [True, True]
+    assert docker.pulls == [PUBLISHED]
+
+
+def test_a_slow_download_answers_with_the_waiting_state_and_goes_on(workspace):
+    docker = FakeDocker(registry={PUBLISHED: True})
+    sandboxes = sandboxes_with(docker, workspace, PUBLISHED, pull_wait=0.05)
+
+    async def go() -> dict:
+        docker.pull_gate = asyncio.Event()
+        with pytest.raises(SandboxError) as waiting:
+            await sandboxes.start("p1", StartSpec(**start_body()))
+        assert waiting.value.status == 503 and "Preparing the runner" in str(waiting.value)
+        docker.pull_gate.set()
+        sandboxes.config.pull_wait = 5.0
+        return await sandboxes.start("p1", StartSpec(**start_body()))
+
+    assert asyncio.run(go())["created"] is True
+    assert docker.pulls == [PUBLISHED]

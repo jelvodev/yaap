@@ -1,6 +1,6 @@
 # The yaap-sandbox helper: the only part of YAAP that talks to Docker, through the docker-socket-proxy.
-# Build context: the repository root (see docker-compose.yml). It holds only backend/yaap_sandbox and three packages
-# with what they need, installed from the lock file next to this one (requirements.txt lists the three).
+# Build context: the repository root (see docker-compose.build.yml). It holds only backend/yaap_sandbox and three
+# packages with what they need, installed from the lock file next to this one (requirements.txt lists the three).
 FROM python:3.14-slim@sha256:9aaa474097d094040649f2162a627c0049b408f52138d980916788d80f04802f
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1

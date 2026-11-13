@@ -17,8 +17,29 @@ services:
     #   - yaap_master_key
 
   # Extra packages for the runners and sandboxes (docs/configuration.md, "Extra packages for the runner"): one extra
-  # layer on the sandbox image. Rebuild with docker compose up -d --build; each runner is made again from the new image
-  # on its next use.
+  # layer on the published runner image, made into an image of its own that the helper uses instead. Build it with
+  # docker compose up -d --build; each runner is made again from the new image on its next use. Set BASE to the
+  # runner image that docker-compose.yml names (the same version), and change it when you update YAAP.
+  # sandbox-image:
+  #   build:
+  #     context: docker/sandbox
+  #     dockerfile: Dockerfile.extra
+  #     args:
+  #       BASE: ghcr.io/jelvodev/yaap-sandbox:0.8.0
+  #       EXTRA_APT_PACKAGES: "postgresql-client default-jdk-headless"
+  #       EXTRA_SETUP: "npm install --global pnpm@10"
+  #     labels:
+  #       dev.yaap: "true"
+  #   image: yaap-sandbox-extra:local
+  #   entrypoint: ["true"]
+  #   network_mode: none
+  #   restart: "no"
+  # yaap-sandbox:
+  #   environment:
+  #     YAAP_SANDBOX_IMAGE: yaap-sandbox-extra:local
+  #
+  # When you build YAAP's images yourself (docker-compose.build.yml), give the existing sandbox-image service the two
+  # build arguments instead:
   # sandbox-image:
   #   build:
   #     args:

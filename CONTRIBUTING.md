@@ -35,7 +35,7 @@ npm install
 npm run dev
 ```
 
-Some features need tools that the Docker images provide (Claude Code, Codex, Tesseract, the embedding model; Playwright and Chromium in the sandbox image). Run the whole application with `docker compose up -d --build` to try them. Outside Docker there is no runner, so the command above sets `YAAP_RUNNER=off`: the agent's commands then run in your backend process (with everything that process can read). The test suite does the same.
+Some features need tools that the Docker images provide (Claude Code, Codex, Tesseract, the embedding model; Playwright and Chromium in the sandbox image). Run the whole application to try them: `./scripts/setup.sh --build` (`scripts\setup.ps1 -Build`) names `docker-compose.build.yml` in `.env` once, so `docker compose up -d --build` builds the images from your checkout instead of pulling the published ones (see [Building the images yourself](docs/install.md#building-the-images-yourself)). Outside Docker there is no runner, so the command above sets `YAAP_RUNNER=off`: the agent's commands then run in your backend process (with everything that process can read). The test suite does the same.
 
 ## Checks
 

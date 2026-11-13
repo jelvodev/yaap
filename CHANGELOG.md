@@ -8,10 +8,15 @@ yourself when you update; it says "None." when there is nothing.
 
 - Every push and pull request on GitHub runs the checks: the backend tests (in parallel) with the migration check, the frontend typecheck, unit tests and build, and whether the generated API types are up to date. The README shows their state.
 - Each release tag gets its GitHub Release, with the changelog section as its notes, published by a workflow; the release scripts wait for it and print its address.
+- Each release now publishes YAAP's four images (`yaap`, `yaap-searxng`, `yaap-sandbox-helper` and the runner's `yaap-sandbox`) to `ghcr.io/jelvodev`, for Intel/AMD and ARM computers (Apple silicon, Linux on ARM), with build attestations. The workflow builds them first and publishes the GitHub Release only when they are there, so a version is never announced without its images.
+- Installing and updating download the images (`docker compose pull`) instead of building them, which takes minutes instead of tens of minutes. `scripts/setup.sh --build` (`scripts\setup.ps1 -Build`) builds from the folder as before, through the new `docker-compose.build.yml` that it names in `.env`; the update script follows that choice. The images of the version you leave stay until the next update, so going back needs no download. A fork sets `YAAP_IMAGE_PREFIX` to use its own images.
+- The `sandbox-image` service is gone. The helper downloads the runner's image (about 2.8 GB, once) when the first command needs it; until it is there the command says *Preparing the runner* and can be tried again. It pulls only the configured image, and only uses one that carries YAAP's sandbox label.
+- Extra packages for the runner build on the published image (`docker/sandbox/Dockerfile.extra`); the example in `docker-compose.override.example.yml` and in the configuration guide shows how.
 
 ### Action needed
 
-None.
+- If you build YAAP's images yourself (you changed YAAP, or `docker-compose.override.yml` sets `EXTRA_APT_PACKAGES` for the service `sandbox-image`), add these two lines to `.env` before you update, and name `docker-compose.override.yml` in the list when you have one: `COMPOSE_PATH_SEPARATOR=,` and `COMPOSE_FILE=docker-compose.yml,docker-compose.build.yml`. Without them the update downloads the ready-made images, and an override that only has build arguments for `sandbox-image` stops Compose. For extra packages without building everything, see "Extra packages for the runner" in docs/configuration.md.
+- Otherwise nothing: the update downloads the new images. The first start of a runner then downloads its image (about 2.8 GB).
 
 ## 0.8.0 (2026-11-13)
 

@@ -25,6 +25,17 @@ def base_url(docker_host: str) -> str:
     return docker_host
 
 
+def with_tag(image: str) -> str:
+    """The image name with a tag: pulling a bare name would download every tag of the repository."""
+    last = image.rsplit("/", 1)[-1]
+    return image if "@" in image or ":" in last else f"{image}:latest"
+
+
+def is_local_name(image: str) -> bool:
+    """A name that only a local build makes (tag `local`): nothing to pull, and no registry may answer to it."""
+    return "@" not in image and image.rsplit("/", 1)[-1].partition(":")[2] == "local"
+
+
 class DockerApi:
     def __init__(self, url: str, transport: httpx.AsyncBaseTransport | None = None, timeout: float = 60) -> None:
         # unix:///var/run/docker.sock for development only; docker-compose.yml always goes through the proxy.
@@ -64,6 +75,18 @@ class DockerApi:
             if error.status == 404:
                 return None
             raise
+
+    async def pull_image(self, image: str, timeout: float = 3600) -> None:
+        """Pull an image through the engine's image API. The engine answers 200 and reports a failure as a line of
+        the progress stream, so the stream is read for it."""
+        response = await self.call("POST", "/images/create", params={"fromImage": with_tag(image)}, timeout=timeout)
+        for line in response.text.splitlines():
+            try:
+                item = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(item, dict) and item.get("error"):
+                raise DockerError(502, str(item["error"]))
 
     async def list_containers(self, labels: list[str]) -> list[dict[str, Any]]:
         filters = json.dumps({"label": labels})

@@ -1,0 +1,56 @@
+# Builds YAAP's images from this folder instead of pulling the published ones: for changing YAAP, for a computer
+# without access to the registry, or to try the newest commit. Turn it on by adding the line below to .env
+# (`scripts/setup.sh --build` and `scripts/setup.ps1 -Build` do it); docker-compose.override.yml, if you have one, then
+# has to be named there too, because Compose reads it by itself only when COMPOSE_FILE is not set. The separator is
+# named in the file as well, so the same lines work on Windows (where : would be read as a drive letter) and elsewhere.
+#
+#   COMPOSE_PATH_SEPARATOR=,
+#   COMPOSE_FILE=docker-compose.yml,docker-compose.build.yml
+#
+# Then `docker compose up -d --build` builds and starts everything.
+
+services:
+  yaap:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      # Marks YAAP's own images, so the update script removes only those when it cleans up.
+      labels:
+        dev.yaap: "true"
+      # Shown by GET /api/v1/version; empty for a plain build.
+      args:
+        YAAP_COMMIT: ${YAAP_COMMIT:-}
+        YAAP_CHANNEL: ${YAAP_CHANNEL:-}
+    image: yaap:local
+
+  searxng:
+    build:
+      context: .
+      dockerfile: docker/searxng/Dockerfile
+      labels:
+        dev.yaap: "true"
+    image: yaap-searxng:local
+
+  yaap-sandbox:
+    build:
+      context: .
+      dockerfile: docker/sandbox-helper/Dockerfile
+      labels:
+        dev.yaap: "true"
+    image: yaap-sandbox-helper:local
+    environment:
+      # Extra packages: an image with an extra layer on yaap-sandbox:local, named in docker-compose.override.yml
+      # (docs/configuration.md, "Extra packages for the runner").
+      YAAP_SANDBOX_IMAGE: ${YAAP_SANDBOX_IMAGE:-yaap-sandbox:local}
+
+  # Only builds the sandbox image (yaap-sandbox:local), with the agent's browser in it; the helper starts the runners
+  # and sandboxes from it. This service itself exits at once.
+  sandbox-image:
+    build:
+      context: docker/sandbox
+      labels:
+        dev.yaap: "true"
+    image: yaap-sandbox:local
+    entrypoint: ["true"]
+    network_mode: none
+    restart: "no"

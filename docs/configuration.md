@@ -16,7 +16,9 @@ Set in `.env` next to `docker-compose.yml`. `.env.example` lists them; the setup
 | `YAAP_DATA_HOST` | no | The folder on your computer that holds YAAP's data. Default `./data`. |
 | `YAAP_SANDBOX_CPUS` | no | CPUs per runner and per project sandbox. Default `2`. |
 | `YAAP_SANDBOX_MEMORY` | no | Memory per runner and per project sandbox, such as `4g` (the default) or `512m`. |
-| `YAAP_SANDBOX_IMAGE` | no | The image runners and sandboxes start from. Default `yaap-sandbox:local`; extra packages are better set as below. |
+| `YAAP_SANDBOX_IMAGE` | no | The image runners and sandboxes start from. Default the published runner image of this version (`ghcr.io/jelvodev/yaap-sandbox:<version>`), or `yaap-sandbox:local` when you build the images yourself; extra packages are better set as below. The helper downloads it when it is missing. |
+| `YAAP_IMAGE_PREFIX` | no | Where `docker-compose.yml` pulls YAAP's images from. Default `ghcr.io/jelvodev`. A fork that publishes its own images sets its own, such as `ghcr.io/yourname`; see [Building the images yourself](#building-the-images-yourself). |
+| `COMPOSE_FILE` | no | Docker Compose's own variable. `scripts/setup.sh --build` (`scripts\setup.ps1 -Build`) sets it, with `COMPOSE_PATH_SEPARATOR`, to build the images from the folder; see [Building the images yourself](#building-the-images-yourself). |
 
 Set by `docker-compose.yml`, the image or a built-in default; change them only when you know why:
 
@@ -33,7 +35,7 @@ Set by `docker-compose.yml`, the image or a built-in default; change them only w
 | `YAAP_PREVIEW_BIND` | The address the preview listener binds inside YAAP's process: `0.0.0.0` in the image (Docker publishes it on `127.0.0.1` only), `127.0.0.1` by default outside Docker. Outside Docker the preview is off unless `YAAP_PREVIEW_PORT` is set. |
 
 The sandbox helper (`yaap-sandbox`) reads `DOCKER_HOST` (the socket proxy), `YAAP_SANDBOX_IMAGE`
-(`yaap-sandbox:local`), `YAAP_SANDBOX_CPUS` and `YAAP_SANDBOX_MEMORY`. It finds the Compose project name and where
+(the runner image, pulled once when it is missing: only that name, and only an image that carries YAAP's sandbox label is used), `YAAP_SANDBOX_CPUS` and `YAAP_SANDBOX_MEMORY`. It finds the Compose project name and where
 the workspace is on your computer from its own container; `YAAP_SANDBOX_INSTANCE` and `YAAP_SANDBOX_WORKSPACE_HOST`
 set them by hand when that does not work. `YAAP_SANDBOX_PIDS` limits the number of processes per container (default 2048).
 
@@ -77,27 +79,54 @@ services:
 ```
 
 The preview reaches a dev server in the runner or a project's sandbox over YAAP's SSH connection to it; the sandbox
-image allows that connection to forward to `localhost` only. After updating YAAP, rebuild the sandbox image
-(`docker compose build sandbox-image`) and let the runners start again, or the preview cannot reach their dev servers.
+image allows that connection to forward to `localhost` only. An update of YAAP brings the matching runner image, and
+the runners start again from it; a runner started before that cannot be reached by the preview until it has.
+
+## Building the images yourself
+
+`docker-compose.yml` pulls the four images (`yaap`, `yaap-searxng`, `yaap-sandbox-helper`, `yaap-sandbox`) from `ghcr.io/jelvodev`, tagged with the version. Two things change that:
+
+- **A fork that publishes its own images** sets `YAAP_IMAGE_PREFIX` in `.env`, for example `YAAP_IMAGE_PREFIX=ghcr.io/yourname`. Everything else, the update script included, follows it.
+- **Building on your computer** adds `docker-compose.build.yml`: its `build:` sections and the local image names (`yaap:local` and so on). `scripts/setup.sh --build` (`scripts\setup.ps1 -Build`) writes the two lines for it to `.env`; by hand:
+
+  ```ini
+  COMPOSE_PATH_SEPARATOR=,
+  COMPOSE_FILE=docker-compose.yml,docker-compose.build.yml
+  ```
+
+  `COMPOSE_PATH_SEPARATOR` makes the same line work on Windows, where Compose otherwise separates files with `;`. Add `docker-compose.override.yml` to the list when you have one: Compose reads it by itself only while `COMPOSE_FILE` is not set. Then `docker compose up -d --build` builds and starts everything, and the update script builds the new version instead of pulling it.
 
 ## Extra packages for the runner
 
-The runner of each environment and every project sandbox start from the sandbox image `yaap-sandbox:local` (Debian with build tools, Python 3, Node.js, git and Chromium). The agent may install more with `sudo` while it works, but that lasts only until the runner is made again (after an update of the image). Packages every runner should always have go into one place: an extra layer on the sandbox image, named in `docker-compose.override.yml` as build arguments of the service `sandbox-image`. YAAP's own image does not change for them.
+The runner of each environment and every project sandbox start from the sandbox image (`ghcr.io/jelvodev/yaap-sandbox:<version>`: Debian with build tools, Python 3, Node.js, git and Chromium). The agent may install more with `sudo` while it works, but that lasts only until the runner is made again (after an update of the image). Packages every runner should always have go into one place: an extra layer on the published image, built on your computer from `docker/sandbox/Dockerfile.extra`, named in `docker-compose.override.yml`, and used by the helper instead of the published image. YAAP's own image does not change for them.
 
 ```yaml
 services:
   sandbox-image:
     build:
+      context: docker/sandbox
+      dockerfile: Dockerfile.extra
       args:
+        # The published runner image of the version in docker-compose.yml; change it when you update YAAP.
+        BASE: ghcr.io/jelvodev/yaap-sandbox:0.8.0
         # Debian packages, separated by spaces.
         EXTRA_APT_PACKAGES: "postgresql-client default-jdk-headless"
         # Any further setup, run once as root while the image is built.
         EXTRA_SETUP: "npm install --global pnpm@10 && pip install --break-system-packages uv"
+      labels:
+        dev.yaap: "true"
+    image: yaap-sandbox-extra:local
+    entrypoint: ["true"]
+    network_mode: none
+    restart: "no"
+  yaap-sandbox:
+    environment:
+      YAAP_SANDBOX_IMAGE: yaap-sandbox-extra:local
 ```
 
-Then run `docker compose up -d --build`. Every runner and sandbox is made again from the new image on its next use, so what the agent installed by hand outside the project folders is gone; the project folders stay. The commented example in `docker-compose.override.example.yml` shows the same. MCP servers over stdio run in the runner too, so a server started with `uvx` or another tool needs that tool here.
+Then run `docker compose up -d --build`. Every runner and sandbox is made again from the new image on its next use, so what the agent installed by hand outside the project folders is gone; the project folders stay. After an update, change `BASE` to the new version and run the same command again (the update script rebuilds the layer but cannot change that line). The commented example in `docker-compose.override.example.yml` shows the same. When you build the images yourself, skip the second service and the image name: give the `sandbox-image` service of `docker-compose.build.yml` only the `args` `EXTRA_APT_PACKAGES` and `EXTRA_SETUP`. MCP servers over stdio run in the runner too, so a server started with `uvx` or another tool needs that tool here.
 
-Language servers for the code tools (`find_definition`, `find_references`, `diagnostics`, `rename_symbol`, `document_symbols`) run in the runner or sandbox too. The image has pyright (Python) and typescript-language-server (TypeScript and JavaScript). YAAP also knows gopls (Go), rust-analyzer (Rust) and clangd (C and C++); install them here and YAAP finds them the first time it starts a language server in a runner, from the next conversation on:
+Language servers for the code tools (`find_definition`, `find_references`, `diagnostics`, `rename_symbol`, `document_symbols`) run in the runner or sandbox too. The image has pyright (Python) and typescript-language-server (TypeScript and JavaScript). YAAP also knows gopls (Go), rust-analyzer (Rust) and clangd (C and C++); install them here and YAAP finds them the first time it starts a language server in a runner, from the next conversation on (the two arguments go into the `args` of the service above):
 
 ```yaml
 services:

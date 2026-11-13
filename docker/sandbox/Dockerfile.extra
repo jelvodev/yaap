@@ -1,0 +1,13 @@
+# Extra packages on top of the published runner image, for docker-compose.override.yml
+# (docs/configuration.md, "Extra packages for the runner"): the published image as BASE plus one layer, instead of
+# building the whole runner image here. Build context: this folder.
+ARG BASE
+FROM ${BASE}
+
+# The same two arguments as the last layer of Dockerfile: the extra packages and a command for anything else.
+ARG EXTRA_APT_PACKAGES=""
+ARG EXTRA_SETUP=""
+RUN if [ -n "$EXTRA_APT_PACKAGES" ]; then \
+        apt-get update && apt-get install -y --no-install-recommends $EXTRA_APT_PACKAGES && rm -rf /var/lib/apt/lists/*; \
+    fi \
+    && if [ -n "$EXTRA_SETUP" ]; then sh -euc "$EXTRA_SETUP"; fi

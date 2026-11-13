@@ -1,21 +1,31 @@
 #!/usr/bin/env bash
-# Set up and start YAAP on macOS or Linux: creates .env with a new master key (once), builds and starts the
+# Set up and start YAAP on macOS or Linux: creates .env with a new master key (once), downloads and starts the
 # containers, waits until YAAP answers and asks for YAAP's password when none is set yet. Run it from anywhere:
-# ./scripts/setup.sh
+#   ./scripts/setup.sh            pull the published images
+#   ./scripts/setup.sh --build    build the images from this folder instead, now and at every update
+#                                 (see docker-compose.build.yml)
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 URL="http://127.0.0.1:8080"
+BUILD=0
 
 say() { printf '%s\n' "$*"; }
 fail() { printf 'Setup stopped: %s\n' "$*" >&2; exit 1; }
+
+for arg in "$@"; do
+  case "$arg" in
+    --build) BUILD=1 ;;
+    *) fail "Unknown option '$arg'. The only option is --build." ;;
+  esac
+done
 
 command -v docker >/dev/null 2>&1 || fail "Docker is not installed. Install Docker Desktop (macOS) or Docker Engine (Linux): https://docs.docker.com/get-docker/"
 docker info >/dev/null 2>&1 || fail "Docker is installed but not running. Start Docker and run this script again."
 docker compose version >/dev/null 2>&1 || fail "Docker Compose v2 is missing ('docker compose'). Update Docker: https://docs.docker.com/compose/install/"
 
 if [ -f .env ]; then
-  say "Using the existing .env (it is never changed by this script)."
+  say "Using the existing .env (this script changes it only for --build, to add COMPOSE_FILE)."
 else
   [ -f .env.example ] || fail ".env.example is missing; is this the YAAP folder?"
   # A Fernet key: 32 random bytes as URL-safe base64.
@@ -35,8 +45,30 @@ else
   say ""
 fi
 
-say "Building and starting YAAP. The first build downloads a few GB and takes several minutes."
-docker compose up -d --build
+if [ "$BUILD" = 1 ]; then
+  # Compose reads COMPOSE_FILE from .env. Naming the separator as well makes the same lines work on every system, and
+  # naming docker-compose.override.yml is needed because Compose reads it by itself only without COMPOSE_FILE.
+  if grep -q '^COMPOSE_FILE=' .env; then
+    grep -q 'docker-compose.build.yml' .env || fail ".env sets COMPOSE_FILE without docker-compose.build.yml; add that file to it (see docker-compose.build.yml)."
+  else
+    files="docker-compose.yml,docker-compose.build.yml"
+    [ -f docker-compose.override.yml ] && files="$files,docker-compose.override.yml"
+    grep -q '^COMPOSE_PATH_SEPARATOR=' .env || printf '\nCOMPOSE_PATH_SEPARATOR=,\n' >> .env
+    printf 'COMPOSE_FILE=%s\n' "$files" >> .env
+    say "Added COMPOSE_FILE to .env, so YAAP is built from this folder from now on (also when you update)."
+  fi
+fi
+
+# Building is also what an earlier --build left in .env.
+if grep -q '^COMPOSE_FILE=.*docker-compose.build.yml' .env; then
+  say "Building and starting YAAP. The first build downloads a few GB and takes several minutes."
+  docker compose up -d --build
+else
+  say "Downloading and starting YAAP (a few GB, once). The runner's image, about 2.8 GB, follows when the first command needs it."
+  # --ignore-buildable: an image you build yourself (extra packages in docker-compose.override.yml) is in no registry.
+  docker compose pull --ignore-buildable
+  docker compose up -d --build
+fi
 
 say "Waiting for YAAP to answer at $URL ..."
 for _ in $(seq 1 90); do

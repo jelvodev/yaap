@@ -12,7 +12,9 @@ from app.scripts.set_version import (
     parse_version,
     roll_changelog,
     set_version,
+    versions_at,
 )
+from app.version import VERSION
 
 CHANGELOG = """# Changelog
 
@@ -32,6 +34,20 @@ Run the thing.
 
 None.
 """
+PREFIX = "${YAAP_IMAGE_PREFIX:-ghcr.io/jelvodev}"
+COMPOSE = f"""services:
+  yaap:
+    image: {PREFIX}/yaap:0.5.7
+  searxng:
+    image: {PREFIX}/yaap-searxng:0.5.7
+  yaap-sandbox:
+    image: {PREFIX}/yaap-sandbox-helper:0.5.7
+    environment:
+      YAAP_SANDBOX_IMAGE: ${{YAAP_SANDBOX_IMAGE:-{PREFIX}/yaap-sandbox:0.5.7}}
+  docker-proxy:
+    image: tecnativa/docker-socket-proxy:v0.5.7@sha256:abc
+"""
+EXTRA_BASE = "        BASE: ghcr.io/jelvodev/yaap-sandbox:0.5.7\n"
 EMPTY_UNRELEASED = "## Unreleased\n\n### Action needed\n\nNone.\n\n## 0.5.7 (2026-11-09)\n"
 
 
@@ -105,6 +121,9 @@ def make_repository(root: Path, newline: str) -> None:
         '    "node_modules/x": {\n      "version": "0.5.7"\n    }\n  }\n}\n',
         "frontend/openapi.json": '{\n  "info": {\n    "title": "YAAP",\n    "version": "0.5.7"\n  }\n}\n',
         "docs/roadmap.md": "The current version is **0.5.7**.\n",
+        "docker-compose.yml": COMPOSE,
+        "docker-compose.override.example.yml": EXTRA_BASE,
+        "docs/configuration.md": EXTRA_BASE,
         "CHANGELOG.md": CHANGELOG,
     }
     for name, text in files.items():
@@ -122,6 +141,8 @@ def test_set_version_changes_every_place_and_keeps_line_endings(tmp_path: Path, 
         assert data.count("0.6.0") == wanted.count
         assert ("\r\n" in data) == (newline == "\r\n")
     # Only the places that name the project's own version changed.
+    # The socket proxy's version is not YAAP's.
+    assert "docker-socket-proxy:v0.5.7" in (tmp_path / "docker-compose.yml").read_bytes().decode()
     assert '"x==0.5.7"' in (tmp_path / "backend/pyproject.toml").read_bytes().decode()
     lock = (tmp_path / "frontend/package-lock.json").read_bytes().decode().replace("\r\n", "\n")
     assert '"node_modules/x": {\n      "version": "0.5.7"' in lock
@@ -141,3 +162,10 @@ def test_set_version_stops_before_writing_when_a_place_is_missing(tmp_path: Path
     with pytest.raises(ReleaseError):
         set_version(tmp_path, "0.6.0", "2026-12-01")
     assert (tmp_path / "backend/app/version.py").read_text() == 'VERSION = "0.5.7"\n'
+
+
+def test_the_compose_file_names_the_current_version_for_every_image() -> None:
+    root = Path(__file__).resolve().parents[2]
+    spot = next(wanted for wanted in SPOTS if wanted.path == "docker-compose.yml")
+    found = versions_at((root / spot.path).read_bytes().decode(), spot)
+    assert found == [VERSION] * spot.count
