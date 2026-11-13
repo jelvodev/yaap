@@ -28,6 +28,8 @@ jobs:
           cache-dependency-path: backend/requirements-dev.txt
       - run: pip install -r requirements-dev.txt
         working-directory: backend
+      - run: ruff check app
+        working-directory: backend
       # The migration check first, so a schema drift shows on its own.
       - run: python -m pytest tests/test_schema.py
         working-directory: backend
