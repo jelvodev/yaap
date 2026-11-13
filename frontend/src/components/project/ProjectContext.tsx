@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 
-import { type Setting, errorMessage } from "../../api/client";
+import type { Setting } from "../../api/client";
+import { useScopedSettings } from "../../pages/settings/useScopedSettings";
 import { CONTEXT_KEYS, contextChoices, contextLabel } from "../contextSettings";
 
 function sourceLabel(source: string): string {
@@ -9,41 +10,39 @@ function sourceLabel(source: string): string {
 
 /** The project's own context limit and compaction settings, over what its environment sets. */
 export default function ProjectContext({ projectId }: { projectId: number }) {
-  const [settings, setSettings] = useState<Setting[]>([]);
-  const url = `/api/v1/projects/${projectId}/settings`;
-
-  const load = useCallback(async () => {
-    const list = (await fetch(url).then((response) => response.json())) as Setting[];
-    setSettings(CONTEXT_KEYS.map((key) => list.find((item) => item.key === key)).filter((item) => item !== undefined));
-  }, [url]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const { settings, set, reset } = useScopedSettings({ kind: "project", id: projectId });
 
   return (
     <>
-      {settings.map((setting) => (
-        <ContextRow key={setting.key} url={`${url}/${setting.key}`} setting={setting} onChanged={load} />
-      ))}
+      {CONTEXT_KEYS.map((key) => settings.find((item) => item.key === key))
+        .filter((item) => item !== undefined)
+        .map((setting) => (
+          <ContextRow
+            key={setting.key}
+            setting={setting}
+            onSave={(value) => set(setting.key, value)}
+            onReset={() => reset(setting.key)}
+          />
+        ))}
     </>
   );
 }
 
-function ContextRow({ url, setting, onChanged }: { url: string; setting: Setting; onChanged: () => Promise<void> }) {
+function ContextRow({
+  setting,
+  onSave,
+  onReset,
+}: {
+  setting: Setting;
+  onSave: (value: unknown) => Promise<string | null>;
+  onReset: () => Promise<string | null>;
+}) {
   const own = setting.level_value !== null && setting.level_value !== undefined;
   const [message, setMessage] = useState<string | null>(null);
   const choices = contextChoices(setting.key, setting.value);
 
-  async function send(method: "PUT" | "DELETE", value?: unknown) {
-    const response = await fetch(url, {
-      method,
-      headers: method === "PUT" ? { "Content-Type": "application/json" } : undefined,
-      body: method === "PUT" ? JSON.stringify({ value }) : undefined,
-    });
-    const body = await response.json().catch(() => null);
-    setMessage(response.ok ? null : errorMessage(body, `Saving failed (HTTP ${response.status}).`));
-    if (response.ok) await onChanged();
+  async function send(action: () => Promise<string | null>) {
+    setMessage(await action());
   }
 
   return (
@@ -61,7 +60,7 @@ function ContextRow({ url, setting, onChanged }: { url: string; setting: Setting
           value={own ? String(setting.level_value) : ""}
           onChange={(event) => {
             const choice = choices.find((item) => item.value === event.target.value);
-            void (choice ? send("PUT", choice.stored) : send("DELETE"));
+            void (choice ? send(() => onSave(choice.stored)) : send(onReset));
           }}
         >
           <option value="">Inherit: {contextLabel(setting.key, setting.inherited_value)}</option>

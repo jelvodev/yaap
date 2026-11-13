@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
-import { type Setting, errorMessage } from "../../api/client";
+import type { Setting } from "../../api/client";
+import { useScopedSettings } from "../../pages/settings/useScopedSettings";
 
 const KEYS = ["reply_language", "work_language"];
 
@@ -10,43 +11,41 @@ function sourceLabel(source: string): string {
 
 /** The project's own reply and work language, over what its environment sets. */
 export default function ProjectLanguage({ projectId }: { projectId: number }) {
-  const [settings, setSettings] = useState<Setting[]>([]);
-  const url = `/api/v1/projects/${projectId}/settings`;
-
-  const load = useCallback(async () => {
-    const list = (await fetch(url).then((response) => response.json())) as Setting[];
-    setSettings(list.filter((item) => KEYS.includes(item.key)));
-  }, [url]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const { settings, set, reset } = useScopedSettings({ kind: "project", id: projectId });
 
   return (
     <>
-      {settings.map((setting) => (
-        <LanguageRow key={setting.key} url={`${url}/${setting.key}`} setting={setting} onChanged={load} />
-      ))}
+      {settings
+        .filter((setting) => KEYS.includes(setting.key))
+        .map((setting) => (
+          <LanguageRow
+            key={setting.key}
+            setting={setting}
+            onSave={(value) => set(setting.key, value)}
+            onReset={() => reset(setting.key)}
+          />
+        ))}
     </>
   );
 }
 
-function LanguageRow({ url, setting, onChanged }: { url: string; setting: Setting; onChanged: () => Promise<void> }) {
+function LanguageRow({
+  setting,
+  onSave,
+  onReset,
+}: {
+  setting: Setting;
+  onSave: (value: string) => Promise<string | null>;
+  onReset: () => Promise<string | null>;
+}) {
   const own = setting.level_value !== null && setting.level_value !== undefined;
   const stored = own ? String(setting.level_value) : "";
   const [value, setValue] = useState(stored);
   const [message, setMessage] = useState<string | null>(null);
   useEffect(() => setValue(stored), [stored]);
 
-  async function send(method: "PUT" | "DELETE") {
-    const response = await fetch(url, {
-      method,
-      headers: method === "PUT" ? { "Content-Type": "application/json" } : undefined,
-      body: method === "PUT" ? JSON.stringify({ value: value.trim() }) : undefined,
-    });
-    const body = await response.json().catch(() => null);
-    setMessage(response.ok ? null : errorMessage(body, `Saving failed (HTTP ${response.status}).`));
-    if (response.ok) await onChanged();
+  async function send(action: () => Promise<string | null>) {
+    setMessage(await action());
   }
 
   const inherited = String(setting.inherited_value ?? "") || "the language of the message";
@@ -61,7 +60,7 @@ function LanguageRow({ url, setting, onChanged }: { url: string; setting: Settin
         className="pp-row"
         onSubmit={(event) => {
           event.preventDefault();
-          void send("PUT");
+          void send(() => onSave(value.trim()));
         }}
       >
         <input
@@ -75,7 +74,7 @@ function LanguageRow({ url, setting, onChanged }: { url: string; setting: Settin
           Save
         </button>
         {own && (
-          <button type="button" className="button button-ghost" onClick={() => void send("DELETE")}>
+          <button type="button" className="button button-ghost" onClick={() => void send(onReset)}>
             Use the environment's
           </button>
         )}
