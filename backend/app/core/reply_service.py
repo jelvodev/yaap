@@ -330,7 +330,11 @@ class ReplyService:
         while self.services.replies.busy(conversation_id):
             await asyncio.sleep(0.05)
         try:
-            await anyio.to_thread.run_sync(partial(self._send_now_selection, conversation_id, job_id))
+            stream = await anyio.to_thread.run_sync(partial(self._send_now_selection, conversation_id, job_id))
+            if stream is not None and stream.job is None:
+                # A queued /compact runs only while its stream is read, and no client reads this one.
+                async for _ in stream.events:
+                    pass
         except Exception:  # A background handoff must return its selection to the queue after any failure.
             logger.exception("A durable send-now handoff could not be started; its messages remain queued.")
             with self.services.session_factory() as session:
@@ -344,7 +348,7 @@ class ReplyService:
                 )
                 session.commit()
 
-    def _send_now_selection(self, conversation_id: int, job_id: str) -> None:
+    def _send_now_selection(self, conversation_id: int, job_id: str) -> ReplyStream | None:
         with self.services.session_factory() as session:
             ids = list(
                 session.scalars(
@@ -357,11 +361,11 @@ class ReplyService:
                 )
             )
             if not ids:
-                return
+                return None
             conversation = session.get(Conversation, conversation_id)
             if conversation is None:
-                return
-            self.send_queued_ids(session, conversation, ids, job_id)
+                return None
+            return self.send_queued_ids(session, conversation, ids, job_id)
 
     def _send_reserved(
         self, session: Session, conversation: Conversation, message: NewMessage, reservation: Reservation

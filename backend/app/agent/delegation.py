@@ -48,6 +48,7 @@ from app.presets.delegation import DelegationMode
 from app.presets.service import delegation_of
 from app.providers.base import (
     AgentRequest,
+    CallRestarted,
     Completed,
     HistoryMessage,
     ModelProvider,
@@ -316,6 +317,8 @@ class Delegator:
                     raise ParentEnded("The run that started this task has ended.")
                 if isinstance(event, TextDelta):
                     outcome.texts.append(event.text)
+                elif isinstance(event, CallRestarted):
+                    outcome.texts.clear()  # The broken call's text is void; the new attempt writes it again.
                 elif isinstance(event, ToolCallStarted):
                     outcome.texts.clear()  # The report is the text after the last tool call.
                     calls[event.id] = {"type": "tool_call", "name": event.name, "input": event.input}

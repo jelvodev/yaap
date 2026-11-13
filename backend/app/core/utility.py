@@ -21,7 +21,15 @@ from app.core.settings import SETTING_DEFINITIONS, resolve_setting
 from app.core.utility_tasks import OFF_SETTING_KEY, task_enabled, task_label
 from app.credentials.crypto import CredentialCipher
 from app.credentials.types import CredentialType
-from app.providers.base import AgentRequest, Completed, HistoryMessage, ProviderError, SystemPart, TextDelta
+from app.providers.base import (
+    AgentRequest,
+    CallRestarted,
+    Completed,
+    HistoryMessage,
+    ProviderError,
+    SystemPart,
+    TextDelta,
+)
 from app.providers.catalog import calculate_cost
 from app.providers.registry import ProviderRegistry
 from app.storage.models import Conversation, UsageRecord
@@ -160,6 +168,8 @@ async def ask_utility_model(
         async for event in provider.stream(request):
             if isinstance(event, TextDelta):
                 parts.append(event.text)
+            elif isinstance(event, CallRestarted):
+                parts.clear()  # The broken call's text is void; the new attempt writes the answer again.
             elif isinstance(event, Completed):
                 completed = event
     except ProviderError as error:
