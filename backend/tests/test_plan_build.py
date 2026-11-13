@@ -16,6 +16,7 @@ from app.plans.build import (
     step_commit_message,
     step_facts,
 )
+from app.plans.build_run import allowed_build_commands
 from app.plans.model import Plan, PlanStep, StepCheck
 
 
@@ -133,3 +134,24 @@ def test_the_step_commit_message_is_one_line(number, title, expected):
 def test_a_very_long_step_title_is_cut_in_the_commit_message():
     message = step_commit_message(PlanStep(3, "t" * 500))
     assert len(message) <= 200 and message.startswith("Step 3: ")
+
+@pytest.mark.parametrize(
+    ("steps", "allowed"),
+    [
+        ((), ()),
+        (((), ), ()),
+        ((("pytest -q",),), ("pytest -q",)),
+        ((("pytest -q", "npm run typecheck"),), ("pytest -q", "npm run typecheck", "pytest -q && npm run typecheck")),
+        ((("pytest -q",), ("pytest -q", "ruff check .")), ("pytest -q", "ruff check .", "pytest -q && ruff check .")),
+        ((("x" * 300, "y" * 300),), ("x" * 300, "y" * 300)),
+    ],
+)
+def test_a_build_runs_the_approved_commands_and_their_joined_step_checks_without_asking(steps, allowed):
+    plan = Plan(
+        "T",
+        steps=tuple(
+            step_with(*(StepCheck(f"check {i}", command) for i, command in enumerate(commands)), number=n + 1)
+            for n, commands in enumerate(steps)
+        ),
+    )
+    assert allowed_build_commands(plan) == allowed

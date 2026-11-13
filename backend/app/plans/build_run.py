@@ -20,7 +20,7 @@ from app.core.reply_run import start_agent_run
 from app.core.reply_services import ReplyServices
 from app.core.reply_setup import prepare_reply
 from app.core.settings import SETTING_DEFINITIONS, resolve_setting
-from app.plans.build import run_checks
+from app.plans.build import brief_check, run_checks
 from app.plans.model import Plan
 from app.plans.service import BuildRefused, PlanView
 from app.projects.service import project_path
@@ -44,6 +44,13 @@ class BuildRun:
 def plan_commands(plan: Plan) -> tuple[str, ...]:
     """Every check command of the plan, once each, in order: what approving the plan approves."""
     return tuple(dict.fromkeys(command for step in plan.steps for command in run_checks(step)))
+
+
+def allowed_build_commands(plan: Plan) -> tuple[str, ...]:
+    """What a build runs without asking: the plan's check commands, plus each step's brief check, which joins a
+    step's approved commands with `&&` and so runs nothing the user did not approve."""
+    joined = (check for step in plan.steps if (check := brief_check(step)) is not None)
+    return tuple(dict.fromkeys((*plan_commands(plan), *joined)))
 
 
 def copy_target(target: RunTarget | None, build_folder: str) -> RunTarget | None:
@@ -82,7 +89,7 @@ def open_build_run(services: ReplyServices, record: PlanView) -> BuildRun:
         copy = folder / record.build_folder
         setup = replace(setup, workspace=copy, target=copy_target(setup.target, record.build_folder))
         run = start_agent_run(services, session, conversation, setup, [], read_only=False, unattended=False)
-        commands = plan_commands(record.plan)
+        commands = allowed_build_commands(record.plan)
         run.config = replace(run.config, policy=replace(run.policy, build_commands=commands))
         if run.state.record_id is not None:
             stored = session.get(AgentRunRecord, run.state.record_id)
