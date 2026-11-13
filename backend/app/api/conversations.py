@@ -1,14 +1,11 @@
 import logging
 from datetime import UTC, datetime
-from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated
 
 import anyio
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import FileResponse, PlainTextResponse
-from pydantic import BaseModel, Field
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from app.api.dependencies import (
     EnvironmentDependency,
@@ -18,19 +15,19 @@ from app.api.dependencies import (
     SessionDependency,
     WorkspaceDirDependency,
 )
+from app.api.conversation_checks import check_agent, check_full_access, check_target_choice, conversation_layers
+from app.api.conversation_mapping import context_control_out, goal_out, summary_out, target_of
+from app.api.conversation_models import CompactIn, RuleProposalOut, SummaryOut
 from app.api.reply_stream import EventStreamResponse, event_stream, reply_stream_responses
 from app.api.schemas import (
-    ContextControlOut,
     ConversationCreate,
     ConversationOut,
     ConversationSummaryOut,
-    ConversationTargetOut,
     BranchSwitch,
     ConversationMove,
     ConversationUpdate,
     GoalOut,
     GoalUpdate,
-    ImportedFromOut,
     MessageCreate,
     UtilityEventOut,
     DefaultSkillsOut,
@@ -40,118 +37,30 @@ from app.api.schemas import (
 from app.agent.outputs import OutputStore, remove_conversation_outputs
 from app.agent.shells import remove_conversation_shells
 from app.agent.runs import RunRegistry
-from app.agents.definitions import find_agent
 from app.board.links import visible_card
 from app.core.context_breakdown import context_used, last_main_usage
 from app.core.conversation_move import MoveBusy, MoveError, move_conversation
 from app.core.conversations import delete_conversation
-from app.core.goals import ACTIVE, end_goal, goal_cost, latest_goal, open_goal
+from app.core.goals import ACTIVE, end_goal, latest_goal, open_goal
 from app.core.chat_history import DEFAULT_TITLE, load_branch
 from app.core.replies import ReplyRegistry
 from app.core.reply_errors import InvalidReplyRequest, ReplyBusy, ReplyConflict, ReplyError
 from app.core.reply_service import NewMessage, ReplyService
 from app.core.reply_services import ReplyServices
-from app.core.context_control import ContextControl, check_conversation_limit, resolve_context_control
-from app.core.summaries import MAX_FOCUS_CHARS, SummaryError, summarise, yaap_compacts
+from app.core.context_control import check_conversation_limit, resolve_context_control
+from app.core.summaries import SummaryError, summarise, yaap_compacts
 from app.core.message_parts import MessagePartError, active_of_kind, check_skills
 from app.core.rule_proposal import RuleProposalError, draft_rule
 from app.core.settings import SETTING_DEFINITIONS, resolve_setting
 from app.core.utility import UtilityContext
-from app.blueprint.layers import Layer
-from app.blueprint.levels import layers_for
 from app.mcp_client.runs import server_place
 from app.browser.service import remove_conversation_browser, shots_dir
-from app.storage.models import Conversation, Environment, Goal, Message, Project, Target, UsageRecord
-from app.targets.base import TargetError
-from app.targets.service import allowed_access, chosen_target
+from app.storage.models import Conversation, Goal, Message, Project, Target, UsageRecord
+from app.targets.service import allowed_access
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["conversations"])
-
-
-def summary_out(conversation: Conversation) -> ConversationSummaryOut:
-    return ConversationSummaryOut(
-        id=conversation.id,
-        project_id=conversation.project_id,
-        title=conversation.title,
-        provider=conversation.provider,
-        model=conversation.model,
-        effort=conversation.effort,
-        agent=conversation.agent,
-        pinned_skills=conversation.pinned_skills or [],
-        updated_at=conversation.updated_at,
-        archived_at=conversation.archived_at,
-        scheduled=conversation.scheduled_task_id is not None,
-        unread=bool(conversation.unread),
-        access=conversation.access or "default",  # type: ignore[arg-type]  # a plain string column; the schema narrows it
-        target_id=conversation.target_id,
-        context_limit=conversation.context_limit,
-        imported=ImportedFromOut(**conversation.imported_from) if conversation.imported_from else None,
-    )
-
-
-def context_control_out(control: ContextControl) -> ContextControlOut:
-    return ContextControlOut(
-        limit=control.limit,
-        source=control.source,  # type: ignore[arg-type]  # a plain string in the service; the schema narrows it
-        auto_compact=control.auto_compact,
-        compact_at=control.compact_at,
-        trim_at=control.trim_at,
-        compacts_itself=control.compacts_itself,
-    )
-
-
-def target_of(session: Session, conversation: Conversation) -> ConversationTargetOut | None:
-    try:
-        chosen = chosen_target(session, conversation)
-    except TargetError:
-        return None
-    if chosen is None:
-        return None
-    target, folder = chosen
-    return ConversationTargetOut(
-        id=target.id,
-        name=target.name,
-        system=target.system,
-        rights=target.rights,
-        folder=folder,
-        allow_full_access=target.allow_full_access,
-    )
-
-
-def check_target_choice(session: Session, environment_id: int, target_id: int | None) -> int | None:
-    if target_id is None:
-        return None
-    target = session.get(Target, target_id)
-    # A project's sandbox is chosen in the project, not per conversation.
-    if target is None or target.environment_id != environment_id or target.kind != "ssh":
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Unknown target in this environment.")
-    return target.id
-
-
-def check_full_access(target: ConversationTargetOut | None) -> None:
-    if target is not None and not target.allow_full_access:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"Full access is off for {target.name}. Switch on Allow full access for it in Settings › Targets first.",
-        )
-
-
-def conversation_layers(
-    session: Session, blueprint_dir: Path, workspace_dir: Path, environment_id: int, project_id: int | None
-) -> list[Layer]:
-    environment = session.get_one(Environment, environment_id)
-    project = session.get(Project, project_id) if project_id else None
-    return layers_for(blueprint_dir, workspace_dir, environment, project)
-
-
-def check_agent(layers: list[Layer], name: str | None) -> str | None:
-    if name is None or not name.strip():
-        return None
-    if find_agent(layers, name.strip()) is None:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"There is no agent named {name.strip()}.")
-    return name.strip()
 
 
 def get_conversation(conversation_id: int, session: SessionDependency) -> Conversation:
@@ -580,22 +489,6 @@ def running_replies(environment: EnvironmentDependency, request: Request) -> lis
 # --- Goal mode -------------------------------------------------------------------------------------
 
 
-def goal_out(session: Session, goal: Goal) -> GoalOut:
-    return GoalOut(
-        id=goal.id,
-        conversation_id=goal.conversation_id,
-        objective=goal.objective,
-        status=goal.status,
-        max_turns=goal.max_turns,
-        max_cost=goal.max_cost,
-        turns=goal.turns,
-        cost=round(goal_cost(session, goal), 4),
-        summary=goal.summary,
-        created_at=goal.created_at,
-        finished_at=goal.finished_at,
-    )
-
-
 @router.get("/conversations/{conversation_id}/goal", response_model=GoalOut | None)
 def read_goal(conversation: ConversationDependency, session: SessionDependency) -> GoalOut | None:
     """The conversation's latest goal, open or ended; null when it never had one."""
@@ -643,16 +536,6 @@ def change_goal(
 # --- Remember as rule ------------------------------------------------------------------------------
 
 
-class RuleProposalOut(BaseModel):
-    rule: str
-    level: Literal["global", "environment", "project"]
-    path: str | None
-    # False when the utility model was not available and the proposal is the user's own text.
-    from_model: bool
-    # Why no model drafted it, when the model policy skipped the task.
-    skipped: str | None = None
-
-
 @router.post("/conversations/{conversation_id}/messages/{message_id}/rule-proposal", response_model=RuleProposalOut)
 async def propose_rule(
     message_id: int,
@@ -672,17 +555,6 @@ async def propose_rule(
     return RuleProposalOut(
         rule=draft.rule, level=draft.level, path=draft.path, from_model=draft.from_model, skipped=draft.skipped
     )
-
-
-class CompactIn(BaseModel):
-    # What the summary should keep in detail, as with /compact <focus>.
-    focus: str | None = Field(default=None, max_length=MAX_FOCUS_CHARS)
-
-
-class SummaryOut(BaseModel):
-    # The last message the summary covers, and how many messages of the branch it covers.
-    message_id: int
-    covered: int
 
 
 @router.post("/conversations/{conversation_id}/summary", response_model=SummaryOut)
