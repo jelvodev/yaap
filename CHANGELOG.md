@@ -58,6 +58,10 @@ yourself when you update; it says "None." when there is nothing.
 
 - **Board triggers.** A project's board settings have *Triggers*: things YAAP checks on a schedule that put a card in
 
+- Each column of the project board now has its own buttons in the card detail: *Specify* in Idea opens a conversation that writes the specification with you, and the card moves to Design once it is saved; *Plan* and *Move back to Idea* in Design; *Approve and build*, *Edit plan* and *Ask a change* in Plan; *Stop* while a build runs, and *Continue* or *Send back* when it failed or was interrupted; *Review*, *Review again* and *Mark done* in Review, with the evidence; the result and branch in Done.
+- A card whose build failed or was interrupted can be sent back to Design with the reason in its description, to be planned again.
+- A second click on *Review* while the card's review is starting is refused instead of starting a second review.
+
 ### Action needed
 
 - `git push --all` and `git push --mirror` also push the `yaap-board` branch, and with it every card, specification and plan. On a public repository, push your branches one by one.
