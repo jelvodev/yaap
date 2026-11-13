@@ -33,6 +33,11 @@ BoardErrorCode = Literal[
     "board_diverged",
     "pull_failed",
     "invalid_repository_url",
+    "intake_limit",
+    "already_on_board",
+    "finding_not_found",
+    "no_github_repository",
+    "github_failed",
 ]
 # Why the flow (app.board.flow) refuses a move or event.
 RefusalCode = Literal[
