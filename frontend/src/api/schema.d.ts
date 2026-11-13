@@ -3650,6 +3650,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/board/cards/{card_id}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Merge State
+         * @description What *Merge into the version* offers for the card: its version branch, the checks and the last result.
+         */
+        get: operations["merge_state_api_v1_projects__project_id__board_cards__card_id__merge_get"];
+        put?: never;
+        /**
+         * Merge Card Into Version
+         * @description Merge the card's branch into its version's branch in the background. `commands` are the version's checks the
+         *     user saw next to the button.
+         */
+        post: operations["merge_card_into_version_api_v1_projects__project_id__board_cards__card_id__merge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/board/cards/{card_id}/move": {
         parameters: {
             query?: never;
@@ -8270,26 +8295,46 @@ export interface components {
             /** Updates Entry */
             updates_entry: string | null;
         };
-        /** MergeIn */
-        MergeIn: {
-            /**
-             * Delete Branch
-             * @default false
-             */
-            delete_branch: boolean;
-            /**
-             * Method
-             * @default squash
-             * @enum {string}
-             */
-            method: "squash" | "merge" | "rebase";
-        };
         /** MergeOut */
         MergeOut: {
             /** Branch Deleted */
             branch_deleted: boolean;
             /** Sha */
             sha: string;
+        };
+        /** MergeResultOut */
+        MergeResultOut: {
+            /** Commit */
+            commit: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /** Output */
+            output: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "running" | "merged" | "conflict" | "failed";
+        };
+        /** MergeStateOut */
+        MergeStateOut: {
+            /** Branch */
+            branch: string | null;
+            /** Card Commands */
+            card_commands: string[];
+            last: components["schemas"]["MergeResultOut"] | null;
+            /** Merged */
+            merged: boolean;
+            /** Offered */
+            offered: boolean;
+            /** Refusal */
+            refusal: string | null;
+            /** Running */
+            running: boolean;
+            /** Version */
+            version: string | null;
+            /** Version Commands */
+            version_commands: string[];
         };
         /** MergedEntryOut */
         MergedEntryOut: {
@@ -8666,6 +8711,8 @@ export interface components {
             delivered: boolean;
             /** Final Checks */
             final_checks: components["schemas"]["FinalCheckOut"][];
+            /** Queued */
+            queued?: string | null;
             /** Uncommitted */
             uncommitted: number;
         };
@@ -11494,10 +11541,29 @@ export interface components {
             /** Safety Backup */
             safety_backup: string;
         };
+        /** MergeIn */
+        app__api__card_actions__MergeIn: {
+            /** Commands */
+            commands?: string[];
+        };
         /** RestoreOut */
         app__api__checkpoints__RestoreOut: {
             /** Before Id */
             before_id: number;
+        };
+        /** MergeIn */
+        app__api__github__MergeIn: {
+            /**
+             * Delete Branch
+             * @default false
+             */
+            delete_branch: boolean;
+            /**
+             * Method
+             * @default squash
+             * @enum {string}
+             */
+            method: "squash" | "merge" | "rebase";
         };
     };
     responses: never;
@@ -16203,7 +16269,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MergeIn"];
+                "application/json": components["schemas"]["app__api__github__MergeIn"];
             };
         };
         responses: {
@@ -18415,6 +18481,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CardDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    merge_state_api_v1_projects__project_id__board_cards__card_id__merge_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+                card_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergeStateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    merge_card_into_version_api_v1_projects__project_id__board_cards__card_id__merge_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+                card_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__api__card_actions__MergeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergeStateOut"];
                 };
             };
             /** @description Validation Error */

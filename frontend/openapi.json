@@ -9075,27 +9075,6 @@
         "title": "MemorySuggestionOut",
         "type": "object"
       },
-      "MergeIn": {
-        "properties": {
-          "delete_branch": {
-            "default": false,
-            "title": "Delete Branch",
-            "type": "boolean"
-          },
-          "method": {
-            "default": "squash",
-            "enum": [
-              "squash",
-              "merge",
-              "rebase"
-            ],
-            "title": "Method",
-            "type": "string"
-          }
-        },
-        "title": "MergeIn",
-        "type": "object"
-      },
       "MergeOut": {
         "properties": {
           "branch_deleted": {
@@ -9112,6 +9091,141 @@
           "branch_deleted"
         ],
         "title": "MergeOut",
+        "type": "object"
+      },
+      "MergeResultOut": {
+        "properties": {
+          "commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commit"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "output": {
+            "title": "Output",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "running",
+              "merged",
+              "conflict",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "output",
+          "commit",
+          "finished_at"
+        ],
+        "title": "MergeResultOut",
+        "type": "object"
+      },
+      "MergeStateOut": {
+        "properties": {
+          "branch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch"
+          },
+          "card_commands": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Card Commands",
+            "type": "array"
+          },
+          "last": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MergeResultOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "merged": {
+            "title": "Merged",
+            "type": "boolean"
+          },
+          "offered": {
+            "title": "Offered",
+            "type": "boolean"
+          },
+          "refusal": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refusal"
+          },
+          "running": {
+            "title": "Running",
+            "type": "boolean"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "version_commands": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Version Commands",
+            "type": "array"
+          }
+        },
+        "required": [
+          "version",
+          "branch",
+          "merged",
+          "running",
+          "offered",
+          "refusal",
+          "version_commands",
+          "card_commands",
+          "last"
+        ],
+        "title": "MergeStateOut",
         "type": "object"
       },
       "MergedEntryOut": {
@@ -10182,6 +10296,17 @@
             },
             "title": "Final Checks",
             "type": "array"
+          },
+          "queued": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queued"
           },
           "uncommitted": {
             "title": "Uncommitted",
@@ -18967,6 +19092,21 @@
         "title": "RestoreOut",
         "type": "object"
       },
+      "app__api__card_actions__MergeIn": {
+        "properties": {
+          "commands": {
+            "items": {
+              "maxLength": 500,
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Commands",
+            "type": "array"
+          }
+        },
+        "title": "MergeIn",
+        "type": "object"
+      },
       "app__api__checkpoints__RestoreOut": {
         "properties": {
           "before_id": {
@@ -18978,6 +19118,27 @@
           "before_id"
         ],
         "title": "RestoreOut",
+        "type": "object"
+      },
+      "app__api__github__MergeIn": {
+        "properties": {
+          "delete_branch": {
+            "default": false,
+            "title": "Delete Branch",
+            "type": "boolean"
+          },
+          "method": {
+            "default": "squash",
+            "enum": [
+              "squash",
+              "merge",
+              "rebase"
+            ],
+            "title": "Method",
+            "type": "string"
+          }
+        },
+        "title": "MergeIn",
         "type": "object"
       }
     }
@@ -26709,7 +26870,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MergeIn"
+                "$ref": "#/components/schemas/app__api__github__MergeIn"
               }
             }
           },
@@ -30207,6 +30368,118 @@
           }
         },
         "summary": "Answer Question",
+        "tags": [
+          "board"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/board/cards/{card_id}/merge": {
+      "get": {
+        "description": "What *Merge into the version* offers for the card: its version branch, the checks and the last result.",
+        "operationId": "merge_state_api_v1_projects__project_id__board_cards__card_id__merge_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "card_id",
+            "required": true,
+            "schema": {
+              "title": "Card Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MergeStateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Merge State",
+        "tags": [
+          "board"
+        ]
+      },
+      "post": {
+        "description": "Merge the card's branch into its version's branch in the background. `commands` are the version's checks the\nuser saw next to the button.",
+        "operationId": "merge_card_into_version_api_v1_projects__project_id__board_cards__card_id__merge_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "card_id",
+            "required": true,
+            "schema": {
+              "title": "Card Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/app__api__card_actions__MergeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MergeStateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Merge Card Into Version",
         "tags": [
           "board"
         ]
