@@ -1,6 +1,7 @@
 """The board repository on real temporary git repositories: the first commit has no parent, the work tree, index and
 checked-out branch are never touched, a moved head is refused, and only regular allow-listed files are read."""
 
+import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,7 +18,6 @@ CARD = "---\nid: 1\n---\nbody\n"
 
 
 def git(folder: Path, *arguments: str, env: dict[str, str] | None = None, check: bool = True) -> str:
-    import os
 
     result = subprocess.run(
         ["git", "-c", "user.name=Dev", "-c", "user.email=dev@example.com", "-c", "commit.gpgsign=false", *arguments],
@@ -213,7 +213,6 @@ def test_a_commit_needs_a_message(board) -> None:
 
 def plumb_commit(project: Path, entries: list[tuple[str, str, bytes]]) -> str:
     """A commit on the board ref made from raw (mode, path, content) entries, bypassing BoardRepository."""
-    import os
     import tempfile
 
     with tempfile.TemporaryDirectory() as scratch:
@@ -224,7 +223,7 @@ def plumb_commit(project: Path, entries: list[tuple[str, str, bytes]]) -> str:
             ).stdout.decode().strip()
             git(project, "update-index", "--add", "--cacheinfo", f"{mode},{blob},{path}", env=env)
         tree = git(project, "write-tree", env=env)
-    commit = git(project, "commit-tree", tree, "-m", "plumbed", env={"GIT_AUTHOR_DATE": "2026-01-01T00:00:00Z", **os.environ})
+    commit = git(project, "commit-tree", tree, "-m", "plumbed", env={"GIT_AUTHOR_DATE": "2026-01-01T00:00:00Z"})
     git(project, "update-ref", REF, commit)
     return commit
 

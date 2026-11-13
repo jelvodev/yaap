@@ -100,7 +100,10 @@ def test_the_agent_may_only_move_a_card_into_the_inbox() -> None:
                 assert outcome(result) == "refused:not_allowed", (column, target, actor)
 
 
-@pytest.mark.parametrize("event", ["accept", "drop", "specify_done", "plan_approved", "mark_done", "send_back", "merged"])
+STAGE_EVENTS = ["accept", "drop", "specify_done", "plan_approved", "mark_done", "send_back", "merged"]
+
+
+@pytest.mark.parametrize("event", STAGE_EVENTS)
 @pytest.mark.parametrize("actor", ["agent", "trigger"])
 def test_events_are_refused_for_the_agent_and_triggers(event, actor) -> None:
     assert outcome(step(facts("inbox"), event, actor)) == "refused:not_allowed"
@@ -192,7 +195,10 @@ def test_an_event_moves_the_card_or_is_refused(event, column, overrides, target,
     assert outcome(step(facts(column, **overrides), event, "user", target)) == expected
 
 
-@pytest.mark.parametrize("event", ["merged", "merge_failed", "build_done", "build_failed", "review_done", "plan_submitted"])
+YAAP_EVENTS = ["merged", "merge_failed", "build_done", "build_failed", "review_done", "plan_submitted"]
+
+
+@pytest.mark.parametrize("event", YAAP_EVENTS)
 def test_yaap_causes_the_stage_events_and_they_move_at_most_one_column(event) -> None:
     for column in COLUMNS:
         result = step(facts(column, plan_status="done", review="done"), event, "yaap")

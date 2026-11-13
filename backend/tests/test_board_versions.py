@@ -108,6 +108,7 @@ def test_notes_cannot_hold_the_criteria_heading() -> None:
 
 
 def test_writing_a_version_over_the_cap_is_refused() -> None:
-    version = validate_version({"name": "1.0", "created": WHEN, "notes": "é" * 50_000, "acceptance_criteria": "é" * 50_000})
+    text = "é" * 50_000
+    version = validate_version({"name": "1.0", "created": WHEN, "notes": text, "acceptance_criteria": text})
     with pytest.raises(InvalidCard):
         render_version(version)
