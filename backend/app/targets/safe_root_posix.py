@@ -7,7 +7,7 @@ import uuid
 from collections.abc import Iterator
 from pathlib import Path
 
-from app.targets.safe_root_base import RootReplacedError, SafeRootBase, SafeRootError, relative_parts
+from app.targets.safe_root_base import RootReplacedError, SafeRootBase, SafeRootError, relative_parts, same_root
 
 MAX_SYMLINKS = 40
 
@@ -54,9 +54,13 @@ def _remove_entry_at(parent_fd: int, name: str) -> None:
 
 
 class PosixSafeRoot(SafeRootBase):
-    def __init__(self, root: Path) -> None:
-        super().__init__(root)
+    def __init__(self, root: Path, expected: tuple[int, int] | None = None) -> None:
+        super().__init__(root, expected)
         self._root_fd = self._open_root(self.path)
+        opened = os.fstat(self._root_fd)
+        if not same_root(self.expected, (opened.st_dev, opened.st_ino)):
+            self.close()
+            raise RootReplacedError("The project folder was replaced.")
 
     @staticmethod
     def _pinned_path(absolute: Path) -> Path:
@@ -84,7 +88,7 @@ class PosixSafeRoot(SafeRootBase):
         try:
             pinned = os.fstat(self._root_fd)
             found = os.fstat(current)
-            if (pinned.st_dev, pinned.st_ino) != (found.st_dev, found.st_ino):
+            if not same_root((pinned.st_dev, pinned.st_ino), (found.st_dev, found.st_ino)):
                 raise RootReplacedError("The project folder was replaced.")
         finally:
             os.close(current)
@@ -293,6 +297,25 @@ class PosixSafeRoot(SafeRootBase):
             self._verify_parent_link(parent_fd, canonical[:-1])
             self._reject_git_path(canonical)
             _remove_entry_at(parent_fd, leaf)
+        finally:
+            os.close(parent_fd)
+
+    def _remove_empty_dir(self, parts: tuple[str, ...]) -> bool:
+        try:
+            parent_fd, leaf, canonical = self._resolve(parts, follow_final=False)
+        except SafeRootError:
+            raise
+        except OSError:
+            return False
+        try:
+            self._verify_parent_link(parent_fd, canonical[:-1])
+            # rmdir refuses a link and a folder that is not empty, so nothing is checked first and then removed.
+            os.rmdir(leaf, dir_fd=parent_fd)
+            return True
+        except SafeRootError:
+            raise
+        except OSError:
+            return False
         finally:
             os.close(parent_fd)
 

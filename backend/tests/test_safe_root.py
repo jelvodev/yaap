@@ -10,7 +10,7 @@ import pytest
 
 from app.targets.base import TargetError
 from app.targets.container import LocalFiles
-from app.targets.safe_root import RootReplacedError, SafeRoot, SafeRootError
+from app.targets.safe_root import RootReplacedError, SafeRoot, SafeRootError, same_root
 
 POSIX_ONLY = pytest.mark.skipif(os.name != "posix", reason="descriptor-relative checks require POSIX")
 
@@ -320,3 +320,82 @@ def test_write_check_recognises_a_replaced_root_by_error_type_not_text(
 
 def test_root_replaced_error_is_a_safe_root_error() -> None:
     assert issubclass(RootReplacedError, SafeRootError)
+
+
+@pytest.mark.parametrize(
+    ("pinned", "opened", "same"),
+    [
+        (None, (1, 2), True),
+        ((1, 2), (1, 2), True),
+        ((1, 2), (1, 3), False),
+        ((1, 2), (2, 2), False),
+    ],
+)
+def test_same_root_accepts_only_the_pinned_folder(
+    pinned: tuple[int, int] | None, opened: tuple[int, int], same: bool
+) -> None:
+    assert same_root(pinned, opened) is same
+
+
+def identity(path: Path) -> tuple[int, int]:
+    info = path.lstat()
+    return info.st_dev, info.st_ino
+
+
+@POSIX_ONLY
+@pytest.mark.parametrize("swapped", [False, True])
+def test_opened_root_must_be_the_pinned_folder(tmp_path: Path, swapped: bool) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    (root / "file.txt").write_text("pinned", encoding="utf-8")
+    pin = identity(root)
+    if swapped:
+        root.rename(tmp_path / "moved")
+        root.mkdir()
+        (root / "file.txt").write_text("swapped", encoding="utf-8")
+        with pytest.raises(RootReplacedError):
+            SafeRoot(root, pin)
+        with pytest.raises(TargetError, match="replaced"):
+            LocalFiles(str(root), pin)
+    else:
+        with SafeRoot(root, pin) as safe:
+            assert safe.read_bytes("file.txt") == b"pinned"
+        assert LocalFiles(str(root), pin).safe.read_bytes("file.txt") == b"pinned"
+
+
+@pytest.mark.parametrize(
+    ("folders", "remove", "left"),
+    [
+        (["a/b/c"], "a/b/c", []),
+        (["a/b/c", "a/keep"], "a/b/c", ["a", "a/keep"]),
+        (["a/b"], "a", ["a", "a/b"]),
+        (["a"], "a/missing", ["a"]),
+    ],
+)
+def test_remove_empty_dirs_stops_at_the_first_folder_that_is_not_empty(
+    tmp_path: Path, folders: list[str], remove: str, left: list[str]
+) -> None:
+    for folder in folders:
+        (tmp_path / folder).mkdir(parents=True)
+    with SafeRoot(tmp_path) as safe:
+        safe.remove_empty_dirs(remove)
+    found = sorted(path.relative_to(tmp_path).as_posix() for path in tmp_path.rglob("*"))
+    assert found == left
+
+
+@POSIX_ONLY
+@pytest.mark.parametrize("link", ["empty-link", "parent-link/empty"])
+def test_remove_empty_dirs_leaves_folders_outside_through_links(tmp_path: Path, link: str) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    outside = tmp_path / "outside"
+    (outside / "empty").mkdir(parents=True)
+    (root / "empty-link").symlink_to(outside / "empty")
+    (root / "parent-link").symlink_to(outside)
+    with SafeRoot(root) as safe:
+        try:
+            safe.remove_empty_dirs(link)
+        except SafeRootError:
+            pass
+    assert (outside / "empty").is_dir()
+    assert (root / "empty-link").is_symlink()

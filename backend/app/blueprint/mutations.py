@@ -64,6 +64,12 @@ def write_bytes(layer: Layer, path: str, content: bytes) -> None:
 
 
 def delete(layer: Layer, path: str, message: str) -> MutationResult:
+    remove(layer, path)
+    return commit_paths(layer, [path], message)
+
+
+def remove(layer: Layer, path: str) -> None:
+    """Remove a file or folder from the layer without committing; a project layer only through SafeRoot."""
     if layer.kind == "project":
         relative = f"{layer.prefix}{path}"
         with SafeRoot(layer.repository) as root:
@@ -72,7 +78,7 @@ def delete(layer: Layer, path: str, message: str) -> MutationResult:
                 root.remove_tree(relative)
             else:
                 root.remove(relative)
-        return commit_paths(layer, [path], message)
+        return
     target = layer.root / path
     if target.is_dir():
         shutil.rmtree(target)
@@ -80,7 +86,6 @@ def delete(layer: Layer, path: str, message: str) -> MutationResult:
         target.unlink()
     if target.parent != layer.root and target.parent.is_dir() and not any(target.parent.iterdir()):
         target.parent.rmdir()
-    return commit_paths(layer, [path], message)
 
 
 def replace_folder(layer: Layer, folder: str, files: dict[str, bytes], message: str) -> MutationResult:
