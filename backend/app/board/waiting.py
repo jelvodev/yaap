@@ -20,14 +20,15 @@ WaitingKind = Literal[
 # The one action of a row, as its button says it; every action opens the place where it is done.
 WaitingAction = Literal["approve", "open", "answer", "continue", "triage"]
 
-# The order of the sections, and of the rows in the list.
+# The order of the sections, and of the rows in the list. A tool approval comes first: its run is denied after half an
+# hour without a decision.
 KIND_ORDER: tuple[WaitingKind, ...] = (
+    "approve_action",
     "approve_plan",
     "judge_review",
     "answer_question",
-    "approve_action",
-    "continue_build",
     "new_inbox",
+    "continue_build",
 )
 # The card's next step (when it is the user's) that makes it wait, by its action.
 KIND_BY_NEXT: dict[str, WaitingKind] = {
