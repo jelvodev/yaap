@@ -6,6 +6,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, model_validator
 
 from app.agent.policy import AccessLevel
+from app.core.conversation_types import GoalStatus
 from app.core.routing import RouteKind, RouteRole
 # The conversation and message shapes live in core, where the reply stream uses them too.
 from app.core.conversation_schemas import (
@@ -292,7 +293,7 @@ class GoalOut(BaseModel):
     id: int
     conversation_id: int
     objective: str
-    status: Literal["active", "paused", "done", "blocked", "limit", "stopped"]
+    status: GoalStatus
     max_turns: int
     max_cost: float
     turns: int

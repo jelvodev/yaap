@@ -7,6 +7,8 @@ from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, Larg
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.types import TypeDecorator
 
+from app.core.conversation_types import GoalStatus, MessageRole, MessageStatus
+
 
 def utc_now() -> datetime:
     return datetime.now(UTC)
@@ -140,10 +142,10 @@ class Message(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     conversation_id: Mapped[int] = mapped_column(ForeignKey("conversations.id"), index=True)
     parent_id: Mapped[int | None] = mapped_column(ForeignKey("messages.id"))
-    role: Mapped[str] = mapped_column(String(20))
+    role: Mapped[MessageRole] = mapped_column(String(20))
     content: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
     provider_raw: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON)
-    status: Mapped[str] = mapped_column(String(20), default="complete")
+    status: Mapped[MessageStatus] = mapped_column(String(20), default="complete")
     stop_reason: Mapped[str | None] = mapped_column(String(40))
     error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utc_now)
@@ -423,7 +425,7 @@ class Goal(Base):
     conversation_id: Mapped[int] = mapped_column(ForeignKey("conversations.id"), index=True)
     objective: Mapped[str] = mapped_column(Text)
     # active, paused, done, blocked, limit (turns or cost used up) or stopped (by the user or a failed reply)
-    status: Mapped[str] = mapped_column(String(20))
+    status: Mapped[GoalStatus] = mapped_column(String(20))
     max_turns: Mapped[int] = mapped_column(Integer)
     # In US dollars, counting charged usage only; 0 means no cost limit.
     max_cost: Mapped[float] = mapped_column(Float)
