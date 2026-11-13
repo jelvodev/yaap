@@ -6,6 +6,7 @@ Usage (from backend/):
 """
 
 import argparse
+import io
 import re
 import sys
 from dataclasses import dataclass
@@ -147,6 +148,9 @@ def main(argv: list[str]) -> int:
     try:
         parse_version(args.version)
         if args.section:
+            # The changelog holds arrows and dashes, which a Windows console's code page cannot encode.
+            if isinstance(sys.stdout, io.TextIOWrapper):
+                sys.stdout.reconfigure(encoding="utf-8")
             sys.stdout.write(changelog_section((args.root / CHANGELOG).read_text(encoding="utf-8"), args.version) + "\n")
             return 0
         old = set_version(args.root, args.version, args.date)

@@ -19,6 +19,31 @@ function Invoke-Git {
     return $output
 }
 
+# The workflow .github/workflows/release.yml publishes the GitHub Release when the tag arrives; the public API shows
+# when it is there, so this needs no token. Unauthenticated, GitHub allows 60 requests an hour: one every 30 seconds.
+function Wait-ForRelease {
+    $Remote = Invoke-Git remote get-url origin
+    if ($Remote -notmatch '^(?:https://(?:[^@/]*@)?github\.com/|git@github\.com:)(?<repo>[^/]+/[^/]+?)(?:\.git)?$') {
+        Write-Host 'origin is not on github.com, so there is no GitHub Release to wait for.'
+        return
+    }
+    $Repo = $Matches['repo']
+    $Url = "https://api.github.com/repos/$Repo/releases/tags/$Tag"
+    Write-Host "Waiting for the GitHub Release of $Tag (Actions: https://github.com/$Repo/actions)..."
+    for ($Try = 0; $Try -lt 60; $Try++) {
+        try {
+            Invoke-RestMethod -Uri $Url -ErrorAction Stop | Out-Null
+            Write-Host "Released: https://github.com/$Repo/releases/tag/$Tag" -ForegroundColor Green
+            return
+        } catch {
+            # A 404 until the workflow has run, or a network hiccup: both mean "not yet". The exception types differ
+            # between Windows PowerShell 5.1 and PowerShell 7, so this catches all; the loop ends after 30 minutes.
+            Start-Sleep -Seconds 30
+        }
+    }
+    Write-Host "No Release of $Tag after 30 minutes; see https://github.com/$Repo/actions." -ForegroundColor Yellow
+}
+
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { Fail "'$Version' is not a version like 1.2.3." }
 if ((Invoke-Git branch --show-current) -ne 'main') { Fail 'check out main first.' }
 if (Invoke-Git status --porcelain) { Fail 'the working copy has uncommitted changes.' }
@@ -55,6 +80,7 @@ $Answer = Read-Host "Push main and $Tag to origin now? [y/N]"
 if ($Answer -eq 'y' -or $Answer -eq 'Y') {
     Invoke-Git push origin main $Tag
     Write-Host "Pushed $Tag."
+    Wait-ForRelease
 } else {
     Write-Host "Not pushed. Push later with: git push origin main $Tag"
 }
