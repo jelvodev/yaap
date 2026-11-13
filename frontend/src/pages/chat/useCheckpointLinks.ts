@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { CHANGING_TOOLS, callKey } from "../../api/checkpoints";
 import { type Conversation, api } from "../../api/client";
 import type { components } from "../../api/schema";
 import type { CheckpointLinks } from "../../components/message/contexts";
@@ -52,8 +51,8 @@ function checkpointsByCall(conversation: Conversation, checkpoints: Checkpoint[]
   const byCall = new Map<string, number>();
   for (const message of conversation.messages) {
     for (const block of message.content) {
-      if (block.type !== "tool_call" || !block.id || !block.name || !CHANGING_TOOLS.has(block.name)) continue;
-      const ids = waiting.get(callKey(block.name, block.input ?? {}));
+      if (block.type !== "tool_call" || !block.checkpointable) continue;
+      const ids = waiting.get(block.call_key);
       const id = ids?.shift();
       if (id !== undefined) byCall.set(block.id, id);
     }

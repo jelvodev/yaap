@@ -8,6 +8,7 @@ from typing import Any, TypeVar
 
 import anyio
 
+from app.checkpoints.service import CHANGING_TOOLS, FILE_WRITING_TOOLS, call_key
 from app.core.background import BackgroundWork
 from app.core.reply_event_models import (
     CallRestartedEvent,
@@ -73,9 +74,29 @@ class ReplyContent:
         else:
             self.blocks.append({"type": kind, "text": text})
 
-    def start_tool(self, event: ToolCallStarted) -> None:
+    def start_tool(self, event: ToolCallStarted) -> ToolCallEvent:
+        """Add the call's block and return the event for the browser; both carry the server's call key."""
+        key = call_key(event.name, event.input)
+        checkpointable = event.name in CHANGING_TOOLS
         self.blocks.append(
-            {"type": "tool_call", "id": event.id, "name": event.name, "input": event.input, "output": None, "is_error": False}
+            {
+                "type": "tool_call",
+                "id": event.id,
+                "name": event.name,
+                "input": event.input,
+                "output": None,
+                "is_error": False,
+                "call_key": key,
+                "checkpointable": checkpointable,
+            }
+        )
+        return ToolCallEvent(
+            id=event.id,
+            name=event.name,
+            input=event.input,
+            call_key=key,
+            checkpointable=checkpointable,
+            writes_files=event.name in FILE_WRITING_TOOLS,
         )
 
     def drop_unfinished_call(self) -> None:
@@ -112,8 +133,7 @@ def reply_event(event: AgentEvent | RunEvent, reply: ReplyContent) -> ReplyEvent
         reply.add_text("reasoning", event.text)
         return ReasoningDeltaEvent(text=event.text)
     if isinstance(event, ToolCallStarted):
-        reply.start_tool(event)
-        return ToolCallEvent(id=event.id, name=event.name, input=event.input)
+        return reply.start_tool(event)
     if isinstance(event, ToolCallFinished):
         reply.finish_tool(event)
         return ToolResultEvent(id=event.id, output=event.output[:MAX_STORED_TOOL_OUTPUT], is_error=event.is_error)
