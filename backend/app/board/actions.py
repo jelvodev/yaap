@@ -9,9 +9,7 @@ module's for a build that failed or was interrupted.
 
 import asyncio
 import logging
-import threading
-from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -80,9 +78,6 @@ class ActionService:
     services: Callable[[], ReplyServices]
     # The Specify conversations being followed until a reply writes the specification.
     work: BackgroundWork[None] = field(default_factory=BackgroundWork)
-    # Cards whose review is starting: its criteria checks run before the review's row says it is running.
-    starting_reviews: set[tuple[int, int]] = field(default_factory=set)
-    lock: threading.Lock = field(default_factory=threading.Lock)
     # *Merge into the version*; it runs its merges in the same background work, which is stopped with this one.
     merges: VersionMerges = field(init=False)
 
@@ -215,24 +210,9 @@ class ActionService:
         if card.column == "plan" and facts.plan_status == "draft" and facts.open_waits:
             raise WaitsForOpen(facts.open_waits)
 
-    @contextmanager
-    def review_starting(self, project_id: int, card_id: int) -> Iterator[None]:
-        """One *Review* per card at a time, also while its criteria checks run before the review's row exists."""
-        key = (project_id, card_id)
-        with self.lock:
-            if key in self.starting_reviews:
-                raise ActionRunning("The card's review is starting.")
-            self.starting_reviews.add(key)
-        try:
-            yield
-        finally:
-            with self.lock:
-                self.starting_reviews.discard(key)
-
     def review(self, project_id: int, card_id: int) -> int:
         """*Review* and *Review again*. In a worker thread (the criteria checks run on the event loop)."""
-        with self.review_starting(project_id, card_id):
-            return self.route.review(project_id, card_id)
+        return self.route.review(project_id, card_id)
 
     def send_back(self, project_id: int, card_id: int, finding: int | None, criterion: int | None) -> CardDetail:
         """*Send back*: from Review with one finding or unmet criterion of the review (the route's), from Build when
