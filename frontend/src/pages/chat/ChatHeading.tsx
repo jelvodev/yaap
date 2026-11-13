@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 import type { Conversation, Project } from "../../api/client";
 import { TOOL_LABELS } from "../../components/ImportSessionDialog";
 import ContinuationChip from "./ContinuationChip";
 import ConversationMenu, { type ConversationMenuProps } from "./ConversationMenu";
+import { boardPath } from "./useChatLinks";
 import { changeChip, projectChipLabel } from "./headerChips";
 import "./chatHeading.css";
 
@@ -38,7 +40,7 @@ interface ChatHeadingProps
  * the project's changes ask for something, and the ⋯ with everything else.
  */
 export default function ChatHeading(props: ChatHeadingProps) {
-  const { conversation } = props;
+  const { conversation, project } = props;
   const [renaming, setRenaming] = useState(false);
   return (
     <div className="chat-heading">
@@ -50,6 +52,15 @@ export default function ChatHeading(props: ChatHeadingProps) {
       <ProjectChip {...props} />
       {conversation?.imported && <ImportedChip imported={conversation.imported} />}
       {conversation?.archived_at && <span className="chip">Archived</span>}
+      {conversation?.card_id != null && project && (
+        <Link
+          className="chip chat-heading-card"
+          to={`/chat/projects/${project.id}/cards/${conversation.card_id}`}
+          title="Open the card on the board"
+        >
+          #{conversation.card_id}
+        </Link>
+      )}
       {conversation && <ContinuationChip conversationId={conversation.id} />}
       <span className="chat-heading-end">
         <ChangeChip {...props} />
@@ -75,6 +86,7 @@ export default function ChatHeading(props: ChatHeadingProps) {
 
 /** The project with its branch, and the computer over SSH; opens Project settings. */
 function ProjectChip({ conversation, project, git, onOpenPanel }: ChatHeadingProps) {
+  const navigate = useNavigate();
   const target = conversation?.target ?? null;
   const fullControl = Boolean(target && conversation?.access === "full" && target.allow_full_access);
   const label = projectChipLabel({
@@ -94,12 +106,14 @@ function ProjectChip({ conversation, project, git, onOpenPanel }: ChatHeadingPro
       </span>
     );
   }
+  // With the board on, the chip leads to the project's board; the project's settings stay on the project rail.
+  const toBoard = project.board_enabled;
   return (
     <button
       type="button"
       className={className}
-      title={`${project.folder}. Open Project settings.${where}`}
-      onClick={() => onOpenPanel("settings")}
+      title={`${project.folder}. ${toBoard ? "Open the board" : "Open Project settings"}.${where}`}
+      onClick={() => (toBoard ? navigate(boardPath(project.id)) : onOpenPanel("settings"))}
     >
       {label}
     </button>

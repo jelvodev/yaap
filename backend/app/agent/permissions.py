@@ -33,8 +33,8 @@ from app.core.why import Why
 from app.secrets.service import PLACEHOLDER_TOOLS, has_placeholder, placeholder_names
 
 # A read-only conversation may still call these besides the reading tools: web_fetch (which asks as usual), delegate
-# (its sub-runs are read only too) and finish_goal.
-READ_ONLY_ALSO = frozenset({"web_fetch", "delegate", "finish_goal"})
+# (its sub-runs are read only too), finish_goal, and submit_plan (it writes only a plan row, no project file).
+READ_ONLY_ALSO = frozenset({"web_fetch", "delegate", "finish_goal", "submit_plan"})
 # What asks also with full access.
 ALWAYS_ASKS = frozenset({"git_push"})
 

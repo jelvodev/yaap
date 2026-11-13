@@ -17,12 +17,16 @@ CHECK_INSTRUCTION_PREFIX = "Check this project against the standards below, one 
 
 
 def is_read_only_check(blocks: Sequence[Mapping[str, object]]) -> bool:
-    """Recognize persisted built-in checks, including messages saved before the explicit marker existed."""
+    """Recognize persisted built-in read-only commands (/check, /plan), including checks saved before the explicit
+    marker existed, so trying such a message again stays read only."""
     for block in blocks:
+        if block.get("type") != "command":
+            continue
+        if block.get("read_only") is True:
+            return True
         text = block.get("text")
-        if block.get("type") == "command" and block.get("name") == "check":
-            if block.get("read_only") is True or (isinstance(text, str) and text.startswith(CHECK_INSTRUCTION_PREFIX)):
-                return True
+        if block.get("name") == "check" and isinstance(text, str) and text.startswith(CHECK_INSTRUCTION_PREFIX):
+            return True
     return False
 
 

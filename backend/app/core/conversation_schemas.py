@@ -51,8 +51,22 @@ class ContentBlockOut(BaseModel):
     # note: a line YAAP added to the conversation, such as a move to another project.
     # trim: the model gets the long tool results up to this message shortened.
     # repo_map: the store key of the repository map kept for the conversation (not shown).
+    # plan: a plan the agent handed over with submit_plan, by its id (the card reads the plan itself).
     type: Literal[
-        "text", "reasoning", "tool_call", "attachment", "command", "skill", "skill_removed", "goal", "summary", "trim", "steering", "note", "repo_map"
+        "text",
+        "reasoning",
+        "tool_call",
+        "attachment",
+        "command",
+        "skill",
+        "skill_removed",
+        "goal",
+        "summary",
+        "trim",
+        "steering",
+        "note",
+        "repo_map",
+        "plan",
     ]
     # Text and reasoning blocks.
     text: str = ""
@@ -75,6 +89,10 @@ class ContentBlockOut(BaseModel):
     focus: str | None = None
     # Tool calls of an imported session: shown as they were, never run by YAAP.
     imported: bool | None = None
+    # Plan blocks: the plan's id.
+    plan_id: int | None = None
+    # A /card command block: the card it made on the project's board.
+    card_id: int | None = None
 
 
 class ReplyRouteOut(BaseModel):

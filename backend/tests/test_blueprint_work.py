@@ -28,7 +28,8 @@ STANDARD = "---\nsummary: {summary}\n---\n{body}\n"
         ([{"type": "command", "name": "check", "text": "A custom command"}], False),
         ([{"type": "command", "name": "check", "read_only": True}], True),
         ([{"type": "command", "name": "check", "text": CHECK_INSTRUCTION_PREFIX + " For each"}], True),
-        ([{"type": "command", "name": "other", "read_only": True}], False),
+        ([{"type": "command", "name": "plan", "read_only": True}], True),
+        ([{"type": "command", "name": "plan", "text": "A custom command"}], False),
     ],
 )
 def test_stored_builtin_checks_keep_read_only_access(blocks: list[dict[str, object]], expected: bool) -> None:

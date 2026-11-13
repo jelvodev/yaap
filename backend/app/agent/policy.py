@@ -69,6 +69,8 @@ class ToolPolicy:
     tools: tuple[str, ...] = ()
     # An eval case's approvals, set only for its play's unattended run: the calls that pass the injection guard.
     case_approvals: CaseApprovals = field(default_factory=CaseApprovals)
+    # A build's run only: the plan's check commands the user approved with the plan (build_command_allowed).
+    build_commands: tuple[str, ...] = ()
 
     def permission_for(self, tool: str, default: str) -> str:
         return self.permissions.get(tool, default) if tool in CONFIGURABLE_TOOLS else default
@@ -76,6 +78,8 @@ class ToolPolicy:
     def allows(self, tool: str, arguments: dict[str, Any]) -> bool:
         """Whether an allowlist lets this call run without asking."""
         if tool in self.tools:
+            return True
+        if tool == "run_command" and build_command_allowed(arguments, self.build_commands):
             return True
         if tool in ("run_command", "start_process"):
             return command_allowed(str(arguments.get("command") or ""), self.commands)
@@ -101,6 +105,16 @@ def command_allowed(command: str, allowlist: tuple[str, ...]) -> bool:
         if allowed and words[: len(allowed)] == allowed:
             return True
     return False
+
+
+def build_command_allowed(arguments: dict[str, Any], approved: tuple[str, ...]) -> bool:
+    """A plan's check command approved with the plan runs without asking in its build: exactly that command (the user
+    saw it verbatim, so shell syntax is part of what they approved), and only in the build's own folder, so never in a
+    shell session, whose working folder carries over from elsewhere in the conversation."""
+    command = arguments.get("command")
+    if not approved or not isinstance(command, str) or not command.strip() or arguments.get("session"):
+        return False
+    return normalized_command(command) in {normalized_command(entry) for entry in approved}
 
 
 def url_allowed(url: str, domains: tuple[str, ...]) -> bool:

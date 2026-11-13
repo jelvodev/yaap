@@ -77,6 +77,13 @@ def latest_goal(session: Session, conversation_id: int) -> Goal | None:
     return session.scalar(select(Goal).where(Goal.conversation_id == conversation_id).order_by(Goal.id.desc()))
 
 
+def last_ended_goal(session: Session, conversation_id: int) -> Goal | None:
+    """The conversation's newest goal when it has ended (done, blocked, at a limit or stopped), else None. The
+    project's current state is refreshed from it."""
+    goal = latest_goal(session, conversation_id)
+    return goal if goal is not None and goal.status not in OPEN_STATUSES and goal.finished_at is not None else None
+
+
 def goal_cost(session: Session, goal: Goal) -> float:
     """What the goal has cost so far: charged usage of its conversation since it started."""
     total = session.scalar(

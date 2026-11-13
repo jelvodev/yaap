@@ -6,9 +6,11 @@ import ConversationRow from "../../components/ConversationRow";
 import { ArchiveIcon, FileIcon, PlusIcon } from "../../components/icons";
 import ImportSessionDialog from "../../components/ImportSessionDialog";
 import PreferencesMenu from "../../components/PreferencesMenu";
+import WaitingEntry from "../waiting/WaitingEntry";
 import ProjectPicker from "./ProjectPicker";
 import UsageCard from "./UsageCard";
 import type { ChatCatalog } from "./useChatCatalog";
+import { boardPath } from "./useChatLinks";
 import type { ConversationList } from "./useConversationList";
 import type { ProjectScope } from "./useProjectScope";
 import type { UsageSummary } from "./useUsage";
@@ -71,13 +73,16 @@ export default function ChatSidebar(props: ChatSidebarProps) {
         <PlusIcon />
         New conversation
       </button>
+      <WaitingEntry environmentId={environmentId} />
       <ProjectPicker
         environmentId={environmentId}
         projects={catalog.projects}
         scope={scope.scope}
         onChoose={(projectId) => {
           scope.choose(projectId);
-          navigate("/chat");
+          // A project with its board on opens the board; otherwise the click only narrows the conversations.
+          const project = catalog.projects.find((one) => one.id === projectId);
+          navigate(project?.board_enabled ? boardPath(project.id) : "/chat");
         }}
         onOpenPanel={props.onOpenProjectPanel}
         onCreated={(project) => {

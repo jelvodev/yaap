@@ -27,6 +27,7 @@ from app.agent.brief import Brief, brief_message
 from app.agent.brief_delegation import delegate_by_brief, delegate_unchecked
 from app.agent.escalation import Role, sub_run_role
 from app.agent.exploring import capped_report, explore_only
+from app.agent.policy import AccessLevel
 from app.agent.runs import AgentRun, RunRegistry
 from app.agent.tool_catalog import with_listing
 from app.agents.definitions import AgentDefinition, agent_part, find_agent
@@ -70,6 +71,8 @@ MAX_SUB_RUN_MODEL_CALLS = 40
 SUB_RUN_TIMEOUT_SECONDS = 30 * 60
 MAX_TRANSCRIPT_OUTPUT = 2000
 MAX_READERS = 3
+# From least to most a run may do without asking; a sub-run never ranks above the run that started it.
+ACCESS_RANK: dict[AccessLevel, int] = {"read_only": 0, "default": 1, "full": 2}
 
 
 class DelegationError(Exception):
@@ -199,6 +202,7 @@ class Delegator:
         start = self.start_record(parent, message, agent, role, worker, mode)
         allowed_tools = agent.tools if agent is not None else None
         child = self.runs.child(parent, start.label, start.record_id, agent.name if agent else None, allowed_tools)
+        child.change_access(sub_run_access(parent.policy.access, child.policy.access))
         if mode == "explore":
             explore_only(child)
         built_in: BuiltinName = instructions or ("explorer" if mode == "explore" else "worker")
@@ -423,6 +427,12 @@ class Delegator:
                 session.commit()
         except Exception:  # noqa: BLE001 - the report still goes back to the model
             logger.warning("Storing the sub-run failed.", exc_info=True)
+
+
+def sub_run_access(parent: AccessLevel, child: AccessLevel) -> AccessLevel:
+    """The access a sub-run works with: its own, but never more than its parent's, so the work sub-run of a
+    read-only reply (/check, /plan) is read only too."""
+    return parent if ACCESS_RANK[parent] < ACCESS_RANK[child] else child
 
 
 def report_text(result: SubRunResult) -> str:

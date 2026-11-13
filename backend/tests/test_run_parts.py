@@ -116,6 +116,9 @@ CHILD_FIELDS = [
     ("services", "injection_check", SAME),
     ("services", "delegator", None),
     ("services", "goal", None),
+    ("services", "plans", None),
+    ("services", "card", None),
+    ("services", "intake", None),
     # The sub-run records its steps in its parent's recorder, under its own run record.
     ("services", "trace", SAME),
     # The language servers are the project's, shared with the parent.

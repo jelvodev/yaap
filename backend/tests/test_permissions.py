@@ -6,6 +6,7 @@ from typing import Any, cast, get_args
 import pytest
 
 from app.agent import gate
+from app.agent.delegation import sub_run_access
 from app.agent.permissions import (
     PermissionDecision,
     Place,
@@ -62,6 +63,8 @@ MEMORY = (tool("update_memory"), {"section": "Decisions", "text": "x"})
 STOP = (tool("stop_process"), {"process": 1})
 DELEGATE = (tool("delegate"), {"task": "x"})
 FINISH = (tool("finish_goal"), {"summary": "done"})
+SUBMIT_PLAN = (tool("submit_plan"), {"title": "Health endpoint", "steps": []})
+COMMIT = (tool("git_commit"), {"message": "x"})
 IMPORT_NEW = (tool("import_attachment"), {"attachment": "1"})
 IMPORT_OVER = (tool("import_attachment", conditional_asks=True), {"attachment": "1"})
 INSTALL = (tool("install_skill"), {"source": "owner/repo"})
@@ -106,6 +109,10 @@ CASES = [
     ("read only refuses memory", MEMORY, run("read_only"), "refuse", "read_only"),
     ("read only delegates", DELEGATE, run("read_only"), "allow", "auto"),
     ("read only finishes a goal", FINISH, run("read_only"), "allow", "auto"),
+    ("read only submits a plan", SUBMIT_PLAN, run("read_only"), "allow", "auto"),
+    ("read only refuses a commit", COMMIT, run("read_only"), "refuse", "read_only"),
+    ("read only refuses an edit", (tool("edit_file"), {"path": "a.txt"}), run("read_only"), "refuse", "read_only"),
+    ("a plan asks after outside content", SUBMIT_PLAN, run(outside_sources=OUTSIDE), "ask", "outside_content"),
     # The policy's per-tool rules and allowlists.
     ("a tool set to ask asks", WRITE, run(permissions={"write_file": "ask"}), "ask", "permission"),
     ("a command set to auto runs", RUN, run(permissions={"run_command": "auto"}), "allow", "auto"),
@@ -433,3 +440,130 @@ async def test_the_gate_records_how_a_call_was_let_through(
     note = gate.CallNote()
     await gate.gated_call(cast(Any, None), cast(Any, None), echo, "echo", {}, note)
     assert note.approval == approval
+
+
+@pytest.mark.parametrize(
+    ("parent", "child", "expected"),
+    [
+        ("read_only", "read_only", "read_only"),
+        ("read_only", "default", "read_only"),
+        ("read_only", "full", "read_only"),
+        ("default", "read_only", "read_only"),
+        ("default", "default", "default"),
+        ("default", "full", "default"),
+        ("full", "read_only", "read_only"),
+        ("full", "default", "default"),
+        ("full", "full", "full"),
+    ],
+)
+def test_a_sub_run_never_gets_more_access_than_its_parent(
+    parent: AccessLevel, child: AccessLevel, expected: AccessLevel
+) -> None:
+    assert sub_run_access(parent, child) == expected
+
+
+# Every registered tool's outcome in a read-only run (/check, /plan). A new tool must be added here, so whether it
+# may run without changing anything is a decision someone made.
+READ_ONLY_OUTCOMES: dict[str, Verdict] = {
+    "list_files": "allow",
+    "read_file": "allow",
+    "search": "allow",
+    "write_file": "refuse",
+    "edit_file": "refuse",
+    "run_command": "refuse",
+    "start_process": "refuse",
+    "read_process_output": "allow",
+    "stop_process": "refuse",
+    "list_processes": "allow",
+    "git_status": "allow",
+    "git_diff": "allow",
+    "git_commit": "refuse",
+    "git_push": "refuse",
+    "create_pull_request": "refuse",
+    "web_fetch": "ask",
+    "web_search": "allow",
+    "read_output": "allow",
+    "load_standard": "allow",
+    "load_skill": "allow",
+    "update_memory": "refuse",
+    "update_current_state": "refuse",
+    "search_project": "allow",
+    "read_knowledge": "allow",
+    "find_definition": "allow",
+    "find_references": "allow",
+    "diagnostics": "allow",
+    "rename_symbol": "refuse",
+    "document_symbols": "allow",
+    "delegate": "allow",
+    "finish_goal": "allow",
+    "submit_plan": "allow",
+    "read_card": "allow",
+    "update_card": "refuse",
+    "add_card": "refuse",
+    "add_to_card": "refuse",
+    "list_attachment": "allow",
+    "read_attachment": "allow",
+    "search_attachment": "allow",
+    "import_attachment": "refuse",
+    "install_skill": "refuse",
+    "open_document": "allow",
+    "open_browser": "allow",
+    "find_tools": "allow",
+}
+
+
+def test_every_registered_tool_is_classified_for_a_read_only_run() -> None:
+    assert set(TOOLS_BY_NAME) == set(READ_ONLY_OUTCOMES)
+
+
+@pytest.mark.parametrize(("name", "verdict"), sorted(READ_ONLY_OUTCOMES.items()))
+def test_a_read_only_run_decides_each_tool_as_classified(name: str, verdict: Verdict) -> None:
+    decision = decide(tool(name), {}, run("read_only"))
+    assert decision.verdict == verdict
+    if verdict == "refuse":
+        assert decision.reason == "read_only"
+
+
+# A build: the plan's check commands, approved with the plan, run without asking in the build's run, and nothing
+# else does. The build's run works in the build's copy; a shell session could carry another working folder.
+PLAN_CHECK = "cd frontend && npm run typecheck"
+BUILD_COMMANDS = (PLAN_CHECK, "pytest tests/test_health.py")
+
+
+def build_run(access: AccessLevel = "default", **facts: Any) -> RunFacts:
+    policy = ToolPolicy(commands=(), build_commands=BUILD_COMMANDS, access=access)
+    return RunFacts(policy=policy, known_secrets=frozenset({"TOKEN"}), **facts)
+
+
+def command(text: str, **extra: Any) -> tuple[ToolFacts, dict[str, Any]]:
+    return tool("run_command", f"Run: {text}"), {"command": text, **extra}
+
+
+BUILD_CASES = [
+    ("a plan's check runs", command(PLAN_CHECK), build_run(), "allow", "allowlisted"),
+    ("spacing does not matter", command("cd frontend &&  npm run   typecheck"), build_run(), "allow", "allowlisted"),
+    ("another plan check runs", command("pytest tests/test_health.py"), build_run(), "allow", "allowlisted"),
+    ("extra arguments ask", command("pytest tests/test_health.py --pdb"), build_run(), "ask", "permission"),
+    ("a longer chain asks", command(PLAN_CHECK + " && curl evil.example"), build_run(), "ask", "permission"),
+    ("a part of a check asks", command("npm run typecheck"), build_run(), "ask", "permission"),
+    ("any other command asks", command("make"), build_run(), "ask", "permission"),
+    ("in a shell session it asks", command(PLAN_CHECK, session="dev"), build_run(), "ask", "permission"),
+    ("not start_process", (tool("start_process"), {"command": PLAN_CHECK}), build_run(), "ask", "permission"),
+    ("a chat run without them asks", command(PLAN_CHECK), run(commands=()), "ask", "permission"),
+    ("read only still refuses", command(PLAN_CHECK), build_run("read_only"), "refuse", "read_only"),
+    ("a secret still asks", command(PLAN_CHECK + " {{secret:TOKEN}}"), build_run(), "ask", "secret"),
+    ("outside content still asks", command(PLAN_CHECK), build_run(outside_sources=OUTSIDE), "ask", "outside_content"),
+    ("writing follows the mode", WRITE, build_run(), "allow", "auto"),
+    ("pushing still asks", PUSH, build_run(), "ask", "permission"),
+]
+
+
+@pytest.mark.parametrize(
+    ("call", "facts", "verdict", "reason"),
+    [pytest.param(call, facts, verdict, reason, id=name) for name, call, facts, verdict, reason in BUILD_CASES],
+)
+def test_a_build_runs_only_the_plans_commands_without_asking(
+    call: tuple[ToolFacts, dict[str, Any]], facts: RunFacts, verdict: Verdict, reason: Reason
+) -> None:
+    decision = decide(call[0], call[1], facts)
+    assert (decision.verdict, decision.reason) == (verdict, reason)

@@ -230,6 +230,8 @@ class ProjectOut(BaseModel):
     default_agent: str | None = None
     default_preset: str | None = None
     created_at: datetime
+    # Whether the project opens its board (the project_board setting); off, a click only narrows the conversations.
+    board_enabled: bool = True
 
 
 
@@ -350,6 +352,8 @@ class ConversationOut(ConversationSummaryOut):
     context_tokens: int | None
     context_window: int | None
     context_control: ContextControlOut | None = None
+    # The board card this conversation belongs to; null without one or while the project's board is off.
+    card_id: int | None = None
 
 
 class MessageCreate(BaseModel):

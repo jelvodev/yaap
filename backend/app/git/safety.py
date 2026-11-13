@@ -207,9 +207,24 @@ def inside(path: Path, folder: Path) -> bool:
     return path == folder or path.is_relative_to(folder)
 
 
+def bare_layout(has_head: bool, has_objects: bool, has_refs: bool, has_dot_git: bool) -> bool:
+    """Whether a folder is a bare repository by git's own test (HEAD, objects/ and refs/), and not a work tree."""
+    return has_head and has_objects and has_refs and not has_dot_git
+
+
+def is_bare_layout(folder: Path) -> bool:
+    return bare_layout(
+        (folder / "HEAD").is_file(),
+        (folder / "objects").is_dir(),
+        (folder / "refs").is_dir(),
+        (folder / ".git").exists(),
+    )
+
+
 def locate_git_dirs(folder: Path) -> GitDirs | None:
     """The repository git would use in `folder` with YAAP's settings (no discovery above it, no implicit bare
-    repository), or None when there is none. Refuses one whose files lie outside the folder."""
+    repository), or None when there is none. Refuses one whose files lie outside the folder. A bare repository at
+    the folder itself counts too: git uses one only when YAAP names it (`GIT_DIR`), and then reads its config."""
     root = folder.resolve()
     dot_git = folder / ".git"
     if dot_git.is_file():
@@ -222,6 +237,8 @@ def locate_git_dirs(folder: Path) -> GitDirs | None:
         git_dir = (folder / line.removeprefix("gitdir:").strip()).resolve()
     elif dot_git.is_dir():
         git_dir = dot_git.resolve()
+    elif is_bare_layout(folder):
+        git_dir = root
     else:
         return None
     common_dir = git_dir

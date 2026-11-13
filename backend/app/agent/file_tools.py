@@ -13,6 +13,7 @@ from app.agent.tool_context import files
 from app.agent.toolkit import MAX_OUTPUT_CHARS, STRING, Tool, ToolError, schema, text_argument, truncate
 from app.blueprint.layers import PROJECT_LAYER_FOLDER
 from app.blueprint.skill_install import SOURCE_FILE
+from app.core.skipped_folders import SKIPPED_FOLDERS
 from app.outline.parsers import ParserOutliner
 from app.outline.symbols import Outliner, render_outline
 from app.targets.base import TargetFiles
@@ -25,7 +26,6 @@ DEFAULT_READ_LINES = 400
 MAX_READ_LINES = 2000
 # Longer lines (minified code, data) are cut so one line cannot fill the context.
 MAX_LINE_CHARS = 2000
-SKIPPED_FOLDERS = {".git", "node_modules", ".venv", "__pycache__", "dist", "build", ".next"}
 # Where outlines come from; a language server's document symbols can take this place.
 OUTLINER: Outliner = ParserOutliner()
 

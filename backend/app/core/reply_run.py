@@ -22,6 +22,8 @@ from app.agent.toolkit import Tool
 from app.agent.tools import tools_for
 from app.agents.records import start_reply_record, start_run_record
 from app.attachments.service import attachment_folder
+from app.board.intake import intake_for
+from app.board.linked_card import linked_card
 from app.browser.service import browser_tools
 from app.checkpoints.service import CheckpointStore
 from app.core.context_savings import context_savings_on
@@ -216,6 +218,9 @@ def run_services(
         goal=GoalHandle(goal.id, services.session_factory) if goal is not None and goal.status == ACTIVE else None,
         trace=reply_trace(services, on_step),
         code_intel=code_intel_for_run(run_folder(services, setup), runtime) if in_project else None,
+        plans=services.plans if in_project else None,
+        card=linked_card(services.board, session, conversation) if in_project else None,
+        intake=intake_for(services.board, session, conversation) if in_project else None,
     )
 
 

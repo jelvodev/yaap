@@ -2,6 +2,7 @@ import { type ReactNode, useState } from "react";
 
 import type { Message } from "../../api/client";
 import type { SecondOpinions } from "../../pages/chat/useSecondOpinions";
+import MakeCardAction from "./MakeCardAction";
 import RulePanel, { type RuleTarget } from "../RulePanel";
 import type { ToolCallRef } from "../trace/traceOrder";
 
@@ -84,6 +85,7 @@ export function UserMessageActions({
               Edit
             </button>
           )}
+          <MakeCardAction messageId={message.id} target={actions.ruleTarget} />
           {text && actions.ruleTarget && !remembering && (
             <button type="button" onClick={() => setRemembering(true)}>
               Remember as rule

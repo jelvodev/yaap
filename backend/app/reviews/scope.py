@@ -7,6 +7,8 @@ Three scopes, all read-only for the project:
   empty neither; neither is reviewed.
 - a conversation: the same, from its first changing tool call.
 - the project's uncommitted changes: the git diff of the changes view.
+- a build: the commits of a build branch since the commit it started from (`base_commit..branch`), in the project
+  repository where the build delivered its branch.
 
 The checkpoints' shadow repository diffs the folder without touching the project's own git. The vendors that wrote the
 changes are the providers of the replies' and workers' model calls (the routed model of a reply included), from the
@@ -26,11 +28,22 @@ from app.checkpoints.shadow import CheckpointError
 from app.core.goals import latest_goal
 from app.core.search_index import message_text
 from app.git.place import git_place
-from app.git.service import GitError, repository_diff, repository_log
+from app.git.branches import check_branch_name
+from app.git.service import (
+    COMMIT_HASH,
+    MAX_DIFF_CHARS,
+    PLAIN_DIFF,
+    QUOTEPATH_OFF,
+    GitError,
+    Repository,
+    repository_diff,
+    repository_log,
+    run_git,
+)
 from app.projects.service import ProjectError, project_path
 from app.storage.models import Checkpoint, Conversation, Goal, Message, Project, UsageRecord
 
-ReviewSource = Literal["goal", "task", "changes", "conversation", "reply", "answer"]
+ReviewSource = Literal["goal", "task", "changes", "conversation", "reply", "answer", "build"]
 # Usage records of model calls that write code: a reply's and a delegated worker's.
 WRITING_PURPOSES = ("main", "worker")
 
@@ -55,6 +68,10 @@ class ReviewScope:
     # A second opinion: the reply it is about and the models that wrote it.
     message_id: int | None = None
     writer_models: tuple[str, ...] = ()
+    # A build's review: what it compares and the card it belongs to.
+    base_commit: str | None = None
+    branch: str | None = None
+    card_id: int | None = None
 
 
 def folder_of(workspace_dir: Path, project: Project) -> Path:
@@ -189,4 +206,56 @@ def changes_scope(session: Session, workspace_dir: Path, project: Project) -> Re
         source="changes",
         diff=diff,
         writer_vendors=writer_vendors(session, conversation_ids, since),
+    )
+
+
+@dataclass(frozen=True)
+class BuildTarget:
+    """What a build's review compares: the commit the build started from and the branch it delivered."""
+
+    base_commit: str
+    branch: str
+    objective: str | None = None
+    # The conversation the build ran in, whose usage says who wrote the changes.
+    conversation_id: int | None = None
+    card_id: int | None = None
+
+
+def branch_diff(place: Repository, base_commit: str, branch: str) -> str:
+    """The diff base_commit..branch, read where the project's git runs. The commit must be a hash and the branch a
+    valid branch name, so neither can be read as an option. Blocking."""
+    if not COMMIT_HASH.fullmatch(base_commit):
+        raise GitError("That is not a commit hash.")
+    name = check_branch_name(place, branch)
+    arguments = ["diff", *PLAIN_DIFF, base_commit, f"refs/heads/{name}", "--"]
+    diff = run_git(arguments, place, config=QUOTEPATH_OFF).stdout
+    if len(diff) > MAX_DIFF_CHARS:
+        return diff[:MAX_DIFF_CHARS] + "\n\n[The diff is longer than this; the rest is not shown.]"
+    return diff
+
+
+def branch_scope(session: Session, workspace_dir: Path, project: Project, target: BuildTarget) -> ReviewScope | None:
+    """The changes of a build branch since its base commit; None when the branch changed nothing. Raises
+    NothingToReview when the branch cannot be read. Call it from a worker thread."""
+    folder = folder_of(workspace_dir, project)
+    try:
+        diff = branch_diff(git_place(project.environment_id, folder), target.base_commit, target.branch)
+    except GitError as error:
+        raise NothingToReview(str(error)) from error
+    if not diff.strip():
+        return None
+    conversation_ids = [target.conversation_id] if target.conversation_id is not None else []
+    conversation = session.get(Conversation, target.conversation_id) if target.conversation_id is not None else None
+    return ReviewScope(
+        project_id=project.id,
+        environment_id=project.environment_id,
+        source="build",
+        diff=diff,
+        writer_vendors=writer_vendors(session, conversation_ids, None),
+        objective=target.objective,
+        conversation_id=target.conversation_id,
+        preset=conversation.preset if conversation is not None else None,
+        base_commit=target.base_commit,
+        branch=target.branch,
+        card_id=target.card_id,
     )

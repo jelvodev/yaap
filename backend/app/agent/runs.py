@@ -27,6 +27,7 @@ from app.blueprint.layers import Layer
 from app.checkpoints.service import CheckpointStore
 from app.core.goals import GoalHandle
 from app.core.model_policy import ModelPolicy
+from app.plans.service import PlanService
 from app.core.search import RunSearch
 from app.core.why import Why
 from app.targets.ssh import SshTarget
@@ -37,6 +38,8 @@ if TYPE_CHECKING:
     # These modules use AgentRun themselves (their tools and handlers take a run), so they are imported for the
     # annotations only.
     from app.agent.delegation import Delegator
+    from app.board.intake import CardIntake
+    from app.board.linked_card import LinkedCard
     from app.agent.processes import ProcessManager
     from app.agent.shells import ShellSessions
     from app.agent.toolkit import Tool
@@ -175,10 +178,17 @@ class RunServices:
     trace: TraceRecorder | None = None
     # The project's language servers, where a server for one of its languages can run (the code tools).
     code_intel: "CodeIntel | None" = None
+    # Where submit_plan stores a plan; only a top-level run in a project has it.
+    plans: PlanService | None = None
+    # The card the conversation belongs to, for the card tools; only a top-level run while the board is on has it.
+    card: "LinkedCard | None" = None
+    # Where add_card puts cards; only a top-level run in a project whose board is on and started has it.
+    intake: "CardIntake | None" = None
 
     def for_child(self) -> "RunServices":
-        """A sub-run uses its parent's services, but cannot delegate or end the conversation's goal."""
-        return replace(self, delegator=None, goal=None)
+        """A sub-run uses its parent's services, but cannot delegate, end the conversation's goal, hand over a plan
+        or change or add cards."""
+        return replace(self, delegator=None, goal=None, plans=None, card=None, intake=None)
 
 
 @dataclass
@@ -398,6 +408,18 @@ class AgentRun:
         return self.services.goal
 
     @property
+    def plans(self) -> PlanService | None:
+        return self.services.plans
+
+    @property
+    def card(self) -> "LinkedCard | None":
+        return self.services.card
+
+    @property
+    def intake(self) -> "CardIntake | None":
+        return self.services.intake
+
+    @property
     def trace(self) -> TraceRecorder | None:
         return self.services.trace
 
@@ -409,6 +431,17 @@ class AgentRun:
 class RunRegistry:
     def __init__(self) -> None:
         self.runs: dict[str, AgentRun] = {}
+
+    def pending_approvals(self, environment_id: int | None = None) -> list[tuple["AgentRun", PendingApproval]]:
+        """The approvals runs wait for now (in one environment, or all), with their run; copies of the maps, since
+        runs and approvals come and go meanwhile."""
+        return [
+            (run, approval)
+            for run in list(self.runs.values())
+            if environment_id is None or run.environment_id == environment_id
+            for approval in list(run.state.approvals.values())
+            if not approval.future.done()
+        ]
 
     def start(self, config: RunConfig, services: RunServices | None = None) -> AgentRun:
         return self.add(AgentRun(secrets.token_urlsafe(32), config, services or RunServices()))

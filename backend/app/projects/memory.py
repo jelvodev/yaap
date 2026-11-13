@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from app.blueprint.layers import PROJECT_LAYER_FOLDER, BlueprintError, Layer, commit
+from app.projects.current_state import is_state_section, read_state
 from app.targets.safe_root import SafeRoot
 
 MEMORY_FILE = "memory.md"
@@ -128,6 +129,7 @@ BULLET = re.compile(r"^\s*[-*+]\s+")
 
 
 def parse_entries(text: str) -> list[Entry]:
+    """The entries of the memory; the Current state block is not made of entries and is skipped."""
     entries: list[Entry] = []
     section = ""
     lines = text.replace("\r\n", "\n").split("\n")
@@ -146,6 +148,8 @@ def parse_entries(text: str) -> list[Entry]:
             close(number)
             if line.startswith("## "):
                 section = line[3:].strip()
+            continue
+        if is_state_section(section):
             continue
         if not stripped:
             close(number)
@@ -224,6 +228,8 @@ class Recall:
     total: int
     recent: list[Entry] = field(default_factory=list)
     related: list[Entry] = field(default_factory=list)
+    # The Current state block, which goes into the prompt whole, whatever the size of the memory.
+    state: str | None = None
 
 
 def word_overlap(entry: Entry, words: set[str]) -> float:
@@ -239,8 +245,9 @@ def recall(text: str, query: str, related_chunks: list[str] | None = None) -> Re
     as related. Without them, or after them, entries sharing words with the message count.
     """
     entries = parse_entries(text)
+    state = read_state(text) or None
     if not has_entries(text) or estimate_tokens(text) <= RECALL_TOKENS:
-        return Recall(text, True, len(entries))
+        return Recall(text, True, len(entries), state=state)
     by_section: dict[str, list[Entry]] = {}
     for entry in entries:
         by_section.setdefault(entry.section, []).append(entry)
@@ -290,4 +297,4 @@ def recall(text: str, query: str, related_chunks: list[str] | None = None) -> Re
         f"The memory has {len(entries)} entries, more than fits here. Shown: the newest entries of each section and "
         "those closest to the user's message. Search the rest with search_project (include: memory)."
     )
-    return Recall("\n\n".join([header, *sections]), False, len(entries), recent, related)
+    return Recall("\n\n".join([header, *sections]), False, len(entries), recent, related, state)

@@ -10,6 +10,7 @@ from functools import partial
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from sqlalchemy.orm import Session, sessionmaker
 from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -66,9 +67,23 @@ from app.api import openai_endpoints as openai_endpoints_api
 from app.api import tasks as tasks_api
 from app.api import estimates as estimates_api
 from app.api import reviews as reviews_api
+from app.api import plans as plans_api
+from app.api import board as board_api
+from app.api import board_intake as board_intake_api
+from app.api import board_storage as board_storage_api
+from app.api import card_actions as card_actions_api
+from app.api import waiting as waiting_api
+from app.board.actions import ActionService
+from app.board.index import BoardIndexer
+from app.board.route import CardRoute
+from app.board.stage_conversation import ReplyStarter
+from app.reviews.service import recover_reviews
+from app.board.service import BoardService
+from app.board.storage import board_storages
 from app.api import second_opinion as second_opinion_api
 from app.api import github as github_api
 from app.api import targets as targets_api
+from app.api import current_state as current_state_api
 from app.api import vault as vault_api
 from app.api import files as files_api
 from app.api import speech as speech_api
@@ -108,6 +123,10 @@ from app.runner.service import RUNNERS, runner_enabled
 from app.scheduling.service import recover_runs, run_periodically as run_scheduler
 from app.evals.runs import EvalService, recover_runs as recover_eval_runs
 from app.replays.service import ReplayService, recover_replays
+from app.plans.recover import prune_builds_periodically, recover_builds
+from app.plans.runner import BuildRunner
+from app.plans.service import PlanNotFound, PlanService
+from app.projects.state_refresh import RefreshSource, StateRefreshContext, plan_event_listener
 from app.core.reply_services import ReplyServices
 from app.core.message_queue import restore_interrupted_handoffs
 from app.core.search_index import SearchIndexer
@@ -199,12 +218,44 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         recover_eval_runs(session)
         # Replays too; their workspaces and pins go.
         recover_replays(session, settings.workspace_dir, settings.data_dir)
+        # Builds cut off by a restart are interrupted; Continue goes on with them.
+        recover_builds(session)
+        # Reviews cut off by a restart failed; they can be run again.
+        recover_reviews(session)
+    # A build that ends refreshes the project's current state; its copies are pruned once an hour.
+    context = StateRefreshContext(ReplyServices.from_state(app.state).utility, settings.workspace_dir)
+    sources = partial(build_state_source, app.state.session_factory)
+    app.state.builds.listeners.add(plan_event_listener(context, sources, app.state.builds.follow_ups.start))
+    build_prune = asyncio.create_task(prune_builds_periodically(app.state.session_factory, settings.workspace_dir))
     # Backups on a schedule: a backup cut off by a restart failed; a missed one runs once.
     app.state.backup_since = datetime.now(UTC)
     with app.state.session_factory() as session:
         recover_backup_runs(session)
     scheduler = asyncio.create_task(run_scheduler(app)) if app.state.scheduler else None
     app.state.updates = UpdateService(app.state.session_factory, app.state.cipher)
+    # The project boards: their files on each project's yaap-board branch or in a separate repository, indexed.
+    app.state.board = BoardService(
+        app.state.session_factory,
+        board_storages(app.state.session_factory, app.state.cipher, settings.workspace_dir, settings.data_dir),
+        BoardIndexer(app.state.session_factory),
+        settings.blueprint_dir,
+        settings.workspace_dir,
+    )
+    # A card's route through its plan, build and review follows the plans' events.
+    reply_services = partial(ReplyServices.from_state, app.state)
+    app.state.card_route = CardRoute(
+        app.state.board, reply_services, app.state.builds, ReplyStarter(reply_services), asyncio.get_running_loop()
+    )
+    app.state.builds.listeners.add(app.state.card_route.on_plan_event)
+    # Approving a card's plan also approves its acceptance criteria commands, which the review runs on the copy.
+    app.state.builds.approved_extras = app.state.card_route.criteria_commands
+    # The board's column actions: Specify, and the card's route for the later stages.
+    app.state.board_actions = ActionService(
+        app.state.board, app.state.card_route, ReplyStarter(reply_services), reply_services
+    )
+    # Approved plans wait in the build queue for their card's open waits; queued ones start now and after each build.
+    app.state.builds.open_waits = app.state.board_actions.open_waits
+    app.state.builds.start_queue()
     start_check = asyncio.create_task(check_at_start(app.state.updates)) if app.state.update_check_at_start else None
     # CLIs installed by an older release are installed again from this release's lock.
     app.state.cli_sign_ins.refresh_tools()
@@ -246,6 +297,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     idle_language_servers.cancel()
     if scheduler is not None:
         scheduler.cancel()
+    build_prune.cancel()
     if start_check is not None:
         start_check.cancel()
     app.state.outside_clients.close_all(app)
@@ -254,6 +306,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await app.state.cli_sign_ins.stop()
     await LANGUAGE_SERVERS.stop_all()
     # Before the engine goes: work still running would keep a connection, and the database file, open.
+    await app.state.builds.shutdown()
+    await app.state.card_route.work.stop()
+    await app.state.board_actions.work.stop()
     await stop_replies_and_their_work(app.state.replies, (app.state.evals.work, app.state.replay_service.work))
     app.state.plugins.unload_all()
     engine.dispose()
@@ -288,6 +343,17 @@ def mount_frontend(app: FastAPI, static_dir: Path) -> None:
         if path and candidate.is_file() and candidate.is_relative_to(static_dir):
             return FileResponse(candidate, headers=REVALIDATE)
         return FileResponse(static_dir / "index.html", headers=REVALIDATE)
+
+
+def build_state_source(session_factory: sessionmaker[Session], plan_id: int) -> RefreshSource | None:
+    """What the current-state refresh after a build writes from: the plan, how it ended and its conversation."""
+    try:
+        view = PlanService(session_factory).get(plan_id)
+    except PlanNotFound:
+        return None
+    ended = "was built" if view.status == "done" else f"stopped: {view.failure or view.status}"
+    reason = f"Plan {view.id} ({view.plan.title}) {ended}"
+    return RefreshSource(view.project_id, reason, view.conversation_id, view.approved_at)
 
 
 def restart_soon() -> None:
@@ -340,6 +406,8 @@ def create_app(
     app.state.evals = EvalService(lambda: ReplyServices.from_state(app.state))
     # Replays of a reply from one of its model calls, unattended like eval plays.
     app.state.replay_service = ReplayService(lambda: ReplyServices.from_state(app.state))
+    # Builds of approved plans, step by step in a copy of the project.
+    app.state.builds = BuildRunner(lambda: ReplyServices.from_state(app.state))
     # Conversation titles from the utility model after the first reply (tests switch this off).
     app.state.utility_titles = True
     app.state.memory_suggestions = True
@@ -398,6 +466,13 @@ def create_app(
     api.include_router(tasks_api.router)
     api.include_router(estimates_api.router)
     api.include_router(reviews_api.router)
+    api.include_router(plans_api.router)
+    api.include_router(board_api.router)
+    api.include_router(board_intake_api.router)
+    api.include_router(board_storage_api.router)
+    api.include_router(card_actions_api.router)
+    api.include_router(waiting_api.router)
+    api.include_router(current_state_api.router)
     api.include_router(second_opinion_api.router)
     api.include_router(files_api.router)
     api.include_router(speech_api.router)

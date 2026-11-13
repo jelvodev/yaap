@@ -149,6 +149,31 @@ A project is a folder under the environment's workspace, empty, cloned from GitH
 
 A conversation started in the wrong place can move: choose *Move to project…* in its ⋯ menu (in the sidebar or beside the title), then another project of the same environment or *No project*. It cannot move while a reply, a goal or a queued message of it runs or waits. The conversation's running processes and shell sessions stop. Its agent runs, search entries and, for a project, its reviews, memory suggestions and learning proposals move with it, and a note ("Moved from Shop to Site.") tells the next reply that the folder changed. Files the conversation wrote stay in the old project's folder, and its checkpoints stay with the old project, so they can no longer be restored from this conversation. Usage records stay where they were, so budgets remain correct.
 
+### Plans
+
+In a project conversation, `/plan <what>` makes a plan without changing anything: the reply is read only, so the agent lists, searches and reads the project, loads the standards that apply and may explore with read-only sub-runs, but every tool that writes a file, runs a command or commits is refused, also in its sub-runs. It ends by handing over the plan, which shows in the reply as a card: a title and summary, numbered steps with the files each touches and the checks that prove it (a check YAAP can run shows its command), and the risks. A plan without any check YAAP can run is accepted with a note.
+
+The card is a draft. *Edit* opens it in place: reword, reorder, delete or add steps; files and checks go one per line, with a check's command after `run:`. *Discard* folds it to one line. A new `/plan` in the same conversation replaces its earlier draft. *Approve and build* is not available yet. A Blueprint command named `plan` takes precedence over the built-in one. The instructions the agent plans by are the built-in `planner` item, which a file of the same name in your Blueprint replaces. Exports show the plan as a checklist.
+
+With Claude Code or Codex as the connection, `/plan` works the same: those CLIs run with their own tools off and only YAAP's tools over MCP, so the read-only limit applies to them and they hand over the plan through YAAP's `submit_plan` tool.
+
+### Specifications
+
+A specification says what must be true when a piece of work is done, before anyone plans or builds it. YAAP ships a built-in skill, `specification`, that writes one with you: it fills in what it can from the request and the project, asks until every acceptance criterion is concrete, and hands over the result as one Markdown block in the reply (or on the card, where the conversation belongs to one). It has a template per kind of work: *feature*, *bug*, *refactor* and *chore*. Each has the headings `## Goal`, `### Acceptance criteria`, `## Context`, `## Out of scope` and `## Open questions`; the bug template adds *Steps to reproduce*, *Expected* and *Actual*, the refactor template *What must not change*. A file at the same path in your Blueprint replaces the skill (`skills/specification/SKILL.md`) or one template (`skills/specification/templates/<kind>.md`), the nearest level first.
+
+**The criteria.** An acceptance criterion is a checkbox item under the `### Acceptance criteria` heading. It may end in one code span that tells YAAP how to check it:
+
+| Criterion | Checked by |
+|---|---|
+| `` - [ ] The settings page shows the new option `` | the reviewer, with the criterion as what to judge |
+| `` - [ ] The tests pass `run: pytest -q` `` | YAAP: the command runs in the project and must exit with 0 (at most 10 minutes) |
+| `` - [ ] The guide mentions it `file: docs/guide.md contains Specification` `` | YAAP: the file must contain the text |
+| `` - [ ] There is a migration `file: backend/migrations/0042_specs.py exists` `` | YAAP: the file must exist |
+
+A check is one line. A path is relative to the project, written with `/`, without `..` or `.git` and without spaces. A specification has at most 30 criteria. Lists inside a fenced code block are examples and never count as criteria, and a code span that does not start with `run:` or `file:` is part of the criterion's text. A specification that breaks one of these rules is refused with every problem listed.
+
+**How they are checked.** The planner reads the criteria and says which step meets which; a build's review runs the criteria with a `run:` or `file:` check on the build's branch and gives the others to the reviewer to judge. Without a card, `/plan` takes a specification pasted in the message: a `### Acceptance criteria` list in the request counts the same way.
+
 ## Blueprint
 
 The Blueprint is what every conversation follows: Markdown files in git, at the levels global, environment and project. A later level overrides, extends or switches off what it inherits.

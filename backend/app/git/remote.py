@@ -7,14 +7,13 @@ work tree and the objects goes through the repository's place (`app.git.place`),
 """
 
 import base64
-import re
 import shutil
 from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 
 from app.git.bundles import deliver_branches, push_branch, safe_branch_name
-from app.git.common import DEFAULT_BRANCH, GitError, UnsafeRepositoryError
+from app.git.common import DEFAULT_BRANCH, REMOTE_URL, GitError, UnsafeRepositoryError, is_plain_https_remote
 from app.git.place import GitPlace
 from app.git.safety import ConfigEntry
 from app.git.service import Repository, folder_of, remote_url, repository_status, run_git
@@ -31,14 +30,13 @@ from app.git.transport import (
 from app.runner.service import RUNNERS, Runners
 
 GITHUB_HOST = "github.com"
-REMOTE_URL = re.compile(r"^https://(?P<host>[A-Za-z0-9.-]+)(?::\d+)?/[^\s@]+$")
 NO_REMOTE = "This repository has no remote yet. Set a GitHub URL first."
 
 
 def validate_remote_url(url: str) -> str:
     """Only plain https URLs: no credentials in the URL, because git would store them in .git/config."""
     url = url.strip()
-    if not REMOTE_URL.match(url):
+    if not is_plain_https_remote(url):
         raise GitError(
             "Use an https URL without a user name or token in it, for example https://github.com/owner/repository.git."
         )

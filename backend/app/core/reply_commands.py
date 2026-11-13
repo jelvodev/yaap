@@ -1,4 +1,4 @@
-"""The commands a message can be instead of a question: /compact, /eval, /check and /goal.
+"""The commands a message can be instead of a question: /compact, /eval, /check, /plan, /card and /goal.
 
 /compact and /eval do not start a reply. When they were sent from the queue, their rows leave the queue only once the
 command was accepted: /eval when its run has started, /compact when the summary has been made or its failure
@@ -7,7 +7,7 @@ reported. A command that is refused, or that is cut short, stays queued.
 
 import uuid
 import weakref
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from functools import partial
 from typing import Any
@@ -17,6 +17,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.blueprint.check import CheckError, check_block
+from app.board.card_command import card_command
+from app.board.service import BoardService
 from app.core.chat_events import server_sent_event
 from app.core.chat_history import load_branch
 from app.core.goals import GoalError, create_goal, goal_block, goal_objective, start_text
@@ -27,6 +29,7 @@ from app.core.replies import ReplyRegistry, Reservation
 from app.core.reply_services import ChatEvals, ReplyServices
 from app.core.reply_setup import ReplySetup
 from app.core.summaries import TOO_LITTLE, compact_events, cover_point, yaap_compacts
+from app.plans.command import plan_command
 from app.storage.models import Conversation
 
 
@@ -38,11 +41,69 @@ class QueuedCommand:
     handoff_job_id: str | None = None
 
 
+@dataclass(frozen=True)
+class CommandContext:
+    """What a built-in command works with: the reply's session and conversation, its setup and the board."""
+
+    session: Session
+    conversation: Conversation
+    setup: ReplySetup
+    board: BoardService | None = None
+
+
+# The built-in commands that make a read-only reply, in the order they are tried. Each returns its command block, or
+# None when the message is not that command, and raises CommandRefused when it cannot run here.
+BuiltinCommand = Callable[[CommandContext, str], dict[str, Any] | None]
+
+
+def check_command(context: CommandContext, text: str) -> dict[str, Any] | None:
+    """/check checks the project against its standards in a read-only run."""
+    try:
+        block = check_block(context.setup.layers, text)
+    except CheckError as error:
+        raise CommandRefused(str(error)) from error
+    if block is not None and context.setup.agent_project is None:
+        raise CommandRefused("/check works in a project conversation.")
+    return block
+
+
+def plan_builtin(context: CommandContext, text: str) -> dict[str, Any] | None:
+    """/plan makes a plan in a read-only run (app/plans/command.py)."""
+    return plan_command(context.setup, text)
+
+
+def card_builtin(context: CommandContext, text: str) -> dict[str, Any] | None:
+    """/card makes a card on the project's board; the reply confirms it (app/board/card_command.py)."""
+    return card_command(context.board, context.session, context.conversation, text)
+
+
+BUILTIN_COMMANDS: tuple[BuiltinCommand, ...] = (check_command, plan_builtin, card_builtin)
+
+
+def builtin_block(context: CommandContext, text: str) -> dict[str, Any] | None:
+    """The block of the built-in command the message is, if any; a refusal rolls the session back first."""
+    session = context.session
+    for command in BUILTIN_COMMANDS:
+        try:
+            block = command(context, text)
+        except CommandRefused:
+            session.rollback()
+            raise
+        if block is not None:
+            return block
+    return None
+
+
 def command_blocks(
-    session: Session, conversation: Conversation, setup: ReplySetup, text: str, parent_id: int | None
+    session: Session,
+    conversation: Conversation,
+    setup: ReplySetup,
+    text: str,
+    parent_id: int | None,
+    board: BoardService | None = None,
 ) -> tuple[list[dict[str, Any]], bool]:
     """The blocks a message gets besides its text (pinned skills, a command, a goal), and whether the reply is read
-    only."""
+    only. A Blueprint command of the same name wins over a built-in one."""
     earlier = load_branch(session, conversation.id, parent_id)
     extra_blocks = skill_blocks(
         setup.layers,
@@ -50,23 +111,11 @@ def command_blocks(
         [message.content for message in earlier if message.role == "user"],
     )
     command = expand_command(setup.layers, text, setup.agent.commands if setup.agent else None)
-    read_only = False
     if command is None:
-        # /check checks the project against its standards in a read-only run, unless the Blueprint has its own
-        # command named check.
-        try:
-            command = check_block(setup.layers, text)
-        except CheckError as error:
-            session.rollback()
-            raise CommandRefused(str(error)) from error
-        if command is not None:
-            if setup.agent_project is None:
-                session.rollback()
-                raise CommandRefused("/check works in a project conversation.")
-            read_only = True
+        command = builtin_block(CommandContext(session, conversation, setup, board), text)
     if command is not None:
         extra_blocks.append(command)
-        return extra_blocks, read_only
+        return extra_blocks, command.get("read_only") is True
     # /goal starts goal mode, unless the Blueprint has its own command named goal.
     try:
         objective = goal_objective(text)
@@ -76,7 +125,7 @@ def command_blocks(
     except GoalError as error:
         session.rollback()
         raise CommandRefused(str(error)) from error
-    return extra_blocks, read_only
+    return extra_blocks, False
 
 
 def _consume(session_factory: sessionmaker[Session], conversation_id: int, queued: QueuedCommand) -> None:

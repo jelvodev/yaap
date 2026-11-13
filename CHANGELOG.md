@@ -6,9 +6,75 @@ yourself when you update; it says "None." when there is nothing.
 
 ## Unreleased
 
+- `/plan <what>` in a project conversation makes a plan without changing anything: the reply is read only, and the agent hands over its plan as a card with numbered steps, the files each touches, the checks that prove it and the risks. The card can be edited in place or discarded; a new `/plan` replaces the earlier draft. Exports show the plan as a checklist.
+- Work that a read-only reply delegates is read only too: a sub-run never gets more access than the reply that started it.
+- Each project's memory now has a short **Current state** block: where the work stands, what is open and the next step. Every conversation of the project reads it on every turn, so new work picks up where the last stopped.
+- The agent keeps it up to date with the new `update_current_state` tool, at the end of a goal or a build and when you stop long work. When it does not, a background task (*Current state of projects*, switchable under Background tasks) rewrites it after a goal ends or a long conversation goes quiet; your own edits always win.
+- Edit the block in the project's Memory tab (with a character counter, Save and Revert). A new conversation in a project shows it, with *Continue from here* and *Edit*.
+- New API: `GET` and `PUT /api/v1/projects/{id}/current-state`.
+
+- A board per project, kept as Markdown files on the project's own `yaap-board` branch. YAAP writes that branch without touching your work tree, your index or the branch you have checked out. Changes made close together go into one commit ("Board: 3 cards added, 1 moved").
+- Cards move from Inbox through Idea, Design, Plan, Build and Review to Done under fixed rules. A move that is not allowed is refused with a sentence that says why, for example "Use Approve and build on the plan." Every card shows what is needed next and who does it.
+- Versions with a budget show their progress and what their cards have cost so far, from the usage of the cards' conversations. From 80 % of the budget a version is shown as nearly spent.
+- Cards you edit by hand on the branch are picked up. A card file that cannot be read is listed as broken, with its error, and YAAP never rewrites it.
+- New settings: *Project board* (global, environment and project level; on by default) and *Push the board* (project level; off by default).
+  - With the board switched off, the board's files are kept but not used.
+  - Pushing sends only the `yaap-board` branch. YAAP asks for confirmation when the remote is public, or when it cannot tell whether it is.
+
+- *Approve and build* on a plan card: YAAP builds the plan step by step in a copy of the project (`.yaap/builds/<plan>`) with its own repository, so your files and checked-out branch stay as they are. Each step goes to the worker model with its checks; YAAP runs the checks itself, sends a failing step back to the worker once and then to the main model, and commits each passing step in the copy.
+- The plan card shows a live checklist while it builds: each step's state, its commit, who took its attempts ("worker ×2 → main"), the worker's note, the cost so far and approvals the build waits for, with *Stop* and *Continue*.
+- When the build ends, or is stopped or fails, its branch (`yaap/plan-<n>-<title>`) is brought into the project; only that branch comes back. Every check runs once more on the finished work and is kept with the plan.
+- Approving a plan approves exactly its check commands for that build, shown on the card before you click; everything else asks as in a chat.
+- A build cut off by a restart is marked interrupted; *Continue* goes on from the last finished step.
+- Setting *Build steps* (global, environment, project): whether the worker or the main model takes a step first.
+- Copies of finished builds are cleaned up: failed and discarded ones after a week, done ones once merged or after two weeks.
+- The agent's file tools, search and the repository map skip `.yaap/` folders.
+- A built-in `specification` skill writes a specification with you from one of four templates (feature, bug, refactor, chore), each with a goal, context, acceptance criteria, what is out of scope and open questions. The skill and each template can be replaced in your Blueprint.
+- Acceptance criteria can carry a check YAAP runs itself: `run: <command>`, `file: <path> exists` or `file: <path> contains <text>`; a criterion without a check is judged by the reviewer.
+
+- `/card <request>` in a project conversation, and *Make a card* in a message's menu, turn a request into a card on the project board. The card starts in Design, keeps the request as its description and is linked to the conversation.
+- A card shows in the chat with its stage, cost and the one step that is needed next: *Plan*, *Approve and build*, *Continue*, *Stop*, *Review* or *Mark done*. A conversation that belongs to a card shows a card chip in its heading.
+- *Plan* starts a planning conversation for the card. When the plan is submitted, the card moves to Plan and the plan is written into the card. *Approve and build* builds it on its own branch, and the card moves to Build.
+- When the build is done, the card moves to Review with its cost and commits, and a review of the build branch starts by itself. The review shows the diff, the checks that ran and the reviewer's findings.
+- After a restart, a card whose build was cut off shows *Continue the build* with the step it will go on from. A review that was cut off can be run again.
+- In a conversation that belongs to a card, the agent can read the card and set its specification or ask the user a question on it. It cannot change anything else on the card.
+- Added: the project board page. Clicking a project in the chat sidebar opens its board in the main area: seven columns (Inbox to Done) with each card's state, next step and cost, a version filter with progress and budget, a list view (also on a narrow window), dragging cards between columns (a refused move says why), a card's detail beside the board, and *Push board* with a confirmation naming the remote.
+- Added: a project without cards shows the board's empty columns with a slim bar above them to start a conversation or note a first idea. Where the board is kept is asked when the first card is added, or from *Where the board is kept* in the header.
+- Added: the board can be switched on or off per project in its settings; switched off, a project click behaves as before.
+
+- The agent can put a card in a project board's Inbox for something it noticed outside its task (`add_card`). It searches the board for similar cards first and can add a note to one of them instead (`add_to_card`, under "Noticed again"). Each card names the conversation it came from. At most 5 cards per reply, 20 per conversation and 200 open cards in Inbox. Not in read-only conversations such as `/plan`.
+- Import GitHub issues into a board's Inbox, by number or by label (*Import issues*). One way: nothing is written to GitHub, and an issue imported before is skipped. Issue text is shown as plain text.
+- *Make a card* on a review finding the change did not fix: a card in Inbox that points back at the review.
+
+- **A review with evidence.** When a card's build is done, YAAP checks the card's acceptance criteria itself on the build's copy: `run:` criteria as commands, `file:` criteria as file checks. The reviewer judges the other criteria and names the file and line it relied on. The card's review shows each criterion as met, failed or not checked, with a link to its source, plus the checks that ran, the size of the diff and a link to the build's conversation. A short summary goes into the card as its *Evidence* section.
+- Approving a card's plan also approves the card's acceptance-criteria commands, which the plan card lists. A criterion command added after the approval is not run.
+- *Send back with the finding* returns a card to Design with a review finding or an unmet criterion in its description, so the next plan fixes it.
+- Screenshots before and after are not taken yet. The evidence says "No preview for this project".
+
+- A project's board can be kept in a separate private repository instead of the project's own `yaap-board` branch, so a public project does not publish its ideas and plans. Choose it when the board starts, check access to the repository first, and use *Pull* and *Push board* in the board's header. YAAP pulls the board's repository at most once a minute in the background, so the board keeps working offline; a pull only fast-forwards and leaves the board as it is when both sides changed.
+- New project settings `board_storage` and `board_repository_url`. The board's repository must be an https URL without credentials and cannot be the project's own remote.
+- Backups include the boards kept in separate repositories.
+- YAAP now checks the configuration of a bare repository it uses (such as the git transport) the same way as any other repository before running git in it.
+
+- **Board triggers.** A project's board settings have *Triggers*: things YAAP checks on a schedule that put a card in Inbox, without a model call. A trigger watches failing CI on the default branch, open issues with a label (`yaap` by default), dependency updates from Dependabot or Renovate, or a command that runs on a schedule in the runner (such as the tests) and fails. Each card links to the run, issue or pull request, the same link never makes a second card, and a trigger makes at most its number of cards a day (3 by default). A check that fails makes no card, and no trigger makes cards while the board is off. A command trigger runs only in the runner and only a command allowed for the task.
+
+- Each column of the project board now has its own buttons in the card detail: *Specify* in Idea opens a conversation that writes the specification with you, and the card moves to Design once it is saved; *Plan* and *Move back to Idea* in Design; *Approve and build*, *Edit plan* and *Ask a change* in Plan; *Stop* while a build runs, and *Continue* or *Send back* when it failed or was interrupted; *Review*, *Review again* and *Mark done* in Review, with the evidence; the result and branch in Done.
+- A card whose build failed or was interrupted can be sent back to Design with the reason in its description, to be planned again.
+- A second click on *Review* while the card's review is starting is refused instead of starting a second review.
+
+- **Waiting for me.** A new entry at the top of the chat's sidebar shows how many things wait for you, and opens one overview across the projects of the environment: tool approvals, plans to approve, reviews to judge, questions to answer, cards new in Inbox since you last looked, and interrupted builds. Each row names the card, its project and the model, with one action that opens the place where it is done. Below, a card per project with the board on shows the progress of its current version, what is building, what is blocked, what was escalated and the cost this month. When you last looked is remembered by your browser.
+
+- Several cards of a project can build at the same time: *Builds at a time* in the project's board settings (1 to 4, default 2). Plans that name the same files never build together, a card that waits for other cards waits, and a provider's rate limit holds new builds for ten minutes. A plan that must wait is queued, shows why ("Queued: waits for #12's files") and starts by itself when a build ends; a queued build can be stopped.
+- *Merge into the version* on a reviewed card with a version: the card's branch is merged into the version's branch `yaap/v<version>` (made from the default branch when the first card of the version is merged) in a copy of the project, and the version's checks and those of every card merged into it run there. Only when everything passes does the version branch move; a conflict or a failing check leaves it as it was and sends the card back to Build with the output. One merge at a time per version. The default branch is never touched and nothing is pushed: merging the version into the default branch stays yours.
+
+- A card's review no longer gets stuck when only one vendor is set up: without an allowed model of another vendor it is done by the same vendor's strongest other model (the same rule as *Second opinion*), and the card says "Review by the same vendor (no other vendor available)". Reviews after a goal and of the uncommitted changes still need another vendor and are skipped with the reason.
+- After each step of a build, YAAP checks which files the step's commit changed. When a step changed files that the plan does not name for it or an earlier step, the plan shows a note naming them, and other builds of the project wait for this one as if it touched the whole project.
+
 ### Action needed
 
-None.
+- The project board is on by default: clicking a project opens its board. Switch it off per project in the project's settings (*Board*), or for an environment or everything under Settings (*Project board*); switched off, a project click behaves as before and the board's files are kept.
+- The board lives on a local branch `yaap-board` in the project's repository. YAAP pushes it only with *Push board* (and only when the project allows it), or keep the board in a separate private repository instead.
+- `git push --all` and `git push --mirror` also push the `yaap-board` branch, and with it every card, specification and plan. On a public repository, push your branches one by one.
 
 ## 0.7.0 (2026-11-12)
 

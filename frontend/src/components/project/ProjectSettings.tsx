@@ -17,6 +17,8 @@ import ProcessesSection from "../ProcessesSection";
 import VaultList from "../VaultList";
 import McpServersPanel from "../McpServersPanel";
 import { useConfirm } from "../dialog/ConfirmDialog";
+import BoardSwitchRow from "../../pages/board/BoardSwitchRow";
+import BoardTriggers from "../../pages/board/BoardTriggers";
 
 type Agent = components["schemas"]["AgentOut"];
 
@@ -183,6 +185,12 @@ export default function ProjectSettings({
       <section className="pp-section">
         <h3>Git</h3>
         <ProjectGitRemote environmentId={project.environment_id} git={git} />
+      </section>
+
+      <section className="pp-section">
+        <h3>Board</h3>
+        <BoardSwitchRow project={project} onChanged={onChanged} />
+        <BoardTriggers projectId={project.id} />
       </section>
 
       <section className="pp-section">

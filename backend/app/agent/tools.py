@@ -8,6 +8,7 @@ app.agent.gate.
 
 from app.agent.attachment_tools import ATTACHMENT_TOOLS
 from app.agent.blueprint_tools import BLUEPRINT_TOOLS
+from app.agent.board_tools import BOARD_TOOLS, CARD_TOOLS, INTAKE_TOOLS
 from app.agent.code_tools import CODE_TOOLS
 from app.agent.command_tools import COMMAND_TOOLS
 from app.agent.delegation_tools import DELEGATION_TOOLS, delegate_tool_for
@@ -16,10 +17,12 @@ from app.agent.file_tools import FILE_TOOLS
 from app.agent.git_tools import GIT_TOOLS
 from app.agent.on_demand_tools import ON_DEMAND_TOOLS
 from app.agent.output_tools import OUTPUT_TOOLS
+from app.agent.plan_tools import PLAN_TOOLS
 from app.agent.process_tools import PROCESS_TOOLS
 from app.agent.runs import AgentRun
 from app.agent.search_tools import SEARCH_TOOLS
 from app.agent.skill_tools import SKILL_TOOLS
+from app.agent.state_tools import STATE_TOOLS
 from app.agent.toolkit import Tool
 from app.agent.web_tools import WEB_TOOLS
 
@@ -31,9 +34,12 @@ TOOLS: list[Tool] = [
     *WEB_TOOLS,
     *OUTPUT_TOOLS,
     *BLUEPRINT_TOOLS,
+    *STATE_TOOLS,
     *SEARCH_TOOLS,
     *CODE_TOOLS,
     *DELEGATION_TOOLS,
+    *PLAN_TOOLS,
+    *BOARD_TOOLS,
     *ATTACHMENT_TOOLS,
     *SKILL_TOOLS,
     *DOCUMENT_TOOLS,
@@ -47,6 +53,9 @@ ON_DEMAND_NAMES = frozenset(tool.name for tool in ON_DEMAND_TOOLS)
 CONDITIONAL_TOOLS = {
     "delegate": "delegator",
     "finish_goal": "goal",
+    "submit_plan": "plans",
+    **{tool.name: "card" for tool in CARD_TOOLS},
+    **{tool.name: "intake" for tool in INTAKE_TOOLS},
     "search_project": "searcher",
     "read_knowledge": "searcher",
     "web_search": "web_search",

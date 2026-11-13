@@ -11,12 +11,13 @@ import uuid
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 
 from app.git.common import GitError
 from app.git.executor import capture_git, decode
 from app.git.place import GitPlace, run_from_worker
-from app.git.service import Repository, executor_of
+from app.git.service import Repository, executor_of, run_git
 from app.git.safety import ConfigEntry
 from app.git.transport import (
     NETWORK_TIMEOUT,
@@ -139,17 +140,34 @@ def bundle_on_work(transport: Transport, branch: str, exclude: str | None) -> by
     """The work repository's branch as a bundle (without the history `exclude` already has), made by its place."""
     if network_step("work_bundle") != "work":
         raise GitError("A bundle of the work repository is made where the work repository is.")
-    refs = [BRANCH_PREFIX + branch, *([f"^{exclude}"] if exclude else [])]
-    executor = executor_of(transport.place)
+    return bundle_create(transport.place, [BRANCH_PREFIX + branch, *([f"^{exclude}"] if exclude else [])])
+
+
+def bundle_create(repository: Repository, revisions: Sequence[str], timeout: int = NETWORK_TIMEOUT) -> bytes:
+    """A bundle of `revisions` (refs, and `^<commit>` for history to leave out), made where git runs for the
+    repository. The bytes never pass through text decoding."""
+    executor = executor_of(repository)
     if executor is not None:
-        result = run_from_worker(capture_git, executor, ["bundle", "create", "-", *refs])
+        result = run_from_worker(
+            partial(capture_git, timeout=timeout), executor, ["bundle", "create", "-", *revisions]
+        )
         if result.exit_code != 0:
             raise GitError(f"git bundle failed: {decode(result.stderr).strip()}")
         return result.stdout
     with tempfile.TemporaryDirectory(prefix="yaap-bundle-") as folder:
         target = Path(folder) / "outgoing.bundle"
-        transport.run("work_bundle", ["bundle", "create", str(target), *refs])
+        run_git(["bundle", "create", str(target), *revisions], repository, timeout=timeout)
         return target.read_bytes()
+
+
+def unbundle(repository: Repository, data: bytes, timeout: int = NETWORK_TIMEOUT) -> tuple[tuple[str, str], ...]:
+    """Take the objects of a bundle into the repository, without changing any of its refs; returns the bundle's
+    (commit, ref) pairs. Objects are checked, as the bytes may come from a place a runner can write."""
+    with bundle_on_place(repository, data) as path:
+        output = run_git(
+            ["bundle", "unbundle", path], repository, config=("transfer.fsckObjects=true",), timeout=timeout
+        ).stdout
+    return parse_ref_lines(output)
 
 
 def work_has(transport: Transport, arguments: Sequence[str]) -> bool:

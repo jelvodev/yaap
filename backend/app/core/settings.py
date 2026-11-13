@@ -16,6 +16,17 @@ from app.agent.workers import CLI_WORKERS, cli_worker_validator
 from app.agent.workers import default_value as cli_default_value
 from app.backups.destinations import validate_destinations
 from app.backups.runs import SCHEDULE_DEFAULT, validate_schedule
+from app.board.settings import (
+    BOARD_PARALLEL_BUILDS_KEY,
+    BOARD_PUSH_KEY,
+    BOARD_REPOSITORY_URL_KEY,
+    BOARD_STORAGE_KEY,
+    PARALLEL_BUILD_CHOICES,
+    PROJECT_BOARD_KEY,
+    validate_parallel_builds,
+    validate_repository_url,
+    validate_switch,
+)
 from app.core.context_control import (
     DEFAULT_COMPACT_AT,
     DEFAULT_TRIM_AT,
@@ -317,6 +328,18 @@ SETTING_DEFINITIONS: dict[str, SettingDefinition] = {
             options=(SettingOption("off", "Off"), SettingOption("on", "On")),
         ),
         SettingDefinition(
+            key="build_worker",
+            label="Build steps",
+            description=(
+                "Who takes a step of an approved plan first when the step has a check YAAP can run. Worker: the "
+                "preset's worker model, which gets the failure once more and then hands over to the main model. "
+                "Main: the main model. A step without such a check always goes to the main model."
+            ),
+            levels=frozenset({"global", "environment", "project"}),
+            default="worker",
+            options=(SettingOption("worker", "Worker"), SettingOption("main", "Main")),
+        ),
+        SettingDefinition(
             key="utility_model",
             label="Utility model",
             description=(
@@ -542,6 +565,64 @@ SETTING_DEFINITIONS: dict[str, SettingDefinition] = {
             levels=frozenset({"project"}),
             default={},
             validate=validate_target_setting,
+        ),
+        SettingDefinition(
+            key=PROJECT_BOARD_KEY,
+            label="Project board",
+            description=(
+                "Whether a project opens its board: cards in columns from Inbox to Done, kept on the project's "
+                "yaap-board branch. Off: clicking the project only narrows the conversations, as before; the "
+                "board's files are kept."
+            ),
+            levels=frozenset({"global", "environment", "project"}),
+            default=True,
+            validate=validate_switch,
+        ),
+        SettingDefinition(
+            key=BOARD_PUSH_KEY,
+            label="Push the board",
+            description=(
+                "Offer Push for the project's board. Pushing publishes every card, specification and plan on the "
+                "yaap-board branch; on a public repository they become public. Nothing is pushed by itself."
+            ),
+            levels=frozenset({"project"}),
+            default=False,
+            validate=validate_switch,
+        ),
+        SettingDefinition(
+            key=BOARD_STORAGE_KEY,
+            label="Where the board is kept",
+            description=(
+                "The yaap-board branch of the project's own repository, or a separate private repository "
+                "(board_repository_url). A pushed branch of a public repository is public too. Chosen when the board "
+                "starts; a started board stays where it is."
+            ),
+            levels=frozenset({"project"}),
+            default="branch",
+            options=(SettingOption("branch", "Branch"), SettingOption("repository", "Separate repository")),
+        ),
+        SettingDefinition(
+            key=BOARD_REPOSITORY_URL_KEY,
+            label="Board repository",
+            description=(
+                "The https URL of the separate private repository that holds the board, without a user name or "
+                "token; not the project's own remote. The GitHub token of the project is used to reach it."
+            ),
+            levels=frozenset({"project"}),
+            default="",
+            validate=validate_repository_url,
+        ),
+        SettingDefinition(
+            key=BOARD_PARALLEL_BUILDS_KEY,
+            label="Builds at a time",
+            description=(
+                "How many approved plans of the project build at the same time. Plans that name the same files never "
+                "build together; the others wait in a queue and start when a build ends."
+            ),
+            levels=frozenset({"project"}),
+            default="2",
+            options=tuple(SettingOption(count, count) for count in PARALLEL_BUILD_CHOICES),
+            validate=validate_parallel_builds,
         ),
         SettingDefinition(
             key="runner_network",

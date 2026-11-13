@@ -3,6 +3,7 @@ import { useState } from "react";
 import { usePreferences } from "../../preferences/PreferencesProvider";
 import ApprovalBlock from "../ApprovalBlock";
 import { ChevronIcon } from "../icons";
+import PlanCard from "../plan/PlanCard";
 import { StreamingContext } from "./contexts";
 import { Markdown } from "./Markdown";
 import { type ReplyBlock, groupToolCalls, thinkingHeadline } from "./replyBlock";
@@ -50,7 +51,7 @@ interface ReplyBodyProps {
   streaming?: boolean;
 }
 
-/** The blocks of a reply in order: reasoning, text, tool calls (grouped), approvals and steering messages. */
+/** The blocks of a reply in order: reasoning, text, tool calls (grouped), approvals, steering messages and plans. */
 export function ReplyBody({ blocks, streaming = false }: ReplyBodyProps) {
   const last = blocks.at(-1);
   const waitingForUser = blocks.some((block) => block.type === "approval" && !block.decision);
@@ -78,6 +79,8 @@ export function ReplyBody({ blocks, streaming = false }: ReplyBodyProps) {
                 <span className="steering-text">{block.text}</span>
               </div>
             );
+          case "plan":
+            return <PlanCard key={`plan-${block.planId}`} planId={block.planId} />;
         }
       })}
       {showIndicator && <ThinkingIndicator label={runningTool ? `Running ${runningTool}…` : "Thinking…"} />}

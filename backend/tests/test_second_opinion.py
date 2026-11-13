@@ -23,7 +23,7 @@ from app.reviews.answer import (
 from app.reviews.answer_files import read_named_files
 from app.reviews.report import ReportError
 from app.reviews.reply_scope import reply_scope
-from app.reviews.reviewer import estimate_cost, same_vendor_order, second_opinion_reviewer
+from app.reviews.reviewer import choose_reviewer, estimate_cost, falls_back_to_same_vendor, same_vendor_order
 from app.storage.models import AgentRunRecord, Conversation, Message, Review, UsageRecord
 from app.targets.base import FileEntry
 from tests.test_delegation import project_conversation
@@ -141,9 +141,26 @@ def test_the_same_vendor_fallback_is_the_strongest_other_model(written_by, expec
     assert totals == sorted(totals, reverse=True)
 
 
-def plan_reviewer(client, registry, vendors, written_by):
+@pytest.mark.parametrize(
+    ("source", "falls_back"),
+    [
+        ("reply", True),
+        ("answer", True),
+        # A card's review: without it the card would wait in Review until it is marked done.
+        ("build", True),
+        ("goal", False),
+        ("task", False),
+        ("conversation", False),
+        ("changes", False),
+    ],
+)
+def test_second_opinions_and_card_reviews_fall_back_to_the_same_vendor_and_other_reviews_do_not(source, falls_back):
+    assert falls_back_to_same_vendor(source) is falls_back
+
+
+def plan_reviewer(client, registry, vendors, written_by, source="reply"):
     with client.app.state.session_factory() as session:
-        return second_opinion_reviewer(session, registry, 1, ForUtility(task="review"), vendors, written_by)
+        return choose_reviewer(session, registry, 1, ForUtility(task="review"), vendors, written_by, source)
 
 
 @pytest.mark.parametrize(
@@ -183,6 +200,30 @@ def test_the_reviewer_is_another_vendor_else_the_strongest_other_model_of_the_sa
         assert plan.reason is None
     if model is None:
         assert "Anthropic" in plan.reason and "same vendor" in plan.reason
+
+
+@pytest.mark.parametrize(
+    ("source", "keys", "model", "same_vendor"),
+    [
+        # With another vendor every kind of review uses it.
+        ("build", ("anthropic_api_key", "openai_api_key"), CHEAPEST_OPENAI, False),
+        ("goal", ("anthropic_api_key", "openai_api_key"), CHEAPEST_OPENAI, False),
+        # With only the writer's vendor a card's review falls back, as a second opinion does.
+        ("build", ("anthropic_api_key",), STRONGEST_ANTHROPIC, True),
+        ("reply", ("anthropic_api_key",), STRONGEST_ANTHROPIC, True),
+        # The review after a goal and a review of the changes do not: they are skipped with the reason.
+        ("goal", ("anthropic_api_key",), None, False),
+        ("changes", ("anthropic_api_key",), None, False),
+    ],
+)
+def test_one_rule_picks_the_reviewer_of_every_kind_of_review(client, source, keys, model, same_vendor):
+    add_keys(client, *keys)
+
+    plan = plan_reviewer(client, two_vendor_registry(Backend(), Backend()), {"anthropic"}, (), source)
+
+    assert (plan.choice.model if plan.choice else None) == model and plan.same_vendor is same_vendor
+    if model is None:
+        assert "another vendor than Anthropic" in (plan.reason or "") and "same vendor" not in (plan.reason or "")
 
 
 PRICING = ModelPricing(standard=PriceTier(input=10.0, output=40.0, cache_read=1.0, cache_write=12.0))

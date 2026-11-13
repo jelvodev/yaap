@@ -116,6 +116,9 @@ def reply_event(event: AgentEvent | dict[str, Any], reply: ReplyContent) -> tupl
         name = event.pop("event")
         if name == "steering":
             reply.blocks.append({"type": "steering", "text": event["text"]})
+        elif name == "plan_submitted":
+            # The plan card shows where the agent handed it over; the plan itself is read from its row.
+            reply.blocks.append({"type": "plan", "plan_id": event["plan_id"]})
         return name, event
     return None
 

@@ -27,10 +27,22 @@ function useBrowserTimezone() {
   }, []);
 }
 
-/** The old project page is now the Project tab of the chat's project panel. */
+/** The old project page: the project's board when it has the board on, else the Project tab of its panel. */
 function ProjectRedirect() {
   const { projectId } = useParams();
-  return <Navigate to={`/chat?project=${Number(projectId)}&panel=project`} replace />;
+  const id = Number(projectId);
+  const [boardEnabled, setBoardEnabled] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      setBoardEnabled(false);
+      return;
+    }
+    void api
+      .GET("/api/v1/projects/{project_id}", { params: { path: { project_id: id } } })
+      .then(({ data }) => setBoardEnabled(data?.board_enabled ?? false));
+  }, [id]);
+  if (boardEnabled === null) return null;
+  return <Navigate to={boardEnabled ? `/chat/projects/${id}` : `/chat?project=${id}&panel=project`} replace />;
 }
 
 function Pages() {
@@ -42,6 +54,12 @@ function Pages() {
       <Route path="/" element={<Navigate to="/chat" replace />} />
       <Route path="/chat" element={<ChatPage key={active.id} environment={active} />} />
       <Route path="/chat/:conversationId" element={<ChatPage key={active.id} environment={active} />} />
+      <Route path="/chat/waiting" element={<ChatPage key={active.id} environment={active} />} />
+      <Route path="/chat/projects/:projectId" element={<ChatPage key={active.id} environment={active} />} />
+      <Route
+        path="/chat/projects/:projectId/cards/:cardId"
+        element={<ChatPage key={active.id} environment={active} />}
+      />
       <Route path="/blueprint" element={<BlueprintPage />} />
       <Route path="/settings" element={<SettingsPage />} />
       <Route path="/settings/:section" element={<SettingsPage />} />

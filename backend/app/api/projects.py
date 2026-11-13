@@ -38,6 +38,7 @@ from app.credentials.store import read_credential_value
 from app.git.service import GitError
 from app.github.client import GitHubClient, GitHubError
 from app.blueprint.levels import layers_for
+from app.board.switch import board_enabled
 from app.presets.service import find_preset_by_name
 from app.checkpoints.service import remove_project_checkpoints
 from app.knowledge.service import remove_project_knowledge
@@ -81,7 +82,7 @@ from app.storage.models import (
 router = APIRouter(tags=["projects"])
 
 
-def project_to_out(project: Project) -> ProjectOut:
+def project_to_out(project: Project, session: Session) -> ProjectOut:
     return ProjectOut(
         id=project.id,
         environment_id=project.environment_id,
@@ -91,6 +92,7 @@ def project_to_out(project: Project) -> ProjectOut:
         default_agent=project.default_agent,
         default_preset=project.default_preset,
         created_at=project.created_at,
+        board_enabled=board_enabled(session, project.environment_id, project.id).enabled,
     )
 
 
@@ -99,7 +101,7 @@ def list_projects(environment: EnvironmentDependency, session: SessionDependency
     projects = session.scalars(
         select(Project).where(Project.environment_id == environment.id).order_by(Project.name)
     )
-    return [project_to_out(project) for project in projects]
+    return [project_to_out(project, session) for project in projects]
 
 
 @router.post("/environments/{environment_id}/projects", response_model=ProjectOut, status_code=status.HTTP_201_CREATED)
@@ -121,7 +123,7 @@ def create_project(
             project = create_empty_project(session, workspace_dir, environment, name)
     except (ProjectError, GitError, CredentialDecryptionError) as error:
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
-    return project_to_out(project)
+    return project_to_out(project, session)
 
 
 def project_from_template(
@@ -147,8 +149,8 @@ def project_from_template(
 
 
 @router.get("/projects/{project_id}", response_model=ProjectOut)
-def read_project(project: ProjectDependency) -> ProjectOut:
-    return project_to_out(project)
+def read_project(project: ProjectDependency, session: SessionDependency) -> ProjectOut:
+    return project_to_out(project, session)
 
 
 @router.patch("/projects/{project_id}", response_model=ProjectOut)
@@ -179,7 +181,7 @@ def update_project(
         project.default_preset = name
     project.updated_at = datetime.now(UTC)
     session.commit()
-    return project_to_out(project)
+    return project_to_out(project, session)
 
 
 @router.get("/projects/{project_id}/memory", response_model=ProjectMemoryOut)
@@ -533,4 +535,4 @@ def move_project_to_environment(
         session.rollback()
         undo_folder_move(workspace_dir, folder, old_folder)
         raise
-    return ProjectMoveOut(project=project_to_out(project), cleared=cleared)
+    return ProjectMoveOut(project=project_to_out(project, session), cleared=cleared)

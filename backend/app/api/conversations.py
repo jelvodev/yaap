@@ -41,6 +41,7 @@ from app.agent.outputs import OutputStore, remove_conversation_outputs
 from app.agent.shells import remove_conversation_shells
 from app.agent.runs import RunRegistry
 from app.agents.definitions import find_agent
+from app.board.links import visible_card
 from app.core.context_breakdown import context_used, last_main_usage
 from app.core.conversation_move import MoveBusy, MoveError, move_conversation
 from app.core.conversations import delete_conversation
@@ -308,6 +309,7 @@ def read_conversation(
         context_tokens=context_used(latest_usage),
         context_window=model.context_window if model else None,
         context_control=context_control_out(resolve_context_control(session, providers, conversation)),
+        card_id=visible_card(session, conversation),
         utility_events=[
             UtilityEventOut(
                 task=record.task,

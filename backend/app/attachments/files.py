@@ -19,6 +19,8 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 from xml.etree import ElementTree
 
+from app.core.skipped_folders import SKIPPED_FOLDERS
+
 MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 MAX_UNPACKED_BYTES = 500 * 1024 * 1024
 MAX_ARCHIVE_FILES = 5000
@@ -34,9 +36,9 @@ OFFICE_EXTENSIONS = {".docx", ".xlsx", ".pptx"}
 ARCHIVE_EXTENSIONS = {".zip"}
 NESTED_ARCHIVE_EXTENSIONS = {".zip", ".tar", ".gz", ".tgz", ".7z", ".rar", ".bz2", ".xz"}
 SKIPPED_ARCHIVE_ENTRIES = ("__MACOSX/", ".DS_Store", "Thumbs.db")
-# A folder attachment leaves these out, like the agent's file tools (SKIPPED_FOLDERS in app/agent/tools.py). The
-# browser already leaves them out; this keeps them out of an upload that did not.
-SKIPPED_FOLDER_NAMES = frozenset({".git", "node_modules", ".venv", "__pycache__", "dist", "build", ".next"})
+# A folder attachment leaves out the same folders as the agent's file tools. The browser already leaves them out;
+# this keeps them out of an upload that did not.
+SKIPPED_FOLDER_NAMES = SKIPPED_FOLDERS
 # Kinds whose files are unpacked under unpacked/ and read one by one with the attachment tools.
 UNPACKED_KINDS = ("archive", "folder")
 TEXT_EXTENSIONS = {

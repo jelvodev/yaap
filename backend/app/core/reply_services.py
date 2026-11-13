@@ -21,6 +21,8 @@ from app.core.utility import UtilityContext
 from app.credentials.crypto import CredentialCipher
 from app.credentials.types import CredentialType
 from app.mcp_client.manager import McpManager
+from app.board.service import BoardService
+from app.plans.service import PlanListeners, PlanService
 from app.providers.registry import ProviderRegistry
 from app.storage.models import Conversation
 from app.tracing.otlp_export import TelemetrySender
@@ -74,12 +76,20 @@ class ReplyServices:
     evals: ChatEvals | None = None
     # YAAP's data folder on the user's computer (app/sandbox/host_path.py); None when it is not known.
     host_data_dir: str | None = None
+    # The project boards; None when the application runs without its lifespan.
+    board: BoardService | None = None
+    # Who hears that a plan was submitted or approved (the builds' listeners: the card's route).
+    plan_listeners: PlanListeners | None = None
 
     @property
     def utility(self) -> UtilityContext:
         return UtilityContext(
             self.session_factory, self.cipher, self.credential_types, self.providers, self.blueprint_dir
         )
+
+    @property
+    def plans(self) -> PlanService:
+        return PlanService(self.session_factory, self.plan_listeners)
 
     @property
     def telemetry(self) -> TelemetrySender:
@@ -118,4 +128,6 @@ class ReplyServices:
             reviews_after_goals=getattr(state, "reviews_after_goals", True),
             evals=getattr(state, "evals", None),
             host_data_dir=getattr(state, "host_data_dir", None),
+            board=getattr(state, "board", None),
+            plan_listeners=state.builds.listeners if hasattr(state, "builds") else None,
         )
